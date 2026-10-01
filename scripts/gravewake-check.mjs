@@ -5054,7 +5054,7 @@ if (on("gfx1")) {
     const nA = agents.split(TAG).length - 1, nR = rules.split(TAG).length - 1;
     const atA = ["] C2: a selective outline", "] C1: up to 4 steps", "] C4, C6, C7, C9: below ground", "] C4: the light buffer"].filter((k) => !agents.includes(TAG.slice(0, -1) + k));
     const atR = ["] C4: a cave is now dark", "] C5 is approved", "] Built: lamp.png", "] C6: the light-buffer composite", "] C6: plus the light-buffer composite", "] Night: the vale takes a moon ambient"].filter((k) => !rules.includes(TAG.slice(0, -1) + k));
-    check("gfx1", "rules: the C1-C11 approval is recorded, dated and tagged, at each rule it changes: four notes in AGENTS.project.md (outline, shading, lighting, the light law) and six in GAME_LAYOUT_TWO (indoor/cave overlay, off-hand light, the lamp sheet, LightBlob, the shader list, night); with gfx2's two and two (checked in the gfx2 group) that is exactly six and eight", nA === 6 && nR === 8 && !atA.length && !atR.length, `${nA} ${nR} missing ${[...atA, ...atR].join(" | ")}`);
+    check("gfx1", "rules: the C1-C11 approval is recorded, dated and tagged, at each rule it changes: four notes in AGENTS.project.md (outline, shading, lighting, the light law) and six in GAME_LAYOUT_TWO (indoor/cave overlay, off-hand light, the lamp sheet, LightBlob, the shader list, night); with gfx2's two and one (the off-hand radius note became the owner's dated exception in gfx3) and gfx3's two and one (checked in their groups) that is exactly eight and eight", nA === 8 && nR === 8 && !atA.length && !atR.length, `${nA} ${nR} missing ${[...atA, ...atR].join(" | ")}`);
   }
 
   // The light model, Option A of the style doc.
@@ -5273,11 +5273,10 @@ if (on("gfx2")) {
       [agents, "- Palette: 12–20 colors total for this asset set.", "] C3 (batch 2): palette v2 adds exactly #9a8aa8, #2e2030 and #8a3a18"],
       [agents, "drop shadows that ignore the grid", "] Batch 2: every actor stands on a blob shadow"],
       [rules, "C5 is approved; batch 1 adds no moving light beyond the hero's.", "] C5 (batch 2): moving lights built"],
-      [rules, "Radius short: 3–5 tiles on 16-bit", "] Batch 2: the hero's light sprite is 96 px below ground and 72 px outdoors at night"],
     ];
     const miss = notes.filter(([l, r, n]) => !under(l, r, n)).map(([, , n]) => n);
-    const pool = rules.find((l) => l.includes("] Batch 2: the hero's light sprite")) ?? "";
-    check("gfx2", "rules: gfx2's four notes are dated and tagged, each on the line under the rule it touches (palette, drop shadows, C5 moving light, the off-hand radius), and the radius note gives the shipped lit pools (57 px, 3.5 tiles; 43 px, 2.7 tiles)", !miss.length && pool.includes(`${Math.round(D.litPool(D.LIGHT.hero))} px (3.5 tiles)`) && pool.includes(`${Math.round(D.litPool(D.LIGHT.heroNight))} px (2.7 tiles)`), miss.join(" | "));
+    const interim = [...rules, ...agents].some((l) => l.includes("] Batch 2: the hero's light sprite"));
+    check("gfx2", "rules: gfx2's three notes are dated and tagged, each on the line under the rule it touches (palette, drop shadows, C5 moving light); its interim off-hand radius note is gone, replaced by the owner's dated exception (checked in the gfx3 group)", !miss.length && !interim, miss.join(" | ") + (interim ? " | interim note still there" : ""));
   }
 
   // The owner's darkness pick (option c) and the moving lights.
@@ -5465,8 +5464,182 @@ if (on("gfx2")) {
   check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts and Gravewake.tsx are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && md5("src/game/Gravewake.tsx") === "12ba2ee592c8e09a8c014e64df3ed0b1");
 }
 
+if (on("gfx3")) {
+  // [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Batch 3, with the owner's 15:59 ET approvals: the hero
+  // light exception, brighter vale nights; ghost lights, the Deathbolt's light, #9a8aa8 walls, the harrow floor, glow masks.
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { inflateSync } = await import("node:zlib");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11]";
+  const EXC = "[OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px]";
+  const VALE = "[OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights]";
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const entry = join(dir, "gfx3.ts");
+  const root = process.cwd();
+  writeFileSync(entry, `export * from "${root}/src/game/draw.ts";\nexport * from "${root}/src/game/light.ts";\nexport { T, HERO_SPELLS } from "${root}/src/game/content.ts";\n`);
+  const file = join(dir, "gfx3.mjs");
+  execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const D = await import(pathToFileURL(file).href);
+  const L = D.LIGHT;
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
+  const pix = readFileSync("tools/pixel-writer/pixel_writer.py", "utf8");
+  const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
+  const lum = (c) => { const n = parseInt(c.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
+  const readPng = (f) => {
+    const b = readFileSync(f);
+    let o = 8, pw = 0, ph = 0;
+    const idat = [];
+    while (o < b.length) {
+      const len = b.readUInt32BE(o);
+      const kind = b.toString("ascii", o + 4, o + 8);
+      const data = b.subarray(o + 8, o + 8 + len);
+      if (kind === "IHDR") { pw = data.readUInt32BE(0); ph = data.readUInt32BE(4); if (data[9] !== 6 || data[8] !== 8) throw new Error(`${f} png type`); }
+      if (kind === "IDAT") idat.push(data);
+      o += 12 + len;
+    }
+    const raw = inflateSync(Buffer.concat(idat));
+    const stride = pw * 4, px = Buffer.alloc(pw * ph * 4);
+    for (let y = 0; y < ph; y++) {
+      const f0 = raw[y * (stride + 1)];
+      for (let x = 0; x < stride; x++) {
+        const v = raw[y * (stride + 1) + 1 + x];
+        const a = x >= 4 ? px[y * stride + x - 4] : 0, up = y > 0 ? px[(y - 1) * stride + x] : 0, c = x >= 4 && y > 0 ? px[(y - 1) * stride + x - 4] : 0;
+        let p = v;
+        if (f0 === 1) p = v + a; else if (f0 === 2) p = v + up; else if (f0 === 3) p = v + ((a + up) >> 1);
+        else if (f0 === 4) { const qq = a + up - c; const pa = Math.abs(qq - a), pb = Math.abs(qq - up), pc = Math.abs(qq - c); p = v + (pa <= pb && pa <= pc ? a : pb <= pc ? up : c); }
+        px[y * stride + x] = p & 255;
+      }
+    }
+    const at = (x, y) => { const k = (y * pw + x) * 4; return px[k + 3] ? `#${[0, 1, 2].map((j) => px[k + j].toString(16).padStart(2, "0")).join("")}` : null; };
+    const inks = new Set();
+    let soft = 0;
+    for (let k = 0; k < px.length; k += 4) { if (px[k + 3] && px[k + 3] !== 255) soft++; if (px[k + 3]) inks.add(`#${[0, 1, 2].map((j) => px[k + j].toString(16).padStart(2, "0")).join("")}`); }
+    return { pw, ph, px, at, soft, inks };
+  };
+  const pyCache = mkdtempSync(join(tmpdir(), "gravewake-pyc-"));
+  const py = (code, cwd = "tools/pixel-writer") => {
+    try { return JSON.parse(execFileSync("python3", ["-c", code], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PYTHONPYCACHEPREFIX: pyCache } })); }
+    catch (e) { return { error: String(e.stderr || e.message).trim().split("\n").pop() }; }
+  };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const canon = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+
+  // Brighter vale nights (the owner's 15:59 ET approval).
+  {
+    const v = L.worldNight, t = L.townNight;
+    check("gfx3", "light: brighter vale nights: the moon is [0.68, 0.72, 0.92] (up from [0.38, 0.42, 0.62] on every channel); blue still leads and red is lowest, and every channel stays below day, so it reads as night", same(v, [0.68, 0.72, 0.92]) && v[2] > v[1] && v[1] > v[0] && v.every((x) => x < 1) && [0.38, 0.42, 0.62].every((x, i) => v[i] > x), JSON.stringify(v));
+    check("gfx3", "light: the town's twilight is [0.74, 0.76, 0.96], lighter than the vale's moon on every channel (so town night stays lighter), blue leading, below day", same(t, [0.74, 0.76, 0.96]) && t.every((x, i) => x > v[i] && x < 1) && t[2] > t[1] && t[1] >= t[0], JSON.stringify(t));
+  }
+
+  // The rules carry the owner's two dated tags where the rules change.
+  {
+    const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8").split("\n");
+    const agents = readFileSync("AGENTS.project.md", "utf8").split("\n");
+    const under = (lines, rule, start) => lines.findIndex((l, i) => i > 0 && l.trim().startsWith(start) && lines[i - 1].includes(rule));
+    const all = [...rules, ...agents].join("\n");
+    const radius = under(rules, "Radius short: 3–5 tiles on 16-bit", EXC + " The hero's light is wider than the short radius above");
+    const law = under(rules, "Off-hand light is the only moving glow (3–5 tiles / 4–6 units).", EXC);
+    const ag = under(agents, TAG + " C4, C6, C7, C9: below ground", EXC);
+    const pool = radius >= 0 ? rules[radius] : "";
+    const agl = ag >= 0 ? agents[ag] : "";
+    const p96 = `${Math.round(D.litPool(L.hero))} px (3.5 tiles)`, p72 = `${Math.round(D.litPool(L.heroNight))} px (2.7 tiles)`;
+    check("gfx3", "rules: the hero light is the owner's dated exception, tagged [OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px], under the off-hand radius rule (with the 96/72 px sprite and the 57 px / 43 px lit pools), under the short law's 3-5 tiles and under AGENTS.project.md's lighting note; exactly three, and the interim batch-2 note is gone", radius >= 0 && law >= 0 && ag >= 0 && all.split(EXC).length - 1 === 3 && pool.includes(`96 px below ground and 72 px outdoors at night`) && pool.includes(p96) && pool.includes(p72) && agl.includes("96 px below ground and 72 px outdoors at night") && agl.includes("57 px (3.5 tiles) and 43 px (2.7 tiles)") && L.hero === 96 && L.heroNight === 72 && !all.includes("] Batch 2: the hero's light sprite"), `${radius} ${law} ${ag}`);
+    const fmt = (a) => `[${a.join(", ")}]`;
+    const night = under(rules, TAG + " Night: the vale takes a moon ambient", VALE);
+    const nl = night >= 0 ? rules[night] : "";
+    check("gfx3", "rules: brighter vale nights is dated and tagged [OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights] on the line under the night rule, and gives the shipped moon and town values (read from light.ts) and the old ones; once only", night >= 0 && all.split(VALE).length - 1 === 1 && nl.includes(`${fmt(L.worldNight)}, up from [0.38, 0.42, 0.62]`) && nl.includes(`${fmt(L.townNight)}, up from [0.5, 0.5, 0.7]`), `${night} ${nl.slice(0, 80)}`);
+    const c5 = under(rules, TAG + " C5 (batch 2): moving lights built", TAG + " C5 (batch 3): ghosts");
+    const c3 = under(agents, TAG + " C3 (batch 2): palette v2", TAG + " C3 (batch 3): the ossuary and harrow walls take palette v2's #9a8aa8");
+    const em = under(agents, EXC, TAG + " Batch 3 glow masks:");
+    const c5l = c5 >= 0 ? rules[c5] : "";
+    check("gfx3", "rules: batch 3's own notes are dated and tagged, each under the note it extends: C5 (batch 3) ghost lights (40 px, 56 a boss, none on the Death Shade) and the Deathbolt's hex light; C3 (batch 3) #9a8aa8 walls and the harrow's own floor (slab #8a6858); the glow masks (the mimic has none)", c5 >= 0 && c3 >= 0 && em >= 0 && c5l.includes(`${L.ghost} px and ${L.ghostBoss} px on a boss`) && c5l.includes("the Death Shade has none") && c5l.includes("lights hex violet") && agents[c3].includes("slab #8a6858") && agents[em].includes("the mimic has none"), `${c5} ${c3} ${em}`);
+  }
+
+  // Ghost lights (C5) on a real game.
+  {
+    check("gfx3", "light: a ghost's light is 40 px (56 px a ghost boss), both radius buckets, both smaller than the hero's light below ground and outdoors at night", L.ghost === 40 && L.ghostBoss === 56 && L.buckets.includes(L.ghost) && L.buckets.includes(L.ghostBoss) && L.ghostBoss < L.heroNight && L.ghost < L.ghostBoss);
+    const g = fresh();
+    g.enterDungeon("ossuary");
+    g.spells = [];
+    const at = (def, family, dx, boss) => ({ id: `t-${def}-${dx}`, def, x: g.px + dx, y: g.py, boss, family, tint: "#c5d4e8", level: 1, ang: 0 });
+    g.roamers = [at("ghost", "ghost", 24, false), at("bride", "ghost", -40, true), at("shade", "ghost", 30, true), at("rat", "rat", -20, false)];
+    if (g.fog) g.roamers.forEach((r) => (g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] = 2));
+    const ls = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
+    const find = (dx) => ls.filter((l) => l.x === g.px + dx);
+    const [mob] = find(24), [boss] = find(-40);
+    const ok = !!mob && mob.r === 40 && mob.y === g.py - 12 && !mob.flick && same(mob.c, D.LIGHTS.ghost) && !!boss && boss.r === 56 && boss.y === g.py - 22 && !boss.flick && same(boss.c, D.LIGHTS.ghost) && !find(30).length && !find(-20).length && ls[0].r === L.hero && find(24).length === 1;
+    let dark = false;
+    if (g.fog) { g.fog[Math.floor(g.py / TILE) * g.w + Math.floor((g.px + 24) / TILE)] = 0; dark = !D.sceneLights(g, g.px - 120, g.py - 80, 240, 160).some((l) => l.x === g.px + 24); }
+    const ids = readFileSync("src/game/content.ts", "utf8");
+    check("gfx3", "C5: ghosts carry a cold, steady ghost light (a Ghost 40 px at the head, a ghost boss 56 px higher up, no flicker), the Death Shade none (shades are negative light), other foes none, none on unexplored rock; the hero's torch stays first", ok && dark && ['id: "ghost", name: "Ghost", family: "ghost"', 'id: "shade", name: "Death Shade", family: "ghost"', 'id: "bride", name: "Gallows Bride", family: "ghost"'].every((s) => ids.includes(s)) && /if \(r\.family !== "ghost" \|\| r\.def === "shade"\) continue;/.test(draw), JSON.stringify(ls.slice(0, 5).map((l) => [Math.round(l.x - g.px), Math.round(l.y - g.py), l.r, l.flick])));
+  }
+
+  // The Deathbolt's light matches its purple (C11).
+  {
+    const pairs = [...Object.values(D.HERO_SPELLS).map((s) => [s.shape, s.color]), ["mend", "#d0e4ff"], ["bolt", "#6a8a48"], ["bolt", "#6a3a8a"], ["ring", "#f4e27a"], ["bolt", "#f4e27a"], ["ring", "#6a3a8a"], ["mend", "#6a3a8a"], ["ring", "#d8b090"], ["bolt", "#3a6aa8"]];
+    const got = Object.fromEntries(pairs.map(([k, c]) => [`${k} ${c}`, D.spellStrip(k, c)]));
+    const want = { "ring #c4a050": "orb", "nova #8a6844": "nova", "cone #c43838": "fire-rain", "bolt #c43838": "beam-fire", "bolt #6a3a8a": "beam-shadow", "ring #6a8a48": "orb", "nova #2a241c": "nova", "ring #f4e27a": "orb", "bolt #e8dcc8": "beam-holy", "bolt #6a8a48": "beam-venom", "cone #c4a050": "fire-rain", "nova #1a140c": "nova", "mend #d0e4ff": "orb", "bolt #f4e27a": "lightning", "ring #6a3a8a": "orb", "mend #6a3a8a": "orb", "ring #d8b090": "orb", "bolt #3a6aa8": "beam-ice" };
+    const bad = Object.keys(want).filter((k) => got[k] !== want[k]);
+    check("gfx3", "C11: the Deathbolt (#6a3a8a, the hero's and the companion's drain) draws the shadow beam and lights hex violet, like its purple; every other spell colour keeps its gfx2 strip (an ice bolt is still ice)", !bad.length && Object.keys(got).length === Object.keys(want).length && D.HERO_SPELLS.Deathbolt.color === "#6a3a8a" && D.SPELL_EMITS["beam-shadow"] === "hex" && D.SPELL_EMITS["beam-ice"] === "ghost" && /\/\/ the shadow beam and lights hex violet \(C11\)[^\n]*\n {2}if \(r > g \+ 25 && b > g \+ 25 && b > 70\) return "shadow";\n {2}if \(b > r \+ 10 && b > g\) return "ice";/.test(draw), bad.map((k) => `${k}=${got[k]}`).join(", "));
+    const g = fresh();
+    g.enterDungeon("ossuary");
+    g.spells = [];
+    g["bolt"](g.px, g.py - 12, g.px + 64, g.py - 10, "bolt", "#6a3a8a");
+    const ls = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
+    const hit = ls.find((l) => Math.abs(l.x - (g.px + 32)) < 0.01 && Math.abs(l.y - (g.py - 11)) < 0.01);
+    check("gfx3", "C5: a Deathbolt in flight (the sim's own bolt) lights the world hex violet at its mid-beam, 56 px, steady", !!hit && hit.r === 56 && same(hit.c, D.LIGHTS.hex) && !hit.flick, JSON.stringify(hit));
+  }
+
+  // #9a8aa8 walls and the harrow's own floor (C1, C3).
+  {
+    const wr = JSON.parse(readFileSync("tools/pixel-writer/wall-ramps.json", "utf8"));
+    const fr = JSON.parse(readFileSync("tools/pixel-writer/floor-ramps.json", "utf8"));
+    const re = py("import json, sys\nsys.path.append('../sprite-writer')\nfrom palette_locked import LOCKED, LOCKED_V2\nimport make_gravewake as m\nfrom pixel_writer import wall_ramp, floor_ramp\nw = {k: m.WALL_FIXED.get(k) or wall_ramp(a, b, LOCKED) for k, (a, b) in m.WALLS.items()}\nf = {k: m.FLOOR_FIXED.get(k) or floor_ramp(m.CAVES[k][0], w[k], LOCKED_V2, **m.FLOOR_TUNE.get(k, {})) for k in m.CAVES}\nprint(json.dumps({'w': w, 'f': f, 'crypt': m.RAMPS['crypt'], 'tune': m.FLOOR_TUNE}))");
+    const crypt = ["#1a1430", "#2a1c30", "#3a2a44", "#4a3a58", "#6a5878", "#9a8aa8"];
+    const harrowW = ["#101014", "#1a2030", "#2a3140", "#3c4652", "#5a6878", "#9a8aa8"];
+    const lipped = Object.entries(wr).filter(([, r]) => r[5] === "#9a8aa8").map(([k]) => k).sort();
+    const sheets = ["ossuary", "harrow"].every((k) => { const im = readPng(`public/art/writer/wall-${k}.png`); return im.inks.has("#9a8aa8") && !im.inks.has("#9a958e") && !im.soft && wr[k].every((c) => im.inks.has(c)) && [...im.inks].every((c) => locked.has(c)); });
+    check("gfx3", "art: the ossuary's walls are the doc's crypt ramp (its #9a8aa8 bright lip, palette v2) and the harrow's keep their blue-grey steps with the #9a8aa8 lip in place of the warm #9a958e; only those two; both sheets carry #9a8aa8, no #9a958e, every ink in palette v2; the writer's wall guard is palette v2", !re.error && same(wr.ossuary, crypt) && same(wr.harrow, harrowW) && same(re.crypt.slice(0, 6), crypt) && same(lipped, ["harrow", "ossuary"]) && sheets && /WALL_FIXED = \{"ossuary": RAMPS\["crypt"\]\[0:6\],/.test(writer) && /ramp = WALL_FIXED\.get\(name\) or wall_ramp\(wall, hi, LOCKED\)/.test(writer) && /not in LOCKED_V2:\n {16}raise SystemExit\(f"gfx1 sheet color/.test(writer), re.error || lipped.join());
+    check("gfx3", "art: wall-ramps.json and floor-ramps.json are exactly what the writer makes now (every cave's walls and floor re-derived from make_gravewake.py and pixel_writer.py), so no ramp was hand-edited", !re.error && canon(re.w) === canon(wr) && canon(re.f) === canon(fr), re.error || "differ");
+    const slabs = Object.entries(fr).map(([k, r]) => [k, r[4]]);
+    const hs = fr.harrow[4];
+    check("gfx3", "art: the harrow has its own floor: its warm earth hue at full strength (no pull to grey), slab #8a6858 two-plus steps (34) over its wall, no longer the ossuary's grey; its slab and its ramp match no other cave; the other caves' floors keep their gfx2 default (a 0.3 pull toward grey)", !re.error && same(fr.harrow, ["#1c1418", "#3a3030", "#5a463c", "#6e5e4c", "#8a6858", "#a08860"]) && slabs.filter(([, s]) => s === hs).length === 1 && new Set(Object.values(fr).map((r) => r.join())).size === Object.keys(fr).length && lum(hs) - lum(wr.harrow[3]) >= 34 && same(re.tune, { harrow: { gap: 34.0, pull: 0.0 } }) && /def floor_ramp\(hint: str, wall_ramp_: list\[str\], palette, gap: float = 30\.0, pull: float = 0\.3\)/.test(pix) && /want = tuple\(round\(h\[i\] \+ \(grey - h\[i\]\) \* pull\) for i in range\(3\)\)/.test(pix) && readPng("public/art/writer/floor-harrow.png").inks.has(hs), slabs.map((s) => s.join(":")).join(" "));
+  }
+
+  // Glow masks: the eyes, lanterns and sparks stay lit in the dark.
+  {
+    const EM = ["#f4e27a", "#fff8e0", "#e0a040"];
+    const bad = [];
+    for (const n of ["foes", "pumpkin-lord", "krampus"]) {
+      const s = readPng(`public/art/sprites/${n}.png`), e = readPng(`public/art/sprites/${n}_em.png`);
+      let kept = 0, miss = 0, wrong = 0;
+      if (s.pw !== e.pw || s.ph !== e.ph || e.soft) { bad.push(`${n} size/soft`); continue; }
+      for (let y = 0; y < s.ph; y++) for (let x = 0; x < s.pw; x++) {
+        const a = s.at(x, y), b = e.at(x, y), solid = s.px[(y * s.pw + x) * 4 + 3] === 255;
+        if (b) { kept++; if (b !== a || !EM.includes(b)) wrong++; }
+        else if (solid && EM.includes(a)) miss++;
+      }
+      if (!kept || miss || wrong) bad.push(`${n} kept ${kept} miss ${miss} wrong ${wrong}`);
+    }
+    const w = py("import json\nimport make_gravewake as m\nprint(json.dumps({'c': list(m.EM_COLOURS), 's': list(m.EM_SOURCES)}))");
+    check("gfx3", "art: glow masks for foes.png, pumpkin-lord.png and krampus.png: the same size, hard pixels, every pixel the source's own and one of the three flame and eye colours (#f4e27a, #fff8e0, #e0a040), and every such source pixel kept; none for the mimic; the writer and the game name the same colours and sheets", !bad.length && !w.error && same(w.c, EM) && same([...D.EM_COLOURS], EM) && same(w.s, ["foes", "pumpkin-lord", "krampus"]) && same(Object.entries(D.EM_SHEETS).sort(), w.s.map((n) => [`/art/sprites/${n}.png`, `/art/sprites/${n}_em.png`]).sort()) && !existsSync("public/art/sprites/mimic_em.png"), w.error || bad.join(", "));
+    const made = py("import json, hashlib\nfrom PIL import Image\nimport make_gravewake as m\nprint(json.dumps({n: hashlib.md5(m.em_mask(Image.open(f'../../public/art/sprites/{n}.png')).tobytes()).hexdigest() == hashlib.md5(Image.open(f'../../public/art/sprites/{n}_em.png').convert('RGBA').tobytes()).hexdigest() for n in m.EM_SOURCES}))");
+    check("gfx3", "art: each glow mask is exactly what the pixel writer's em_mask makes from its sheet today (re-derived, pixel for pixel), so no mask was hand-painted or left stale", !made.error && same(Object.keys(made), ["foes", "pumpkin-lord", "krampus"]) && Object.values(made).every((v) => v === true), made.error || JSON.stringify(made));
+    const sc = draw.slice(draw.indexOf("function sheetCell("), draw.indexOf("ctx.drawImage(im, col * stride", draw.indexOf("function sheetCell(")));
+    const loop = draw.slice(draw.indexOf("for (const r of g.roamers) {\n    const sc = scaleFor"), draw.indexOf("for (const c of g.critters) {"));
+    check("gfx3", "draw: in the glow pass sheetCell draws a sheet's mask instead (or nothing, never a painted body); each foe drawn from a masked sheet pushes its body to the full-light glow list, not on unexplored rock, and the pass is always switched off again; masks are preloaded with the sheets", /if \(emPass\) \{\n[^\n]*\n {4}const em = EM_SHEETS\[url\];\n {4}if \(!em\) return true;\n {4}url = em;\n {2}\}/.test(sc) && /if \(!im\.complete \|\| im\.naturalWidth === 0\) return emPass;/.test(sc) && /if \(hasGlowMask\(r\.family\) && !\(g\.fog && g\.fog\[Math\.floor\(r\.y \/ TILE\) \* g\.w \+ Math\.floor\(r\.x \/ TILE\)\] === 0\)\) \{\n {6}glow\.push\(\(c\) => \{\n {8}emPass = true;\n {8}try \{\n {10}body\(c\);\n {8}\} finally \{\n {10}emPass = false;\n {8}\}/.test(loop) && (draw.match(/emPass = true/g) || []).length === 1 && draw.includes("...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), "));
+    const fams = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+    check("gfx3", "draw: only foes whose body comes off a masked sheet glow: the 17 foes.png families, the Pumpkin Lord and Krampus; never the mimic or a painted fallback family", fams.every((f) => D.hasGlowMask(f)) && D.hasGlowMask("pumpkinlord") && D.hasGlowMask("krampus") && !D.hasGlowMask("mimic") && !D.hasGlowMask("imp") && !D.hasGlowMask("spider") && /const families = FOE_FAMILIES;/.test(draw));
+  }
+
+  // Nothing in play changed.
+  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts and Gravewake.tsx are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && md5("src/game/Gravewake.tsx") === "12ba2ee592c8e09a8c014e64df3ed0b1");
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

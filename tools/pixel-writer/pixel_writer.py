@@ -1358,15 +1358,16 @@ def portal_gate(part: int, pal: dict) -> Canvas:
 # single / split / offset / broken / big 2x2 grave slab, and a separate decal strip. Every colour is passed in.
 
 
-def floor_ramp(hint: str, wall_ramp_: list[str], palette, gap: float = 30.0) -> list[str]:
+def floor_ramp(hint: str, wall_ramp_: list[str], palette, gap: float = 30.0, pull: float = 0.3) -> list[str]:
     """Six floor steps, dark to light, from the palette: 0 hole and deep crack, 1 crack and rubble shadow,
     2 bottom bevel (-2), 3 right bevel and clusters (-1), 4 the slab, 5 top/left bevel (+1). The slab keeps the
     cave's own floor hue (pulled 30% toward grey, so floors read as stone against the walls) and sits at least
-    `gap` luminance (two ramp steps) above the wall's base, so floor and wall separate (doc: at least 2 steps)."""
+    `gap` luminance (two ramp steps) above the wall's base, so floor and wall separate (doc: at least 2 steps).
+    `pull` is how far the hue goes toward grey (0.3 by default; 0 keeps the cave's own hue at full strength)."""
     pal = sorted({c.lower() for c in palette})
     h = _hex3(hint)
     grey = sum(h) / 3
-    want = tuple(round(h[i] + (grey - h[i]) * 0.3) for i in range(3))
+    want = tuple(round(h[i] + (grey - h[i]) * pull) for i in range(3))
     floor_lum = _lum(wall_ramp_[3]) + gap
 
     def dist(a, b):

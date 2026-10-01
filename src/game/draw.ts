@@ -64,6 +64,13 @@ function px(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
  * The pack allows use in a game. Credit is in public/art/land/CREDITS.txt.
  */
 const landSheet: Partial<Record<string, HTMLImageElement>> = {};
+/** gfx3 glow masks (C4/C9: emissives stay at full light under the light layer): the pixel writer's
+ * emissive copy of a sprite sheet (only its flame and eye pixels: #f4e27a, #fff8e0, #e0a040). While emPass is on,
+ * sheetCell draws the mask instead, so a foe's eyes, lantern face and cast sparks go to full light in the dark.
+ * The mimic has no mask on purpose: glowing eyes on a chest would give it away. */
+export const EM_SHEETS: Record<string, string> = { "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
+export const EM_COLOURS = ["#f4e27a", "#fff8e0", "#e0a040"] as const;
+let emPass = false;
 // Load the crowd looks up front so a town NPC never starts on look 0 and then swaps.
 if (typeof Image !== "undefined") {
   const crowd = new Image();
@@ -82,13 +89,19 @@ function sheetCell(
   stride = 16,
 ): boolean {
   if (typeof Image === "undefined") return false;
+  if (emPass) {
+    // gfx3 glow masks: draw the sheet's emissive mask instead, or nothing; never fall back to a painted body.
+    const em = EM_SHEETS[url];
+    if (!em) return true;
+    url = em;
+  }
   let im = landSheet[url];
   if (!im) {
     im = new Image();
     im.src = url;
     landSheet[url] = im;
   }
-  if (!im.complete || im.naturalWidth === 0) return false;
+  if (!im.complete || im.naturalWidth === 0) return emPass;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(im, col * stride, row * stride, w * 16, h * 16, dx, dy, w * 16, h * 16);
   return true;
@@ -895,7 +908,7 @@ function paintBossTrophy(ctx: CanvasRenderingContext2D, family: string, x: numbe
   ctx.drawImage(im, col * 16 + 3, TROPHY_HEAD_TOP[family] ?? 0, 10, 10, x * TILE + 3, y * TILE + 2, 10, 10);
 }
 if (typeof Image !== "undefined") {
-  for (const url of [FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "trees", "town-trees"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
+  for (const url of [FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "trees", "town-trees"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -1258,6 +1271,15 @@ if (scratch) {
 }
 
 /** Dispatch a foe to paintMonster, including bosses and their smaller remnants. */
+/** The families on /art/sprites/foes.png, in sheet order (4 ranks x 11 poses each). */
+const FOE_FAMILIES = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+/** gfx3: a roamer whose body is drawn from a sheet with a glow mask. Anything else would fall back to painted pixels. */
+export function hasGlowMask(family: string): boolean {
+  const fest = FESTIVAL_SHEETS[family];
+  if (fest) return !!EM_SHEETS[fest];
+  return FOE_FAMILIES.includes(family);
+}
+
 function monsterSprite(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -1295,7 +1317,7 @@ function paintMonster(
   ctx.translate(Math.round(x), Math.round(y));
   ctx.scale(pixelScale, pixelScale);
   ctx.translate(-8, -20);
-  const families = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+  const families = FOE_FAMILIES;
   const ranks = ["mob", "boss", "mini", "rare"];
   const fi = families.indexOf(family);
   if (FESTIVAL_SHEETS[family] && sheetCell(ctx, FESTIVAL_SHEETS[family], poseCol(pose || (moving ? "walk" : "stand"), frame, phase), 0, 0, -12, 1, 2, 16)) {
@@ -1931,6 +1953,14 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (g.fog && g.fog[ti] === 0) continue;
     out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.flameBoss : LIGHT.flameFoe, c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true });
   }
+  // gfx3: ghosts glow cold and steady (ghost light, no flicker), bigger on a boss; none on unexplored rock.
+  // The Death Shade stays lightless (the law: shades are negative light).
+  for (const r of g.roamers) {
+    if (r.family !== "ghost" || r.def === "shade") continue;
+    const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
+    if (g.fog && g.fog[ti] === 0) continue;
+    out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.ghostBoss : LIGHT.ghost, c: LIGHTS.ghost, seed: 0, flick: false });
+  }
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
   const hero = seen.shift()!;
   seen.sort((a, b) => Math.hypot(a.x - g.px, a.y - g.py) - Math.hypot(b.x - g.px, b.y - g.py));
@@ -2377,6 +2407,17 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         }
       },
     });
+    // gfx3 glow mask: the eyes, lantern face and sparks stay lit in the dark. Not on unexplored rock.
+    if (hasGlowMask(r.family) && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) {
+      glow.push((c) => {
+        emPass = true;
+        try {
+          body(c);
+        } finally {
+          emPass = false;
+        }
+      });
+    }
   }
   for (const c of g.critters) {
     props.push({
@@ -2696,6 +2737,9 @@ function spellElement(color: string): string {
   const b = parseInt(h.slice(4, 6), 16);
   if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return "lightning";
   if (g > r + 15 && g >= b) return "venom";
+  // gfx3: a purple (red and blue both well over green, like the Deathbolt's #6a3a8a) is shadow, not ice, so it draws
+  // the shadow beam and lights hex violet (C11). Only purples move: every other spell colour keeps its element.
+  if (r > g + 25 && b > g + 25 && b > 70) return "shadow";
   if (b > r + 10 && b > g) return "ice";
   if (r > 150 && r > g + 25 && r > b + 25) return "fire";
   if (b > 70 && r > 60 && r > g && b + 15 > g) return "shadow";

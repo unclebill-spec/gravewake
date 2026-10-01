@@ -177,12 +177,22 @@ PORTALS = {
 }
 
 
+# Batch 3 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11, C1/C3): the two violet-grey stone caves take
+# palette v2's #9a8aa8 as the bright lip of their walls in place of the warm #9a958e. The ossuary takes the doc's
+# crypt ramp whole; the harrow keeps its own blue-grey steps. Steps 3 and 4 stay the cave's wall and rim colours.
+WALL_FIXED = {"ossuary": RAMPS["crypt"][0:6],
+              "harrow": ["#101014", "#1a2030", "#2a3140", "#3c4652", "#5a6878", "#9a8aa8"]}
+
+
 def gfx1_sheets() -> list:
     """Wall kits, the lamp sheet and the portal gates. Returns every image so the palette can be checked."""
     made = []
     ramps = {}
+    lum = lambda c: 0.299 * int(c[1:3], 16) + 0.587 * int(c[3:5], 16) + 0.114 * int(c[5:7], 16)
     for name, (wall, hi) in WALLS.items():
-        ramp = wall_ramp(wall, hi, LOCKED)
+        ramp = WALL_FIXED.get(name) or wall_ramp(wall, hi, LOCKED)
+        if ramp[3] != wall or ramp[4] != hi or any(lum(ramp[i]) >= lum(ramp[i + 1]) for i in range(5)):
+            raise SystemExit(f"wall ramp for {name} must be strictly lighter and keep {wall}/{hi} at steps 3/4: {ramp}")
         ramps[name] = ramp
         h = WALL_FACE_H.get(name, 24)
         feat = WALL_FEATURE.get(name, "crack")
@@ -209,8 +219,8 @@ def gfx1_sheets() -> list:
             r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
             if a and a != 255:
                 raise SystemExit("gfx1 sheet has a soft pixel")
-            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED:
-                raise SystemExit(f"gfx1 sheet color #{r:02x}{g:02x}{b:02x} is not in the locked palette")
+            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V2:
+                raise SystemExit(f"gfx1 sheet color #{r:02x}{g:02x}{b:02x} is not in palette v2")
     return made
 
 
@@ -221,6 +231,9 @@ def gfx1_sheets() -> list:
 # the doc's cool grey flag ramp against its violet crypt walls; every other cave keeps its own floor hue.
 FLOOR_FIXED = {"ossuary": RAMPS["flag"][0:1] + RAMPS["flag"][2:]}
 FLOOR_GAP = 28  # luminance between the wall's base and the slab: two ramp steps (doc: "at least 2 steps")
+# Batch 3: the harrow had the same grey floor as the ossuary. It keeps its own warm earth hue at full strength
+# (no pull toward grey) and sits a little higher over its wall, so its slab is #8a6858, unlike any other cave.
+FLOOR_TUNE = {"harrow": {"gap": 34.0, "pull": 0.0}}
 EMBER_CAVES = ("wick", "hearth", "warren")
 GROWTH = {"moss": ["#1e3a28", "#2f6a44", "#4a8a48"], "ember": ["#3a1810", "#8a3a18", "#c45a18"]}
 DECALS = ["bones", "skull", "crack", "moss", "wax", "rubble"]
@@ -232,7 +245,7 @@ def gfx2_sheets() -> list:
     walls = json.loads((Path(__file__).resolve().parent / "wall-ramps.json").read_text())
     ramps = {}
     for name in CAVES:
-        ramp = FLOOR_FIXED.get(name) or floor_ramp(CAVES[name][0], walls[name], LOCKED_V2)
+        ramp = FLOOR_FIXED.get(name) or floor_ramp(CAVES[name][0], walls[name], LOCKED_V2, **FLOOR_TUNE.get(name, {}))
         lum = lambda c: 0.299 * int(c[1:3], 16) + 0.587 * int(c[3:5], 16) + 0.114 * int(c[5:7], 16)
         if any(lum(ramp[i]) >= lum(ramp[i + 1]) for i in range(5)):
             raise SystemExit(f"floor ramp for {name} is not strictly lighter step by step: {ramp}")
@@ -258,6 +271,37 @@ def gfx2_sheets() -> list:
                 raise SystemExit("gfx2 sheet has a soft pixel")
             if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V2:
                 raise SystemExit(f"gfx2 sheet color #{r:02x}{g:02x}{b:02x} is not in palette v2")
+    return made
+
+
+# Batch 3 glow masks (C4/C9: emissives stay at full light). A copy of a sprite sheet that keeps only its flame and
+# eye pixels; the game draws it at full light over the dark. The mimic gets none: glowing eyes would give it away.
+EM_COLOURS = ("#f4e27a", "#fff8e0", "#e0a040")
+EM_SOURCES = ("foes", "pumpkin-lord", "krampus")
+
+
+def em_mask(src: Image.Image) -> Image.Image:
+    """The glow mask of one sheet: its solid flame and eye pixels, everything else clear."""
+    keep = {tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in EM_COLOURS}
+    src = src.convert("RGBA")
+    em = Image.new("RGBA", src.size, (0, 0, 0, 0))
+    sp, ep = src.load(), em.load()
+    for y in range(src.size[1]):
+        for x in range(src.size[0]):
+            r, g, b, a = sp[x, y]
+            if a == 255 and (r, g, b) in keep:
+                ep[x, y] = (r, g, b, 255)
+    return em
+
+
+def gfx3_sheets() -> list:
+    """Glow masks, from the sprite writer's sheets in public/art/sprites. Returns every mask."""
+    made = []
+    sprites = OUT.parent / "sprites"
+    for name in EM_SOURCES:
+        em = em_mask(Image.open(sprites / f"{name}.png"))
+        em.save(sprites / f"{name}_em.png")
+        made.append(em)
     return made
 
 
@@ -327,6 +371,8 @@ def main() -> None:
     print(f"gfx1 sheets {len(gfx)}, palette locked")
     floors = gfx2_sheets()
     print(f"gfx2 sheets {len(floors)}, palette v2 locked")
+    masks = gfx3_sheets()
+    print(f"gfx3 glow masks {len(masks)}")
     print(f"wrote {OUT}")
 
 

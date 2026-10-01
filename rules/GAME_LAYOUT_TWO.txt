@@ -159,8 +159,10 @@ GLOW AND LIGHTING
 Full paste-ready prompt lives in GAME_LAYOUT_ONE_LIGHTING_PROMPT.txt.
 Short law: local cheap glow only. Playfield, not HUD. cycleT drives sun; lamps own night.
 Off-hand light is the only moving glow (3–5 tiles / 4–6 units). Vampire eyes at night.
+  [OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px] The hero's light is 96 px below ground and 72 px outdoors at night (see PLAYER LIGHT).
   [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C5 is approved; batch 1 adds no moving light beyond the hero's. Wall torches, door lamps, festival lights and the rift gate flicker in place.
   [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C5 (batch 2): moving lights built: spells and bolts in flight (yours, your companion's and theirs) light the world in their spell strip's emits colour (C11), and flame foes (Lantern Man, Lantern King, Pumpkin Lord, Headless Horseman) carry a flickering pumpkin glow. All inside the 24-light budget, nearest first, the hero always first.
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C5 (batch 3): ghosts (Ghost, Undead Priest, Gallows Bride, Drowned Tzar) carry a cold, steady ghost light, 40 px and 56 px on a boss; the Death Shade has none (shades are negative light). The Deathbolt's purple now reads as shadow, so it lights hex violet like its strip (C11). Foes' flame and eye pixels stay at full light through glow masks (public/art/sprites/*_em.png); the mimic has none.
 Place: warm windows + hearth at home; warm lamp punches on living streets; bio-glow in
 grove/fen; ember-only in wastes; cave threshold to #1c1814; cold barrow; one color per
 elemental gate; Sovereign lamps-out is the only cinematic beat.
@@ -817,7 +819,7 @@ Glow is local and cheap. Pixel titles: 1–2 extra shade steps around a lamp, ne
 
 PLAYER LIGHT
 Off-hand slot is the only moving glow (torch / lantern / hex globe). Radius short: 3–5 tiles on 16-bit, 4–6 units on 32-bit. Vampire form: eye glow is enough at night; sun is the threat, not the dark. Sun charm may tick faint gold on the portrait at dawn only — no world bloom.
-[OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Batch 2: the hero's light sprite is 96 px below ground and 72 px outdoors at night (the owner's darkness pick, for phone legibility). The radius the law means is the lit pool it visibly lifts (band 1 and up, light.ts litPool): 57 px (3.5 tiles) below ground, 43 px (2.7 tiles) outdoors, so it stays short.
+[OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px] The hero's light is wider than the short radius above, by the owner's approval (for phone legibility): its light sprite is 96 px below ground and 72 px outdoors at night (src/game/light.ts LIGHT.hero, LIGHT.heroNight). The lit pool it visibly lifts (band 1 and up, light.ts litPool) is 57 px (3.5 tiles) below ground and 43 px (2.7 tiles) outdoors.
 
 PLACE LIGHT
 Homestead / Blightacre: hut windows warm after cycleT > 0.7. Well gets a thin moon sliver, not a spotlight. Hearth is the strongest indoor pool — 3-step orange, 2–3 frame flicker. Sleep-until-dawn snaps lights off.
@@ -834,6 +836,7 @@ Use existing ember-orb and slash sheets. Crit = one extra slash frame, not a scr
 WEATHER × LIGHT
 Rain: 1-px wet cap on lamps; streaks stay dark. Ash: orange specks are the motes. Fog: hide distant lamps, keep near ones. Snow: moonlight only. Indoor / cave mutes the overlay.
 [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Night: the vale takes a moon ambient; the town keeps a lighter twilight with a lamp at every lit door and the festival lights; a cave's own darkness replaces the muted overlay.
+[OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights] The vale's moon ambient is [0.68, 0.72, 0.92], up from [0.38, 0.42, 0.62]; blue still leads, so it reads as night. The town's twilight is [0.74, 0.76, 0.96], up from [0.5, 0.5, 0.7], so it stays lighter than the vale on every channel (src/game/light.ts LIGHT.worldNight, LIGHT.townNight).
 
 ASSETS TO BUILD FIRST
 4-frame lamp flicker sheet at native size. 2-frame off-hand light blob at native size. Nearest-neighbor only. No new face buttons. No second weather widget.

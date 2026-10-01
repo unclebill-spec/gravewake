@@ -1,5 +1,5 @@
 /**
- * Core Keeper-style graphics pass, batches 1-2 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11).
+ * Core Keeper-style graphics pass, batches 1-3 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11).
  * The light layer, Option A of style/STYLE_TARGET_core_keeper.md section 6: a native-size light canvas filled
  * with the scene ambient, pre-baked light sprites added with "lighter", composited over the world with
  * "multiply". Emissives (flames, the portal vortex) and telegraphs are drawn after it.
@@ -34,10 +34,10 @@ export const LIGHT = {
   flicker: [0, -1, 0, 1],
   /** Lights per frame, nearest first (the doc's budget per room). */
   budget: 24,
-  /** The hero's light: a carried torch below ground, a lantern outdoors at night. gfx2 (the owner's darkness pick,
-   * 2026-10-01, for phone legibility): 96 below ground and 72 outdoors at night, up from 72 and 56. The sprite
-   * radius is where the light reaches zero; the lit pool you see (band 1 and up, litPool) is 0.59 of it:
-   * 57 px (3.5 tiles) below ground, inside the law's 3-5 tile off-hand light, and 43 px (2.7 tiles) outdoors. */
+  /** The hero's light: a carried torch below ground, a lantern outdoors at night: 96 below ground and 72 outdoors at
+   * night, up from 72 and 56 (OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px, wider than
+   * GAME_LAYOUT_TWO's 3-5 tile off-hand light). The sprite radius is where the light reaches zero (6 and 4.5 tiles);
+   * the lit pool you see (band 1 and up, litPool) is 0.59 of it: 57 px (3.5 tiles) and 43 px (2.7 tiles). */
   hero: 96,
   heroNight: 72,
   sconce: 72,
@@ -52,6 +52,10 @@ export const LIGHT = {
   burst: 72,
   flameFoe: 56,
   flameBoss: 72,
+  /** gfx3 (C5, the owner's ask): a ghost (the ghost family: Ghost, Undead Priest, Gallows Bride, Drowned Tzar) glows
+   * cold and steady, bigger on a boss. The Death Shade stays lightless: the law has shades as negative light. */
+  ghost: 40,
+  ghostBoss: 56,
   /** Actors never fall below this (the doc's actor clamp floor). */
   actorMin: 0.5,
   /** Wall tops take this share of the local light. */
@@ -66,9 +70,11 @@ export const LIGHT = {
    * bigger, so they land at about 90% near-black. gfx1 lifted them 2.2x; gfx2 lifts them 3x (the owner's pick for
    * phone legibility, the most the check allows), toward the doc's "about 40% near-black" (measured headless). */
   ambientLift: 3,
-  /** Outdoors at night the vale takes the moon; the town keeps its twilight (lighter), so its lamps still own the night. */
-  worldNight: [0.38, 0.42, 0.62],
-  townNight: [0.5, 0.5, 0.7],
+  /** Outdoors at night the vale takes the moon; the town keeps its twilight (lighter), so its lamps still own the night.
+   * gfx3 (OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights): the moon goes from [.38,.42,.62] to [.68,.72,.92]
+   * (blue still leads, so it reads as night), and the town's twilight from [.5,.5,.7] to [.74,.76,.96], still lighter. */
+  worldNight: [0.68, 0.72, 0.92],
+  townNight: [0.74, 0.76, 0.96],
 } as const;
 
 /** Ambient per cave theme. Four from the doc; the rest are each cave's liquid hue at about 15% value. */
