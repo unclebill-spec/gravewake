@@ -77,6 +77,8 @@ export function Gravewake() {
   const campRef = useRef<HTMLButtonElement>(null);
   const miniUser = useRef(false);
   const stickTap = useRef<{ t: number; x: number; y: number; moved: boolean; canvas: boolean } | null>(null);
+  /** retro1: the pointer walking from Retro's black bars (-1: none). */
+  const barAim = useRef(-1);
 
   /**
    * Own the game and the mixer for the life of the page. The test hook is for the smoke pass.
@@ -368,6 +370,8 @@ export function Gravewake() {
     const wheel = (e: WheelEvent) => {
       if (game.mode === "title") return;
       e.preventDefault();
+      // retro1: Retro's view is fixed at 320×240, so the wheel leaves the other presets' zoom alone.
+      if (screenRef.current.preset === "retro") return;
       game.bumpZoom(e.deltaY > 0 ? -1 : 1);
     };
     // screen1: no page slide or zoom under a thumb; lists marked data-scroll may still scroll.
@@ -579,6 +583,37 @@ export function Gravewake() {
   /** Title, HUD, and the panel for whichever mode the simulation is in. */
   return (
     <main ref={mainRef} className="relative h-full w-full touch-none overflow-hidden bg-black text-fg">
+      {screenSet.preset === "retro" ? (
+        // retro1: Retro's 4:3 picture sits in black bars, and a thumb rests on them: in play the left third starts the
+        // floating stick there too, and a tap or drag on a bar walks toward that point, as on the picture.
+        <div
+          data-testid="retro-bars"
+          className="absolute inset-0 touch-none"
+          onPointerDown={(e) => {
+            unlock();
+            const g0 = gameRef.current;
+            if (e.pointerType === "touch" && g0?.mode === "play" && stick.current.id < 0 && inStickZone(e.clientX, window.innerWidth)) {
+              stickStart(e, true);
+              return;
+            }
+            barAim.current = e.pointerId;
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            aimAt(e.clientX, e.clientY);
+          }}
+          onPointerMove={(e) => {
+            if (stickMove(e)) return;
+            if (barAim.current === e.pointerId) aimAt(e.clientX, e.clientY);
+          }}
+          onPointerUp={(e) => {
+            if (stickEnd(e)) return;
+            if (barAim.current === e.pointerId) barAim.current = -1;
+          }}
+          onPointerCancel={(e) => {
+            if (stickEnd(e)) return;
+            if (barAim.current === e.pointerId) barAim.current = -1;
+          }}
+        />
+      ) : null}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
@@ -608,6 +643,8 @@ export function Gravewake() {
           if (!pointers.current.has(e.pointerId)) return;
           pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
           if (pointers.current.size === 2) {
+            // retro1: a pinch does not zoom Retro's fixed 320×240 view (nor, unseen, the other presets').
+            if (screenRef.current.preset === "retro") return;
             const pts = [...pointers.current.values()];
             const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             const prev = pinchD.current ?? d;
@@ -1647,7 +1684,16 @@ function ScreenOptions({ s, view, fs, onSet, onFullscreen, onClose }: { s: Scree
           </button>
         ))}
       </div>
-      {view ? (
+      {s.preset === "retro" ? (
+        <p className="text-xs text-muted" data-testid="retro-note">
+          Retro 320x240 keeps its own 4:3 frame at a whole scale; aspect and pixel ratio apply to the other presets.
+        </p>
+      ) : null}
+      {view && view.eff === "retro" ? (
+        <p className="text-xs text-muted" data-testid="screen-info">
+          Retro 320x240 · frame {view.bufW}×{view.bufH} · 1 px per game pixel · view {view.worldW}×{view.worldH} game px ({view.worldW / 16}×{view.worldH / 16} tiles) · ×{view.devPerBuf} on screen
+        </p>
+      ) : view ? (
         <p className="text-xs text-muted" data-testid="screen-info">
           {PRESETS[view.eff].label}
           {s.preset === "auto" && view.eff !== "auto" ? " (Auto on a touch screen)" : ""} · frame {view.bufW}×{view.bufH} · {view.k} px per game pixel · view {Math.round(view.worldW)}×{Math.round(view.worldH)} game px, as the zoom sets it

@@ -54,6 +54,7 @@ SCREEN MAP
 
 Left-hand flip: swap stick cluster with MAIN cluster. Rail stays on the outer thumb edge
 (right for right-hand, left for left-hand).
+[OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] The Retro 320x240 display preset (and only it) shows a fixed 320×240 game pixels (20×15 tiles) at 1 canvas px per game px, scaled up by a whole number with black bars; the zoom does not apply in Retro. Every other preset keeps the C10 view exactly. Combat numbers, aggro ranges, spawn rules and movement are unchanged; the HUD is DOM over the window and steps up on a big screen (1.25× from 720 px, 1.5× from 900 px on the short side). Code: src/game/screen.ts retroView. The check suite (group `retro1`) enforces this.
 
 ================================================================
 1. MAIN VERB + HOLD

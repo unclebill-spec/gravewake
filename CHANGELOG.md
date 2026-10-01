@@ -2,6 +2,13 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-01: retro1, true 320×240 Retro mode
+- In Retro, the camera shows 320×240 game pixels (20×15 tiles) at whole-number scale with black bars. This is the owner-approved exception to C10 (18:48 ET), and applies to Retro only.
+- Other presets are byte-identical to screen1, which the view-calculation hash and canvas hashes confirm.
+- In Retro, the black bars accept touch for the stick and tap-to-walk. Wheel and pinch zoom are off in Retro, and the HUD scales up on large screens.
+- Choosing Retro no longer changes your aspect setting. A stored `retro` setting now opens the new mode.
+- check:game 532 → 542.
+
 ## 2026-10-01: screen1, screen and display settings
 - Display presets (Auto, Phone landscape, 720p, 1080p TV, Retro native 16 px), aspect (Fit, 16:9, 4:3) and a max pixel-ratio cap. These are on the title screen and under Pause → Display, saved in localStorage, and use whole-number pixel-perfect scaling.
 - Fullscreen: title button, pause button, HUD corner icon, and Shift+F (F still smites in play). Android tries to lock landscape. iPhone gets a manifest and an Add to Home Screen tip.

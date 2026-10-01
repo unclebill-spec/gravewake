@@ -8,7 +8,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 532 as of screen1), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 542 as of retro1), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)
@@ -25,7 +25,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 
 ## Current state (2026-10-01)
 - The feature list is done, festivals are done for all four seasons, map writer phases 1–2 are done, and graphics pass rounds 1–3 are done.
-- Screen and display settings are done (screen1). Retro is "native 16 px" letterboxed 4:3, the same world area. The owner still has to decide on a literal 320×240, which would need a C10 zoom change.
+- Screen and display settings are done (screen1), and a true 320×240 Retro mode is done (retro1, an owner-approved exception).
 
 ## Known issues
 - Lint has 10 problems that predate this work; test1 is 177/195 with a known failing list.
@@ -34,6 +34,6 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - Rift gate pillars overlap walkable tiles (art only).
 
 ## Next steps
-1. Owner decision on a literal Retro 320×240 (C10). Deferred: auto-pause in portrait, and pad buttons for specials 1–4.
+1. Owner decisions: a fade-in for night foes, which currently spawn inside the view in every preset; touch input on the 16:9 and 4:3 bars. Deferred: auto-pause in portrait, and pad buttons for specials 1–4.
 2. Graphics items the owner still needs to decide: C2 (selective outline), C8 (chibi proportions), C10 (native resolution/zoom in `sim.ts`), pillars, light occlusion, and the UI reskin.
 3. Open small questions: decor pricing (casino points or fish points), and optional seeded grave mounds.

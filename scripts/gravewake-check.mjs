@@ -46,6 +46,8 @@ globalThis.localStorage = {
 
 // screen1 (2026-10-01): the shell after the screen and display batch. gfx2/gfx3 accept it beside the gfx3 HUD.
 const SCREEN1_HUD = "8b3ba0e16e6b643d539cb0961b67b32c";
+// retro1 (2026-10-01 18:48 ET, owner-approved true 320x240 Retro view): the shell after the Retro batch.
+const RETRO1_HUD = "35ec89e9444560c7b22a12df60021524";
 const out = join(mkdtempSync(join(tmpdir(), "gravewake-")), "sim.mjs");
 execFileSync("npx", ["esbuild", "src/game/sim.ts", "--bundle", "--platform=node", "--format=esm", `--outfile=${out}`], {
   stdio: ["ignore", "ignore", "inherit"],
@@ -5463,7 +5465,7 @@ if (on("gfx2")) {
   }
 
   // Nothing in play changed.
-  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD or the screen1 HUD (screen1 changed presentation and input reading only; its own group checks how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD].includes(md5("src/game/Gravewake.tsx")));
+  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
 }
 
 if (on("gfx3")) {
@@ -5637,7 +5639,7 @@ if (on("gfx3")) {
   }
 
   // Nothing in play changed.
-  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD or the screen1 HUD (screen1 changed presentation and input reading only; its own group checks how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD].includes(md5("src/game/Gravewake.tsx")));
+  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
 }
 
 if (on("screen1")) {
@@ -5682,7 +5684,7 @@ if (on("screen1")) {
   {
     const world = [], whole = [], cap = [], dev = [], css = [];
     let n = 0;
-    for (const [w, h] of SIZES) for (const dpr of DPRS) for (const zoom of ZOOMS) for (const preset of S.PRESET_IDS) for (const aspect of S.ASPECTS) for (const c of S.CAPS) for (const coarse of [false, true]) {
+    for (const [w, h] of SIZES) for (const dpr of DPRS) for (const zoom of ZOOMS) for (const preset of S.PRESET_IDS.filter((p) => p !== "retro")) for (const aspect of S.ASPECTS) for (const c of S.CAPS) for (const coarse of [false, true]) {
       n++;
       const s = { preset, aspect, cap: c, tipShown: false };
       const v = S.computeView({ cssW: w, cssH: h, dpr, zoom, s, coarse });
@@ -5702,7 +5704,7 @@ if (on("screen1")) {
         if (v.css.x < v.box.x - 1e-6 || v.css.y < v.box.y - 1e-6 || v.css.x + v.css.w > v.box.x + v.box.w + 1e-6 || v.css.y + v.css.h > v.box.y + v.box.h + 1e-6) css.push(`${preset} outside box`);
       }
     }
-    check("screen1", `every preset × aspect × cap × touch (${n} cases) shows the world area the C10 zoom shows in that box (within one game pixel of rounding), and at Fit the same area as Auto`, world.length === 0, world.slice(0, 3).join("; "));
+    check("screen1", `every preset but Retro (owner-approved 320x240 view since retro1; group retro1 checks it) × aspect × cap × touch (${n} cases) shows the world area the C10 zoom shows in that box (within one game pixel of rounding), and at Fit the same area as Auto`, world.length === 0, world.slice(0, 3).join("; "));
     check("screen1", "canvas pixels per game pixel (k) is a whole number from 1 to the zoom: a preset only draws the same picture with fewer canvas pixels", whole.length === 0, whole.slice(0, 3).join("; "));
     check("screen1", "the max pixel-ratio cap holds: canvas pixels per CSS pixel never above the cap (Auto at the 2× cap is the old frame)", cap.length === 0, cap.slice(0, 3).join("; "));
     check("screen1", "integer nearest-neighbour: on 1x/2x/3x screens every preset puts each canvas pixel on the same whole number of device pixels, and the canvas element is exactly buffer × that size, inside its box", dev.length === 0 && css.length === 0, [...dev, ...css].slice(0, 3).join("; "));
@@ -5725,10 +5727,10 @@ if (on("screen1")) {
     const f = (v) => `${v.bufW}x${v.bufH} k${v.k} ×${v.devPerBuf}`;
     const got = {
       phone844: f(V(844, 390, 3, "auto", "fit", true)), phone740: f(V(740, 360, 3, "auto", "fit", true)), desk: f(V(960, 640, 1, "auto")), deskPhone: f(V(960, 640, 1, "phone")),
-      tv1080: f(V(1920, 1080, 1, "1080p")), tv720: f(V(1920, 1080, 1, "720p")), retroTv: f(V(1920, 1080, 1, "retro", "4:3")), retroBox: V(1920, 1080, 1, "retro", "4:3").css.w, ph720cap1: f(V(844, 390, 3, "720p", "fit", true, 1)), ph720cap15: f(V(844, 390, 3, "720p", "fit", true, 1.5)),
+      tv1080: f(V(1920, 1080, 1, "1080p")), tv720: f(V(1920, 1080, 1, "720p")), ph720cap1: f(V(844, 390, 3, "720p", "fit", true, 1)), ph720cap15: f(V(844, 390, 3, "720p", "fit", true, 1.5)),
     };
-    const want = { phone844: "844x390 k2 ×3", phone740: "740x360 k2 ×3", desk: "960x640 k4 ×1", deskPhone: "480x320 k2 ×2", tv1080: "1920x1080 k4 ×1", tv720: "960x540 k2 ×2", retroTv: "360x270 k1 ×4", retroBox: 1440, ph720cap1: "844x390 k2 ×3", ph720cap15: "1266x585 k3 ×2" };
-    check("screen1", "the numbers: Auto on a touch phone is Phone landscape (844×390 at 3 device px each on an 844×390 3x phone, 740×360 at 360 tall); 1080p TV is 1920×1080 on a 1080p screen, 720p is 960×540 there (2× whole); Retro is 1 canvas px per game px (360×270 in a 1440×1080 4:3 box); the cap lowers 720p on a 3x phone to 1266×585 (1.5) or 844×390 (1)", JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
+    const want = { phone844: "844x390 k2 ×3", phone740: "740x360 k2 ×3", desk: "960x640 k4 ×1", deskPhone: "480x320 k2 ×2", tv1080: "1920x1080 k4 ×1", tv720: "960x540 k2 ×2", ph720cap1: "844x390 k2 ×3", ph720cap15: "1266x585 k3 ×2" };
+    check("screen1", "the numbers: Auto on a touch phone is Phone landscape (844×390 at 3 device px each on an 844×390 3x phone, 740×360 at 360 tall); 1080p TV is 1920×1080 on a 1080p screen, 720p is 960×540 there (2× whole); the cap lowers 720p on a 3x phone to 1266×585 (1.5) or 844×390 (1)", JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
     const t = (h, p) => S.computeView({ cssW: h * 16 / 9, cssH: h, dpr: 1, zoom: 4, s: { ...base, preset: p }, coarse: false });
     check("screen1", "TV presets: bigger UI at TV height (1080p 1.5×, 720p 1.25×), never on a short phone, and controller-first prompts", t(1080, "1080p").ui === 1.5 && t(1080, "720p").ui === 1.25 && t(390, "1080p").ui === 1 && t(1080, "auto").ui === 1 && t(1080, "1080p").tv && !t(1080, "phone").tv && /const padFirst = padOn \|\| !!look\?\.tv;/.test(ui) && (ui.match(/\{padFirst \? <PadGlyph/g) ?? []).length >= 5 && /fontSize = uiNow === 1 \? "" : `\$\{16 \* uiNow\}px`/.test(ui), "");
   }
@@ -5803,7 +5805,7 @@ if (on("screen1")) {
     const dz = S.readStick(42 * 0.08 - 0.01, 0).x === 0 && S.readStick(42 * 0.08 + 0.01, 0).x > 0 && S.readStick(4, 0).x > 0 && S.readStick(3, 0).x === 0;
     check("screen1", "the stick reads the same as before past the dead zone (same throw 42 px, same mapping, run past 82%: 264 drags identical); only the dead zone is 8% (was 14%)", diff.length === 0 && same === 264 && dz && S.STICK_DEAD === 0.08 && S.STICK_RUN === 0.82 && S.STICK_CAP === 42, diff.slice(0, 4).join(","));
   }
-  check("screen1", "the stick floats: it starts under the finger (on the ring, or any touch in the left third in play), is tracked by its pointer id with capture (it keeps tracking off the ring), and a quick tap there still walks; mice keep tap-to-walk everywhere", /if \(e\.pointerType === "touch" && g0\?\.mode === "play" && stick\.current\.id < 0 && inStickZone\(e\.clientX, window\.innerWidth\)\)/.test(ui) && /stick\.current = \{ id: e\.pointerId, ox: e\.clientX, oy: e\.clientY \};/.test(ui) && /\(e\.currentTarget as HTMLElement\)\.setPointerCapture\(e\.pointerId\);/.test(ui) && (ui.match(/if \(!g \|\| stick\.current\.id !== e\.pointerId\) return false;/g) ?? []).length === 2 && /if \(!g \|\| stick\.current\.id !== e\.pointerId\) return false;\n\s+const dx = e\.clientX - stick\.current\.ox;/.test(ui) && /const r = readStick\(dx, dy\);/.test(ui) && /performance\.now\(\) - tap\.t < 250/.test(ui) && S.inStickZone(100, 900) && !S.inStickZone(300, 900) && !/cap \* 0\.14/.test(ui));
+  check("screen1", "the stick floats: it starts under the finger (on the ring, or any touch in the left third in play), is tracked by its pointer id with capture (it keeps tracking off the ring), and a quick tap there still walks; mice keep tap-to-walk everywhere (on the picture, and on Retro's bars since retro1)", (ui.match(/if \(e\.pointerType === "touch" && g0\?\.mode === "play" && stick\.current\.id < 0 && inStickZone\(e\.clientX, window\.innerWidth\)\)/g) ?? []).length === 2 && /stick\.current = \{ id: e\.pointerId, ox: e\.clientX, oy: e\.clientY \};/.test(ui) && /\(e\.currentTarget as HTMLElement\)\.setPointerCapture\(e\.pointerId\);/.test(ui) && (ui.match(/if \(!g \|\| stick\.current\.id !== e\.pointerId\) return false;/g) ?? []).length === 2 && /if \(!g \|\| stick\.current\.id !== e\.pointerId\) return false;\n\s+const dx = e\.clientX - stick\.current\.ox;/.test(ui) && /const r = readStick\(dx, dy\);/.test(ui) && /performance\.now\(\) - tap\.t < 250/.test(ui) && S.inStickZone(100, 900) && !S.inStickZone(300, 900) && !/cap \* 0\.14/.test(ui));
 
   // 13. The pad.
   {
@@ -5835,8 +5837,153 @@ if (on("screen1")) {
   }
 }
 
+if (on("retro1")) {
+  // [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] retro1: in Retro only, the camera shows
+  // 320×240 game pixels at 1 canvas px per game px, scaled up whole with black bars. Every other preset keeps the
+  // C10 view and behaviour exactly; no combat number, aggro range, spawn rule or movement changes.
+  const { readFileSync, writeFileSync, readdirSync, mkdtempSync: mk } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view]";
+  const dir = mk(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "retro1.ts"), `export * from "${root}/src/game/screen.ts";\n`);
+  writeFileSync(join(dir, "lights.ts"), `export * from "${root}/src/game/draw.ts";\nexport * from "${root}/src/game/light.ts";\nexport { DUNGEONS } from "${root}/src/game/content.ts";\n`);
+  for (const n of ["retro1", "lights"]) execFileSync("npx", ["esbuild", join(dir, `${n}.ts`), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, `${n}.mjs`)}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const S = await import(pathToFileURL(join(dir, "retro1.mjs")).href);
+  const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5s = (t) => createHash("md5").update(t).digest("hex");
+  const scr = readFileSync("src/game/screen.ts", "utf8");
+  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+  const SIZES = [[960, 640], [844, 390], [740, 360], [1280, 720], [1920, 1080], [390, 844], [1024, 768], [812.5, 375.5], [1366, 768], [2560, 1440], [667, 375], [915, 412], [3840, 2160], [320, 240], [1, 1]];
+  const DPRS = [1, 1.25, 1.5, 2, 2.625, 3, 0];
+  const ZOOMS = [2, 3, 4, 5, 6];
+  const near = (v) => Math.abs(v - Math.round(v)) < 1e-6;
+
+  // 1. The tag, in the two law files and at the code.
+  {
+    const two = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("retro1", "the owner's dated exception is tagged in rules/GAME_LAYOUT_TWO.txt (SCREEN MAP) and AGENTS.project.md (the law list and the integer-zoom rule), and at the one code branch in screen.ts", two.includes(`(right for right-hand, left for left-hand).\n${TAG} The Retro 320x240 display preset (and only it) shows a fixed 320×240 game pixels`) && agents.split(TAG).length === 3 && agents.includes(`- Display only at whole-number zoom: 2×, 3×, 4×, 5×, 6×. Never 1.5× or 2.75×.\n  ${TAG}`) && scr.split(TAG).length === 4, "");
+  }
+
+  // 2. Every other preset: byte-identical outputs and the same code.
+  {
+    const out = [];
+    for (const [w, h] of SIZES) for (const dpr of DPRS) for (const zoom of ZOOMS) for (const preset of ["auto", "phone", "720p", "1080p"]) for (const aspect of ["fit", "16:9", "4:3"]) for (const cap of [2, 1.5, 1]) for (const coarse of [false, true]) {
+      out.push(S.computeView({ cssW: w, cssH: h, dpr, zoom, s: { preset, aspect, cap, tipShown: false }, coarse }));
+    }
+    const got = md5s(JSON.stringify(out));
+    check("retro1", `every preset but Retro gives byte-identical views to screen1: ${out.length} cases (15 windows × 7 DPRs × 5 zooms × 4 presets × 3 aspects × 3 caps × touch) hash to screen1's 9c967a21…`, out.length === 37800 && got === "9c967a213fc8ddf87ee71d2592506a4f", got);
+    const i = scr.indexOf("export function computeView(v: ViewIn): View {");
+    const fn = scr.slice(i, scr.indexOf("\n}\n", i) + 3);
+    const branch = `  // ${TAG} Retro first, and only Retro.\n  const fixed = v.s.preset === "retro" ? PRESETS.retro.world : undefined;\n  if (fixed) return retroView(v, fixed);\n`;
+    check("retro1", "computeView is screen1's code byte for byte plus one first branch, taken only when the preset is retro", fn.includes(branch) && md5s(fn.replace(branch, "")) === "3c074c1d73e2218454c4eebf25948c1f" && JSON.stringify(Object.entries(S.PRESETS).filter(([id, p]) => id !== "retro" && p.world).map(([id]) => id)) === "[]", md5s(fn.replace(branch, "")));
+    const SAME = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/draw.ts": "ade20b08057dc3b318b9a55b1a9a9f32", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94"};
+    const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
+    const bad = Object.entries(SAME).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    const extra = files.filter((f) => !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx");
+    check("retro1", "play and drawing are untouched: sim.ts (zoom, movement, collision, combat numbers, aggro ranges, spawn rules, saves), draw.ts (camera, culling, fog, light layer, particles, minimap), light.ts (the 24-light budget), content, particles, audio and every other game module are byte-identical to screen1; only screen.ts and the shell changed", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
+  }
+
+  // 3. Retro itself: 320×240 game px at 1 canvas px each, whole device-pixel scale, centred, bars, any window/zoom/aspect/cap.
+  {
+    const bad = [];
+    let n = 0;
+    for (const [w, h] of SIZES) for (const dpr of DPRS) for (const zoom of ZOOMS) for (const aspect of S.ASPECTS) for (const cap of S.CAPS) for (const coarse of [false, true]) {
+      n++;
+      const v = S.computeView({ cssW: w, cssH: h, dpr, zoom, s: { preset: "retro", aspect, cap, tipShown: false }, coarse });
+      const d = dpr > 0 ? dpr : 1;
+      const s = v.devPerBuf;
+      const fits = 320 * s <= w * d + 1e-6 && 240 * s <= h * d + 1e-6;
+      const bigger = 320 * (s + 1) <= w * d + 1e-6 && 240 * (s + 1) <= h * d + 1e-6;
+      const why = [];
+      if (v.eff !== "retro" || v.bufW !== 320 || v.bufH !== 240 || v.k !== 1 || v.worldW !== 320 || v.worldH !== 240) why.push(`frame ${v.bufW}x${v.bufH} k${v.k} world ${v.worldW}x${v.worldH}`);
+      if (!Number.isInteger(s) || s < 1 || bigger || (!fits && s !== 1)) why.push(`scale ${s}`);
+      if (Math.abs(v.css.w * d - 320 * s) > 1e-6 || Math.abs(v.css.h * d - 240 * s) > 1e-6) why.push(`css ${v.css.w}x${v.css.h}`);
+      if (!near(v.css.x * d) || !near(v.css.y * d)) why.push(`off-pixel ${v.css.x},${v.css.y}`);
+      if (fits && (v.css.x < -1e-6 || v.css.y < -1e-6 || v.css.x + v.css.w > w + 1e-6 || v.css.y + v.css.h > h + 1e-6 || Math.abs(v.css.x - (w - v.css.w) / 2) > 1 / d || Math.abs(v.css.y - (h - v.css.h) / 2) > 1 / d)) why.push("not centred inside the window");
+      if (v.tv) why.push("tv");
+      if (v.box.x !== 0 || v.box.y !== 0 || v.box.w !== w || v.box.h !== h) why.push(`box ${JSON.stringify(v.box)}`);
+      if (why.length) bad.push(`${w}x${h}@${dpr} z${zoom} ${aspect}/${cap}${coarse ? " touch" : ""}: ${why.join(" ")}`);
+    }
+    check("retro1", `Retro shows 320×240 game pixels (20×15 tiles) at 1 canvas px per game px in every case (${n}: window, DPR, zoom, aspect, cap, touch), scaled by the largest whole number of device pixels that fits, centred on whole device pixels with black bars; the zoom, aspect and cap never change it`, bad.length === 0, bad.slice(0, 3).join("; "));
+    const V = (w, h, dpr, coarse = false) => S.computeView({ cssW: w, cssH: h, dpr, zoom: 4, s: { preset: "retro", aspect: "4:3", cap: 2, tipShown: false }, coarse });
+    const f = (v) => `${v.bufW}x${v.bufH} ×${v.devPerBuf} ${Math.round(v.css.w)}x${Math.round(v.css.h)}@${Math.round(v.css.x)},${Math.round(v.css.y)} ui${v.ui}`;
+    const got = { desk: f(V(960, 640, 1)), hd: f(V(1280, 720, 1)), tv: f(V(1920, 1080, 1)), phone: f(V(844, 390, 3, true)), phone360: f(V(740, 360, 3, true)), portrait: f(V(390, 844, 3, true)) };
+    const want = { desk: "320x240 ×2 640x480@160,80 ui1", hd: "320x240 ×3 960x720@160,0 ui1.25", tv: "320x240 ×4 1280x960@320,60 ui1.5", phone: "320x240 ×4 427x320@209,35 ui1", phone360: "320x240 ×4 427x320@157,20 ui1", portrait: "320x240 ×3 320x240@35,302 ui1" };
+    check("retro1", "the numbers: 960×640 shows Retro at 2× (640×480, bars 160/80), 1280×720 at 3×, a 1080p TV at 4× (1280×960, bars 320/60), an 844×390 or 740×360 3x phone at 4 device px per game px (427×320 CSS); the HUD steps up 1.25× from 720 px and 1.5× from 900 px on the short side, never on a phone, and Retro forces no controller prompts", JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
+  }
+
+  // 4. Settings: the label, and a stored "retro" maps to the new mode; old settings keep loading.
+  {
+    const P = S.parseScreen;
+    const old = P('{"preset":"retro","aspect":"4:3","cap":2,"tipShown":true}');
+    const v = S.computeView({ cssW: 960, cssH: 640, dpr: 1, zoom: 4, s: old, coarse: false });
+    check("retro1", "the preset reads 'Retro 320x240'; a stored screen1 'retro' setting loads as the new mode (320×240 view) with its other fields kept; picking Retro no longer sets the aspect (its frame is 4:3 already), so Auto keeps the player's aspect; the settings key and every other preset id are unchanged", S.PRESETS.retro.label === "Retro 320x240" && old.preset === "retro" && old.aspect === "4:3" && old.tipShown === true && v.worldW === 320 && v.worldH === 240 && S.SCREEN_KEY === "gravewake-screen-v1" && JSON.stringify(S.PRESET_IDS) === '["auto","phone","720p","1080p","retro"]' && JSON.stringify(S.PRESETS.retro.world) === "[320,240]" && S.PRESETS.retro.aspect === undefined, JSON.stringify(old));
+  }
+
+  // 5. The shell: the frame draws Retro through the same path; the zoom gestures leave the other presets alone.
+  {
+    check("retro1", "the shell draws Retro through the one frame path (computeView, the canvas sized to the frame, drawWorld at k = 1); the map keeps the Auto frame; the wheel and a pinch do nothing in Retro (its view is fixed) and are unchanged elsewhere; the settings say what Retro shows", /const look = computeView\(\{ cssW: Math\.max\(1, rect\.width\), cssH: Math\.max\(1, rect\.height\), dpr: dprRaw, zoom: game\.zoom, s, coarse: coarseNow \}\);/.test(ui) && /else drawWorld\(ctx, game, w, h, v\.k\);/.test(ui) && /const scene = game\.mode === "battle" \|\| game\.mode === "map";/.test(ui)
+      && /e\.preventDefault\(\);\n\s+\/\/ retro1: [^\n]*\n\s+if \(screenRef\.current\.preset === "retro"\) return;\n\s+game\.bumpZoom\(e\.deltaY > 0 \? -1 : 1\);/.test(ui)
+      && /if \(pointers\.current\.size === 2\) \{\n\s+\/\/ retro1: [^\n]*\n\s+if \(screenRef\.current\.preset === "retro"\) return;\n\s+const pts = \[\.\.\.pointers\.current\.values\(\)\];\n\s+const d = Math\.hypot/.test(ui)
+      && (ui.match(/game\.bumpZoom\(|gameRef\.current\?\.bumpZoom\(/g) ?? []).length === 3
+      && /Retro 320x240 · frame \{view\.bufW\}×\{view\.bufH\} · 1 px per game pixel · view \{view\.worldW\}×\{view\.worldH\} game px \(\{view\.worldW \/ 16\}×\{view\.worldH \/ 16\} tiles\) · ×\{view\.devPerBuf\} on screen/.test(ui) && /data-testid="retro-note"/.test(ui), "");
+    const bars = ui.slice(ui.indexOf('data-testid="retro-bars"'), ui.indexOf("<canvas\n"));
+    check("retro1", "Retro's black bars take the thumb (only in Retro, and under the picture): in play a touch in the left third starts the same floating stick (stickStart/stickMove/stickEnd, its own pointer id), and a tap or drag on a bar walks toward that point through the same aimAt; with no Retro there is no bar layer, so every other preset's input is as before", /\{screenSet\.preset === "retro" \? \(\n\s+\/\/ retro1: [^\n]*\n[^\n]*\n\s+<div\n\s+data-testid="retro-bars"\n\s+className="absolute inset-0 touch-none"/.test(ui) && ui.indexOf('data-testid="retro-bars"') < ui.indexOf('data-testid="game-canvas"') && /if \(e\.pointerType === "touch" && g0\?\.mode === "play" && stick\.current\.id < 0 && inStickZone\(e\.clientX, window\.innerWidth\)\) \{\n\s+stickStart\(e, true\);\n\s+return;\n\s+\}\n\s+barAim\.current = e\.pointerId;\n\s+\(e\.currentTarget as HTMLElement\)\.setPointerCapture\(e\.pointerId\);\n\s+aimAt\(e\.clientX, e\.clientY\);/.test(bars) && (bars.match(/if \(stickEnd\(e\)\) return;\n\s+if \(barAim\.current === e\.pointerId\) barAim\.current = -1;/g) ?? []).length === 2 && /if \(stickMove\(e\)\) return;\n\s+if \(barAim\.current === e\.pointerId\) aimAt\(e\.clientX, e\.clientY\);/.test(bars) && !/bumpZoom|game\./.test(bars), "");
+  }
+
+  // 6. At the larger view: every light in it is lit (the 24 budget is never reached by the scene's own lights),
+  // and the minimap still spans more than the view.
+  {
+    const D = await import(pathToFileURL(join(dir, "lights.mjs")).href);
+    const budget = D.LIGHT.budget;
+    D.LIGHT.budget = 9999;
+    const worst = { n: 0, at: "" };
+    const sweep = (name, g) => {
+      for (let ty = 0; ty < g.h; ty += 2) for (let tx = 0; tx < g.w; tx += 2) {
+        if (g.fog) g.fog.fill(1);
+        g.px = tx * TILE + 8;
+        g.py = ty * TILE + 8;
+        const n = D.sceneLights(g, Math.round(g.px - 160), Math.round(g.py - 120), 320, 240).length;
+        if (n > worst.n) Object.assign(worst, { n, at: `${name} @${tx},${ty}` });
+      }
+    };
+    const g = fresh();
+    const night = 30 * 60 * 1000 + 15 * 60 * 1000 + 120000;
+    g.enterTown();
+    g.worldMs = night;
+    sweep("town", g);
+    for (const f of ["harvest", "krampus", "bloom", "ashen"]) {
+      g.festivalId = () => f;
+      g.lanternsLit = () => Array.from({ length: 32 }, (_, i) => i);
+      sweep(`town ${f}`, g);
+    }
+    delete g.festivalId;
+    delete g.lanternsLit;
+    g.enterWorld(10 * TILE + 8, 33 * TILE + 9);
+    g.worldMs = night;
+    sweep("vale night", g);
+    let floors = 0;
+    for (const d of D.DUNGEONS) {
+      if (d.town || d.id === "grave") continue;
+      for (let fl = 1; fl <= (d.rift ? 1 : d.floors ?? 5); fl++) {
+        g.enterDungeon(d.id);
+        if (g.mapId !== "dungeon") break;
+        g.floor = fl;
+        g["loadFloor"]("down");
+        floors++;
+        sweep(`${d.id} ${fl}`, g);
+      }
+    }
+    D.LIGHT.budget = budget;
+    const draw = readFileSync("src/game/draw.ts", "utf8");
+    check("retro1", `at Retro's 320×240 every scene light in view is lit: the most in any view (town on all four festival nights, the vale at night, ${floors} dungeon floors) is ${worst.n}, under the 24-light budget (light.ts unchanged), so nothing at the edge goes unlit; the minimap's 24-tile span still covers the 20×15-tile view`, budget === 24 && floors >= 60 && worst.n > 0 && worst.n <= 18 && /function drawMinimap[\s\S]{0,200}const span = 24;/.test(draw) && 24 * TILE >= 320, `${worst.n} at ${worst.at}, ${floors} floors`);
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

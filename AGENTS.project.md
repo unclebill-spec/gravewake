@@ -17,6 +17,7 @@ These three files are standing law for Gravewake, with the same weight as this f
   [OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS] The owner approved the spring and summer festivals on the existing hooks: Drowned Bloom (the swamp floods, Weir-wife Ottla's bloom gathering, the Drowned Court as named Ghost Stalker packs) and Ashen Fair (Barker Sallow's ember dance, the Cinder sideshow as named Stalker packs). Neither adds a boss or a rule exception; the Drowned Tzar keeps his one home; loot is the existing junk row and chest table. `scripts/gravewake-check.mjs` (group `festival2`) enforces this.
   [OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] The owner approved one generated dungeon (Shifting Barrow, `barrow` @44,32, L14, 3 floors) and one new site type, the rift zone (Ashen Rift, `riftvale` @10,30), both laid by `tools/map-writer` (seeded, no Math.random). Neither has a boss: a Stalker pack guards the barrow's boss room, and the rift holds trash plus a possible Stalker or Goblin. Bosses stay 21 and pockets stay 5. `scripts/gravewake-check.mjs` (group `mapwriter`) enforces this.
   [OWNER-REQUESTED 2026-10-01: MAP WRITER PHASE 2] Map-writer phase 2 (biome noise blending) is looks only: `tools/map-writer/gravewake_vale.ts` gives `draw.ts` a seeded ground skin for the vale (borders wander up to 2 tiles, with a dithered fringe from `border-dither.png`). The sim never reads it: the tile grid, collision, zone names and levels, foe families, every placement, and saves are unchanged. Group `mapwriter2` enforces this.
+  [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] The owner approved a literal 320×240 Retro view: in the Retro 320x240 display preset only, the camera shows 320×240 game pixels (about 20×15 tiles) at 1 canvas px per game px, integer-scaled with black bars. Every other preset keeps the C10 view and behaviour exactly (screen.ts runs Retro as its own first branch). No combat number, aggro range, spawn rule or movement changes. `scripts/gravewake-check.mjs` (group `retro1`) enforces this.
 
 If they disagree, the roster names the kits and the layout names the numbers. Do not invent a second battle screen, a new scaling curve, or a copied Stardew asset.
 
@@ -119,6 +120,7 @@ on sprites, tiles, or the low-res game backbuffer.
 Rules:
 - Draw / generate at native size (16×16, 16×32, etc.).
 - Display only at whole-number zoom: 2×, 3×, 4×, 5×, 6×. Never 1.5× or 2.75×.
+  [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] Retro 320x240 draws the world at its native 320×240 and scales the whole frame by the largest whole number that fits (2× on 960×640, 3× on 1280×720, 4× on 1920×1080 and on an 844×390 3x phone), with black bars.
 - Snap sprite and camera draw positions to whole native pixels.
 - Prefer: render the world at a native backbuffer, then nearest-neighbor
   stretch the WHOLE FRAME to the window. Do not scale each sprite to 1080p.

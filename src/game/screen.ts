@@ -1,7 +1,12 @@
 /**
  * screen1: display presets, aspect boxes, the pixel-ratio cap, fullscreen, the stick reading and pad focus.
- * Presentation and input reading only. The world area on screen is always what the C10 zoom shows today:
+ * Presentation and input reading only. The world area on screen is what the C10 zoom shows today:
  * a preset changes how many canvas pixels draw one 16 px-grid game pixel, never how many game pixels are seen.
+ *
+ * [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] Retro alone shows a fixed 320×240
+ * game pixels (20×15 tiles) at 1 canvas px per game px, scaled up whole with black bars. It is the one place
+ * the view (the C10 zoom) changes, and it is the first branch of computeView: every other preset runs the
+ * screen1 code below it unchanged.
  */
 
 export type PresetId = "auto" | "phone" | "720p" | "1080p" | "retro";
@@ -30,6 +35,8 @@ export interface Preset {
   ui?: number;
   /** Aspect picked along with the preset (the player can change it after). */
   aspect?: AspectId;
+  /** retro1: a fixed view in game pixels, drawn 1:1 and scaled up whole (Retro only; owner-approved). */
+  world?: [number, number];
 }
 
 export const PRESETS: Record<PresetId, Preset> = {
@@ -37,7 +44,8 @@ export const PRESETS: Record<PresetId, Preset> = {
   phone: { label: "Phone landscape", res: [854, 480] },
   "720p": { label: "720p", res: [1280, 720], tv: true, ui: 1.25 },
   "1080p": { label: "1080p TV", res: [1920, 1080], tv: true, ui: 1.5 },
-  retro: { label: "Retro (native 16 px)", res: null, native: true, aspect: "4:3" },
+  // retro1: no aspect of its own any more (its frame is 4:3 already), so picking Retro leaves the player's aspect alone.
+  retro: { label: "Retro 320x240", res: [320, 240], native: true, world: [320, 240] },
 };
 export const PRESET_IDS = Object.keys(PRESETS) as PresetId[];
 export const ASPECTS: AspectId[] = ["fit", "16:9", "4:3"];
@@ -138,6 +146,9 @@ export function aspectBox(cssW: number, cssH: number, dpr: number, aspect: Aspec
  * number, scaled up by nearest neighbour; it never draws more or less of the world.
  */
 export function computeView(v: ViewIn): View {
+  // [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] Retro first, and only Retro.
+  const fixed = v.s.preset === "retro" ? PRESETS.retro.world : undefined;
+  if (fixed) return retroView(v, fixed);
   const dpr = v.dpr > 0 ? v.dpr : 1;
   const zoom = Math.max(1, Math.round(v.zoom));
   const eff: PresetId = v.s.preset === "auto" && v.coarse ? "phone" : v.s.preset;
@@ -181,6 +192,28 @@ export function computeView(v: ViewIn): View {
   if (eff === "auto" && v.s.aspect === "fit") css = { x: 0, y: 0, w: v.cssW, h: v.cssH };
   const ui = p.tv ? Math.max(1, Math.min(p.ui ?? 1, v.cssH / 600)) : 1;
   return { eff, box, css, bufW, bufH, k, worldW, worldH, dprA, devPerGame, devPerBuf: devPerGame / k, tv: !!p.tv, ui };
+}
+
+/** Retro's HUD scale: steps by the window's short side, never on a phone (the HUD is DOM, so it stays crisp). */
+export const RETRO_UI: [number, number][] = [[900, 1.5], [720, 1.25]];
+
+/**
+ * [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view]
+ * Retro: the canvas is the view, 320×240 game pixels at 1 canvas px each, whatever the window or the zoom.
+ * It is scaled by the largest whole number of device pixels that fits the window, centred on whole device
+ * pixels, with black bars round it. The aspect and the cap do not apply (the frame is 4:3 and tiny already).
+ */
+export function retroView(v: ViewIn, world: [number, number]): View {
+  const dpr = v.dpr > 0 ? v.dpr : 1;
+  const [gw, gh] = world;
+  const dprA = dpr >= 2 ? 2 : 1;
+  const box = { x: 0, y: 0, w: v.cssW, h: v.cssH };
+  const s = Math.max(1, Math.floor(Math.min((v.cssW * dpr) / gw, (v.cssH * dpr) / gh) + 1e-9));
+  const w = (gw * s) / dpr;
+  const h = (gh * s) / dpr;
+  const css = { x: Math.round(((v.cssW - w) / 2) * dpr) / dpr, y: Math.round(((v.cssH - h) / 2) * dpr) / dpr, w, h };
+  const ui = RETRO_UI.find(([at]) => Math.min(v.cssW, v.cssH) >= at)?.[1] ?? 1;
+  return { eff: "retro", box, css, bufW: gw, bufH: gh, k: 1, worldW: gw, worldH: gh, dprA, devPerGame: s, devPerBuf: s, tv: false, ui };
 }
 
 /** The frame the shell used before screen1, for the checks: buffer = floor(window·dprA), zoom as drawn. */
