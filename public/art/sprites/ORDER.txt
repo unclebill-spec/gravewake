@@ -1,0 +1,9 @@
+Eleven frames each: stand idle walk0 walk1 walk2 swing0 swing1 swing2 cast0 cast1 cast2.
+people.png and heroes.png and allies.png use this role order:
+warrior wizard assassin vampire priest witch shade mystic guard hunter undertaker zeppelin inn shop guild bank casino patron smith tailor fisher merchant alchemist portal
+allies.png is the first eight roles, with a blue sash.
+foes.png families, and inside each family the ranks mob boss mini rare:
+zombie skeleton ghost bat ghoul witch lantern scarecrow wolf mummy vampire tree lich horse goblin cat rat
+folk-variants.png: crowd looks 1..4 for each town role, in this order, eleven frames per look (look 0 is the people.png cell):
+guard hunter undertaker zeppelin inn shop guild bank casino patron smith tailor fisher merchant alchemist portal
+Drawn by tools/sprite-writer.

@@ -1,0 +1,20 @@
+{
+ "beam-fire": "pumpkin",
+ "beam-holy": "candle",
+ "beam-ice": "ghost",
+ "beam-lightning": "candle",
+ "beam-shadow": "hex",
+ "beam-venom": "realm",
+ "cone": "pumpkin",
+ "fire": "pumpkin",
+ "fire-rain": "pumpkin",
+ "holy": "candle",
+ "ice": "ghost",
+ "ice-rain": "ghost",
+ "lightning": "candle",
+ "nova": "hex",
+ "orb": "candle",
+ "ring": "candle",
+ "shadow": "hex",
+ "venom": "realm"
+}

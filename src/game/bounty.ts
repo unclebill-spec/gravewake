@@ -1,0 +1,88 @@
+/**
+ * Night bounty board (item 7): the one name the guild posts for a night cycle.
+ *
+ * Pure picks. The sim passes the world tiles and the zone helpers in. FNV-1a (featSeed) into the
+ * shared mulberry RNG, so the same night with the same standing remnants always posts the same name.
+ */
+import { BOUNTY, CYCLE_MS, T, mulberry, type MonsterDef } from "./content";
+import { featSeed, walkSteps, type Spot } from "./feats";
+
+export type Posting = {
+  night: number;
+  kind: "stalker" | "remnant";
+  /** stalker: the family id; remnant: the boss id the remnant stands for. */
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  zone: string;
+  pay: number;
+  affix: "fast" | "vortex";
+};
+
+/** The night cycle a world time belongs to. Day and the night after it share one number. */
+export function nightOf(ms: number) {
+  return Math.floor(ms / CYCLE_MS);
+}
+
+const GROUND = new Set<number>([T.grass, T.dirt, T.snow, T.ash, T.sand, T.swamp, T.bone]);
+export const GATE = { x: 32, y: 46 };
+
+/**
+ * Open ground a stalker can lair on: plain ground the hero can reach from the town gate, off the gate's
+ * first distance band, and clear of every world boss, dungeon mouth, road merchant, and watch.
+ */
+export function lairTiles(tiles: ArrayLike<number>, w: number, h: number, avoid: Spot[]): number[] {
+  const steps = walkSteps(tiles, w, h, GATE.x, GATE.y);
+  const out: number[] = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (!GROUND.has(tiles[i]) || steps[i] < 0) continue;
+    const x = i % w;
+    const y = Math.floor(i / w);
+    if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue;
+    if (Math.hypot(x - GATE.x, y - GATE.y) < BOUNTY.gateClear) continue;
+    if (avoid.some((a) => Math.hypot(a.x - x, a.y - y) < BOUNTY.lairClear)) continue;
+    out.push(i);
+  }
+  return out;
+}
+
+/**
+ * The night's posting. standing: world remnants up tonight that the chapel is not already paying for.
+ * zoneOf names a tile's zone; familiesAt gives the families that walk there.
+ */
+export function postBounty(
+  night: number,
+  standing: { id: string; name: string; x: number; y: number }[],
+  lairs: number[],
+  w: number,
+  zoneOf: (x: number, y: number) => string,
+  familiesAt: (x: number, y: number) => MonsterDef[],
+): Posting | null {
+  const rng = mulberry(featSeed("bounty", night, "post"));
+  const roll = rng();
+  const affix: Posting["affix"] = rng() < 0.5 ? "fast" : "vortex";
+  if (standing.length && roll < BOUNTY.remnantShare) {
+    const r = standing[Math.floor(rng() * standing.length)];
+    const zone = zoneOf(r.x, r.y);
+    return { night, kind: "remnant", id: r.id, name: r.name, x: r.x, y: r.y, zone, pay: BOUNTY.pay[zone] ?? 16, affix };
+  }
+  if (!lairs.length) return null;
+  const at = lairs[Math.floor(rng() * lairs.length)];
+  const x = at % w;
+  const y = Math.floor(at / w);
+  const fams = familiesAt(x, y);
+  const fam = fams[Math.floor(rng() * fams.length)];
+  const given = BOUNTY.names[Math.floor(rng() * BOUNTY.names.length)];
+  const zone = zoneOf(x, y);
+  return { night, kind: "stalker", id: fam.id, name: `${given}, ${fam.name} Stalker`, x, y, zone, pay: BOUNTY.pay[zone] ?? 16, affix };
+}
+
+/** A compass word from the town gate, for the board's line. */
+export function fromGate(x: number, y: number) {
+  const dx = x - GATE.x;
+  const dy = y - GATE.y;
+  const ns = dy < -3 ? "north" : dy > 3 ? "south" : "";
+  const ew = dx > 3 ? "east" : dx < -3 ? "west" : "";
+  return ns && ew ? `${ns}-${ew}` : ns || ew || "near";
+}

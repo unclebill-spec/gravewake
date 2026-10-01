@@ -1,0 +1,62 @@
+GAME LAYOUT TWO — PASTE PROMPT
+Gravewake only. This is Layout One pad + Ashfield combat + the full monster sheet.
+Do not use Bellwarden, Death Knight, Bone Tyrant, farm verbs, or a second battle screen.
+
+PAD
+Portrait flush left. Pause under it, hold 0.35s. Vitals: LV XP HP (hatched) mana/stam.
+Vampire: Blood only. Day/night chip + WX tag. Draggable minimap, collapse to 24px pip.
+Right rail cap 4, hide empty. Stick lower left, deadzone 12–15%, outer ring = run.
+SEC + 3RD mediums. MAIN large below them. Two potion pills. Hold pot 0.25s.
+MAIN tap = Slash 40° cone. MAIN hold 0.35s = interact (never swing).
+SEC = Whirl 18 stam. 3RD = Smite 12 mana (interrupts BIG once per boss phase, then 12s).
+Death = fallen overlay + reload run0. No gold tax.
+
+FEEL
+1-frame flash + 2–3px knockback. Portrait flickers in i-frames. Soft-lock cone invisible.
+Damage numbers = 0–9 sprite strip. No HUD sparkles.
+
+LIGHT + FX
+Glow local and cheap. Playfield only. cycleT drives grade. Lamps own night.
+Particles AFTER world, BEFORE HUD. Detail in the texture. Pool + SoA. One instanced draw.
+Caps: combat 24, interact 16, hub 12, wastes ash 40–80, delves mute.
+Four shaders only: WorldGrade, ChipParticle, AshTile, LightBlob. No bloom.
+
+COMBAT — ASHFIELD
+Trash: 1 move, no tell. Rare: 1 affix + 2–4 minions, 0.35s tint. Mini/remnant: SPAM+MID, 0.5s mark, no BIG.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] Mimic only: a solo rare, no affix, no minions, one bite lunge on the 0.35s tint. Every other rare is still a pack.
+Boss: spam / mid / BIG / helpers. BIG 0.8–1.2s decal. Walk out or eat it.
+Affixes (one): Linked, Chained, Horde cap 6, Vortex, Mortar, Fast, Shielded.
+No hard immunities. Never 0% from Slash/Whirl/Smite.
+
+SCALE
+HP = round(baseHP * (0.55+L*0.10) * bulk)
+ATK = round(baseATK * (0.70+L*0.06))
+AC  = baseAC + floor(L/10)
+XP  = round(baseXP * (0.80+L*0.08))
+Silver = round(baseSilver * (0.70+L*0.06))
+bulk 4.6 common, 2 boss and remnant.
+
+Zone L = round(you*0.35 + dist + biome), min 1.
+Dist from gate 32,46: <8 +0, <16 +2, <26 +5, else +8.
+Biome: vale +1, waste x>48 +3, cinder y>46 +3, winter y<16 +4, swamp x27-41 y23-39 +6.
+Wild = zone of tile. If L > you+4, TWO.
+Dungeon = max(floor, zone of entrance). World boss = max(floor, home tile).
+Grave / Hearth = entry L, min 10.
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] Generated dungeon = the Dungeon rule: max(listed 14, zone of entrance 44,32), every floor, trash and guard. Rift zone = zone of the rift tile.
+Stalker = L+2, HP*1.45. Goblin = your L, min 3.
+Helpers from YOUR level: 1/2/3/4/5/6 at 1-15/16-30/31-45/46-60/61-80/81+.
+Helper at round(bossL*0.55), HP*0.45.
+Boss dead two day-night cycles. Remnant same L, no helpers, rare loot. Then boss returns.
+
+ROSTER
+12 families: zombie, skeleton, ghost, bat, ghoul, witch, lantern man, scarecrow, werewolf, mummy, pale courtier, knot-faced elm.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] One 13th creature family beyond these 12: mimic (Mimic, a chest that bites). It is never a trash family, never in a wild, night, or floor-roamer pick. It only wakes from a dungeon chest, as a rare.
+21 bosses: Frankenstein, Evil Warlock, Undead Priest, Cursed Abbot, Wrapped King, The Lich, Lantern King, Hay Saint, Headless Horseman, Dracula, Wicked Witch, Root Widow, Gallows Bride, Death Shade, Carrion Saint, Giant Mummy, Ash Mare, Wolfman, Vampire Queen, Drowned Tzar, Leech Bishop.
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES] Two festival bosses beyond the 21: Pumpkin Lord (Harvest Moon) and Krampus (Krampusnacht). Only these two.
+[OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS] Spring Drowned Bloom and summer Ashen Fair add no boss: named Stalker packs (the Drowned Court, the sideshow), a plaza keeper and one game each. The Drowned Tzar keeps his one home.
+21 remnants: Surgeon's Aid, Parish Acolyte, Canopic Guard, Dry Psalm, Wick Acolyte, Straw Deacon, Dullahan's Mare, Blood Steward, Bog Sister, Knot-Faced Elm, Sexton, Prior, Gallows Witness, Carrion Choir, Cinder Foal, Winter Howl, Pale Afterimage, Tomb Bearer, Court Favorite, Drowned Page, Chapel Leech.
+Stalkers ~1/14. Loot Goblin flees at 4s. 5 pockets, no boss.
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] The generated dungeon's boss room holds a Stalker pack (Stalker = L+2, HP*1.45, two minions), never a boss; felled, it stays down for the rest of that day-night cycle. Rift zones are not pockets.
+Kits, tiles, floors: GAME_LAYOUT_TWO_ROSTER.txt
+Wireframe: GAME_LAYOUT_TWO.png / .svg
+Full pack: GAME_LAYOUT_TWO.txt

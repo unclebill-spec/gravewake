@@ -1,0 +1,12 @@
+Land of Pixels Halloween tileset by marceles
+https://opengameart.org/content/halloween-pixel-art-tileset-top-down
+Use in a game is allowed. Do not resell the sheets on their own.
+Tiny Creatures by Clint Bellanger, CC0
+https://opengameart.org/content/tiny-creatures
+Town buildings use the Land of Pixels Halloween house sprites already in public/art/land.
+
+Dusk grass and dirt: recolored from brown_grass_16 by AV Reference, CC0.
+
+https://opengameart.org/content/grass-and-ground-textures
+
+House tints are the Land of Pixels houses, recolored in place.

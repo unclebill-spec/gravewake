@@ -1,0 +1,45 @@
+Sprites still to draw
+====================
+16x16 tiles, or 16x32 for a person. Hard pixels, no blur.
+Draw one, drop the file in chat, and it can go in the game.
+
+Heroes
+------
+- Body sheets for each class: stand, walk, swing, cast, fish
+- A sword slash that is 16px and hard-edged
+  (a slash sheet was found, then skipped: soft edges, about 64px wide)
+- A cast pose, not just a bolt stuck on the painted arm
+
+Monsters with no sprite
+-----------------------
+- Lantern man and Lantern King
+- Scarecrow and Hay Saint
+
+Monsters using a stand-in
+-------------------------
+- Headless Horseman: a deer, not a horse
+- Lantern-pumpkin family: a plant, not a jack-o-lantern walker
+- Rat: a small brown critter, not a rat
+- Knot-faced elm: a dead tree, not a walking tree
+
+Magic still missing
+-------------------
+- Heal that reads as a mend, not a light bolt
+- A shield bubble (the one in the pack was 48px, so it was skipped)
+- Hit spark and a block flash
+
+Camp and weather
+----------------
+- Campfire
+- Smoke rising off the fire
+- Tent
+- Rain streak
+- Snow flake
+- Lightning bolt
+
+Town and items
+--------------
+- Shop signs (inn, smith, fisher, and the rest)
+- More than the two house sprites, so shops do not all look alike
+- Coin bag, red potion, blue potion, gem, and a gear icon per slot
+- Fishing bobber and a fish on the line

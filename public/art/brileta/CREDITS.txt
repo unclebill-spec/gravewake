@@ -1,0 +1,3 @@
+Trees and boulders generated with brileta-sprites by Mark Ayzenshtat, MIT.
+https://github.com/mayz/brileta-sprites
+Colors snapped to the Gravewake palette by tools/brileta-sprites/make_gravewake.mjs.

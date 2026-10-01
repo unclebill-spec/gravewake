@@ -1,0 +1,200 @@
+GAME LAYOUT ONE — GRAVEWAKE ROSTER (ASHFIELD)
+Source: GRAVEWAKE MONSTER DATA (user, 30 Sep 2026)
+Ashfield real-time rules still apply. This file is the named list the short prompt was missing.
+
+================================================================
+SCALING  (do not invent another curve)
+================================================================
+Base numbers are pre-scale. Fight level L:
+  HP     = round(base HP * (0.55 + L * 0.10) * bulk)
+  Attack = round(base ATK * (0.70 + L * 0.06))
+  Armor  = base AC + floor(L / 10)
+  XP     = round(base XP * (0.80 + L * 0.08))
+  Silver = round(base silver * (0.70 + L * 0.06))
+bulk = 4.6 common (about four hits), 2 boss/remnant.
+Remnant uses boss bulk and the same L. No helpers. Rare loot, not boss loot.
+
+Boss helpers: count from YOUR level, not boss L.
+  1–15:1  16–30:2  31–45:3  46–60:4  61–80:5  81+:6
+Helper = ordinary family at round(boss L * 0.55), HP * 0.45.
+
+Zone L of a tile:
+  round(yourL * 0.35 + distanceBand + biome), min 1.
+Distance from town gate (32,46): <8 +0, <16 +2, <26 +5, else +8.
+Biome: vale +1, dry waste (x>48) +3, cinder (y>46) +3,
+  winter (y<16) +4, scourge swamp (x 27–41 and y 23–39) +6.
+
+Who uses what
+  Wild / night: zone of tile. No floor. If fight L > you+4, spawn TWO.
+  East bridge under lv 3: zone + 2.
+  Dungeon: max(listed floor, zone of entrance). All floors + trash + boss share it.
+  World boss: max(listed floor, zone of home tile).
+  Remnant: same L as the boss it replaced.
+  Grave / Hearth Stair: your L on entry, min 10. Ignore the map.
+  Stalker: that fight L + 2, then HP * 1.45.
+  Loot Goblin: your L, min 3.
+A slain boss stays down two day-night cycles. Remnant stands in its place. Then the boss returns.
+
+================================================================
+12 FAMILIES  (trash = 1 move, no tell)
+================================================================
+id        name             personality  move
+zombie    Zombie           Brawler      swipe
+skeleton  Skeleton         Kiter        bone toss
+ghost     Ghost            Kiter        wail-shot
+bat       Bat              Skirmisher   dive
+ghoul     Ghoul            Zealot       rend
+witch     Witch            Kiter        hex bolt
+pumpkin   Lantern Man      Brawler      wick punch
+scare     Scarecrow        Anchor       rake
+wolf      Werewolf         Skirmisher   lunge
+mummy     Mummy            Anchor       wrap slam
+vamp      Pale Courtier    Skirmisher   cut + step
+tree      Knot-Faced Elm   Anchor       root swipe
+
+Winter: wolf, ghost, bat.
+Waste: mummy, skeleton, ghoul.
+Cinder: lantern, scarecrow, witch.
+Swamp: witch, tree, zombie.
+Vale: zombie, skeleton, ghost, bat.
+Dungeons: all except bat is left out of the two floor roamers.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC]
+mimic     Mimic            Skirmisher   bite lunge (rare only, 0.35s tint, solo, from a dungeon chest)
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] The mimic is the ONE solo rare: 1 rare, no minions, no pack affix. Its personal trick is one bite lunge on the existing 0.35s rare tint (the existing "line" shape, 18 px mark: OWNER-APPROVED COMBAT CHANGE 2026-09-30 10:35 PM ET, so a sidestep beats it; no new hit shape). Skirmisher. Stats on the one curve (scaleMonster), Stalker numbers: L+2, HP*1.45. Every other rare is still a pack. The check suite enforces that only the mimic builds solo.
+
+================================================================
+STALKER / GOBLIN
+================================================================
+~1/14 wild fights become Family Stalker. Same move + one rare trick (0.35s tint).
+Loot Goblin: not a boss. Flees toward map edge after 4s. MAIN hits still work.
+Do not give the Goblin a BIG. Do not seal a room on it.
+
+================================================================
+21 BOSSES  — spam / mid / BIG / summon-helpers
+Helpers use the family table and the helper-count rule above.
+BIG = 0.8–1.2s ground decal + portrait flicker. Smite interrupts once per phase.
+
+DUNGEON
+frank        Frankenstein      Zealot     slam / stitch-pull / BIG bolt-surge / zombie helpers
+warlock      Evil Warlock      Kiter      hex / circle-trap 0.5s / BIG black candle / witch helpers
+priest       Undead Priest     Warden     smite-bolt / kneel-ward / BIG grave-rite / ghost helpers
+             (Opened Grave; vampire only; L = entry, min 10)
+abbot        Cursed Abbot      Warden     staff / pew-line / BIG chapel-knell / skeleton helpers
+             (Hearth Stair; L = entry, min 10)
+wrapped      Wrapped King      Anchor     wrap-slam / canopic toss / BIG bandage-cage / mummy helpers
+lich         The Lich          Kiter      frost-bolt / phylactery shield / BIG death-word / skeleton helpers
+lanternking  Lantern King      Anchor     wick punch / lantern volley / BIG last-wick (room dark 1s) / lantern helpers
+haysaint     Hay Saint         Anchor     rake / straw storm / BIG scare-choir / scarecrow helpers
+horseman     Headless Horseman Skirmisher charge / pumpkin lob / BIG ride-through (line) / horse-tint helpers (use wolf body if no horse family)
+dracula      Dracula           Tyrant     cut / bat swarm mid / BIG crimson stare (0.9s cone) / vamp helpers
+witchboss    Wicked Witch      Kiter      hex / swamp pull / BIG drown-cauldron / witch helpers
+rootwidow    Root Widow        Anchor     root swipe / vine cage / BIG canopy-drop / tree helpers
+
+WORLD
+bride        Gallows Bride     Kiter      wail / rope lash / BIG vow-bell / ghost helpers
+shade        Death Shade       Skirmisher phase-cut / fade-step / BIG umbral split (leave a shade add) / ghost helpers
+saint        Carrion Saint     Warden     psalm-bolt / bone circle / BIG last-office / skeleton helpers
+mummyboss    Giant Mummy       Anchor     slam / sand-burst / BIG sarcophagus-fall / mummy helpers
+ashmare      Ash Mare          Skirmisher charge / cinder kick / BIG ash-gallop line / lantern helpers
+wolfman      Wolfman           Zealot     lunge / howl-pull 0.35s / BIG winter-maul / wolf helpers
+queen        Vampire Queen     Tyrant     cut / court-call mid / BIG throne-gaze cone / vamp helpers
+tzar         Drowned Tzar      Warden     wave-cut / undertow 0.5s / BIG flood-ring / ghost helpers
+leech        Leech Bishop      Tyrant     drain-tap / choir-leech / BIG mass (stand or be pulled) / vamp helpers
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES]
+FESTIVAL (beyond the 21; festival nights only; never in a dungeon, the world boss spots, a remnant table, or a pick list)
+pumpkinlord  Pumpkin Lord      Zealot     vine lash / seed volley / BIG harvest blaze (ring) / lantern helpers
+             (Harvest Moon, autumn festival night; Cinder patch 26,52; L = max(10, zone))
+krampus      Krampus           Tyrant     switch lash / basket snatch (pull) / BIG birch dark (room dark 1s) / wolf helpers
+             (Krampusnacht, winter festival night; Winter hollow 12,11; L = max(16, zone); a switch and a basket, no chains or bells)
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES] Only these two may exceed the 21-boss roster. Stats on the one curve (scaleMonster, the normal boss bulk). No remnant, no trophy slot. The check suite (group `festival`) enforces this.
+[OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS]
+FESTIVAL NIGHTS, SPRING AND SUMMER (on the season hooks, the night of in-season day 4; no boss and no rule exception)
+Drowned Bloom (spring): the swamp floods 3 tiles past its banks (x 24-44, y 20-42; drawn only, walking unchanged).
+  Plaza: Weir-wife Ottla at the stall (26,14); bloom bowls on the six lantern posts.
+  Bloom gathering: 6 blooms on flooded open ground, 3+ tiles apart, 4+ off the court, 8+ clear of every world boss spot; walk onto one to pick it (Drowned bloom, junk rank 1).
+  Ottla pays 4 silver a bloom; all 6 of the night handed in earns a garland: one chest-table roll.
+  The Drowned Court: 3 named Ghost Stalker packs (ghost is the Tzar's helper family and the vale's own) on the flooded banks
+  (vale ground, not the swamp itself), 8 tiles apart and 8 clear of every world boss spot. Court seal (junk rank 1) each,
+  a drowned coffer (one chest-table roll) half the time.
+  The Drowned Tzar keeps his one home (38,32). He is not a festival encounter and gets no second spot.
+Ashen Fair (summer): carnival games under a burning moon.
+  Plaza: Barker Sallow at the stall (26,14) by a striped booth with a burning moon on its board; ember braziers on the six lantern posts.
+  Ember dance: 3 silver a turn, 3 turns a night. 4 of the 6 braziers flare in turn (0.8 s each); walk them in that order inside 60 s (the longest town route is about 31 s at walking pace).
+  4 silver a step, 10 more for all four; a wrong brazier ends the turn. The night's first perfect dance wins a fair prize: one chest-table roll.
+  The sideshow: 3 named Stalker packs on Cinder lairs (y > 46, x <= 48: lantern man, scarecrow, witch), 8 apart and 8 clear of
+  every world boss spot. Fair ticket (junk rank 1) each, a prize box (one chest-table roll) half the time.
+[OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS] Both nights: stats on the one curve (the Stalker pack: L+2, HP*1.45, two minions L-1). No new boss, no remnant, no new save field, loot from the existing junk row and chest table only. The check suite (group `festival2`) enforces this.
+
+World bosses notice from farther when your L is close to fight L.
+Bride climbs with you from 25. Wolfman, Queen, Tzar, Leech stay on floor through 100.
+
+================================================================
+21 REMNANTS  (minis)
+================================================================
+Same id/family/L/stats as the boss. No helpers. Rare table. Two day-night only.
+2 abilities: the boss SPAM + the boss MID. No BIG. 0.5s mark on the mid.
+Leash 24 and reset if you leave (open-world remnants). Dungeon remnant stays in the last floor.
+
+boss         remnant
+frank        The Surgeon's Aid
+warlock      Parish Acolyte
+wrapped      Canopic Guard
+lich         Dry Psalm
+lanternking  Wick Acolyte
+haysaint     Straw Deacon
+horseman     The Dullahan's Mare
+dracula      Blood Steward
+witchboss    Bog Sister
+rootwidow    Knot-Faced Elm          (remnant name collides with family tree — tint boss-dark)
+priest       The Sexton
+abbot        The Prior
+bride        Gallows Witness
+saint        Carrion Choir
+ashmare      Cinder Foal
+wolfman      Winter Howl
+shade        Pale Afterimage
+mummyboss    Tomb Bearer
+queen        Court Favorite
+tzar         Drowned Page
+leech        Chapel Leech
+
+================================================================
+POCKETS  (no boss)
+================================================================
+Two floors. Dungeon level rule. Trash only + possible Stalker + possible Goblin.
+pocketvale 4 @18,42 / pocketwaste 16 @50,22 / pocketcinder 26 @40,48 /
+pocketwinter 30 @18,8 / pocketswamp 40 @34,24
+
+================================================================
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER]
+GENERATED SITES  (tools/map-writer; seeded, no Math.random)
+================================================================
+Generated dungeon (one): barrow  Shifting Barrow  L14 @44,32, 3 floors, cave tiles.
+  Rooms and corridors from the map writer; same seed, same floors. Trash: floor-roamer rule (all except bat).
+  Boss room (the deepest room) on the last floor: a Stalker pack guards it, never a boss.
+  Vault room: one chest (the mimic odds apply). Secrets, traps, mimic: the game's own placement on the writer's grid.
+  No captive (the site is not in the rescue list).
+  Hooks: zeppelin stop once visited; floor curses as any dungeon run; no bounty; no festival; no season pick (delves keep the even pick).
+Rift zone (a site type of its own; not a pocket, not a dungeon): riftvale  Ashen Rift  @10,30.
+  One floor. L = zone of the rift tile. Trash only (the rift tile's own families) + possible Stalker (~1/14) + possible Goblin (camp odds).
+  No boss, no secrets, no mimic, no captive, no curse, no zeppelin. Traps may lie on its floor.
+  The pocket rerolls each day-night cycle (seed = rift spot + cycle). You come back out on the exact spot you went in
+  from (the Portal record). No town portal inside. The mouth uses the Portal ash swirl (8 ash, 0.3s).
+The check suite (group `mapwriter`) enforces this.
+
+================================================================
+AFFIXES ON THIS ROSTER
+================================================================
+Wild rares still: one affix. Stalker already has +2 L and 1.45 HP — do not also stack Shielded+Horde+Linked.
+Boss helpers may be Linked to each other (shared helper pool) on Tyrant fights only (Dracula, Queen, Leech, Root Widow).
+Chained = two remnants if two bosses in the same two-cycle window spawn near each other. Rare. Do not script it.
+
+================================================================
+WEAKNESS  (unchanged law)
+================================================================
+No hard immunity. 30–50% resist by family is allowed:
+  bone/skeleton/lich  whirl +20%
+  ghost/shade         smite +20%
+  vampire court       smite +25% on BIG window only
+  mummy/tree          slash full, whirl +15%
+Never 0% from Slash/Whirl/Smite.
