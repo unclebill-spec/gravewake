@@ -1,0 +1,339 @@
+/**
+ * screen1: display presets, aspect boxes, the pixel-ratio cap, fullscreen, the stick reading and pad focus.
+ * Presentation and input reading only. The world area on screen is always what the C10 zoom shows today:
+ * a preset changes how many canvas pixels draw one 16 px-grid game pixel, never how many game pixels are seen.
+ */
+
+export type PresetId = "auto" | "phone" | "720p" | "1080p" | "retro";
+export type AspectId = "fit" | "16:9" | "4:3";
+export type CapId = 2 | 1.5 | 1;
+
+export interface ScreenSettings {
+  preset: PresetId;
+  aspect: AspectId;
+  cap: CapId;
+  /** The iPhone Add to Home Screen tip has been shown once. */
+  tipShown: boolean;
+}
+
+export const SCREEN_KEY = "gravewake-screen-v1";
+
+export interface Preset {
+  label: string;
+  /** Target internal frame (canvas pixels). Null: no target (Auto keeps today's density; Retro is native). */
+  res: [number, number] | null;
+  /** One canvas pixel per game pixel: the 16 px grid at its own size, scaled up whole. */
+  native?: boolean;
+  /** TV-distance UI and controller-first prompts. */
+  tv?: boolean;
+  /** HUD scale on a TV-tall window (never on a short phone). */
+  ui?: number;
+  /** Aspect picked along with the preset (the player can change it after). */
+  aspect?: AspectId;
+}
+
+export const PRESETS: Record<PresetId, Preset> = {
+  auto: { label: "Auto", res: null },
+  phone: { label: "Phone landscape", res: [854, 480] },
+  "720p": { label: "720p", res: [1280, 720], tv: true, ui: 1.25 },
+  "1080p": { label: "1080p TV", res: [1920, 1080], tv: true, ui: 1.5 },
+  retro: { label: "Retro (native 16 px)", res: null, native: true, aspect: "4:3" },
+};
+export const PRESET_IDS = Object.keys(PRESETS) as PresetId[];
+export const ASPECTS: AspectId[] = ["fit", "16:9", "4:3"];
+export const ASPECT_LABEL: Record<AspectId, string> = { fit: "Fit screen", "16:9": "16:9", "4:3": "4:3" };
+export const CAPS: CapId[] = [2, 1.5, 1];
+
+export const DEFAULT_SCREEN: ScreenSettings = { preset: "auto", aspect: "fit", cap: 2, tipShown: false };
+
+/** Read the saved settings. Anything missing, unknown or broken falls back to the default, field by field. */
+export function parseScreen(raw: string | null | undefined): ScreenSettings {
+  let o: Record<string, unknown> = {};
+  try {
+    const v = raw ? JSON.parse(raw) : null;
+    if (v && typeof v === "object" && !Array.isArray(v)) o = v as Record<string, unknown>;
+  } catch {
+    o = {};
+  }
+  return {
+    preset: PRESET_IDS.includes(o.preset as PresetId) ? (o.preset as PresetId) : DEFAULT_SCREEN.preset,
+    aspect: ASPECTS.includes(o.aspect as AspectId) ? (o.aspect as AspectId) : DEFAULT_SCREEN.aspect,
+    cap: CAPS.includes(o.cap as CapId) ? (o.cap as CapId) : DEFAULT_SCREEN.cap,
+    tipShown: o.tipShown === true,
+  };
+}
+
+export function loadScreen(): ScreenSettings {
+  try {
+    return parseScreen(localStorage.getItem(SCREEN_KEY));
+  } catch {
+    return { ...DEFAULT_SCREEN };
+  }
+}
+
+export function saveScreen(s: ScreenSettings) {
+  try {
+    localStorage.setItem(SCREEN_KEY, JSON.stringify(s));
+  } catch {
+    /* private mode: the settings still apply for this visit */
+  }
+}
+
+export interface ViewIn {
+  /** The window in CSS pixels. */
+  cssW: number;
+  cssH: number;
+  dpr: number;
+  /** The game's C10 zoom (sim.ts), read only. */
+  zoom: number;
+  s: ScreenSettings;
+  /** pointer: coarse (a phone or tablet). */
+  coarse: boolean;
+}
+
+export interface View {
+  /** The preset in force (Auto resolves to Phone landscape on a touch screen). */
+  eff: PresetId;
+  /** The picture box in CSS pixels (the window, or the largest 16:9 / 4:3 box inside it). */
+  box: { x: number; y: number; w: number; h: number };
+  /** The canvas element in CSS pixels, inside the box. */
+  css: { x: number; y: number; w: number; h: number };
+  bufW: number;
+  bufH: number;
+  /** Canvas pixels per game pixel (a whole number). drawWorld uses it as its zoom. */
+  k: number;
+  /** Game pixels seen: the same as the C10 zoom shows in this box at Auto. */
+  worldW: number;
+  worldH: number;
+  /** Today's density step: 2 on a 2x-or-more screen, else 1. */
+  dprA: number;
+  /** Device pixels per game pixel (zoom·dpr/dprA, the same for every preset). */
+  devPerGame: number;
+  /** Device pixels per canvas pixel. */
+  devPerBuf: number;
+  tv: boolean;
+  ui: number;
+}
+
+const near = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
+
+/** The largest box of this aspect in the window, centred, on whole device pixels. */
+export function aspectBox(cssW: number, cssH: number, dpr: number, aspect: AspectId) {
+  if (aspect === "fit") return { x: 0, y: 0, w: cssW, h: cssH };
+  const r = aspect === "16:9" ? 16 / 9 : 4 / 3;
+  let w = cssW;
+  let h = cssW / r;
+  if (h > cssH) {
+    h = cssH;
+    w = cssH * r;
+  }
+  w = Math.floor(w * dpr) / dpr;
+  h = Math.floor(h * dpr) / dpr;
+  return { x: Math.round(((cssW - w) / 2) * dpr) / dpr, y: Math.round(((cssH - h) / 2) * dpr) / dpr, w, h };
+}
+
+/**
+ * The canvas for one frame. Auto on a computer is exactly the old frame (buffer = floor(window·dprA), drawn at
+ * the zoom). Every other preset draws the same world area with fewer canvas pixels per game pixel (k), a whole
+ * number, scaled up by nearest neighbour; it never draws more or less of the world.
+ */
+export function computeView(v: ViewIn): View {
+  const dpr = v.dpr > 0 ? v.dpr : 1;
+  const zoom = Math.max(1, Math.round(v.zoom));
+  const eff: PresetId = v.s.preset === "auto" && v.coarse ? "phone" : v.s.preset;
+  const p = PRESETS[eff];
+  const dprA = dpr >= 2 ? 2 : 1;
+  const box = aspectBox(v.cssW, v.cssH, dpr, v.s.aspect);
+  const worldW = (box.w * dprA) / zoom;
+  const worldH = (box.h * dprA) / zoom;
+  const devPerGame = (zoom * dpr) / dprA;
+  // The cap: canvas pixels per CSS pixel never above it (and never above today's dprA).
+  const kMax = Math.max(1, Math.floor((zoom * Math.min(v.s.cap, dprA)) / dprA + 1e-9));
+  let k: number;
+  if (eff === "auto") k = Math.min(zoom, kMax);
+  else {
+    let want = zoom;
+    if (p.native) want = 1;
+    else if (p.res && eff === "phone") want = Math.floor(p.res[1] / Math.max(1e-9, worldH) + 1e-9);
+    else if (p.res) want = Math.floor(Math.min(p.res[0] / Math.max(1e-9, worldW), p.res[1] / Math.max(1e-9, worldH)) + 1e-9);
+    want = Math.max(1, Math.min(kMax, want));
+    // Whole device pixels per canvas pixel where the screen allows it; else the target.
+    k = want;
+    if (near(devPerGame)) {
+      for (let c = want; c >= 1; c--) {
+        if (near(devPerGame / c)) {
+          k = c;
+          break;
+        }
+      }
+    }
+  }
+  const bufW = Math.max(1, Math.floor((box.w * dprA * k) / zoom + 1e-9));
+  const bufH = Math.max(1, Math.floor((box.h * dprA * k) / zoom + 1e-9));
+  let css = { ...box };
+  if (eff !== "auto" || v.s.aspect !== "fit") {
+    // Exactly bufW·zoom/(dprA·k) CSS pixels, so every canvas pixel lands on the same number of device pixels.
+    const s = zoom / (dprA * k);
+    const w = bufW * s;
+    const h = bufH * s;
+    css = { x: box.x + Math.round(((box.w - w) / 2) * dpr) / dpr, y: box.y + Math.round(((box.h - h) / 2) * dpr) / dpr, w, h };
+  }
+  if (eff === "auto" && v.s.aspect === "fit") css = { x: 0, y: 0, w: v.cssW, h: v.cssH };
+  const ui = p.tv ? Math.max(1, Math.min(p.ui ?? 1, v.cssH / 600)) : 1;
+  return { eff, box, css, bufW, bufH, k, worldW, worldH, dprA, devPerGame, devPerBuf: devPerGame / k, tv: !!p.tv, ui };
+}
+
+/** The frame the shell used before screen1, for the checks: buffer = floor(window·dprA), zoom as drawn. */
+export function legacyBuffer(cssW: number, cssH: number, dpr: number) {
+  const d = (dpr || 1) >= 2 ? 2 : 1;
+  return { w: Math.max(1, Math.floor(cssW * d)), h: Math.max(1, Math.floor(cssH * d)) };
+}
+
+/* ---------- Fullscreen ---------- */
+
+type FsDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void; webkitFullscreenEnabled?: boolean };
+type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+type LockOrientation = ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void };
+
+export function fullscreenElement(): Element | null {
+  if (typeof document === "undefined") return null;
+  const d = document as FsDoc;
+  return d.fullscreenElement ?? d.webkitFullscreenElement ?? null;
+}
+
+export function canFullscreen(): boolean {
+  if (typeof document === "undefined") return false;
+  const el = document.documentElement as FsEl;
+  return typeof el.requestFullscreen === "function" || typeof el.webkitRequestFullscreen === "function";
+}
+
+/** Enter fullscreen (standard or webkit), then lock to landscape where the browser lets us (Android). */
+export async function enterFullscreen() {
+  const el = document.documentElement as FsEl;
+  try {
+    if (typeof el.requestFullscreen === "function") await el.requestFullscreen({ navigationUI: "hide" });
+    else if (typeof el.webkitRequestFullscreen === "function") el.webkitRequestFullscreen();
+  } catch {
+    return;
+  }
+  try {
+    const o = (typeof screen !== "undefined" ? screen.orientation : undefined) as LockOrientation | undefined;
+    if (o && typeof o.lock === "function") await o.lock("landscape");
+  } catch {
+    /* desktop, iPad and most browsers refuse the lock: fine */
+  }
+}
+
+export async function exitFullscreen() {
+  const d = document as FsDoc;
+  try {
+    const o = (typeof screen !== "undefined" ? screen.orientation : undefined) as LockOrientation | undefined;
+    if (o && typeof o.unlock === "function") o.unlock();
+  } catch {
+    /* nothing locked */
+  }
+  try {
+    if (typeof d.exitFullscreen === "function" && d.fullscreenElement) await d.exitFullscreen();
+    else if (typeof d.webkitExitFullscreen === "function") d.webkitExitFullscreen();
+  } catch {
+    /* already out */
+  }
+}
+
+export function toggleFullscreen() {
+  return fullscreenElement() ? exitFullscreen() : enterFullscreen();
+}
+
+/** iPhone / iPod Safari (no element fullscreen there). iPadOS reports as a Mac with touch. */
+export function isIos(ua = typeof navigator !== "undefined" ? navigator.userAgent : "", platform = typeof navigator !== "undefined" ? navigator.platform : "", touch = typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0) {
+  return /iPhone|iPod|iPad/.test(ua) || (platform === "MacIntel" && touch > 1);
+}
+
+export function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return nav.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches || window.matchMedia?.("(display-mode: fullscreen)").matches || false;
+}
+
+/* ---------- The stick (input reading only) ---------- */
+
+/** Full deflection, in CSS pixels, as before. */
+export const STICK_CAP = 42;
+/** screen1: 8% dead zone (was 14%). */
+export const STICK_DEAD = 0.08;
+/** Run past 82% of the throw, as before. */
+export const STICK_RUN = 0.82;
+
+/** Drag from the touch origin to stick values. Same mapping as before past the dead zone. */
+export function readStick(dx: number, dy: number, cap = STICK_CAP) {
+  const m = Math.hypot(dx, dy) || 1;
+  if (m < cap * STICK_DEAD) return { x: 0, y: 0, running: false };
+  const c = Math.min(1, m / cap);
+  return { x: (dx / m) * c, y: (dy / m) * c, running: m > cap * STICK_RUN };
+}
+
+/** A fresh touch in the left third of the screen starts (recentres) the floating stick there. */
+export const inStickZone = (clientX: number, viewW: number) => clientX < viewW / 3;
+
+/* ---------- The pad ---------- */
+
+export const PAD = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, Back: 8, Start: 9, Up: 12, Down: 13, Left: 14, Right: 15 } as const;
+export const PAD_NAV_DEAD = 0.5;
+
+/** The last connected standard pad, read as pressed buttons and the left stick. */
+export function readPad(pads: ArrayLike<Gamepad | null> | null | undefined) {
+  let pad: Gamepad | null = null;
+  for (let i = 0; pads && i < pads.length; i++) {
+    const p = pads[i];
+    if (p && p.connected) pad = p;
+  }
+  if (!pad) return null;
+  return { id: pad.id, pressed: Array.from(pad.buttons, (b) => !!(b && (b.pressed || b.value > 0.5))), lx: pad.axes[0] ?? 0, ly: pad.axes[1] ?? 0 };
+}
+
+export type Dir = "up" | "down" | "left" | "right";
+
+/** Focus moves to the nearest button in that direction (centre to centre, off-axis distance weighs double). */
+export function navPick(rects: { x: number; y: number; w: number; h: number }[], from: number, dir: Dir): number {
+  if (!rects.length) return -1;
+  if (from < 0 || from >= rects.length) return 0;
+  const a = rects[from];
+  const ax = a.x + a.w / 2;
+  const ay = a.y + a.h / 2;
+  let best = -1;
+  let bestD = Infinity;
+  rects.forEach((r, i) => {
+    if (i === from) return;
+    const dx = r.x + r.w / 2 - ax;
+    const dy = r.y + r.h / 2 - ay;
+    const main = dir === "up" ? -dy : dir === "down" ? dy : dir === "left" ? -dx : dx;
+    const side = dir === "up" || dir === "down" ? Math.abs(dx) : Math.abs(dy);
+    if (main <= 1) return;
+    const d = main + side * 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  });
+  if (best >= 0) return best;
+  // Nothing that way: wrap in reading order.
+  const step = dir === "down" || dir === "right" ? 1 : -1;
+  return (from + step + rects.length) % rects.length;
+}
+
+/** Art the loading cover waits for (bounded by a timeout); the rest loads as it is drawn, as before. */
+export const PRELOAD = [
+  "/art/sprites/people.png",
+  "/art/sprites/foes.png",
+  "/art/sprites/allies.png",
+  "/art/creatures/tilemap.png",
+  "/art/writer/vale.png",
+  "/art/writer/water.png",
+  "/art/writer/lamp.png",
+  "/art/cozy/grass.png",
+  "/art/cozy/dirt.png",
+  "/art/cozy/cabin.png",
+  "/art/held/trees.png",
+  "/art/held/rocks.png",
+];
+export const READY_TIMEOUT_MS = 6000;

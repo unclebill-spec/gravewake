@@ -44,6 +44,8 @@ globalThis.localStorage = {
   removeItem: (k) => store.delete(k),
 };
 
+// screen1 (2026-10-01): the shell after the screen and display batch. gfx2/gfx3 accept it beside the gfx3 HUD.
+const SCREEN1_HUD = "8b3ba0e16e6b643d539cb0961b67b32c";
 const out = join(mkdtempSync(join(tmpdir(), "gravewake-")), "sim.mjs");
 execFileSync("npx", ["esbuild", "src/game/sim.ts", "--bundle", "--platform=node", "--format=esm", `--outfile=${out}`], {
   stdio: ["ignore", "ignore", "inherit"],
@@ -5461,7 +5463,7 @@ if (on("gfx2")) {
   }
 
   // Nothing in play changed.
-  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts and Gravewake.tsx are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && md5("src/game/Gravewake.tsx") === "12ba2ee592c8e09a8c014e64df3ed0b1");
+  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD or the screen1 HUD (screen1 changed presentation and input reading only; its own group checks how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD].includes(md5("src/game/Gravewake.tsx")));
 }
 
 if (on("gfx3")) {
@@ -5635,11 +5637,206 @@ if (on("gfx3")) {
   }
 
   // Nothing in play changed.
-  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts and Gravewake.tsx are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && md5("src/game/Gravewake.tsx") === "12ba2ee592c8e09a8c014e64df3ed0b1");
+  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD or the screen1 HUD (screen1 changed presentation and input reading only; its own group checks how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD].includes(md5("src/game/Gravewake.tsx")));
+}
+
+if (on("screen1")) {
+  // screen1 (owner request 2026-10-01 16:11 ET): screen and display settings. Presentation and input reading only:
+  // the C10 zoom, play, movement, collision, combat, shops, saves and audio content stay as they were.
+  const { readFileSync, writeFileSync, existsSync, mkdtempSync: mk } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const { inflateSync } = await import("node:zlib");
+  const dir = mk(join(tmpdir(), "gravewake-"));
+  const entry = join(dir, "screen1.ts");
+  const root = process.cwd();
+  writeFileSync(entry, `export * from "${root}/src/game/screen.ts";\n`);
+  const file = join(dir, "screen1.mjs");
+  execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const S = await import(pathToFileURL(file).href);
+  const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5s = (t) => createHash("md5").update(t).digest("hex");
+  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+  const scr = readFileSync("src/game/screen.ts", "utf8");
+  const css = readFileSync("src/styles.css", "utf8");
+  const head = readFileSync("src/routes/__root.tsx", "utf8");
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const near = (v) => Math.abs(v - Math.round(v)) < 1e-6;
+  const SIZES = [[960, 640], [844, 390], [740, 360], [1280, 720], [1920, 1080], [390, 844], [1024, 768], [812.5, 375.5], [1366, 768], [2560, 1440], [667, 375], [915, 412]];
+  const DPRS = [1, 1.25, 1.5, 2, 2.625, 3];
+  const ZOOMS = [2, 3, 4, 5, 6];
+  const base = { preset: "auto", aspect: "fit", cap: 2, tipShown: false };
+
+  // 1. Auto on a computer is the old frame exactly.
+  {
+    const bad = [];
+    for (const [w, h] of SIZES) for (const dpr of DPRS) for (const zoom of ZOOMS) {
+      const v = S.computeView({ cssW: w, cssH: h, dpr, zoom, s: base, coarse: false });
+      const old = S.legacyBuffer(w, h, dpr);
+      const oldDpr = dpr >= 2 ? 2 : 1;
+      if (v.bufW !== old.w || v.bufH !== old.h || v.k !== zoom || v.css.w !== w || v.css.h !== h || v.css.x !== 0 || v.css.y !== 0 || old.w !== Math.max(1, Math.floor(w * oldDpr))) bad.push(`${w}x${h}@${dpr} z${zoom}: ${v.bufW}x${v.bufH} k${v.k}`);
+    }
+    check("screen1", "Auto on a computer draws the old frame exactly: buffer = floor(window × (2 on a 2x-or-more screen, else 1)), drawn at the C10 zoom, filling the window (360 window/DPR/zoom cases)", bad.length === 0, bad.slice(0, 4).join("; "));
+  }
+
+  // 2-4. Every preset shows the same world area; k is whole; the cap holds; canvas pixels land on whole device pixels.
+  {
+    const world = [], whole = [], cap = [], dev = [], css = [];
+    let n = 0;
+    for (const [w, h] of SIZES) for (const dpr of DPRS) for (const zoom of ZOOMS) for (const preset of S.PRESET_IDS) for (const aspect of S.ASPECTS) for (const c of S.CAPS) for (const coarse of [false, true]) {
+      n++;
+      const s = { preset, aspect, cap: c, tipShown: false };
+      const v = S.computeView({ cssW: w, cssH: h, dpr, zoom, s, coarse });
+      const dprA = dpr >= 2 ? 2 : 1;
+      const want = [(v.box.w * dprA) / zoom, (v.box.h * dprA) / zoom];
+      const got = [v.bufW / v.k, v.bufH / v.k];
+      if (!(got[0] <= want[0] + 1e-9 && got[0] > want[0] - 1 / v.k - 1e-9 && got[1] <= want[1] + 1e-9 && got[1] > want[1] - 1 / v.k - 1e-9)) world.push(`${preset}/${aspect}/${c} ${w}x${h}@${dpr} z${zoom}: ${got} vs ${want}`);
+      if (aspect === "fit") {
+        const auto = S.computeView({ cssW: w, cssH: h, dpr, zoom, s: base, coarse: false });
+        if (Math.abs(auto.bufW / auto.k - got[0]) >= 1 || Math.abs(auto.bufH / auto.k - got[1]) >= 1) world.push(`${preset} fit vs Auto ${w}x${h}@${dpr} z${zoom}`);
+      }
+      if (!Number.isInteger(v.k) || v.k < 1 || v.k > zoom) whole.push(`${preset} k${v.k}`);
+      if (v.bufW / v.box.w > Math.min(c, dprA) + 1e-9 && !(v.eff === "auto" && v.k === zoom && c >= dprA)) cap.push(`${preset}/${c} ${w}x${h}@${dpr}: ${v.bufW}/${v.box.w}`);
+      if (v.eff !== "auto" && near(v.devPerGame) && !near(v.devPerBuf)) dev.push(`${preset} ${w}x${h}@${dpr} z${zoom} k${v.k}: ${v.devPerBuf}`);
+      if (!(v.eff === "auto" && aspect === "fit")) {
+        if (Math.abs(v.css.w * dpr - v.bufW * v.devPerBuf) > 1e-6 || Math.abs(v.css.h * dpr - v.bufH * v.devPerBuf) > 1e-6) css.push(`${preset} css ${v.css.w}x${v.css.h}`);
+        if (v.css.x < v.box.x - 1e-6 || v.css.y < v.box.y - 1e-6 || v.css.x + v.css.w > v.box.x + v.box.w + 1e-6 || v.css.y + v.css.h > v.box.y + v.box.h + 1e-6) css.push(`${preset} outside box`);
+      }
+    }
+    check("screen1", `every preset × aspect × cap × touch (${n} cases) shows the world area the C10 zoom shows in that box (within one game pixel of rounding), and at Fit the same area as Auto`, world.length === 0, world.slice(0, 3).join("; "));
+    check("screen1", "canvas pixels per game pixel (k) is a whole number from 1 to the zoom: a preset only draws the same picture with fewer canvas pixels", whole.length === 0, whole.slice(0, 3).join("; "));
+    check("screen1", "the max pixel-ratio cap holds: canvas pixels per CSS pixel never above the cap (Auto at the 2× cap is the old frame)", cap.length === 0, cap.slice(0, 3).join("; "));
+    check("screen1", "integer nearest-neighbour: on 1x/2x/3x screens every preset puts each canvas pixel on the same whole number of device pixels, and the canvas element is exactly buffer × that size, inside its box", dev.length === 0 && css.length === 0, [...dev, ...css].slice(0, 3).join("; "));
+  }
+
+  // 5. Letterbox and pillarbox.
+  {
+    const bad = [];
+    for (const [w, h] of SIZES) for (const dpr of [1, 2, 3]) for (const [a, r] of [["16:9", 16 / 9], ["4:3", 4 / 3]]) {
+      const b = S.aspectBox(w, h, dpr, a);
+      const ok = Math.abs(b.w / b.h - r) < 2 / Math.min(b.w, b.h) && b.x >= 0 && b.y >= 0 && b.x + b.w <= w + 1e-9 && b.y + b.h <= h + 1e-9 && (Math.abs(b.w - w) < 1 || Math.abs(b.h - h) < 1) && Math.abs(b.x - (w - b.w) / 2) <= 1 / dpr && Math.abs(b.y - (h - b.h) / 2) <= 1 / dpr && near(b.w * dpr) && near(b.h * dpr);
+      if (!ok) bad.push(`${a} ${w}x${h}@${dpr}: ${JSON.stringify(b)}`);
+    }
+    check("screen1", "16:9 and 4:3 take the largest box of that shape, centred on whole device pixels, with black bars around it (main is bg-black)", bad.length === 0 && /bg-black text-fg/.test(ui), bad.slice(0, 2).join("; "));
+  }
+
+  // 6. The numbers picked.
+  {
+    const V = (w, h, dpr, preset, aspect = "fit", coarse = false, c = 2) => S.computeView({ cssW: w, cssH: h, dpr, zoom: 4, s: { preset, aspect, cap: c, tipShown: false }, coarse });
+    const f = (v) => `${v.bufW}x${v.bufH} k${v.k} ×${v.devPerBuf}`;
+    const got = {
+      phone844: f(V(844, 390, 3, "auto", "fit", true)), phone740: f(V(740, 360, 3, "auto", "fit", true)), desk: f(V(960, 640, 1, "auto")), deskPhone: f(V(960, 640, 1, "phone")),
+      tv1080: f(V(1920, 1080, 1, "1080p")), tv720: f(V(1920, 1080, 1, "720p")), retroTv: f(V(1920, 1080, 1, "retro", "4:3")), retroBox: V(1920, 1080, 1, "retro", "4:3").css.w, ph720cap1: f(V(844, 390, 3, "720p", "fit", true, 1)), ph720cap15: f(V(844, 390, 3, "720p", "fit", true, 1.5)),
+    };
+    const want = { phone844: "844x390 k2 ×3", phone740: "740x360 k2 ×3", desk: "960x640 k4 ×1", deskPhone: "480x320 k2 ×2", tv1080: "1920x1080 k4 ×1", tv720: "960x540 k2 ×2", retroTv: "360x270 k1 ×4", retroBox: 1440, ph720cap1: "844x390 k2 ×3", ph720cap15: "1266x585 k3 ×2" };
+    check("screen1", "the numbers: Auto on a touch phone is Phone landscape (844×390 at 3 device px each on an 844×390 3x phone, 740×360 at 360 tall); 1080p TV is 1920×1080 on a 1080p screen, 720p is 960×540 there (2× whole); Retro is 1 canvas px per game px (360×270 in a 1440×1080 4:3 box); the cap lowers 720p on a 3x phone to 1266×585 (1.5) or 844×390 (1)", JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
+    const t = (h, p) => S.computeView({ cssW: h * 16 / 9, cssH: h, dpr: 1, zoom: 4, s: { ...base, preset: p }, coarse: false });
+    check("screen1", "TV presets: bigger UI at TV height (1080p 1.5×, 720p 1.25×), never on a short phone, and controller-first prompts", t(1080, "1080p").ui === 1.5 && t(1080, "720p").ui === 1.25 && t(390, "1080p").ui === 1 && t(1080, "auto").ui === 1 && t(1080, "1080p").tv && !t(1080, "phone").tv && /const padFirst = padOn \|\| !!look\?\.tv;/.test(ui) && (ui.match(/\{padFirst \? <PadGlyph/g) ?? []).length >= 5 && /fontSize = uiNow === 1 \? "" : `\$\{16 \* uiNow\}px`/.test(ui), "");
+  }
+
+  // 7. Settings: saved under their own key, applied at once, broken values fall back field by field.
+  {
+    const P = S.parseScreen;
+    const ok = JSON.stringify(P(null)) === JSON.stringify(S.DEFAULT_SCREEN) && JSON.stringify(P("{bad")) === JSON.stringify(S.DEFAULT_SCREEN) && JSON.stringify(P("[1,2]")) === JSON.stringify(S.DEFAULT_SCREEN)
+      && P('{"preset":"retro","aspect":"4:3","cap":1,"tipShown":true}').preset === "retro" && P('{"preset":"8k","aspect":"4:3"}').preset === "auto" && P('{"preset":"8k","aspect":"4:3"}').aspect === "4:3" && P('{"cap":7}').cap === 2 && P('{"tipShown":"yes"}').tipShown === false
+      && S.SCREEN_KEY === "gravewake-screen-v1" && !/gravewake-saves|gravewake-binds/.test(scr);
+    check("screen1", "display settings live under gravewake-screen-v1 (not the save or bind keys); a broken or unknown value falls back to the default field by field", ok);
+    check("screen1", "the settings sit on the title (Display) and under Pause › Display, apply instantly (the frame reads them every frame) and are saved", /data-testid="title-display"/.test(ui) && (ui.match(/<ScreenOptions /g) ?? []).length === 2 && /pauseTab === "display" \?/.test(ui) && /saveScreen\(next\);/.test(ui) && /const s = screenRef\.current;/.test(ui) && /screenRef\.current = next;/.test(ui));
+  }
+
+  // 8. The frame: the world view uses k; the fight and the map keep the Auto frame; taps map through k.
+  check("screen1", "the frame: computeView every frame, drawWorld at k; the fight and the map keep the Auto frame; a tap maps through k and the canvas box", /drawWorld\(ctx, game, w, h, v\.k\)/.test(ui) && /const scene = game\.mode === "battle" \|\| game\.mode === "map";/.test(ui) && /s: \{ \.\.\.s, preset: "auto" \}, coarse: false/.test(ui) && /const zoom = viewRef\.current\?\.k \?\? g\.zoom;/.test(ui) && /canvas\.style\.imageRendering = "pixelated";/.test(ui) && /image-rendering: pixelated/.test(css));
+  {
+    const restored = draw.replace("export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {\n  seasonNow = g.season();\n", "export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {\n  seasonNow = g.season();\n  const zoom = g.zoom;\n");
+    check("screen1", "draw.ts: the only change is drawWorld's optional zoom (it defaults to g.zoom); put back, the file is byte-identical to gfx3", md5s(restored) === "29c64979b1efe9dfb44bb9b708e53360" && restored !== draw);
+  }
+
+  // 9. Fullscreen.
+  check("screen1", "fullscreen: the standard API with webkit prefixes; Android landscape lock after entering, in try/catch; buttons on the title, Pause › Display and a 44 px HUD corner icon", /requestFullscreen\(\{ navigationUI: "hide" \}\)/.test(scr) && /webkitRequestFullscreen\(\)/.test(scr) && /webkitExitFullscreen\(\)/.test(scr) && /webkitFullscreenElement/.test(scr) && /try \{\n\s+const o = [^\n]+\n\s+if \(o && typeof o\.lock === "function"\) await o\.lock\("landscape"\);\n\s+\} catch/.test(scr) && /data-testid="title-fullscreen"/.test(ui) && /data-testid="options-fullscreen"/.test(ui) && /data-testid="hud-fullscreen"[\s\S]{0,400}h-11 w-11/.test(ui) && /"webkitfullscreenchange"/.test(ui));
+  check("screen1", "the F key: fullscreen on the title and in menus; Smite keeps F in play, a fight and fishing (Shift+F there); never while typing a name", /if \(e\.code === "KeyF" && !e\.ctrlKey && !e\.metaKey && !e\.altKey && !e\.repeat\)/.test(ui) && /Object\.values\(game\.keyBind\)\.includes\("KeyF"\) && \(game\.mode === "play" \|\| game\.mode === "battle" \|\| game\.mode === "fish"\)/.test(ui) && /if \(e\.shiftKey \|\| !busy\)/.test(ui) && ui.indexOf('if (e.code === "KeyF"') > ui.indexOf("if (e.target instanceof HTMLInputElement"));
+  {
+    const man = JSON.parse(readFileSync("public/gravewake.webmanifest", "utf8"));
+    const png = (f) => { const b = readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
+    const icons = man.icons.map((i) => ({ ...i, path: `public${i.src}` }));
+    const iconsOk = icons.every((i) => existsSync(i.path) && png(i.path).join("x") === i.sizes);
+    check("screen1", "iPhone/Android: the game manifest is display fullscreen, orientation landscape, with 180/192/512 icons that exist at their sizes; the apple capable and status-bar metas are set; the platform's /__grok manifest stays linked (after) and served, and the apple-touch-icon stays", man.display === "fullscreen" && man.orientation === "landscape" && man.start_url === "/" && iconsOk && icons.map((i) => i.sizes).join() === "180x180,192x192,512x512"
+      && head.indexOf('href: "/gravewake.webmanifest"') > 0 && head.indexOf('href: "/gravewake.webmanifest"') < head.indexOf('href: "/__grok/manifest.webmanifest"') && /name: "apple-mobile-web-app-capable", content: "yes"/.test(head) && /apple-mobile-web-app-status-bar-style", content: "black-translucent"/.test(head) && /rel: "apple-touch-icon", href: "\/__grok\/icon-180\.png"/.test(head) && existsSync("public/__grok/icon-180.png"), JSON.stringify(icons.map((i) => i.sizes)));
+    // The icons come from one 16 px cell scaled whole (every k×k block one colour), via the writer.
+    const decode = (f) => {
+      const b = readFileSync(f);
+      let o = 8, w = 0, h = 0; const idat = [];
+      while (o < b.length) { const len = b.readUInt32BE(o); const kind = b.toString("ascii", o + 4, o + 8); const d = b.subarray(o + 8, o + 8 + len); if (kind === "IHDR") { w = d.readUInt32BE(0); h = d.readUInt32BE(4); } if (kind === "IDAT") idat.push(d); o += 12 + len; }
+      const raw = inflateSync(Buffer.concat(idat)); const bpp = 4, stride = w * bpp; const out = Buffer.alloc(h * stride); let prev = Buffer.alloc(stride);
+      for (let y = 0; y < h; y++) { const t = raw[y * (stride + 1)]; const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)); const cur = Buffer.alloc(stride);
+        for (let x = 0; x < stride; x++) { const a = x >= bpp ? cur[x - bpp] : 0, up = prev[x], c = x >= bpp ? prev[x - bpp] : 0; const p = a + up - c; const pr = Math.abs(p - a) <= Math.abs(p - up) && Math.abs(p - a) <= Math.abs(p - c) ? a : Math.abs(p - up) <= Math.abs(p - c) ? up : c;
+          cur[x] = (line[x] + (t === 0 ? 0 : t === 1 ? a : t === 2 ? up : t === 3 ? (a + up) >> 1 : pr)) & 255; }
+        cur.copy(out, y * stride); prev = cur; }
+      return { w, h, px: (x, y) => out.readUInt32BE(y * stride + x * 4) };
+    };
+    const blocky = [192, 512].every((n) => { const im = decode(`public/art/icons/gravewake-${n}.png`); const k = n / 16; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (im.px(x, y) !== im.px(Math.floor(x / k) * k, Math.floor(y / k) * k)) return false; return true; });
+    const tmp = mk(join(tmpdir(), "gw-icons-"));
+    let regen = "";
+    try { regen = execFileSync("python3", ["-B", "-c", `import sys; sys.path.insert(0, 'tools/pixel-writer'); import make_icons, pathlib; make_icons.main(pathlib.Path(${JSON.stringify(tmp)}))`], { encoding: "utf8" }); } catch (e) { regen = String(e.message); }
+    const same = [192, 512].every((n) => existsSync(join(tmp, "public/art/icons", `gravewake-${n}.png`)) && md5(join(tmp, "public/art/icons", `gravewake-${n}.png`)) === md5(`public/art/icons/gravewake-${n}.png`));
+    check("screen1", "the home-screen icons are one 16×16 cell scaled whole (12× and 32×, every block one colour), and tools/pixel-writer/make_icons.py writes them byte for byte", blocky && same, regen.trim());
+  }
+  check("screen1", "a one-time Add to Home Screen tip on iPhone Safari (not when already launched from the home screen); 'Got it' keeps it from coming back; the fullscreen buttons show it where element fullscreen does not exist", /if \(isIos\(\) && !isStandalone\(\) && !screenRef\.current\.tipShown\) setTip\(true\);/.test(ui) && /setScreen\(\{ tipShown: true \}\);/.test(ui) && /if \(canFullscreen\(\)\) void toggleFullscreen\(\);\n\s+else setTip\(true\);/.test(ui) && S.isIos("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X)", "iPhone", 5) && S.isIos("Mozilla/5.0 (Macintosh)", "MacIntel", 5) && !S.isIos("Mozilla/5.0 (Linux; Android 14)", "Linux", 5) && !S.isIos("Mozilla/5.0 (Macintosh)", "MacIntel", 0));
+
+  // 10. The sideways phone.
+  check("screen1", "sideways phone: viewport-fit=cover, maximum-scale=1, user-scalable=no; 100dvh; all four safe-area insets used by the HUD; touch targets at least 44 px on a touch screen; a compact HUD under 500 px tall", /width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover/.test(head) && /height: 100dvh;/.test(css) && ["top", "right", "bottom", "left"].every((s) => css.includes(`env(safe-area-inset-${s}, 0px)`)) && ["--sat", "--sar", "--sab", "--sal"].every((v) => ((ui + css).match(new RegExp(`var\\(${v}\\)`, "g")) ?? []).length >= 2 && ui.includes(`var(${v})`)) && /@media \(pointer: coarse\) \{\n {2}main button \{ min-height: 44px; min-width: 44px; \}/.test(css) && /@media \(max-height: 500px\)/.test(css) && /\.gw-panel \{ top: calc\(6px \+ var\(--sat\)\) !important; max-height: calc\(100dvh - 12px - var\(--sat\) - var\(--sab\)\) !important; \}/.test(css));
+  check("screen1", "a portrait phone gets 'Turn your phone sideways' with Play anyway (kept for the session); a computer never sees it", /const showPortrait = coarse && portrait && !portraitOk;/.test(ui) && /Turn your phone sideways/.test(ui) && /Play anyway/.test(ui) && /sessionStorage\.setItem\("gravewake-portrait-ok", "1"\)/.test(ui) && /setPortrait\(window\.innerHeight > window\.innerWidth\);/.test(ui));
+  check("screen1", "the minimap starts clear of the HUD card (under it when there is room above the tent, else beside it) and is kept on screen; a title taller than the window scrolls from its top", /r\.bottom \+ 8 \+ 96 <= campTop - 8/.test(ui) && /miniUser\.current = true;/.test(ui) && /Math\.min\(miniAt\.x, \(typeof window !== "undefined" \? window\.innerWidth : 1e4\) - \(pip \? 24 : 96\)\)/.test(ui) && /gw-title-in my-auto flex/.test(ui) && !/gw-title absolute inset-0 z-20 flex flex-col items-center justify-center/.test(ui));
+
+  // 11. Touch gotchas.
+  check("screen1", "no page slide, scroll or zoom: html/body fixed and hidden, overscroll none, touch-action none (menus marked data-scroll may pan), no selection, no callout, no tap highlight; a non-passive touchmove preventDefault and iOS gesturestart blocked", /html, body \{\n {4}position: fixed;\n {4}inset: 0;\n {4}width: 100%;\n {4}overflow: hidden;\n {4}overscroll-behavior: none;\n {4}touch-action: none;/.test(css) && /user-select: none;/.test(css) && /-webkit-touch-callout: none;/.test(css) && /-webkit-tap-highlight-color: transparent;/.test(css) && /\[data-scroll\] \{ touch-action: pan-y; overscroll-behavior: contain;/.test(css) && /document\.addEventListener\("touchmove", touchMove, \{ passive: false \}\);/.test(ui) && /if \(e\.touches\.length > 1 \|\| !t\?\.closest\?\.\("\[data-scroll\]"\)\) e\.preventDefault\(\);/.test(ui) && /document\.addEventListener\("gesturestart", gesture\);/.test(ui) && /input, textarea \{ user-select: text;/.test(css));
+  check("screen1", "the loading cover: in the first HTML, over everything, swallows pointers and keys until the core sheets are in (bounded wait), then lifts", /const \[ready, setReady\] = useState\(false\);/.test(ui) && /\{!ready \? \(\n\s+<div\n\s+data-testid="loading"/.test(ui) && /z-\[60\]/.test(ui) && /onPointerDownCapture=\{\(e\) => \{\n\s+e\.preventDefault\(\);\n\s+e\.stopPropagation\(\);/.test(ui) && /if \(performance\.now\(\) < readyAt\.current\) \{\n\s+e\.preventDefault\(\);\n\s+return;\n\s+\}/.test(ui) && /Promise\.race\(\[Promise\.all\(PRELOAD\.map\(loadOne\)\), new Promise<void>\(\(done\) => window\.setTimeout\(done, READY_TIMEOUT_MS\)\)\]\)/.test(ui) && S.READY_TIMEOUT_MS <= 8000 && S.PRELOAD.every((u) => existsSync(`public${u}`)));
+  check("screen1", "audio starts only on a fresh press after the cover lifts (a press held from before never counts; a held key's repeats never count); a button release counts only after its own fresh press", /const unlockFresh = \(t: number\) => \{\n\s+if \(t < readyAt\.current\) return;/.test(ui) && /if \(!e\.repeat\) unlockFresh\(e\.timeStamp \|\| performance\.now\(\)\);/.test(ui) && /if \(e\.timeStamp < readyAt\.current\) return;\n\s+freshIds\.current\.add\(e\.pointerId\);/.test(ui) && /if \(!freshIds\.current\.delete\(e\.pointerId\)\) return;/.test(ui) && /if \(performance\.now\(\) >= readyAt\.current\) audioRef\.current\?\.unlock\(\);/.test(ui) && !/audio\.unlock\(\);\n\s+if \(e\.target instanceof HTMLInputElement/.test(ui) && !/dataset\.down \|\| 0/.test(ui) && (ui.match(/pressedFor\(e\.currentTarget as HTMLButtonElement\)/g) ?? []).length === 4 && /const held = pressedFor\(e\.currentTarget as HTMLButtonElement\);\n\s+if \(held < 0\) return;\n\s+if \(held >= 350\) game\.interact\(\);/.test(ui));
+
+  // 12. The stick (input reading only).
+  {
+    const old = (dx, dy) => { const m = Math.hypot(dx, dy) || 1; const cap = 42; if (m < cap * 0.14) return { x: 0, y: 0, running: false }; const c = Math.min(1, m / cap); return { x: (dx / m) * c, y: (dy / m) * c, running: m > cap * 0.82 }; };
+    let same = 0, diff = [];
+    for (let a = 0; a < 360; a += 15) for (const m of [6, 8, 12, 20, 30, 34.5, 35, 40, 42, 60, 200]) {
+      const dx = Math.cos((a * Math.PI) / 180) * m, dy = Math.sin((a * Math.PI) / 180) * m;
+      const A = S.readStick(dx, dy), B = old(dx, dy);
+      if (A.x === B.x && A.y === B.y && A.running === B.running) same++; else diff.push(`${a}°/${m}`);
+    }
+    const dz = S.readStick(42 * 0.08 - 0.01, 0).x === 0 && S.readStick(42 * 0.08 + 0.01, 0).x > 0 && S.readStick(4, 0).x > 0 && S.readStick(3, 0).x === 0;
+    check("screen1", "the stick reads the same as before past the dead zone (same throw 42 px, same mapping, run past 82%: 264 drags identical); only the dead zone is 8% (was 14%)", diff.length === 0 && same === 264 && dz && S.STICK_DEAD === 0.08 && S.STICK_RUN === 0.82 && S.STICK_CAP === 42, diff.slice(0, 4).join(","));
+  }
+  check("screen1", "the stick floats: it starts under the finger (on the ring, or any touch in the left third in play), is tracked by its pointer id with capture (it keeps tracking off the ring), and a quick tap there still walks; mice keep tap-to-walk everywhere", /if \(e\.pointerType === "touch" && g0\?\.mode === "play" && stick\.current\.id < 0 && inStickZone\(e\.clientX, window\.innerWidth\)\)/.test(ui) && /stick\.current = \{ id: e\.pointerId, ox: e\.clientX, oy: e\.clientY \};/.test(ui) && /\(e\.currentTarget as HTMLElement\)\.setPointerCapture\(e\.pointerId\);/.test(ui) && (ui.match(/if \(!g \|\| stick\.current\.id !== e\.pointerId\) return false;/g) ?? []).length === 2 && /if \(!g \|\| stick\.current\.id !== e\.pointerId\) return false;\n\s+const dx = e\.clientX - stick\.current\.ox;/.test(ui) && /const r = readStick\(dx, dy\);/.test(ui) && /performance\.now\(\) - tap\.t < 250/.test(ui) && S.inStickZone(100, 900) && !S.inStickZone(300, 900) && !/cap \* 0\.14/.test(ui));
+
+  // 13. The pad.
+  {
+    const btn = (on) => ({ pressed: on, value: on ? 1 : 0 });
+    const pad = (id, on, connected = true) => ({ id, connected, axes: [0.3, -0.9], buttons: Array.from({ length: 17 }, (_, i) => btn(on.includes(i))) });
+    const r = S.readPad([pad("a", [0]), null, pad("b", [1, 5]), pad("c", [2], false)]);
+    const grid = [0, 1, 2].flatMap((row) => [0, 1, 2].map((col) => ({ x: col * 100, y: row * 50, w: 80, h: 40 })));
+    const nav = [S.navPick(grid, 4, "up"), S.navPick(grid, 4, "down"), S.navPick(grid, 4, "left"), S.navPick(grid, 4, "right"), S.navPick(grid, 8, "right"), S.navPick(grid, -1, "down")].join();
+    check("screen1", "the pad is read as the last connected standard pad (pressed or value > 0.5); focus moves to the nearest button that way and wraps", r && r.id === "b" && r.pressed[1] && r.pressed[5] && !r.pressed[0] && r.lx === 0.3 && S.readPad([]) === null && nav === "1,7,3,5,0,0", `${nav}`);
+  }
+  check("screen1", "the pad on the title and every menu: d-pad or stick moves the focus, A presses, B backs out (Leave, Close, Stand, Stay, Return, Later, Done, Got it, Close map); never in play, a fight or fishing (the sim drives those), never while remapping", /const NAV_MODES = new Set\(\["title", "talk", "shop", "casino", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map"\]\);/.test(ui) && /if \(game\.captureAct\) return keep\(\);/.test(ui) && /focusEl\.click\(\);/.test(ui) && /root\.querySelector<HTMLElement>\("\[data-padback\]"\)\?\.click\(\);/.test(ui) && (ui.match(/data-padback/g) ?? []).length >= 11 && (ui.match(/data-padnav(?!\])/g) ?? []).length === 3 && /readPad\(navigator\.getGamepads\?\.\(\)\)/.test(ui) && /if \(now >= readyAt\.current\) padLayer\(now\);/.test(ui));
+  check("screen1", "the pad in play: B or RB is the Main swing (game.slash, the same call the Main tap makes), only while no action is bound to that button; A stays use, X area, Y far, LB drink, Start pause, Back map (the sim's own map)", /if \(game\.mode === "play" && \(\(edge\(PAD\.B\) && !bound\.has\(PAD\.B\)\) \|\| \(edge\(PAD\.RB\) && !bound\.has\(PAD\.RB\)\)\)\) \{\n\s+game\.slash\(\);/.test(ui) && S.PAD.B === 1 && S.PAD.RB === 5 && /use: 0, area: 2, far: 3, drink: 4, pause: 9, map: 8/.test(readFileSync("src/game/sim.ts", "utf8")));
+
+  // 14. Nothing in play changed.
+  {
+    const PIN = { "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca" };
+    const bad = Object.entries(PIN).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    check("screen1", "play is untouched: sim.ts (the C10 zoom, movement, collision, combat, shops, saves, the pad map), content, feats, particles, audio, light and every other game module are byte-identical to gfx3", bad.length === 0, bad.join(", "));
+  }
+  {
+    // The gfx3 shell's calls into the game: 68 methods and how many places call each. screen1 adds one call site, the pad's Main swing (slash).
+    const GFX3 = {"acceptService": 1, "allyOptions": 3, "attackGuard": 1, "bet": 1, "bindKey": 1, "bondLine": 1, "bondOf": 1, "bumpZoom": 1, "buy": 2, "buyDecor": 1, "buyFishReward": 3, "buyHome": 1, "camp": 2, "castKnown": 5, "castRail": 1, "choices": 1, "choose": 1, "clockLabel": 1, "command": 29, "companionMax": 2, "curseLine": 2, "decorOffers": 2, "deposit": 1, "dismissLevel": 1, "equipCompanion": 1, "equipItem": 1, "escortName": 2, "eventLine": 2, "feed": 1, "interact": 2, "learn": 2, "levelOptions": 1, "listZeppelin": 2, "meditate": 1, "openPortal": 1, "potionsCorked": 5, "priceOf": 2, "purse": 2, "questLine": 1, "reel": 2, "releaseCompanion": 1, "respec": 1, "revive": 1, "saveSlot": 1, "seasonLine": 1, "seasonName": 1, "sell": 1, "sellJunk": 2, "slash": 2, "smite": 2, "socketGem": 1, "spendPoints": 1, "stakeCompanion": 1, "stallName": 1, "stash": 1, "takeVault": 1, "togglePause": 6, "tradeFish": 1, "trainStat": 1, "turnInPage": 1, "unequipCompanion": 1, "unequipItem": 1, "update": 1, "usePotion": 3, "weatherLabel": 1, "whirl": 2, "withdraw": 1, "zeppelinTo": 1};
+    const want = { ...GFX3, slash: GFX3.slash + 1 };
+    const got = {};
+    for (const m of ui.matchAll(/\bgame\.([a-zA-Z]+)\(/g)) got[m[1]] = (got[m[1]] ?? 0) + 1;
+    const keys = [...new Set([...Object.keys(want), ...Object.keys(got)])].sort();
+    const off = keys.filter((k) => want[k] !== got[k]).map((k) => `${k} ${want[k] ?? 0}→${got[k] ?? 0}`);
+    check("screen1", "the shell makes the same calls into the game as gfx3 (68 methods, each from as many places; none added, none dropped, none swapped): the only new call site is the pad's Main swing, the same slash() the Main tap makes", Object.keys(GFX3).length === 68 && off.length === 0, off.join(", "));
+  }
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

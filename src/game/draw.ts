@@ -2242,9 +2242,8 @@ export function spellLight(s: { x: number; y: number; tx: number; ty: number; ki
 /** Flame foes: the Lantern Man and Lantern King, the Pumpkin Lord, the Headless Horseman (his lantern head). */
 export const FLAME_FOES: ReadonlySet<string> = new Set(["pumpkin", "lanternking", "pumpkinlord", "horseman"]);
 
-export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {
+export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
   seasonNow = g.season();
-  const zoom = g.zoom;
   const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
   const camX = Math.round(g.px - viewW / (2 * zoom)) + mag;
   const camY = Math.round(g.py - viewH / (2 * zoom));

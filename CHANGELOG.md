@@ -2,6 +2,14 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-01: screen1, screen and display settings
+- Display presets (Auto, Phone landscape, 720p, 1080p TV, Retro native 16 px), aspect (Fit, 16:9, 4:3) and a max pixel-ratio cap. These are on the title screen and under Pause → Display, saved in localStorage, and use whole-number pixel-perfect scaling.
+- Fullscreen: title button, pause button, HUD corner icon, and Shift+F (F still smites in play). Android tries to lock landscape. iPhone gets a manifest and an Add to Home Screen tip.
+- Phone layout: safe areas, 100dvh, 44 px touch targets, and a portrait "Turn your phone sideways" overlay with Play anyway.
+- Touch: the page no longer scrolls, zooms or slides. A loading cover blocks input until ready, audio starts on the first fresh tap, and the joystick dead zone is 8%.
+- Gamepad support: A use/talk, B/RB Main, X Whirl, Y Smite, LB drink, Start pause, Back map. Menus can be navigated with the pad.
+- check:game 502 → 532. sim.ts is byte-identical.
+
 ## 2026-10-01: gfx3, graphics pass round 3
 - Vale nights are brighter (moon [.38,.42,.62] → [.68,.72,.92]), and town night is kept lighter than the vale. Owner-approved.
 - The hero light is 96 px underground and 72 px outdoors at night. This is an owner-approved exception to the 3–5 tile rule.
