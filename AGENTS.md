@@ -1,3 +1,5 @@
+> **Gravewake handoff:** read `HANDOFF.md` (current state, how to run, owner preferences, next steps), `CHANGELOG.md`, and `AGENTS.project.md` first.
+
 # App Builder Workspace
 
 **The single source of truth** for the App Builder sandbox contract. You are
