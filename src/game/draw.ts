@@ -11,6 +11,7 @@ import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
+import { FADE, fadeOf, fadeStep, mistPuff } from "./fade";
 
 /**
  * Integer pixel drawing. Tiles are 16px, actors 16×32, zoom is a whole number.
@@ -1951,6 +1952,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (!FLAME_FOES.has(r.def)) continue;
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
+    if (fadeOf(r.id, g.worldMs) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
     out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.flameBoss : LIGHT.flameFoe, c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true });
   }
   // gfx3: ghosts glow cold and steady (ghost light, no flicker), bigger on a boss; none on unexplored rock.
@@ -1959,6 +1961,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (r.family !== "ghost" || r.def === "shade") continue;
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
+    if (fadeOf(r.id, g.worldMs) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
     out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.ghostBoss : LIGHT.ghost, c: LIGHTS.ghost, seed: 0, flick: false });
   }
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
@@ -2407,6 +2410,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       },
     });
     // gfx3 glow mask: the eyes, lantern face and sparks stay lit in the dark. Not on unexplored rock.
+    const glowFrom = glow.length;
     if (hasGlowMask(r.family) && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) {
       glow.push((c) => {
         emPass = true;
@@ -2416,6 +2420,13 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
           emPass = false;
         }
       });
+    }
+    // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.
+    const fade = fadeOf(r.id, g.worldMs);
+    if (fade < 1) {
+      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y);
+      const onView = r.x > camX - 8 && r.x < camX + viewW / zoom + 8 && r.y > camY && r.y < camY + viewH / zoom + 20;
+      if (onView && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) mistPuff(g.fx, r, fade);
     }
   }
   for (const c of g.critters) {

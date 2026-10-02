@@ -48,6 +48,24 @@ globalThis.localStorage = {
 const SCREEN1_HUD = "8b3ba0e16e6b643d539cb0961b67b32c";
 // retro1 (2026-10-01 18:48 ET, owner-approved true 320x240 Retro view): the shell after the Retro batch.
 const RETRO1_HUD = "35ec89e9444560c7b22a12df60021524";
+// fade1 (2026-10-01 19:59 ET, owner-approved night foe fade-in): draw.ts's only edits. unfade1 takes exactly these
+// out again, so older groups can still prove the rest of draw.ts byte-identical to what they pinned.
+const FADE1_DRAW = [
+  'import { FADE, fadeOf, fadeStep, mistPuff } from "./fade";\n',
+  "    if (fadeOf(r.id, g.worldMs) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in\n",
+  "    if (fadeOf(r.id, g.worldMs) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in\n",
+  "    const glowFrom = glow.length;\n",
+  "    // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.\n    const fade = fadeOf(r.id, g.worldMs);\n    if (fade < 1) {\n      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y);\n      const onView = r.x > camX - 8 && r.x < camX + viewW / zoom + 8 && r.y > camY && r.y < camY + viewH / zoom + 20;\n      if (onView && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) mistPuff(g.fx, r, fade);\n    }\n",
+];
+function unfade1(src) {
+  let t = src;
+  for (const cut of FADE1_DRAW) {
+    const i = t.indexOf(cut);
+    if (i < 0) return `${src}\n// fade1 edit missing`;
+    t = t.slice(0, i) + t.slice(i + cut.length);
+  }
+  return t;
+}
 const out = join(mkdtempSync(join(tmpdir(), "gravewake-")), "sim.mjs");
 execFileSync("npx", ["esbuild", "src/game/sim.ts", "--bundle", "--platform=node", "--format=esm", `--outfile=${out}`], {
   stdio: ["ignore", "ignore", "inherit"],
@@ -5748,8 +5766,8 @@ if (on("screen1")) {
   // 8. The frame: the world view uses k; the fight and the map keep the Auto frame; taps map through k.
   check("screen1", "the frame: computeView every frame, drawWorld at k; the fight and the map keep the Auto frame; a tap maps through k and the canvas box", /drawWorld\(ctx, game, w, h, v\.k\)/.test(ui) && /const scene = game\.mode === "battle" \|\| game\.mode === "map";/.test(ui) && /s: \{ \.\.\.s, preset: "auto" \}, coarse: false/.test(ui) && /const zoom = viewRef\.current\?\.k \?\? g\.zoom;/.test(ui) && /canvas\.style\.imageRendering = "pixelated";/.test(ui) && /image-rendering: pixelated/.test(css));
   {
-    const restored = draw.replace("export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {\n  seasonNow = g.season();\n", "export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {\n  seasonNow = g.season();\n  const zoom = g.zoom;\n");
-    check("screen1", "draw.ts: the only change is drawWorld's optional zoom (it defaults to g.zoom); put back, the file is byte-identical to gfx3", md5s(restored) === "29c64979b1efe9dfb44bb9b708e53360" && restored !== draw);
+    const restored = unfade1(draw).replace("export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {\n  seasonNow = g.season();\n", "export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {\n  seasonNow = g.season();\n  const zoom = g.zoom;\n");
+    check("screen1", "draw.ts: the only change is drawWorld's optional zoom (it defaults to g.zoom); put back (with fade1's own edits taken out, checked in fade1), the file is byte-identical to gfx3", md5s(restored) === "29c64979b1efe9dfb44bb9b708e53360" && restored !== draw);
   }
 
   // 9. Fullscreen.
@@ -5880,8 +5898,9 @@ if (on("retro1")) {
     check("retro1", "computeView is screen1's code byte for byte plus one first branch, taken only when the preset is retro", fn.includes(branch) && md5s(fn.replace(branch, "")) === "3c074c1d73e2218454c4eebf25948c1f" && JSON.stringify(Object.entries(S.PRESETS).filter(([id, p]) => id !== "retro" && p.world).map(([id]) => id)) === "[]", md5s(fn.replace(branch, "")));
     const SAME = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/draw.ts": "ade20b08057dc3b318b9a55b1a9a9f32", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
-    const bad = Object.entries(SAME).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
-    const extra = files.filter((f) => !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx");
+    // fade1: draw.ts is compared with fade1's own edits taken out, and fade.ts is fade1's (both pinned in group fade1).
+    const bad = Object.entries(SAME).filter(([f, h]) => (f === "src/game/draw.ts" ? md5s(unfade1(readFileSync(f, "utf8"))) : md5(f)) !== h).map(([f]) => f);
+    const extra = files.filter((f) => !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx" && f !== "src/game/fade.ts");
     check("retro1", "play and drawing are untouched: sim.ts (zoom, movement, collision, combat numbers, aggro ranges, spawn rules, saves), draw.ts (camera, culling, fog, light layer, particles, minimap), light.ts (the 24-light budget), content, particles, audio and every other game module are byte-identical to screen1; only screen.ts and the shell changed", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
   }
 
@@ -5982,8 +6001,262 @@ if (on("retro1")) {
   }
 }
 
+if (on("fade1")) {
+  // [OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in] fade1: a night roamer dissolves in over half a second
+  // when it spawns. Looks only: sim.ts and every play module are retro1's byte for byte, the foe is live from its first
+  // tick, and a fixed-seed night spawns the same foes at the same places and times with or without the drawing.
+  const { readFileSync, writeFileSync, readdirSync, mkdtempSync: mk } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in]";
+  const dir = mk(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "fade1.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as F from "${root}/src/game/fade.ts";\nexport * as P from "${root}/src/game/particles.ts";\nexport { CYCLE_MS, DAY_MS } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "fade1.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "fade1.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "fade1.mjs")).href);
+  const { F, P } = X;
+  const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5s = (t) => createHash("md5").update(t).digest("hex");
+  const fadeSrc = readFileSync("src/game/fade.ts", "utf8");
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const sim = readFileSync("src/game/sim.ts", "utf8");
+
+  // A canvas stand-in: counts calls, and keeps the current path's rects so a clip can be read back as world cells.
+  const mockCtx = () => {
+    const st = { calls: {}, path: [], clips: [], rects: [], alpha: [] };
+    const t = {
+      beginPath() { st.path = []; },
+      rect(x, y, w, h) { st.path.push([x, y, w, h]); st.rects.push([x, y, w, h]); },
+      clip(rule = "nonzero") { st.clips.push({ rule, rects: st.path.slice() }); },
+      createPattern: () => ({}),
+      createLinearGradient: () => ({ addColorStop() {} }),
+      createRadialGradient: () => ({ addColorStop() {} }),
+      getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+      measureText: () => ({ width: 0 }),
+    };
+    const ctx = new Proxy(t, {
+      get(o, k) {
+        if (k === "st") return st;
+        if (typeof o[k] === "function") return (...a) => { st.calls[k] = (st.calls[k] ?? 0) + 1; return o[k](...a); };
+        if (k in o) return o[k];
+        return () => { st.calls[k] = (st.calls[k] ?? 0) + 1; };
+      },
+      set(o, k, v) { if (k === "globalAlpha") st.alpha.push(v); o[k] = v; return true; },
+    });
+    return ctx;
+  };
+  // Which world cells a clip lets paint (nonzero: any rect; evenodd: an odd number of rects).
+  const covered = (clip, x0, y0, x1, y1) => {
+    const out = new Set();
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      let n = 0;
+      for (const [rx, ry, rw, rh] of clip.rects) if (x >= rx && x < rx + rw && y >= ry && y < ry + rh) n++;
+      if (clip.rule === "evenodd" ? n % 2 === 1 : n > 0) out.add(`${x},${y}`);
+    }
+    return out;
+  };
+
+  // 1. The note is dated and tagged in both law files and in the code.
+  {
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("fade1", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt (under the FX rule's particles) and AGENTS.project.md, and tagged in fade.ts and draw.ts`, law.includes(`- ${TAG} A night roamer dissolves in over 0.5 s`) && law.indexOf(TAG) > law.indexOf("FX RULE  (particles") && law.indexOf(TAG) < law.indexOf("SHADERS") && agents.includes(`  ${TAG} The owner approved a looks-only fade-in for night foes`) && fadeSrc.includes("OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in") && draw.includes("// fade1 (OWNER-APPROVED 2026-10-01 19:59 ET)"));
+  }
+
+  // 2. Byte-identical play: every game module but draw.ts is retro1's, and draw.ts is retro1's once fade1's edits are out.
+  {
+    const RETRO1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
+    const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
+    const bad = Object.entries(RETRO1).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    const extra = files.filter((f) => !(f in RETRO1) && f !== "src/game/draw.ts" && f !== "src/game/fade.ts");
+    check("fade1", "looks only: sim.ts (the spawn rule, distance and timing, AI, aggro, HP, damage, collision, the sim tick, saves), particles.ts, light.ts, screen.ts (every preset), the shell and every other game module are byte-identical to retro1; only draw.ts and the new fade.ts change", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
+    const un = unfade1(draw);
+    check("fade1", "draw.ts: take out fade1's five edits (the import, one line in each of the two foe-light loops, the glow index, the dissolve block) and the file is retro1's byte for byte", un !== draw && md5s(un) === "ade20b08057dc3b318b9a55b1a9a9f32", md5s(un));
+    const users = files.filter((f) => f !== "src/game/fade.ts" && /from "\.\/fade"/.test(readFileSync(f, "utf8")));
+    check("fade1", "only the drawing reads the fade: draw.ts is the one module that imports fade.ts (the sim never does), and fade.ts stores nothing (no localStorage, no save, no Math.random, no clock of its own)", JSON.stringify(users) === '["src/game/draw.ts"]' && !/localStorage|saveSlot|Math\.random|Date\.now|performance\.now/.test(fadeSrc) && !/from "\.\/fade"/.test(sim), users.join(","));
+  }
+
+  // 3. The timing: about half a second, read from the stamp already in a night roamer's id.
+  {
+    const t0 = 4560016.666666667;
+    const id = `r${t0}-0`;
+    const ramp = [0, 100, 250, 400, 499, 500, 900].map((d) => F.fadeOf(id, t0 + d));
+    const others = ["bounty-3", "d1-0", "w2-1", "bride", "pumpkinlord", "pumpkin", "add-6360016.6-0", "rem", "r12-x", "riftling", "r-5-0", "mouth:3", ""].map((o) => [F.spawnStamp(o), F.fadeOf(o, 0), F.fadeOf(o, 100), F.fadeOf(o, 6360016.6 + 100)]);
+    check("fade1", `the fade lasts ${F.FADE.ms} world ms (inside 0.4-0.6 s): 0 at spawn, rising evenly, solid from 0.5 s on; a time before the stamp (a load, a test) is solid`, F.FADE.ms >= 400 && F.FADE.ms <= 600 && JSON.stringify(ramp) === JSON.stringify([0, 0.2, 0.5, 0.8, 0.998, 1, 1]) && F.fadeOf(id, t0 - 1) === 1 && F.fadeOf(id, NaN) === 1, JSON.stringify(ramp));
+    check("fade1", "only a night roamer fades (its id is sim.ts's r<worldMs>-<n>); bounties, lairs, bosses, festival summons, dungeon foes and every other id draw solid as before", others.every(([at, a, b, c]) => at === null && a === 1 && b === 1 && c === 1) && F.spawnStamp(id) === t0 && F.spawnStamp("r1e+21-2") === 1e21 && sim.includes("        id: `r${this.worldMs}-${n}`,\n"), JSON.stringify(others));
+  }
+
+  // 4. The dither: whole world pixels, pinned to the grid, drawn or not (never blended).
+  {
+    const levels = [0, 0.01, 0.06, 0.2, 0.47, 0.5, 0.53, 0.8, 0.94, 0.99, 1].map((t) => F.fadeLevel(t));
+    let counts = true, pinned = true;
+    for (let lv = 0; lv <= 16; lv++) {
+      let n = 0;
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+        if (F.shows(x, y, lv)) n++;
+        if (F.shows(x, y, lv) !== F.shows(x + 4, y - 8, lv) || F.shows(x, y, lv) !== F.shows(x - 12, y + 40, lv)) pinned = false;
+        if (lv > 0 && F.shows(x, y, lv - 1) && !F.shows(x, y, lv)) counts = false;
+      }
+      if (n !== lv) counts = false;
+    }
+    check("fade1", "the dissolve is the light layer's 4x4 Bayer: level n shows exactly n of 16 cells, a cell once shown stays shown, and the pattern is pinned to world pixels (it does not crawl with the camera)", counts && pinned && JSON.stringify(levels) === JSON.stringify([0, 0, 1, 3, 7, 8, 9, 13, 15, 16, 16]) && fadeSrc.includes("const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];") && readFileSync("src/game/light.ts", "utf8").includes("const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];"), JSON.stringify(levels));
+    const bad = [];
+    for (const t of [0.07, 0.2, 0.45, 0.5, 0.55, 0.8, 0.9]) {
+      for (const [x, y] of [[100, 200], [101.4, 199.6], [-37.5, 3.49]]) {
+        const c = mockCtx();
+        let drew = 0;
+        F.dissolve(c, t, x, y, () => drew++);
+        const cl = c.st.clips[0];
+        const lv = F.fadeLevel(t);
+        const x0 = Math.round(x) - F.FADE.box.left, y0 = Math.round(y) - F.FADE.box.up, x1 = Math.round(x) + F.FADE.box.right, y1 = Math.round(y) + F.FADE.box.down;
+        const got = cl ? covered(cl, x0 - 2, y0 - 2, x1 + 2, y1 + 2) : new Set();
+        let want = 0, wrong = 0;
+        for (let wy = y0 - 2; wy < y1 + 2; wy++) for (let wx = x0 - 2; wx < x1 + 2; wx++) {
+          const inside = wx >= x0 && wx < x1 && wy >= y0 && wy < y1 && F.shows(wx, wy, lv);
+          if (inside) want++;
+          if (inside !== got.has(`${wx},${wy}`)) wrong++;
+        }
+        const whole = c.st.rects.every((r) => r.every((v) => Number.isInteger(v)));
+        if (drew !== 1 || c.st.clips.length !== 1 || wrong || !want || !whole || c.st.alpha.length || c.st.calls.save !== 1 || c.st.calls.restore !== 1) bad.push(`t${t}@${x},${y}: drew ${drew} clips ${c.st.clips.length} wrong ${wrong} want ${want} whole ${whole}`);
+      }
+    }
+    const solid = mockCtx();
+    let s1 = 0;
+    F.dissolve(solid, 1, 10, 10, () => s1++);
+    const none = mockCtx();
+    let s0 = 0;
+    F.dissolve(none, 0, 10, 10, () => s0++);
+    check("fade1", "dissolve: mid-fade the foe paints only through whole world-pixel cells, exactly the Bayer cells of its level inside its box (even-odd when fewer are hidden), with no alpha set and its state restored; at 1 it is a plain draw (no clip), at 0 it paints nothing", !bad.length && s1 === 1 && !solid.st.clips.length && s0 === 0 && !none.st.calls.clip && !/globalAlpha|filter|rgba\(|Gradient|shadowBlur|globalCompositeOperation/.test(fadeSrc), bad.slice(0, 3).join("; "));
+    const c = mockCtx();
+    const hits = [];
+    const step = { fn: () => hits.push("fn"), actor: () => hits.push("actor") };
+    const glow = [() => hits.push("other"), () => hits.push("glow")];
+    F.fadeStep(c, step, glow, 1, 0.3, 50, 60);
+    step.fn();
+    step.actor(c);
+    glow[0](c);
+    glow[1](c);
+    check("fade1", "a fading foe's whole draw step goes through the dissolve: body, blob shadow and hit flash (the step), its actor-light silhouette and its own glow-mask entries; another prop's glow is left alone", JSON.stringify(hits) === '["fn","actor","other","glow"]' && c.st.clips.length === 3, `${JSON.stringify(hits)} ${c.st.clips.length}`);
+  }
+
+  // 5. The mist: six dust chips from the pool, once per foe, early in the fade.
+  {
+    const pool = new P.ParticlePool();
+    const foe = { x: 300.4, y: 200.6 };
+    const a = F.mistPuff(pool, foe, 0.1);
+    const n1 = pool.count(P.CH_INTERACT);
+    const b = F.mistPuff(pool, foe, 0.1);
+    const late = F.mistPuff(pool, { x: 1, y: 1 }, 0.6);
+    const chips = [];
+    for (let i = 0; i < pool.size; i++) if (pool.life[i] > 0) chips.push([pool.kind[i], pool.color[i], pool.x[i], pool.y[i], pool.life[i]]);
+    const others = [P.CH_WEATHER, P.CH_COMBAT, P.CH_HUB].map((ch) => pool.count(ch));
+    const near = chips.every(([, , x, y]) => Math.abs(x - 300) <= 8 && y <= 201 && y >= 198);
+    check("fade1", "the ground-mist puff: six dust chips on the interact channel (cap 16) in the pool's own ash colours, at the foe's feet, 0.45 s; once per foe and not when first seen past half-fade; no other channel", a && !b && !late && n1 === 6 && chips.length === 6 && chips.every(([k, col, , , l]) => k === P.K_DUST && (col === P.C_ASH || col === P.C_ASH_DARK) && Math.abs(l - 0.45) < 1e-6) && near && others.every((v) => v === 0) && F.FADE.puff <= P.CHANNEL_CAPS[P.CH_INTERACT], JSON.stringify(chips.slice(0, 2)));
+  }
+
+  // 6. A fixed-seed night. Run A is the sim alone; run B draws every fading frame in Auto and in Retro. Same spawns,
+  // same times, same everything; and the fixed-seed trace is retro1's own (pinned before fade1 was written).
+  {
+    const DAY = X.CYCLE_MS, DUSK = X.DAY_MS;
+    const night = (seed, drawn) => {
+      let s = seed >>> 0, calls = 0;
+      const realRandom = Math.random, realNow = Date.now;
+      Math.random = () => { calls++; s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      Date.now = () => 1790000000000;
+      const seen = { clips: 0, frames: 0, puffs: 0, faded: new Set(), auto: 0, retro: 0, lightsOff: 0 };
+      try {
+        const g = new X.Game();
+        g.start("warrior", "str", "A");
+        g.held.clear();
+        g.level = 12;
+        g.worldMs = 2 * DAY + DUSK + 60000;
+        g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+        const ids = new Set(), log = [];
+        const keys = ["KeyD", "KeyS", "KeyA", "KeyW"];
+        const mapAt = g.mapId;
+        for (let i = 0; i < 60 * 120; i++) {
+          if (i % 600 === 599) g.roamers = g.roamers.filter((r) => !/^r\d/.test(r.id));
+          g.held.clear();
+          if (Math.floor(i / 60) % 2 === 0) g.held.add(keys[Math.floor(i / 120) % 4]);
+          g.update(1 / 60);
+          for (const r of g.roamers) if (!ids.has(r.id)) { ids.add(r.id); log.push([r.id, r.x, r.y, r.def, r.level, g.worldMs, g.frame, i]); }
+          if (g.mode !== "play") { log.push(["mode", g.mode, i, g.worldMs]); g.mode = "play"; g.roamers = g.roamers.filter((r) => !r.aggro); }
+          if (drawn) {
+            const fading = g.roamers.filter((r) => X.F.fadeOf(r.id, g.worldMs) < 1);
+            if (fading.length || i % 120 === 0) {
+              const before = g.fx.count(P.CH_INTERACT);
+              for (const [w, h, k, tag] of [[960, 640, g.zoom, "auto"], [320, 240, 1, "retro"]]) {
+                const c = mockCtx();
+                X.drawWorld(c, g, w, h, k);
+                seen.clips += c.st.clips.length;
+                if (c.st.clips.length) seen[tag]++;
+              }
+              seen.frames++;
+              if (g.fx.count(P.CH_INTERACT) > before) seen.puffs++;
+              for (const r of fading) seen.faded.add(r.id);
+              const lights = X.sceneLights(g, g.px - 160, g.py - 120, 320, 240);
+              for (const r of fading) if (X.F.fadeOf(r.id, g.worldMs) < X.F.FADE.lightAt && lights.some((l) => l.x === r.x)) seen.lightsOff = -999;
+            }
+          }
+        }
+        g.saveSlot(0);
+        const state = JSON.stringify({ roamers: g.roamers, px: g.px, py: g.py, hp: g.hp, mp: g.mp, xp: g.xp, gold: g.gold, worldMs: g.worldMs, frame: g.frame, mode: g.mode, mapId: g.mapId, phase: g.phase, calls });
+        // Item uids come from one module-wide counter (each new Game takes the next ones); number them per save.
+        const uids = new Map();
+        const save = (localStorage.getItem("gravewake-saves-v1") ?? "").replace(/"uid":"i\d+"/g, (u) => { if (!uids.has(u)) uids.set(u, `"uid":"#${uids.size}"`); return uids.get(u); });
+        return { trace: JSON.stringify({ log, calls, map: [mapAt, g.mapId], end: [g.px, g.py, g.hp, g.worldMs, g.frame, g.phase] }), log, state, save, seen };
+      } finally {
+        Math.random = realRandom;
+        Date.now = realNow;
+      }
+    };
+    const A = night(1337, false), A2 = night(1337, false), B = night(1337, true);
+    const spawns = A.log.filter((e) => /^r\d/.test(e[0]));
+    const hashA = md5s(A.trace);
+    check("fade1", `fixed seed (1337, 120 s of vale night, hero walking): ${spawns.length} night spawns; the trace (every foe's id, x, y, kind, level, world ms, frame and tick of first sight, and the end state) is byte-identical run to run and to retro1's pinned trace e4bdd690…`, spawns.length >= 15 && A.trace === A2.trace && hashA === "e4bdd6909bd32edc92b8883f185fd951", hashA);
+    check("fade1", `drawing the fade changes nothing: with drawWorld run on ${B.seen.frames} frames in Auto (960x640 at the C10 zoom) and Retro (320x240 at 1x), the spawn positions and times, the end state (every roamer, the hero, HP, world clock, Math.random use) and the save are byte-identical to the undrawn run`, B.trace === A.trace && B.state === A.state && B.save === A.save && !!A.save && B.seen.frames > 200, `${md5s(B.trace)} ${B.state === A.state} ${B.save === A.save}`);
+    check("fade1", `and the fade really drew: every night spawn was seen mid-fade (${B.seen.faded.size} of ${spawns.length}), the dither clipped in Auto on ${B.seen.auto} frames and in Retro on ${B.seen.retro}, ${B.seen.puffs} mist puffs went into the pool, and no fading foe lit before half-fade`, B.seen.faded.size === spawns.length && B.seen.auto > 0 && B.seen.retro > 0 && B.seen.puffs > 0 && B.seen.puffs <= spawns.length && B.seen.lightsOff === 0 && B.seen.clips > 0);
+  }
+
+  // 7. Live during the fade: a foe at fade 0 touches, starts the fight and is fought exactly like a solid one.
+  {
+    const meet = (id) => {
+      const g = fresh();
+      g.level = 12;
+      g.worldMs = 2 * X.CYCLE_MS + X.DAY_MS + 60000;
+      g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+      g.roamers = g.roamers.filter((r) => r.boss || r.bounty);
+      g.nightCool = 999;
+      const rid = id(g.worldMs);
+      g.roamers.push({ id: rid, x: g.px + 6, y: g.py, family: "beast", tint: "#8a6844", def: "wolf", level: 12, ang: 0 });
+      const fade = X.F.fadeOf(rid, g.worldMs);
+      g.update(1 / 60);
+      const gone = !g.roamers.some((r) => r.id === rid);
+      const fight = JSON.stringify(g.roamers.filter((r) => r.aggro));
+      for (let i = 0; i < 180; i++) g.update(1 / 60);
+      const later = JSON.stringify({ roamers: g.roamers, hp: g.hp, px: g.px, py: g.py, log: g.logLine });
+      return { fade, gone, fight, later, aggro: g.roamers.filter((r) => r.aggro).length };
+    };
+    const fresh0 = meet((ms) => `r${ms}-0`), solid = meet(() => "solid-0");
+    check("fade1", "the foe is fully live during the fade: one at fade 0 that the hero walks into starts the same fight on the same tick (the same foes, HP and numbers) as a solid one, and three seconds of that fight play out identically (no grace, no invulnerable window, nothing skipped)", fresh0.fade === 0 && solid.fade === 1 && fresh0.gone && solid.gone && fresh0.fight !== "[]" && fresh0.fight === solid.fight && fresh0.later === solid.later, `${fresh0.fight.slice(0, 120)} | ${solid.fight.slice(0, 120)}`);
+  }
+
+  // 8. Lights: a flame or ghost foe's own light waits for half-fade; every other foe's light is as before.
+  {
+    const g = fresh();
+    g.worldMs = 2 * X.CYCLE_MS + X.DAY_MS + 60000;
+    g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+    g.roamers = [];
+    const at = g.worldMs;
+    g.roamers.push({ id: `r${at}-0`, x: g.px + 30, y: g.py, family: "ghost", tint: "#9a8aa8", def: "wisp", level: 5, ang: 0 });
+    g.roamers.push({ id: "bounty-9", x: g.px - 30, y: g.py, family: "ghost", tint: "#9a8aa8", def: "wisp", level: 5, ang: 0 });
+    const lit = (ms) => { g.worldMs = ms; return X.sceneLights(g, g.px - 160, g.py - 120, 320, 240).filter((l) => l.y === g.py - 12).map((l) => l.x - g.px).sort((p, q) => p - q).join(","); };
+    const early = lit(at + 100), mid = lit(at + 260), late = lit(at + 900);
+    check("fade1", "a spawning ghost or flame foe's light comes on at half-fade (none at 0.2, lit at 0.52 and after); a foe that is not a fresh night roamer is lit as before", early === "-30" && mid === "-30,30" && late === "-30,30" && (draw.match(/if \(fadeOf\(r\.id, g\.worldMs\) < FADE\.lightAt\) continue;/g) ?? []).length === 2, `${early} | ${mid} | ${late}`);
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

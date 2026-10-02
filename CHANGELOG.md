@@ -2,6 +2,13 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-01: fade1, night foe fade-in
+- Night foes now fade in over 0.5 s of game time using a grid-locked 4×4 dither (no new colours), with a small ash mist puff. This change is looks only and was owner-approved at 19:59 ET.
+- Foes are live from their first tick. Spawn rule, timing, AI, combat and saves are unchanged. For a fixed seed, spawns are byte-identical to retro1.
+- Only regular night spawns fade in. Bounties, festival foes, rift and dungeon foes still appear instantly.
+- New file: src/game/fade.ts. draw.ts has small hooks. sim.ts is untouched.
+- check:game 542 → 557. Fail-proofs 565/565.
+
 ## 2026-10-01: retro1, true 320×240 Retro mode
 - In Retro, the camera shows 320×240 game pixels (20×15 tiles) at whole-number scale with black bars. This is the owner-approved exception to C10 (18:48 ET), and applies to Retro only.
 - Other presets are byte-identical to screen1, which the view-calculation hash and canvas hashes confirm.

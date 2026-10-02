@@ -187,6 +187,11 @@ PARTICLES
 - Opaque / alpha-cut chips. No big additive clouds.
 - Damage numbers = 0–9 sprite strip in the same pool. No text meshes.
 - Offscreen or fogged = don't spawn. If frame spikes: cut weather first, never Slash chips.
+- [OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in] A night roamer dissolves in over 0.5 s when it spawns instead of popping on: a pinned
+  4x4 Bayer dither on world pixels (drawn or not, never blended, so no new colour), plus a six-chip ground-mist
+  puff from the pool (interact channel, ash colours, once, on screen and unfogged only). Looks only: the foe is
+  live from its first tick; spawn rule, distance, timing, AI, aggro, HP, damage, collision and the sim tick are
+  unchanged, and nothing is saved. src/game/fade.ts; `scripts/gravewake-check.mjs` (group `fade1`) enforces this.
 
 SHADERS
 - Unlit particle path. Vertex color = lifetime + tint. One atlas sample (two max).
