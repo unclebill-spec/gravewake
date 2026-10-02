@@ -1740,7 +1740,9 @@ def _bat(s: Sprite, pose: str, C: dict, big: int) -> tuple[int, int]:
 
 def _scarecrow(s: Sprite, pose: str, C: dict, big: int) -> tuple[int, int]:
     dx, _, ph = MOTION[pose]
-    hop = {"stand": 0, "idle": 0, "walk0": 0, "walk1": -3, "walk2": -1, "swing0": 0, "swing1": -1, "swing2": 0,
+    # playtest1c step 3: the walk plays walk0 walk1 walk2 walk1, so the hop now rises 0, 2, 3, 2 px (one arc a stride)
+    # instead of 0, 3, 1, 3 (a jitter: up 3, down 2, up 2, down 3).
+    hop = {"stand": 0, "idle": 0, "walk0": 0, "walk1": -2, "walk2": -3, "swing0": 0, "swing1": -1, "swing2": 0,
            "cast0": 0, "cast1": -2, "cast2": -1}[pose]
     y = hop
     straw, sd = C["straw"], dk(C["straw"])
@@ -1751,7 +1753,8 @@ def _scarecrow(s: Sprite, pose: str, C: dict, big: int) -> tuple[int, int]:
     if hop:
         s.rect(6, 28, 4, 1, None)
     # arms: a crossbar, tilted by the swing
-    tilt = {"swing0": -2, "swing1": 2, "swing2": 1, "cast1": -3, "cast0": -1}.get(pose, 0)
+    # playtest1c step 3: idle droops the crossbar a step (before, idle was the stand frame give or take 2 px)
+    tilt = {"idle": 1, "swing0": -2, "swing1": 2, "swing2": 1, "cast1": -3, "cast0": -1}.get(pose, 0)
     for i in range(6):
         s.rect(1 + i, 13 + y - (tilt * (5 - i)) // 5, 1, 2, shirt)
         s.rect(9 + i, 13 + y + (tilt * i) // 5, 1, 2, shirt)
@@ -1963,6 +1966,66 @@ def _critter(s: Sprite, pose: str, C: dict, big: int, rat: bool) -> tuple[int, i
     return hx + 2, hy - 2
 
 
+RAT_BODY = [
+    # 16 wide, the bottom row is the ground row (28). f fur, d shade, l light, q pink shade, p pink, e eye, w whisker
+    "...........dd...",
+    "......lll.dqd...",
+    "....llffffffqf..",
+    "...lfffffffffef.",
+    "..dffffffffffffp",
+    ".qdfffffffffffdw",
+    "q...ddffffdd....",
+]
+RAT_LEGS = {  # paw x positions (back pair, front pair) and which pair is lifted a pixel
+    "stand": ((4, 6), (10, 12), None), "idle": ((4, 6), (10, 12), None),
+    "walk0": ((3, 7), (9, 13), "front"), "walk1": ((5, 6), (10, 11), None), "walk2": ((3, 7), (9, 13), "back"),
+}
+
+
+def _rat(s: Sprite, pose: str, C: dict, big: int) -> tuple[int, int]:
+    """playtest1c (owner-reported 2026-10-02, "lizard foe still old look"): the rat was an 8x4 bar with a 4x3 head
+    and a straight tail, which read as a lizard. Now a rat, drawn from a hand-laid template: a hunched back rising
+    to the rump, a big round pink-lined ear, a bright eye, a pink nose and whisker, four pink paws and a tail that
+    curls up at the tip. Walk: the back bobs on the pass and the paw pairs trade; idle: a sniff; swing: crouch,
+    lunge with teeth; cast: up on its haunches."""
+    fur = C["fur"]
+    key = {"f": fur, "d": dk(fur), "l": lt(fur), "q": dk(C["nose"]), "p": C["nose"], "e": C["eye"], "w": lt(fur, 2)}
+    ground = 28
+    dx = {"swing0": -1, "swing1": 2, "swing2": 1}.get(pose, 0)
+    bob = {"walk1": -1, "swing0": 1}.get(pose, 0)
+    lift = {"cast0": 1, "cast1": 2, "cast2": 1}.get(pose, 0)  # the front half rears up
+    sniff = 1 if pose == "idle" else 0
+    top = ground - 1 - len(RAT_BODY)
+    for j, row in enumerate(RAT_BODY):
+        for i, ch in enumerate(row):
+            if ch not in key:
+                continue
+            y = top + 1 + j + bob
+            if i >= 9:
+                y -= lift
+                if i >= 11:
+                    y += sniff
+            elif i >= 7:
+                y -= lift // 2
+            if big and i < 9 and j >= 2:
+                s.set(i + dx, y - 1, key["f"] if ch != "d" else key["d"])
+            s.set(i + dx, y, key[ch])
+    if pose == "walk1":  # the tail swings up on the pass
+        s.set(0 + dx, top + 5 + bob, key["p"])
+    legs = RAT_LEGS.get(pose, RAT_LEGS["stand"])
+    for pair, xs in (("back", legs[0]), ("front", legs[1])):
+        up = 1 if legs[2] == pair else 0
+        if pair == "front":
+            up += lift
+        for x in xs:
+            s.set(x + dx, ground - up, key["q"] if x == xs[0] else key["p"])
+    hx, hy = 13 + dx, top + 3 + bob - lift + sniff
+    if pose in ("swing1", "swing2"):
+        s.pts([(hx + 2, hy + 2), (hx + 1, hy + 2)], BONE)
+        _smear(s, hx - 1, hy, 3, 3, -60, 60, 1)
+    return hx - 1, hy - 3
+
+
 def _mimic(s: Sprite, pose: str, C: dict, big: int) -> tuple[int, int]:
     """Owner-approved 13th family (2026-09-30): a chest that bites. Drawn from the dungeon chest's own
     colors so a sleeping one and a plain chest share a wood. Cast is the 0.35 s tell (the lid shudders),
@@ -2103,7 +2166,8 @@ def _pumpkinlord(s: Sprite, pose: str, C: dict, big: int) -> tuple[int, int]:
     the seed volley (the grin flares)."""
     rind, rib, glow, core = C["rind"], dk(C["rind"]), C["glow"], C["core"]
     dx, _, ph = MOTION[pose]
-    y = {"walk1": -1, "swing1": 1, "cast1": -1}.get(pose, 0)
+    # playtest1c step 3: idle settles the body a pixel (before, idle was the stand frame exactly)
+    y = {"idle": 1, "walk1": -1, "swing1": 1, "cast1": -1}.get(pose, 0)
     # root legs
     legs = {"walk0": ((5, 0), (9, 1)), "walk1": ((5, 1), (9, 0)), "walk2": ((5, 1), (9, 1))}.get(pose, ((5, 0), (9, 0)))
     for lx, lift in legs:
@@ -2194,7 +2258,7 @@ DRAWN = {
     "tree": _tree,
     "horse": _horse,
     "cat": lambda s, p, C, big: _critter(s, p, C, big, False),
-    "rat": lambda s, p, C, big: _critter(s, p, C, big, True),
+    "rat": _rat,  # playtest1c: its own build (was _critter(..., rat=True))
     "mimic": _mimic,
     "krampus": _krampus,
     "pumpkinlord": _pumpkinlord,

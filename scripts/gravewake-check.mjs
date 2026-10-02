@@ -146,7 +146,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts"]);
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts"]); // playtest1c adds wild.ts (its art constants)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -3484,9 +3484,11 @@ if (on("season")) {
     }
     check("season", "20 season tint sheets (4 seasons x world grass, camp grass, town grass, wild trees, town trees): same size and shape as their source, every pixel solid and in the locked palette", sheets === 20 && !bad.length && locked.size > 400, bad.slice(0, 4).join("; "));
     check("season", "the four seasons' sheets differ from each other", seen.size === 20);
-    const draw = readFileSync("src/game/draw.ts", "utf8");
     const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-    check("season", "the draw swaps world, camp and town grass and both tree sheets to the season (falling back to the old sheet); the snow biome keeps its frosted tree", /seasonNow = g\.season\(\);/.test(draw) && ["vale", "camp-grass", "town-grass", "trees", "town-trees"].every((n) => draw.includes(`seasonCell(ctx, "${n}"`)) && /snow \? sheetCell\(ctx, "\/art\/brileta\/trees\.png"/.test(draw) && /def season_sheets\(\)/.test(writer) && /season_remap\(Image\.open\(src\), season, kind, LOCKED\)/.test(writer));
+    // playtest1c (owner-reported 2026-10-02, old third-party trees): the draw no longer uses the tree season sheets (the wild
+    // writer draws trees per season); this records playtest1b's draw, frozen in scripts/frozen/playtest1c. Group playtest1c checks the new trees.
+    const drawPT1B = readFileSync("scripts/frozen/playtest1c/draw.ts.txt", "utf8");
+    check("season", "the draw swaps world, camp and town grass and both tree sheets to the season (falling back to the old sheet); the snow biome keeps its frosted tree", /seasonNow = g\.season\(\);/.test(drawPT1B) && ["vale", "camp-grass", "town-grass", "trees", "town-trees"].every((n) => drawPT1B.includes(`seasonCell(ctx, "${n}"`)) && /snow \? sheetCell\(ctx, "\/art\/brileta\/trees\.png"/.test(drawPT1B) && /def season_sheets\(\)/.test(writer) && /season_remap\(Image\.open\(src\), season, kind, LOCKED\)/.test(writer));
   }
   {
     const fishOf = (season) => {
@@ -6526,7 +6528,20 @@ if (on("fade2")) {
     let box = null;
     for (let k = 0; k < 8; k++) { g.worldMs += k ? 80 : 20; const clips = frame(); ramp.push([Math.round(g.worldMs - lord.spawnAt), clips > 0]); if (k === 3) box = [cell[0] - Math.round(lord.x), cell[1] - Math.round(lord.y), cell[2] - Math.round(lord.x), cell[3] - Math.round(lord.y)]; }
     const puffs = g.fx.count(2);
-    check("fade2", `the scene clock runs on frames with no foe on screen: after 1.5 s of an empty vale the Pumpkin Lord's own spawn dissolves in with its mist puff, through a dither box scaled to its 2x sprite (${JSON.stringify(box)} around its feet; fade1's 1x box is [-16,-40,16,8]) (at 20 ms it is not drawn yet; ${ramp.map(([a, c]) => `${a}ms:${c ? "dither" : "solid"}`).join(" ")})`, !!lord && lord.spawnAt !== undefined && ramp.slice(1, 6).every(([, c]) => c) && !ramp[6][1] && !ramp[7][1] && puffs === 6 && JSON.stringify(box) === JSON.stringify([-32, -80, 32, 16]), JSON.stringify(ramp));
+    check("fade2", `the scene clock runs on frames with no foe on screen: after 1.5 s of an empty vale the Pumpkin Lord's own spawn dissolves in with its mist puff, through a dither box scaled to its sprite (${JSON.stringify(box)} around its feet; playtest1c draws bosses at 1x, so it is fade1's 1x box [-16,-40,16,8], where the 2x boss's was [-32,-80,32,16]) (at 20 ms it is not drawn yet; ${ramp.map(([a, c]) => `${a}ms:${c ? "dither" : "solid"}`).join(" ")})`, !!lord && lord.spawnAt !== undefined && ramp.slice(1, 6).every(([, c]) => c) && !ramp[6][1] && !ramp[7][1] && puffs === 6 && JSON.stringify(box) === JSON.stringify([-16, -40, 16, 8]), JSON.stringify(ramp));
+  }
+  // playtest1c: bosses now draw at 1x, so the vale run above only ever sees k = 1; the box's k scale (kept for any
+  // future 2x foe) is checked straight on dissolve, mid-hide where its first rect is the whole box.
+  {
+    const boxAt = (k) => {
+      const rs = [];
+      const c = { save() {}, restore() {}, beginPath() {}, clip() {}, rect(x, y, w, h) { rs.push([x, y, w, h]); } };
+      F.dissolve(c, 0.9, 100, 200, () => {}, k);
+      const [x, y, w, h] = rs[0] || [0, 0, 0, 0];
+      return [x - 100, y - 200, x + w - 100, y + h - 200];
+    };
+    const b1 = boxAt(1), b2 = boxAt(2), b3 = boxAt(3);
+    check("fade2", `dissolve scales its whole box by k on every side (k 1, 2, 3: ${JSON.stringify([b1, b2, b3])})`, F.fadeLevel(0.9) > 8 && JSON.stringify(b1) === "[-16,-40,16,8]" && JSON.stringify(b2) === "[-32,-80,32,16]" && JSON.stringify(b3) === "[-48,-120,48,24]");
   }
 
   // 6. An old save loads cleanly: the format is unchanged, and what was on the vale draws solid.
@@ -7089,8 +7104,9 @@ if (on("playtest1b")) {
   {
     const PT1 = { "sim.ts": "3a858c787e32a6f065ce4f3b90a9d632", "draw.ts": "e5876c297e76b404e729122a902cd955", "Gravewake.tsx": "b2c6a686816a6114aedef0a2d6db27f7", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "adb554d637cf3ad8f7c500e8d5a2525e" };
     const bad = Object.entries(PT1).filter(([f, h]) => !existsSync(`scripts/frozen/playtest1b/${f}.txt`) || md5f(`scripts/frozen/playtest1b/${f}.txt`) !== h).map(([f]) => f);
-    const moved = ["sim.ts", "draw.ts", "Gravewake.tsx"].filter((f) => md5f(`src/game/${f}`) !== PT1[f]);
-    check("playtest1b", "the frozen references (scripts/frozen/playtest1b) are playtest1's sim, draw, shell, content, crowd and screen byte for byte, and batch B moved on from them only in sim, draw and the shell (content, crowd and screen are untouched)", bad.length === 0 && moved.length === 3 && ["content.ts", "crowd.ts", "screen.ts"].every((f) => md5f(`src/game/${f}`) === PT1[f]), `${bad.join(",")} | ${moved.join(",")}`);
+    // playtest1c: batch B's files are frozen in scripts/frozen/playtest1c (batch C moves on in draw and screen).
+    const moved = ["sim.ts", "draw.ts", "Gravewake.tsx"].filter((f) => md5f(`scripts/frozen/playtest1c/${f}.txt`) !== PT1[f]);
+    check("playtest1b", "the frozen references (scripts/frozen/playtest1b) are playtest1's sim, draw, shell, content, crowd and screen byte for byte, and batch B (frozen in scripts/frozen/playtest1c) moved on from them only in sim, draw and the shell (content, crowd and screen are untouched)", bad.length === 0 && moved.length === 3 && ["content.ts", "crowd.ts", "screen.ts"].every((f) => md5f(`scripts/frozen/playtest1c/${f}.txt`) === PT1[f]), `${bad.join(",")} | ${moved.join(",")}`);
   }
 
   // 1. Palette v3 and the writer sheets.
@@ -7187,7 +7203,9 @@ if (on("playtest1b")) {
     check("playtest1b", "every town building is house scale: the 32x46 shack is drawn nowhere, so the Drowned Hook's narrow lot gets a full house (owner-reported: some houses drawn half size)", !draw.includes("/art/land/shack") && /const file = cabin \? "\/art\/cozy\/cabin\.png" : `\/art\/land\/house\$\{suffix\}\.png`;/.test(draw));
     const pump = py(`import json\nfrom PIL import Image\nim = Image.open('public/art/land/decoration.png').convert('RGBA')\na = im.split()[3]\nprint(json.dumps([a.crop((80, 64, 112, 96)).getbbox(), a.crop((112, 80, 128, 96)).getbbox(), a.crop((96, 80, 128, 112)).getbbox()]))`);
     const inside = (b, w, h) => Array.isArray(b) && b[0] > 0 && b[1] > 0 && b[2] < w && b[3] <= h;
-    check("playtest1b", "the town's jack-o'-lanterns are whole: the old grid cell (6,5) cut the big one down the middle; the two source boxes drawn now hold each pumpkin entire, clear of their left, top and right edges (owner-reported: half pumpkins)", !draw.includes('landCell(ctx, "decoration", 6, 5') && draw.includes('sheetCell(ctx, "/art/land/decoration.png", 80, 64, x - 8, y - 16, 2, 2, 1)') && draw.includes('sheetCell(ctx, "/art/land/decoration.png", 112, 80, x, y, 1, 1, 1)') && inside(pump[0], 32, 32) && Array.isArray(pump[1]) && pump[1][0] > 0 && Array.isArray(pump[2]) && pump[2][0] === 0, JSON.stringify(pump));
+    // playtest1c: the town pumpkins are the wild writer's now (decoration.png is gone from the draw); this records playtest1b's draw.
+    const drawPT1C = readFileSync("scripts/frozen/playtest1c/draw.ts.txt", "utf8");
+    check("playtest1b", "the town's jack-o'-lanterns are whole: the old grid cell (6,5) cut the big one down the middle; the two source boxes drawn now hold each pumpkin entire, clear of their left, top and right edges (owner-reported: half pumpkins)", !drawPT1C.includes('landCell(ctx, "decoration", 6, 5') && drawPT1C.includes('sheetCell(ctx, "/art/land/decoration.png", 80, 64, x - 8, y - 16, 2, 2, 1)') && drawPT1C.includes('sheetCell(ctx, "/art/land/decoration.png", 112, 80, x, y, 1, 1, 1)') && inside(pump[0], 32, 32) && Array.isArray(pump[1]) && pump[1][0] > 0 && Array.isArray(pump[2]) && pump[2][0] === 0, JSON.stringify(pump));
     check("playtest1b", "the corner map has a frame and markers: an iron band with cold-fire corner studs, dungeon stairs in violet, gates in blue, doors in gold, and an outlined hero pointer (owner-reported: the mini map needs a framed border)", /miniFrame\(ctx, size\);\n\}/.test(draw) && /mark\(x, y, "#b07aff", 1\)/.test(draw) && /mark\(x, y, "#4ab8ff", 0\)/.test(draw) && /mark\(x, y, "#e0c060", 0\)/.test(draw));
   }
 
@@ -7227,13 +7245,150 @@ if (on("playtest1b")) {
   // Last: the live files are byte for byte what playtest1b ships (any later edit must re-pin here, on purpose).
   {
     const LIVE = {"sim.ts": "04d3325b77505c886beba0d81bfac5d5", "draw.ts": "282057abaa339a22576c35d3d213d28a", "Gravewake.tsx": "bdf6866b62280f7c2c3cf1651061bf2b", "looks.ts": "8282846aac6f1ea0e98f69b78e002c32", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "adb554d637cf3ad8f7c500e8d5a2525e"};
+    // playtest1c: batch C edits draw and screen, so this pin now reads playtest1b's files as frozen in scripts/frozen/playtest1c
+    // (group playtest1c pins the live ones last).
+    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`scripts/frozen/playtest1c/${f}.txt`) !== h).map(([f]) => f);
+    check("playtest1b", "the game files as playtest1b shipped them (sim, draw, shell, looks, content, crowd, screen; frozen in scripts/frozen/playtest1c once batch C began) are byte for byte playtest1b's", moved.length === 0, moved.join(", "));
+  }
+}
+
+if (on("playtest1c")) {
+  // [OWNER-REQUESTED 2026-10-02 02:07 ET: playtest1c art audit] Bill's batch C: no old graphics or sprites left in the
+  // game, fluid movement animations, and the same detail level everywhere (bugs/playtest-2026-10-02/NOTES.md [C]
+  // items and his shots). C1 is the outdoor world, the foes' scale and the animation timing; see specs/ART_AUDIT.md.
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-REQUESTED 2026-10-02 02:07 ET: playtest1c art audit";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1c.ts"), `export * from "${root}/src/game/draw.ts";\nexport * as W from "${root}/src/game/wild.ts";\nexport { DUNGEONS, T } from "${root}/src/game/content.ts";\nexport { PRELOAD } from "${root}/src/game/screen.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1c.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "pt1c.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const D = await import(pathToFileURL(join(dir, "pt1c.mjs")).href);
+  const W = D.W;
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const wild = readFileSync("src/game/wild.ts", "utf8");
+  const py = (code) => {
+    try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 24 })); }
+    catch (e) { return { error: String(e.stderr || e.message).slice(-300) }; }
+  };
+
+  // 0. Batch B frozen, and C touched only drawing: sim, content, crowd, looks and the shell are playtest1b's.
+  {
+    const same = ["sim.ts", "content.ts", "crowd.ts", "looks.ts", "Gravewake.tsx"].filter((f) => md5f(`src/game/${f}`) !== md5f(`scripts/frozen/playtest1c/${f}.txt`));
+    const moved = ["draw.ts", "screen.ts"].filter((f) => md5f(`src/game/${f}`) !== md5f(`scripts/frozen/playtest1c/${f}.txt`));
+    check("playtest1c", "batch C is drawing only: sim, content (so g.tiles and every map), crowd, looks and the shell are byte for byte playtest1b's; only draw, screen (the preload list) and the new wild.ts move", same.length === 0 && moved.length === 2 && existsSync("src/game/wild.ts"), `${same.join(",")} | ${moved.join(",")}`);
+    check("playtest1c", "wild.ts is art only: it imports nothing but content's dungeon list, and the sim never names it", /^import \{ DUNGEONS \} from "\.\/content";$/m.test(wild) && (wild.match(/^import /gm) ?? []).length === 1 && !readFileSync("src/game/sim.ts", "utf8").includes("./wild"));
+  }
+
+  // 1. The wild sheets: palette v3, hard alpha, the sizes the draw cuts them at.
+  const SIZES = { "wild-trees-autumn": [256, 48], "wild-trees-winter": [256, 48], "wild-trees-spring": [256, 48], "wild-trees-summer": [256, 48], "wild-deadwood": [256, 48], "wild-rocks": [192, 16], "wild-graves": [80, 32], "wild-entrances": [288, 48], "wild-opened-grave": [64, 32], "wild-stairs": [32, 16], "wild-water": [512, 128], "wild-water-town": [512, 128], "wild-ice": [384, 128], "wild-snow": [128, 128], "wild-ash": [128, 128], "wild-sand": [128, 128], "wild-swamp": [128, 128], "wild-shore": [128, 48], "wild-pumpkin-small": [32, 16], "wild-pumpkin-big": [64, 32], "wild-boss-aura": [128, 16], "wild-border": [256, 16], "wild-flecks": [64, 64] };
+  {
+    const names = Object.keys(SIZES);
+    const ems = ["wild-trees-autumn", "wild-trees-winter", "wild-trees-spring", "wild-trees-summer", "wild-deadwood", "wild-rocks", "wild-graves", "wild-entrances", "wild-opened-grave", "wild-pumpkin-small", "wild-pumpkin-big", "wild-boss-aura"];
+    const all = [...names, ...ems.map((n) => `${n}_em`)];
+    const r = py(`import json,sys\nsys.path.insert(0,'tools/sprite-writer')\nfrom PIL import Image\nfrom palette_locked import LOCKED_V3\nout={}\nfor n in ${JSON.stringify(all)}:\n  im=Image.open('public/art/writer/'+n+'.png').convert('RGBA')\n  bad=0\n  for (r,g,b,a) in im.getdata():\n    if a not in (0,255) or (a and '#%02x%02x%02x'%(r,g,b) not in LOCKED_V3): bad+=1\n  out[n]=[im.size[0],im.size[1],bad]\nprint(json.dumps(out))`);
+    const bad = r.error ? [r.error] : all.filter((n) => r[n][2] !== 0 || r[n][0] !== SIZES[n.replace(/_em$/, "")][0] || r[n][1] !== SIZES[n.replace(/_em$/, "")][1]);
+    check("playtest1c", `the ${all.length} wild sheets (and glow masks) are palette v3 locked, hard alpha, at the sizes the draw cuts (trees and deadwood 32x48 cells, entrances 48x48, textures 128x128 per frame)`, bad.length === 0, bad.slice(0, 4).join(", "));
+    check("playtest1c", "every wild sheet the draw names is listed in WILD_SHEETS (asked for up front) and exists", W.WILD_SHEETS.length >= 33 && W.WILD_SHEETS.every((u) => existsSync(`public${u}`)) && names.every((n) => W.WILD_SHEETS.includes(`/art/writer/${n}.png`)) && /for \(const url of WILD_SHEETS\) \{/.test(draw));
+  }
+
+  // 2. The writer makes them: a fresh run of playtest1c_c1 into a scratch folder is byte for byte the shipped sheets, and
+  // water.png is the water recipe's own output with the locked band (the old file was hand-restored with #1c4060).
+  {
+    const r = py(`import json,sys,tempfile,pathlib\nsys.path.insert(0,'tools/pixel-writer')\nsys.dont_write_bytecode=True\nfrom PIL import Image\nimport make_gravewake as m\nt=pathlib.Path(tempfile.mkdtemp())\nm.OUT=t\nm.playtest1c_c1()\nbad=[p.name for p in t.glob('*.png') if not p.name.startswith('preview') and Image.open(p).convert('RGBA').tobytes()!=Image.open('public/art/writer/'+p.name).convert('RGBA').tobytes()]\nfrom pixel_writer import strip, water\nrec=[l.strip() for l in open('tools/pixel-writer/make_gravewake.py').read().splitlines() if l.strip().startswith('pond = [water(')]\nns={}\nexec(rec[0] if len(rec)==1 else 'pond=[]',{'water':water},ns)\npond=strip(ns['pond']).convert('RGBA') if ns['pond'] else None\nship=Image.open('public/art/writer/water.png').convert('RGBA')\ncols=sorted({'#%02x%02x%02x'%p[:3] for p in ship.getdata() if p[3]})\nprint(json.dumps({'n':len(list(t.glob('*.png'))),'bad':bad,'water':pond is not None and pond.tobytes()==ship.tobytes(),'recipe':rec,'old':'#1c4060' in cols,'band':'#2a4060' in cols}))`);
+    check("playtest1c", "the pixel writer makes every wild sheet: playtest1c_c1() run fresh into a scratch folder matches the shipped files byte for byte", !r.error && r.n >= 36 && r.bad.length === 0, r.error ?? `${r.n} ${r.bad}`);
+    check("playtest1c", "water.png is the writer's own water recipe again (main()'s pond line in make_gravewake.py, run as written), with the locked band #2a4060 (owner-reported: the writer recolored water slightly wrong; the hand-restored #1c4060 is gone)", !r.error && r.water && r.band && !r.old && r.recipe.length === 1 && r.recipe[0].includes('"#2a4060"'), JSON.stringify(r));
+  }
+
+  // 3. No old graphics: every third-party sheet Bill named is out of the draw and the loading list.
+  {
+    // the drawing modules (seasons.ts still types the old season sheet names; the sheets stay on disk for the season group)
+    const src = ["draw.ts", "screen.ts", "wild.ts", "looks.ts", "Gravewake.tsx"].map((f) => readFileSync(`src/game/${f}`, "utf8")).join("\n");
+    const gone = ["/art/creatures/", "/art/fall/", "/art/brileta/", "/art/held/", "dead-trees.png", "decoration.png", '"/art/writer/water.png"', '"/art/writer/snow.png"', '"/art/writer/ash.png"', '"/art/writer/sand.png"', '"/art/writer/swamp.png"', '"town-trees"', 'seasonCell(ctx, "trees"'];
+    const left = gone.filter((s) => src.includes(s));
+    check("playtest1c", "no old graphics left in play: the creature tilemap (its lizards and newts), the fall pack, brileta and held trees and rocks, the land pack's dead trees and decoration sheet (graves, pumpkins), the old water strip and the flat biome strips are named nowhere in the game (owner-reported: old sprites still stuck in the game)", left.length === 0, left.join(", "));
+    check("playtest1c", "the loading cover waits for the wild trees, rocks and both waters instead of the tilemap, the held trees and rocks and the old water; every preload file exists", ["/art/writer/wild-trees-autumn.png", "/art/writer/wild-rocks.png", "/art/writer/wild-water.png", "/art/writer/wild-water-town.png"].every((u) => D.PRELOAD.includes(u)) && D.PRELOAD.every((u) => existsSync(`public${u}`)) && !D.PRELOAD.some((u) => /creatures|held|writer\/water\.png/.test(u)));
+    check("playtest1c", "the FALL and CREATURE fallback bodies are gone: a foe family draws from the sprite writer's sheets only", !/const FALL\b|const CREATURE\b|function wholeSprite|function landCell/.test(draw));
+  }
+
+  // 4. Props: trees at full size, every biome its own wood, graves at house scale, pumpkins.
+  {
+    const r = py(`import json\nfrom PIL import Image\nout={}\nfor n,cw,ch in [('wild-trees-autumn',32,48),('wild-trees-winter',32,48),('wild-deadwood',32,48),('wild-graves',16,32),('wild-rocks',16,16)]:\n  im=Image.open('public/art/writer/'+n+'.png').convert('RGBA'); a=im.split()[3]\n  out[n]=[a.crop((i*cw,0,i*cw+cw,ch)).getbbox() for i in range(im.size[0]//cw)]\nprint(json.dumps(out))`);
+    const h = (b) => (b ? b[3] - b[1] : 0);
+    const w = (b) => (b ? b[2] - b[0] : 0);
+    const trees = r.error ? [] : [...r["wild-trees-autumn"], ...r["wild-trees-winter"]];
+    check("playtest1c", "trees are full size: every tree cell (8 species, each season) stands 34-48 px tall and 16-32 px wide on its trunk tile, against the old 16 px brileta cells (owner-reported: some trees ridiculously tiny; stick saplings)", trees.length === 16 && trees.every((b) => h(b) >= 34 && w(b) >= 16), JSON.stringify(trees.map((b) => [w(b), h(b)])));
+    check("playtest1c", "the cinders, swamp and waste get their own deadwood (three charred, three drowned, two bleached), each 30+ px tall", !r.error && r["wild-deadwood"].length === 8 && r["wild-deadwood"].every((b) => h(b) >= 30), JSON.stringify(r["wild-deadwood"]));
+    check("playtest1c", "town headstones are house scale: a stone 9-14 px wide and at most 24 px tall on its 16 px plot (the old cell was 2x3 tiles; owner-reported: oversized gravestones)", !r.error && r["wild-graves"].every((b) => w(b) >= 9 && w(b) <= 14 && h(b) <= 24), JSON.stringify(r["wild-graves"]));
+    check("playtest1c", "propSprite draws trees, deadwood, rocks, graves and pumpkins from the wild sheets by biome (snow keeps its winter tree all year) and its glow masks go to the light layer", /sheetCell\(ctx, WILD_TREES\[season\], cell, 0, x - 8, y - 32, 2, 3, 32\)/.test(draw) && /const season = biome === "snow" \? "winter" : seasonNow;/.test(draw) && /sheetCell\(ctx, DEADWOOD, cell, 0, x - 8, y - 32, 2, 3, 32\)/.test(draw) && /sheetCell\(ctx, GRAVES, cell, 0, x, y - 16, 1, 2\)/.test(draw) && /if \(lit\) glow\.push\(\(c\) => void propSprite\(c, kind, x \* TILE, y \* TILE, biome, g\.frame, true\)\);/.test(draw));
+    check("playtest1c", "a prop's look is a stable roll of its tile (the same tree every frame, every visit)", W.tileRoll(5, 9, 8) === W.tileRoll(5, 9, 8) && new Set(Array.from({ length: 64 }, (_, i) => W.tileRoll(i % 8, i >> 3, 8))).size === 8);
+  }
+
+  // 5. Water, ice and the biome grounds: one wrapping surface each, shore rims, no tile grid.
+  {
+    check("playtest1c", "water, the town pond and pool, ice and the snow, cinder, waste and swamp grounds are cut from 128x128 wrapping sheets by world position (texCell), so a run of tiles shows no grid (owner-reported: boxy water and ice; flat grey patches)", /function texCell\(ctx: CanvasRenderingContext2D, url: string, frame: number, x: number, y: number\): boolean \{\n {2}const per = TEX \/ TILE;\n {2}const wrap = \(v: number\) => \(\(v % per\) \+ per\) % per;/.test(draw) && /texCell\(ctx, WATER_TOWN, texFrame\("water", frame\), x, y\)/.test(draw) && /texCell\(ctx, WATER, texFrame\("water", frame\), x, y\)/.test(draw) && /texCell\(ctx, ICE, texFrame\("ice", frame\), x, y\)/.test(draw) && ["swamp", "snow", "ash", "sand"].every((b) => draw.includes(`texCell(ctx, WILD_GROUND.${b}, 0, x, y)`)));
+    check("playtest1c", "where water, pool or ice meets dry ground a shore rim is laid on that side (reed bank, the square's stone kerb, a snowbank) with inner corners, on the vale, the camp and in town; caves keep their own edge", /function paintShore\(/.test(draw) && /\(g\.theme === "over" \|\| g\.theme === "camp" \|\| g\.theme === "town"\)\) paintShore\(ctx, g, tile, x, y, at\);/.test(draw) && /SHORE_ROW\.snowbank : tile === T\.pool \? SHORE_ROW\.stone : SHORE_ROW\.bank/.test(draw));
+    const r = py(`import json\nfrom PIL import Image\nim=Image.open('public/art/writer/wild-water-town.png').convert('RGBA')\nc=[p for p in im.crop((0,0,128,128)).getdata()]\nlum=sum(0.3*p[0]+0.59*p[1]+0.11*p[2] for p in c)/len(c)\nim2=Image.open('public/art/writer/wild-water.png').convert('RGBA').crop((0,0,128,128))\nlum2=sum(0.3*p[0]+0.59*p[1]+0.11*p[2] for p in im2.getdata())/16384\nprint(json.dumps([round(lum,1),round(lum2,1)]))`);
+    check("playtest1c", "the town pond reads as water: its sheet is as bright as the vale's water give or take a third (the first cut was near-black violet and read as a hole)", Array.isArray(r) && r[0] > r[1] * 0.67 && r[0] < r[1] * 1.5, JSON.stringify(r));
+    check("playtest1c", "the biome fringes go through the soft drift masks (wild-border, rounded drifts and convex corners, not border-dither's toothed edge) with the neighbour's crumbs thinning across the tile (owner-reported: the jagged hedge band at the snow)", /const fringeMask = \(\) => \(sheetReady\(WILD_BORDER\) \? landSheet\[WILD_BORDER\] : landSheet\[BORDER_SHEET\]\);/.test(draw) && /const mask = fringeMask\(\);/.test(draw) && /sheetCell\(acc, WILD_FLECKS, cell, nb - 1, 0, 0\)/.test(draw) && /\[EDGE\.n \| EDGE\.e, 12, 0, -1\]/.test(draw));
+  }
+
+  // 6. Dungeon entrances: big readable mouths with cold-fire braziers.
+  {
+    const kinds = D.DUNGEONS.map((d) => W.entranceKind(d.id));
+    const r = py(`import json,sys\nsys.path.insert(0,'tools/sprite-writer')\nfrom PIL import Image\nfrom palette_locked import NEON\nem=Image.open('public/art/writer/wild-entrances_em.png').convert('RGBA')\nblue=set(NEON['blue'])\nout=[]\nfor i in range(6):\n  c=em.crop((i*48,0,i*48+48,48)); px=[p for p in c.getdata() if p[3]]\n  out.append([len(px), sum(1 for p in px if '#%02x%02x%02x'%p[:3] in blue)])\na=Image.open('public/art/writer/wild-entrances.png').convert('RGBA').split()[3]\nbb=[a.crop((i*48,0,i*48+48,48)).getbbox() for i in range(6)]\nprint(json.dumps({'em':out,'bb':bb}))`);
+    check("playtest1c", "every dungeon wears a mouth (a mason's stairwell, a crypt mouth or a barrow arch) and all three kinds are used", kinds.every((k) => ["stairwell", "crypt", "barrow"].includes(k)) && new Set(kinds).size === 3, kinds.join(","));
+    check("playtest1c", "the mouths are 2x2 tiles or larger (each cell's art spans 32+ px both ways in its 48x48 cell) and their glow is neon blue cold fire (three quarters or more of each glow mask; the crypt's lamps carry a violet core) (owner-reported: tiny-ladder entrances)", !r.error && r.bb.every((b) => b[2] - b[0] >= 32 && b[3] - b[1] >= 32) && r.em.every(([n, b]) => n >= 8 && b >= n * 0.75), JSON.stringify(r));
+    check("playtest1c", "on the vale and in town a stair down draws its mouth (or the Opened Grave, 32x32) with the actors, foot on the stair's, with its glow; the floor stair is a stone stair, not the drawn ladder; each mouth lights the vale blue at night (one light a mouth)", /if \(tile === T\.stairD && \(g\.mapId === "world" \|\| g\.mapId === "town"\)\) \{/.test(draw) && /props\.push\(\{ y: \(y \+ 1\) \* TILE - 1, fn: \(\) => void paintEntrance\(ctx, look, x, y, g\.frame\) \}\);/.test(draw) && /sheetCell\(ctx, STAIRS, tile === T\.stairD \? 0 : 1, 0, gx, gy\)/.test(draw) && /r: LIGHT\.brazier, c: NEON_LIGHT\.blue, seed: tx & 3, flick: true/.test(draw));
+  }
+
+  // 7. Foes: the rat, the bosses at the people's scale.
+  {
+    const r = py(`import json\nfrom PIL import Image\nim=Image.open('public/art/sprites/foes.png').convert('RGBA'); a=im.split()[3]\nFAM='zombie skeleton ghost bat ghoul witch lantern scarecrow wolf mummy vampire tree lich horse goblin cat rat'.split()\nb=(FAM.index('rat')*4)*11\nprint(json.dumps([a.crop(((b+i)*16,0,(b+i)*16+16,32)).getbbox() for i in range(11)]))`);
+    check("playtest1c", "the rat (the vale critter and the rat foe, which played as the old lizard) is the sprite writer's hunched rat: 12+ px long and 6+ px tall in every frame, not the old 8x4 bar (owner-reported: old lizard foe)", Array.isArray(r) && r.length === 11 && r.every((b) => b && b[2] - b[0] >= 12 && b[3] - b[1] >= 6), JSON.stringify(r));
+    check("playtest1c", "bosses draw at the people's scale (scaleFor 1, not the doubled 32x64), standing in a turning cold-fire ring with its glow mask (owner-reported: the oversized crowned ghost)", /function scaleFor\(boss\?: boolean, mini\?: boolean\): number \{\n {2}if \(boss\) return 1;/.test(draw) && /if \(r\.boss\) sheetCell\(ctx, BOSS_AURA, Math\.floor\(g\.frame \/ 2\) % AURA_FRAMES, 0, Math\.round\(r\.x\) - 16, Math\.round\(r\.y\) - 12, 2, 1, 32\);/.test(draw) && /glow\.push\(\(c\) => void sheetCell\(c, BOSS_AURA_EM,/.test(draw));
+  }
+
+  // 7b. The sprite writer makes the foes: a fresh run into a scratch folder is the shipped foes.png and pumpkin-lord.png.
+  {
+    const r = py(`import json,sys,tempfile,pathlib\nsys.dont_write_bytecode=True\nsys.path.insert(0,'tools/sprite-writer')\nfrom PIL import Image\nimport make_gravewake as m\nt=pathlib.Path(tempfile.mkdtemp())\nm.OUT=t\nimport contextlib,io\nwith contextlib.redirect_stdout(io.StringIO()): m.main()\nprint(json.dumps({n: Image.open(t/n).convert('RGBA').tobytes()==Image.open('public/art/sprites/'+n).convert('RGBA').tobytes() for n in ['foes.png','pumpkin-lord.png','people.png']}))`);
+    check("playtest1c", "the sprite writer makes the new rat, the scarecrow's arc and idle and the Pumpkin Lord's idle: a fresh run into a scratch folder matches the shipped foes.png and pumpkin-lord.png (and people.png) byte for byte", !r.error && Object.values(r).every(Boolean), JSON.stringify(r));
+  }
+
+  // 8. Animation fluidity (drawing only; no gameplay timer moves).
+  {
+    const stand = Array.from({ length: 64 }, (_, f) => D.poseCol("stand", f + 0.5));
+    const shifts = stand.filter((c) => c === 1).length;
+    const desync = new Set(Array.from({ length: 40 }, (_, i) => D.poseCol("stand", 21, 1, D.idleSeed(i * 16 + 8, 100)))).size;
+    const walk = [0, 1, 2, 3, 4, 5, 6, 7].map((f) => D.poseCol("walk", f + 0.5));
+    check("playtest1c", "standing still breathes on a 4 s beat (2.5 s rest, 1.5 s weight shift) and each body keeps its own beat from where it stands, so a crowd no longer twitches in step every 3.5 s; the walk is unchanged (contact, pass, contact, pass at 8 a second)", D.IDLE_BEAT.period === 32 && D.IDLE_BEAT.rest === 20 && shifts === 24 && desync === 2 && walk.join() === "2,3,4,3,2,3,4,3" && D.poseCol("swing", 3, 1) === 6 && D.poseCol("cast", 3, 2) === 10, `${shifts} ${desync} ${walk}`);
+    const r = py(`import json\nfrom PIL import Image\ndef strip(f,base):\n  im=Image.open('public/art/sprites/'+f).convert('RGBA')\n  return [im.crop(((base+i)*16,0,(base+i)*16+16,32)) for i in range(11)]\ndef d(p,q): return sum(1 for a,b in zip(p.getdata(),q.getdata()) if a!=b)\nFAM='zombie skeleton ghost bat ghoul witch lantern scarecrow wolf mummy vampire tree lich horse goblin cat rat'.split()\nsc=strip('foes.png',FAM.index('scarecrow')*44)\npl=strip('pumpkin-lord.png',0)\ndef cy(c):
+  a=c.split()[3]; ys=[y for y in range(32) for x in range(16) if a.getpixel((x,y))]
+  return round(sum(ys)/len(ys),2)
+tops=[cy(sc[i]) for i in (2,3,4)]\nprint(json.dumps({'sc':d(sc[0],sc[1]),'pl':d(pl[0],pl[1]),'tops':tops}))`);
+    check("playtest1c", "the scarecrow's and the Pumpkin Lord's idle frames move (before, the scarecrow's idle was its stand frame give or take 2 px and the Lord's was the stand frame exactly), and the scarecrow's hop rises in one arc over walk0, walk1, walk2 (0, 2, 3 px, its body's centre climbing each frame; it was 0, 3, 1: a jitter)", !r.error && r.sc >= 10 && r.pl >= 10 && r.tops[0] > r.tops[1] && r.tops[1] > r.tops[2], JSON.stringify(r));
+  }
+
+  // 9. The audit and the notes.
+  {
+    const audit = existsSync("specs/ART_AUDIT.md") ? readFileSync("specs/ART_AUDIT.md", "utf8") : "";
+    const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("playtest1c", "specs/ART_AUDIT.md inventories the drawn assets ranked by how often players see them, with source, size, frames and fps, and flags the old, low-detail and mis-scaled ones with their C1 or C2 status", audit.includes(TAG) && /\| *Rank *\|/.test(audit) && /third-party/i.test(audit) && /C2/.test(audit) && /fps/i.test(audit));
+    check("playtest1c", "rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md record batch C under its dated owner tag", rules.includes(TAG) && agents.includes(TAG));
+  }
+
+  // Last: the live files are byte for byte what playtest1c ships (any later edit must re-pin here, on purpose).
+  {
+    const LIVE = {"sim.ts": "04d3325b77505c886beba0d81bfac5d5", "draw.ts": "b410f3906fe06825a3072b1ab8382007", "wild.ts": "a8889b3113e30dbaae083e86cbb5d162", "Gravewake.tsx": "bdf6866b62280f7c2c3cf1651061bf2b", "looks.ts": "8282846aac6f1ea0e98f69b78e002c32", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "72789c354456a22b876aaa8bd9755eca"};
     const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`src/game/${f}`) !== h).map(([f]) => f);
-    check("playtest1b", "the live game files are byte for byte playtest1b's (sim, draw, shell, looks, content, crowd, screen)", moved.length === 0, moved.join(", "));
+    check("playtest1c", "the live game files are byte for byte playtest1c's (sim, draw, wild, shell, looks, content, crowd, screen)", moved.length === 0, moved.join(", "));
   }
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b, playtest1c");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

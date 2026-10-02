@@ -380,7 +380,11 @@ def main() -> None:
     vale = [grass(10 + i * 9, "#1a3828", "#102018", "#3a6840", "#c4b49a", i) for i in range(8)]
     camp_grass = [grass(40 + i * 7, "#243428", "#142018", "#4a6840", "#c4a15a", i) for i in range(4)]
     camp_dirt = [soil(80 + i * 5, "#5a4030", "#3a2818", "#6a5040", "#2a221c", i) for i in range(4)]
-    pond = [water("#16344c", "#3a78a0", "#7aa4b4", i) for i in range(4)]
+    # playtest1c (owner-reported 2026-10-02, "the pixel writer recolors town water slightly wrong"): this recipe asked
+    # for #3a78a0 under the swell, so every re-run painted a pale band the shipped strip never had (the strip had been
+    # restored by hand with an unlocked #1c4060). The band is #2a4060 now, the locked step nearest the look that
+    # shipped, and the strip is the writer's own output again. The game draws the playtest1c wrapping water.
+    pond = [water("#16344c", "#2a4060", "#7aa4b4", i) for i in range(4)]
     grounds = {
         "swamp": ("#1a2c22", "#0e2418", "#4a8a58"),
         "snow": ("#c5d8e6", "#8aa4b0", "#f4fbff"),
@@ -417,6 +421,8 @@ def main() -> None:
     print(f"playtest1b B1 sheets {len(b1)}, palette v3 locked")
     b2 = playtest1b_b2()
     print(f"playtest1b B2 sheets {len(b2)}, palette v3 locked")
+    c1 = playtest1c_c1()
+    print(f"playtest1c C1 sheets {len(c1)}, palette v3 locked")
     print(f"wrote {OUT}")
 
 
@@ -505,6 +511,88 @@ def playtest1b_b2() -> dict:
     sheet.alpha_composite(made["room-rug.png"], (2, 130))
     sheet.alpha_composite(made["room-boards.png"], (80, 130))
     sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(OUT / "preview-playtest1b-b2.png")
+    return made
+
+
+def playtest1c_c1() -> dict:
+    """playtest1c C1 (owner-requested 2026-10-02, batch C art audit): the outdoor world in gloom and glow (wild_writer).
+    Trees (8 species x 4 seasons), cinder, swamp and waste deadwood, boulders, town headstones, dungeon mouths and
+    floor stairs, the wrapping water / ice / snow / ash / sand / swamp sheets, shore rims and the town pumpkins.
+    Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1c_c1()"  (from this folder)."""
+    import wild_writer as w
+
+    def em_of(pairs):
+        return [p[1] for p in pairs]
+
+    made = {}
+    for season in w.SEASONS:
+        pairs = [w.tree(k, season) for k in w.TREE_KINDS]
+        made[f"wild-trees-{season}.png"] = cells([p[0] for p in pairs])
+        made[f"wild-trees-{season}_em.png"] = cells(em_of(pairs))
+    pairs = [w.deadwood(k) for k in w.DEAD_KINDS]
+    made["wild-deadwood.png"] = cells([p[0] for p in pairs])
+    made["wild-deadwood_em.png"] = cells(em_of(pairs))
+    pairs = [w.rock(k) for k in w.ROCK_KINDS]
+    made["wild-rocks.png"] = cells([p[0] for p in pairs])
+    made["wild-rocks_em.png"] = cells(em_of(pairs))
+    # GRAVE_KINDS order, then the candle's second flicker frame
+    pairs = [w.grave(k) for k in w.GRAVE_KINDS] + [w.grave("candle", 1)]
+    made["wild-graves.png"] = cells([p[0] for p in pairs])
+    made["wild-graves_em.png"] = cells(em_of(pairs))
+    # ENTRANCE_KINDS order, two flicker frames each: stairwell 0 1, crypt 0 1, barrow 0 1
+    pairs = [w.entrance(k, f) for k in w.ENTRANCE_KINDS for f in (0, 1)]
+    made["wild-entrances.png"] = cells([p[0] for p in pairs])
+    made["wild-entrances_em.png"] = cells(em_of(pairs))
+    pairs = [w.opened_grave(f) for f in (0, 1)]
+    made["wild-opened-grave.png"] = cells([p[0] for p in pairs])
+    made["wild-opened-grave_em.png"] = cells(em_of(pairs))
+    made["wild-stairs.png"] = cells([w.stairs("down"), w.stairs("up")])
+    for kind, frames in (("water", 4), ("water-town", 4), ("ice", 3), ("snow", 1), ("ash", 1), ("sand", 1), ("swamp", 1)):
+        made[f"wild-{kind}.png"] = cells([w.sheet(kind, f) for f in range(frames)])
+    shore = Image.new("RGBA", (16 * len(w.SHORE_SIDES), 16 * len(w.SHORE_KINDS)), (0, 0, 0, 0))
+    for j, kind in enumerate(w.SHORE_KINDS):
+        shore.alpha_composite(cells([w.shore(kind, s) for s in w.SHORE_SIDES]), (0, 16 * j))
+    made["wild-shore.png"] = shore
+    pairs = [w.pumpkin(False, f) for f in (0, 1)]
+    made["wild-pumpkin-small.png"] = cells([p[0] for p in pairs])
+    made["wild-pumpkin-small_em.png"] = cells(em_of(pairs))
+    pairs = [w.pumpkin(True, f) for f in (0, 1)]
+    made["wild-pumpkin-big.png"] = cells([p[0] for p in pairs])
+    made["wild-pumpkin-big_em.png"] = cells(em_of(pairs))
+    # the soft fringe masks (border-dither layout): bands n e s w, their second variants, nooks ne se sw nw, then
+    # four convex corners (12-15) that round the square corner where two bands meet
+    made["wild-border.png"] = cells([w.drift_mask(k, 0) for k in w.BORDER_KINDS] + [w.drift_mask(k, 1) for k in w.BORDER_KINDS] + [w.drift_mask(k, 0) for k in ("ne", "se", "sw", "nw")] + [w.drift_mask(k, 0) for k in ("xne", "xse", "xsw", "xnw")])
+    # the neighbour biome's flecks over a fringed vale tile: one row per biome (snow sand ash swamp), sides n e s w
+    fl = Image.new("RGBA", (64, 16 * len(w.FLECK_BIOMES)), (0, 0, 0, 0))
+    for j, b in enumerate(w.FLECK_BIOMES):
+        fl.alpha_composite(cells([w.flecks(b, sd) for sd in "nesw"]), (0, 16 * j))
+    made["wild-flecks.png"] = fl
+    # a boss's cold-fire ground ring (bosses draw at the people's scale now), four turning frames
+    pairs = [w.boss_aura(f) for f in range(w.AURA_FRAMES)]
+    made["wild-boss-aura.png"] = cells([p[0] for p in pairs])
+    made["wild-boss-aura_em.png"] = cells(em_of(pairs))
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    # one sheet to look at, x3 nearest
+    sheet = Image.new("RGBA", (520, 330), (12, 10, 8, 255))
+    sheet.alpha_composite(made["wild-trees-autumn.png"], (2, 2))
+    sheet.alpha_composite(made["wild-trees-winter.png"], (260, 2))
+    sheet.alpha_composite(made["wild-trees-spring.png"], (2, 52))
+    sheet.alpha_composite(made["wild-trees-summer.png"], (260, 52))
+    sheet.alpha_composite(made["wild-deadwood.png"], (2, 102))
+    sheet.alpha_composite(made["wild-entrances.png"], (2, 152))
+    sheet.alpha_composite(made["wild-rocks.png"], (2, 202))
+    sheet.alpha_composite(made["wild-graves.png"], (200, 202))
+    sheet.alpha_composite(made["wild-stairs.png"], (290, 202))
+    sheet.alpha_composite(made["wild-opened-grave.png"], (300, 160))
+    sheet.alpha_composite(made["wild-pumpkin-big.png"], (330, 202))
+    sheet.alpha_composite(made["wild-shore.png"], (400, 202))
+    x = 2
+    for kind in ("water", "ice", "snow", "ash", "sand", "swamp"):
+        sheet.alpha_composite(made[f"wild-{kind}.png"].crop((0, 0, 64, 64)), (x, 240))
+        x += 66
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1c.png")
     return made
 
 

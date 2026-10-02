@@ -373,18 +373,16 @@ export const PRELOAD = [
   "/art/sprites/foes.png",
   "/art/sprites/allies.png",
   "/art/sprites/moves.png",
+  "/art/creatures/tilemap.png",
   "/art/writer/vale.png",
+  "/art/writer/water.png",
   "/art/writer/lamp.png",
   "/art/cozy/grass.png",
   // playtest1: the writer's town grounds replace /art/cozy/dirt.png and the land pack's cobble and water.
   "/art/writer/town-cobble.png",
   "/art/writer/town-dirt.png",
   "/art/cozy/cabin.png",
-  // playtest1c: the creature tilemap, the held trees and rocks and the old water strip are gone from the game; the
-  // wild writer's trees, rocks, water and town water stand in their place.
-  "/art/writer/wild-trees-autumn.png",
-  "/art/writer/wild-rocks.png",
-  "/art/writer/wild-water.png",
-  "/art/writer/wild-water-town.png",
+  "/art/held/trees.png",
+  "/art/held/rocks.png",
 ];
 export const READY_TIMEOUT_MS = 6000;

@@ -14,7 +14,6 @@ import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_write
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
-import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
 /**
  * Integer pixel drawing. Tiles are 16px, actors 16×32, zoom is a whole number.
@@ -64,8 +63,8 @@ function px(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 }
 
 /**
- * Every sheet the draw has asked for, by url. (The town houses are still the Land of Pixels Halloween pack by marceles,
- * credit in public/art/land/CREDITS.txt; playtest1c moved every other land-pack cell to the pixel writer.)
+ * Land of Pixels Halloween tiles, 16px, by marceles.
+ * The pack allows use in a game. Credit is in public/art/land/CREDITS.txt.
  */
 const landSheet: Partial<Record<string, HTMLImageElement>> = {};
 /** gfx3 glow masks (C4/C9: emissives stay at full light under the light layer): the pixel writer's
@@ -111,18 +110,18 @@ function sheetCell(
   return true;
 }
 
-/**
- * playtest1c (owner-reported 2026-10-02, "water and ice in a boxy grid", the town pond too; flat grey ash patches):
- * one 16x16 cut of a wrapping 128x128 wild sheet, picked by world position, so a run of tiles reads as one surface.
- * frame picks the animation frame (frames sit side by side, 128 px apart).
- */
-function texCell(ctx: CanvasRenderingContext2D, url: string, frame: number, x: number, y: number): boolean {
-  const per = TEX / TILE;
-  const wrap = (v: number) => ((v % per) + per) % per;
-  return sheetCell(ctx, url, frame * per + wrap(x), wrap(y), x * TILE, y * TILE);
+function landCell(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  col: number,
+  row: number,
+  dx: number,
+  dy: number,
+  w = 1,
+  h = 1,
+): boolean {
+  return sheetCell(ctx, `/art/land/${name}.png`, col, row, dx, dy, w, h, 16);
 }
-const texFrame = (kind: keyof typeof TEX_FRAMES, frame: number) => Math.floor(Math.max(0, frame) / TEX_TICKS[kind]) % TEX_FRAMES[kind];
-
 
 /** Pixel Art Spells by DevWizard, CC0. Each strip is 16px frames, except Splash which is 32. */
 function spellFrame(
@@ -151,10 +150,44 @@ function spellFrame(
   return true;
 }
 
-// playtest1c (owner-reported 2026-10-02, "lizard foe still old look"; batch C "no old sprites"): the fall pack's
-// scarecrow, pumpkin, lantern and horse and the creature tilemap's 16x16 beasts were the fallback bodies a family drew
-// while the sprite writer's sheets loaded (the tilemap's lizards and newts among them). Gone: a family not yet loaded
-// draws the painted fallback below, and every family is on foes.png.
+/** One whole sprite, nearest-neighbor, drawn into a 16px slot. */
+function wholeSprite(ctx: CanvasRenderingContext2D, url: string, dx: number, dy: number, dw: number, dh: number): boolean {
+  if (typeof Image === "undefined") return false;
+  let im = landSheet[url];
+  if (!im) {
+    im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  if (!im.complete || im.naturalWidth === 0) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, dx, dy, dw, dh);
+  return true;
+}
+
+/** Fall and farm stand-ins for families the creature sheet does not have. */
+const FALL: Record<string, [string, number, number, number, number]> = {
+  lantern: ["/art/fall/lantern.png", 0, 2, 16, 16],
+  pumpkin: ["/art/fall/pumpkin.png", 0, 2, 16, 16],
+  scarecrow: ["/art/fall/scarecrow.png", 0, -2, 16, 22],
+  horse: ["/art/fall/horse.png", 0, 6, 16, 12],
+};
+const CREATURE: Record<string, [number, number]> = {
+  zombie: [8, 9],
+  ghoul: [9, 9],
+  skeleton: [1, 0],
+  vampire: [2, 0],
+  ghost: [4, 0],
+  lich: [3, 0],
+  bat: [6, 13],
+  goblin: [0, 1],
+  wolf: [3, 2],
+  witch: [5, 6],
+  cat: [3, 9],
+  rat: [3, 13],
+  mummy: [9, 1],
+  tree: [5, 11],
+};
 
 /** Nudge a hex color. Used for floor flecks and wall courses. */
 function shade(hex: string, n: number): string {
@@ -465,8 +498,7 @@ function drawTile(
     } else if (tile === T.dirt) {
       usedLand = sheetCell(ctx, PT1_GROUND.dirt, Math.abs(x * 5 + y * 3) % 4, 0, gx, gy);
     } else if (tile === T.water) {
-      // playtest1c: the town pond is one wrapping surface in the town's own darker, violet-lit water.
-      usedLand = texCell(ctx, WATER_TOWN, texFrame("water", frame), x, y);
+      usedLand = sheetCell(ctx, "/art/writer/water.png", Math.abs(Math.floor(frame / 10) + x) % 4, 0, gx, gy);
     }
   }
   if (theme === "over" && (tile === T.grass || tile === T.exit)) {
@@ -533,7 +565,7 @@ function drawTile(
     }
   }
   if (tile === T.swamp) {
-    const drew = texCell(ctx, WILD_GROUND.swamp, 0, x, y); // playtest1c: one wrapping swamp ground, no per-tile strips
+    const drew = sheetCell(ctx, "/art/writer/swamp.png", Math.abs(x + y * 3) % 4, 0, gx, gy);
     if (!drew) {
       px(ctx, gx + 1, gy + 12, 6, 3, "#163028");
       px(ctx, gx + 3, gy + 8, 1, 5, "#0e2418");
@@ -543,7 +575,7 @@ function drawTile(
     }
   }
   if (tile === T.snow) {
-    const drew = texCell(ctx, WILD_GROUND.snow, 0, x, y); // playtest1c: one wrapping snow ground, no per-tile strips
+    const drew = sheetCell(ctx, "/art/writer/snow.png", Math.abs(x + y * 3) % 4, 0, gx, gy);
     if (!drew) {
       px(ctx, gx + 2, gy + 3, 4, 2, "#f4fbff");
       px(ctx, gx + 9, gy + 10, 5, 2, "#f7fbff");
@@ -555,7 +587,7 @@ function drawTile(
     }
   }
   if (tile === T.ash) {
-    const drew = texCell(ctx, WILD_GROUND.ash, 0, x, y); // playtest1c: one wrapping ash ground, no per-tile strips
+    const drew = sheetCell(ctx, "/art/writer/ash.png", Math.abs(x + y * 3) % 4, 0, gx, gy);
     if (!drew) {
       px(ctx, gx + 3, gy + 8, 8, 1, "#2a221c");
       px(ctx, gx + 6, gy + 5, 1, 6, "#1a1612");
@@ -563,7 +595,7 @@ function drawTile(
     }
   }
   if (tile === T.sand) {
-    const drew = texCell(ctx, WILD_GROUND.sand, 0, x, y); // playtest1c: one wrapping sand ground, no per-tile strips
+    const drew = sheetCell(ctx, "/art/writer/sand.png", Math.abs(x * 2 + y) % 4, 0, gx, gy);
     if (!drew) {
       px(ctx, gx, gy + 12, TILE, 1, "#a89470");
       if (n > 0.45) px(ctx, gx + 3, gy + 5, 8, 1, "#e6d6b0");
@@ -690,8 +722,7 @@ function drawTile(
       px(ctx, gx + 9, gy + 6, 4, 4, "#8a6840");
     }
   }
-  // playtest1c: the square's basin water is the town water surface; its stone kerb is the shore rim (paintShore).
-  if (tile === T.pool && theme === "town" && texCell(ctx, WATER_TOWN, texFrame("water", frame), x, y)) return;
+  if (tile === T.pool && theme === "town" && sheetCell(ctx, PT1_GROUND.pool, Math.abs(Math.floor(frame / 10)) % 4, 0, gx, gy)) return;
   if (tile === T.pool && theme === "town") {
     px(ctx, gx, gy, TILE, TILE, "#6a6058");
     px(ctx, gx + 2, gy + 2, 12, 12, "#1a3848");
@@ -699,8 +730,7 @@ function drawTile(
     return;
   }
   if ((tile === T.water || tile === T.pool) && !(usedLand && tile === T.water)) {
-    // playtest1c: vale and camp water is one wrapping surface (no tile grid); caves keep their own liquid.
-    const wave = (theme === "over" || theme === "camp") && tile === T.water && texCell(ctx, WATER, texFrame("water", frame), x, y);
+    const wave = theme === "over" && tile === T.water && sheetCell(ctx, "/art/writer/water.png", Math.abs(Math.floor(frame / 10)) % 4, 0, gx, gy);
     if (!wave) {
     const wob = (Math.floor(frame) + x) % 4;
     const col = cave ? palOf(theme).liquid : theme === "town" ? "#1a1428" : "#16344c";
@@ -760,11 +790,7 @@ function drawTile(
     px(ctx, gx + 6, gy + 6, 4, 6, "#f0e2c8");
     px(ctx, gx + 9, gy + 10, 1, 1, "#f0d080");
   }
-  // playtest1c (owner-reported 2026-10-02, "tiny ladder" entrances): a stone stair down into the dark, or up into the
-  // light, in place of the drawn ladder. On the vale and in town the dungeon's mouth is drawn over it (paintEntrance).
-  if ((tile === T.stairD || tile === T.stairU) && sheetCell(ctx, STAIRS, tile === T.stairD ? 0 : 1, 0, gx, gy)) {
-    // drawn
-  } else if (tile === T.stairD || tile === T.stairU) {
+  if (tile === T.stairD || tile === T.stairU) {
     px(ctx, gx + 2, gy + 1, 2, 14, "#4a3424");
     px(ctx, gx + 12, gy + 1, 2, 14, "#4a3424");
     const wood = cave ? "#a07850" : "#7a5840";
@@ -811,7 +837,6 @@ function drawTile(
     px(ctx, gx + 7, gy + 11, 2, 3, "#6a2030");
     px(ctx, gx + 11, gy + 11, 2, 3, "#2a4060");
   }
-  if (tile === T.ice && texCell(ctx, ICE, texFrame("ice", frame), x, y)) return;
   if (tile === T.ice) {
     px(ctx, gx, gy, TILE, TILE, n > 0.5 ? "#c5dde8" : "#b7d2e0");
     px(ctx, gx + 1, gy + 2, 9, 1, "#f4fbff");
@@ -876,8 +901,7 @@ export const PT1_GROUND = { cobble: "/art/writer/town-cobble.png", dirt: "/art/w
 const SPELL_GEN = ["lightning", "beam-fire", "beam-holy", "beam-ice", "beam-lightning", "beam-shadow", "beam-venom", "orb", "nova", "ring", "fire-rain", "ice-rain"].map((n) => `/art/spells/gen/${n}.png`);
 /** playtest1: the town's edge fence (h run, v run, gate post). Pixel writer. */
 export const PT1_FENCE = "/art/writer/town-fence.png";
-// playtest1c: the four biome grounds are the wild sheets now (one wrapping ground each, drawn by texCell).
-const FRINGE_SHEETS = ["/art/writer/vale.png", ...["snow", "sand", "ash", "swamp"].map((b) => WILD_GROUND[b])];
+const FRINGE_SHEETS = ["/art/writer/vale.png", ...["snow", "sand", "ash", "swamp"].map((b) => `/art/writer/${b}.png`)];
 /** Sleeping mimic (owner-approved 2026-09-30): 0 lid lifted a pixel, 1 with a tooth glint. Pixel writer, laid over the chest. */
 const MIMIC_SLEEP = "/art/writer/mimic-sleep.png";
 /** A freed captive knocked down on the escort: one 32x16 cell per RESCUES entry. Sprite writer. */
@@ -893,7 +917,7 @@ const BOSS_PLAQUE = "/art/writer/boss-plaque.png";
  */
 let seasonNow: SeasonId = "autumn";
 /** Draw the season's tint of a sheet cell, or fall back to the untinted sheet. */
-function seasonCell(ctx: CanvasRenderingContext2D, name: "vale" | "camp-grass" | "town-grass", base: string, col: number, dx: number, dy: number, w = 1, h = 1, stride = 16) {
+function seasonCell(ctx: CanvasRenderingContext2D, name: "vale" | "camp-grass" | "town-grass" | "trees" | "town-trees", base: string, col: number, dx: number, dy: number, w = 1, h = 1, stride = 16) {
   return sheetCell(ctx, seasonSheet(seasonNow, name), col, 0, dx, dy, w, h, stride) || sheetCell(ctx, base, col, 0, dx, dy, w, h, stride);
 }
 /** Family order of /art/sprites/foes.png (4 ranks x 11 poses each), as paintMonster reads it. */
@@ -914,7 +938,7 @@ function paintBossTrophy(ctx: CanvasRenderingContext2D, family: string, x: numbe
   ctx.drawImage(im, col * 16 + 3, TROPHY_HEAD_TOP[family] ?? 0, 10, 10, x * TILE + 3, y * TILE + 2, 10, 10);
 }
 if (typeof Image !== "undefined") {
-  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
+  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "trees", "town-trees"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -928,14 +952,6 @@ if (typeof Image !== "undefined") {
     im.src = url;
     landSheet[url] = im;
   }
-  // playtest1c: the wild art (trees, deadwood, rocks, graves, mouths, water, ice, grounds, shores, pumpkins) up front.
-  for (const url of WILD_SHEETS) {
-    if (landSheet[url]) continue;
-    const im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
-
   // gfx2: the floor kits and decal strips, so a floor never pops from the old bricks to slabs.
   for (const url of Object.keys(CAVES).flatMap((k) => [`/art/writer/floor-${k}.png`, `/art/writer/decal-${k}.png`])) {
     const im = new Image();
@@ -1003,49 +1019,29 @@ function paintSecret(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: nu
   }
 }
 
-/**
- * playtest1c: a dungeon's way in. On the vale a 48x48 mouth (3x3 tiles) whose stair sits on the stair tile, its two
- * cold-fire braziers flickering on a two-frame cycle; in town the Opened Grave, 32x32 over the stair tile and the three
- * above and left of it. With em only the glow mask. False while the sheet loads (the floor stair still shows).
- */
-function paintEntrance(ctx: CanvasRenderingContext2D, look: EntranceKind | "grave", tx: number, ty: number, frame: number, em = false): boolean {
-  const f = Math.floor(frame / 3 + tx) % 2;
-  if (look === "grave") return sheetCell(ctx, em ? OPENED_GRAVE_EM : OPENED_GRAVE, f, 0, (tx - 1) * TILE, (ty - 1) * TILE, 2, 2, 32);
-  return sheetCell(ctx, em ? ENTRANCES_EM : ENTRANCES, ENTRANCE_CELL[look] + f, 0, tx * TILE - TILE, (ty + 1) * TILE - 48, 3, 3, 48);
-}
-
-/**
- * playtest1c (owner-reported 2026-10-02: "some trees ridiculously tiny", stick saplings, old third-party trees, rocks,
- * dead trees and pumpkins, oversized town gravestones): every prop is the pixel writer's wild art now (wild.ts).
- * Trees are 32x48 on their tile's foot (a person is 16x30), in the season's leaves; the snow keeps its frosted
- * winter look; cinder and swamp get charred and drowned deadwood, the waste bleached thorns. A headstone is 10-13 px
- * on its 16 px plot. With em the glow mask is drawn instead (the yew's wisps, the embers, the candle, the carved faces),
- * or nothing. The painted pixels below are only the not-yet-loaded fallback.
- */
-export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" | "pump" | "grave", x: number, y: number, biome: string, frame = 0, em = false): boolean {
+function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" | "pump" | "grave", x: number, y: number, biome: string) {
   const ox = x + 8;
   const oy = y + 14;
-  const tx = Math.round(x / TILE);
-  const ty = Math.round(y / TILE);
   if (kind === "rock") {
-    const cells = ROCK_CELL[biome] ?? ROCK_CELL.vale;
-    const cell = cells[tileRoll(tx, ty, cells.length)];
-    if (em) return ROCK_GLOW.has(cell) && sheetCell(ctx, ROCKS_EM, cell, 0, x, y - 2, 1, 1);
-    if (sheetCell(ctx, ROCKS, cell, 0, x, y - 2, 1, 1)) return true;
+    const n = Math.abs(Math.round(x / TILE) + Math.round(y / TILE));
+    if ((biome === "town" || n % 2 === 0) && sheetCell(ctx, "/art/held/rocks.png", n % 8, 0, x, y - 2, 1, 1)) return;
+    const col = n % 4;
+    if (sheetCell(ctx, "/art/brileta/rocks.png", col, 0, x, y - 2, 1, 1)) return;
     px(ctx, ox - 8, oy - 6, 16, 7, "#4a4e54");
     px(ctx, ox - 6, oy - 10, 12, 6, "#7a8088");
     px(ctx, ox - 3, oy - 13, 6, 4, "#b0b6bc");
     px(ctx, ox - 1, oy - 12, 2, 2, "#e8ecee");
     px(ctx, ox + 2, oy - 8, 3, 3, "#5a5e64");
     px(ctx, ox - 7, oy - 1, 14, 2, "#2a2824");
-    return true;
+    return;
   }
   if (kind === "pump") {
-    // the town keeps its big jack-o'-lanterns among the small ones; elsewhere a patch pumpkin
-    const big = biome === "town" && Math.abs(tx * 3 + ty) % 3 !== 0;
-    const f = Math.floor(frame / 5 + tx) % 2;
-    if (em) return big ? sheetCell(ctx, PUMPKIN_BIG_EM, f, 0, x - 8, y - 16, 2, 2, 32) : sheetCell(ctx, PUMPKIN_SMALL_EM, f, 0, x, y, 1, 1);
-    if (big ? sheetCell(ctx, PUMPKIN_BIG, f, 0, x - 8, y - 16, 2, 2, 32) : sheetCell(ctx, PUMPKIN_SMALL, f, 0, x, y, 1, 1)) return true;
+    // playtest1b (owner-reported 2026-10-02, "half pumpkins"): the old pick read the sheet's 16px grid at (6,5), which
+    // cuts the big jack-o'-lantern down its middle. These are the two whole pumpkins' own boxes on the same sheet.
+    if (biome === "town") {
+      const small = Math.abs(Math.round(x / TILE) * 3 + Math.round(y / TILE)) % 3 === 0;
+      if (small ? sheetCell(ctx, "/art/land/decoration.png", 112, 80, x, y, 1, 1, 1) : sheetCell(ctx, "/art/land/decoration.png", 80, 64, x - 8, y - 16, 2, 2, 1)) return;
+    }
     px(ctx, ox - 6, oy - 10, 12, 9, "#e07a2f");
     px(ctx, ox - 7, oy - 8, 2, 5, "#c45a18");
     px(ctx, ox + 5, oy - 8, 2, 5, "#c45a18");
@@ -1054,38 +1050,26 @@ export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" 
     px(ctx, ox + 2, oy - 7, 2, 2, INK);
     px(ctx, ox - 1, oy - 4, 3, 1, INK);
     px(ctx, ox - 5, oy - 1, 10, 2, "#2a2418");
-    return true;
+    return;
   }
   if (kind === "grave") {
-    let cell = tileRoll(tx, ty, 4);
-    if (cell === GRAVE_CELL.candle && Math.floor(frame / 3 + tx) % 2) cell = GRAVE_CELL.candle2;
-    const candle = cell === GRAVE_CELL.candle || cell === GRAVE_CELL.candle2;
-    if (em) return candle && sheetCell(ctx, GRAVES_EM, cell, 0, x, y - 16, 1, 2);
-    if (sheetCell(ctx, GRAVES, cell, 0, x, y - 16, 1, 2)) return true;
+    if (biome === "town" && landCell(ctx, "decoration", 9, 4, x - 8, y - 32, 2, 3)) return;
     px(ctx, ox - 6, oy - 16, 12, 14, "#d4cec0");
     px(ctx, ox - 7, oy - 13, 14, 10, "#b7b2a6");
     px(ctx, ox - 1, oy - 12, 2, 6, "#6a6660");
     px(ctx, ox - 3, oy - 10, 6, 1, "#6a6660");
     px(ctx, ox - 8, oy - 2, 16, 3, "#2a3828");
     px(ctx, ox - 4, oy - 6, 2, 1, "#8a867c");
-    return true;
-  }
-  {
-    const dead = biome === "ash" ? DEAD_CELL.cinder : biome === "swamp" ? DEAD_CELL.willow : biome === "sand" ? DEAD_CELL.thorn : null;
-    if (dead) {
-      const cell = dead[tileRoll(tx, ty, dead.length)];
-      if (em) return sheetCell(ctx, DEADWOOD_EM, cell, 0, x - 8, y - 32, 2, 3, 32);
-      if (sheetCell(ctx, DEADWOOD, cell, 0, x - 8, y - 32, 2, 3, 32)) return true;
-    } else {
-      const season = biome === "snow" ? "winter" : seasonNow;
-      const cell = tileRoll(tx, ty, 8);
-      if (em) return TREE_GLOW.has(cell) && sheetCell(ctx, WILD_TREES_EM[season], cell, 0, x - 8, y - 32, 2, 3, 32);
-      if (sheetCell(ctx, WILD_TREES[season], cell, 0, x - 8, y - 32, 2, 3, 32)) return true;
-    }
-    if (em) return false;
+    return;
   }
   const snow = biome === "snow";
   const dead = biome === "ash" || biome === "swamp";
+  const spot = Math.abs(Math.round(x / TILE) + Math.round(y / TILE) * 3);
+  if ((biome === "town" || biome === "sand" || biome === "camp") && seasonCell(ctx, "town-trees", "/art/held/trees.png", spot % 5, x - 8, y - 16, 2, 2, 32)) return;
+  if (dead && sheetCell(ctx, "/art/land/dead-trees.png", spot % 3, 0, x - 8, y - 32, 2, 3, 32)) return;
+  const col = snow ? 9 : spot % 9;
+  // The snow biome keeps its own frosted tree all year; elsewhere the season tints the tree.
+  if (snow ? sheetCell(ctx, "/art/brileta/trees.png", col, 0, x - 8, y - 16, 2, 2, 32) : seasonCell(ctx, "trees", "/art/brileta/trees.png", col, x - 8, y - 16, 2, 2, 32)) return;
   const leaf = snow ? "#e8f2f6" : biome === "town" ? "#4a3068" : dead ? "#3a342c" : "#1e4a34";
   const leaf2 = snow ? "#f7fbff" : biome === "town" ? "#7a5088" : dead ? "#2a2824" : "#2f6a44";
   const trunk = biome === "town" ? "#3a2830" : dead ? "#3a2a24" : "#5a3828";
@@ -1094,7 +1078,7 @@ export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" 
     px(ctx, ox - 8, oy - 16, 2, 8, "#2a2420");
     px(ctx, ox + 5, oy - 18, 2, 10, "#2a2420");
     px(ctx, ox - 2, oy - 20, 2, 8, "#2a2420");
-    return true;
+    return;
   }
   px(ctx, ox - 2, oy - 10, 4, 10, trunk);
   px(ctx, ox - 3, oy - 4, 6, 2, shade(trunk, -20));
@@ -1115,7 +1099,6 @@ export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" 
     px(ctx, ox + 2, oy - 18, 5, 2, "#ffffff");
     px(ctx, ox - 8, oy - 16, 4, 2, "#e8f4fb");
   }
-  return true;
 }
 
 /** Clothes for a role. Patrons, merchants, and the four classes each have a fixed cut. */
@@ -1172,22 +1155,15 @@ export function moveCol(role: string, pose: string, frame: number): number {
   return m < 0 ? -1 : who * MOVES.length + m;
 }
 
-/**
- * playtest1c step 3 (owner-requested 2026-10-02, "movement animations fluid"): standing still, a body rests 2.5 s and
- * shifts its weight for 1.5 s (a 4 s breath), and each body keeps its own beat from where it stands, so a crowd no
- * longer twitches in step every 3.5 s. Drawing only: no gameplay timer reads this.
- */
-export const IDLE_BEAT = { period: 32, rest: 20 } as const;
-export const idleSeed = (x: number, y: number) => (Math.round(x) * 7 + Math.round(y) * 3) & 31;
 /** Eleven frames: stand, idle, three walks, swing wind-up strike recover, cast gather release scatter. */
-export function poseCol(pose: string, frame: number, phase = 1, seed = 0): number {
+export function poseCol(pose: string, frame: number, phase = 1): number {
   const step = Math.max(0, Math.min(2, phase));
   if (pose === "swing") return 5 + step;
   if (pose === "cast") return 8 + step;
   // playtest1 (owner-reported 2026-10-01, the hero floated): one walk frame per tick of g.frame (8 a second), in the
   // order contact, pass, contact, pass, so a stride is half a second. Before it was one frame per 0.6 s.
   if (pose === "walk") return WALK_CYCLE[Math.floor(Math.max(0, frame)) % 4];
-  return (Math.floor(Math.max(0, frame)) + seed) % IDLE_BEAT.period >= IDLE_BEAT.rest ? 1 : 0;
+  return Math.floor(frame / 28) % 2;
 }
 
 /** Early in the swing is the wind-up. The middle is the hit. The end follows through. */
@@ -1241,12 +1217,12 @@ function person(
   }
   if (!special && who >= 0) {
     // A town NPC wears one of its role's crowd looks, picked from its id. Heroes and allies keep the main cell.
-    const crowd = cast === "npc" && seed ? crowdCol(role, crowdLook(seed), poseCol(pose, frame, phase, idleSeed(x, y))) : -1;
+    const crowd = cast === "npc" && seed ? crowdCol(role, crowdLook(seed), poseCol(pose, frame, phase)) : -1;
     if (crowd >= 0 && sheetCell(ctx, CROWD_SHEET, crowd, 0, 0, -10, 1, 2, 16)) {
       ctx.restore();
       return;
     }
-    const col = who * 11 + poseCol(pose, frame, phase, idleSeed(x, y));
+    const col = who * 11 + poseCol(pose, frame, phase);
     const file = useAlly ? "/art/sprites/allies.png" : "/art/sprites/people.png";
     sheetCell(ctx, file, col, 0, 0, -10, 1, 2, 16);
     // playtest1: a sheet role never falls back to the old painted person, even while its sheet loads.
@@ -1431,20 +1407,33 @@ function paintMonster(
   const families = FOE_FAMILIES;
   const ranks = ["mob", "boss", "mini", "rare"];
   const fi = families.indexOf(family);
-  if (FESTIVAL_SHEETS[family] && sheetCell(ctx, FESTIVAL_SHEETS[family], poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), 0, 0, -12, 1, 2, 16)) {
+  if (FESTIVAL_SHEETS[family] && sheetCell(ctx, FESTIVAL_SHEETS[family], poseCol(pose || (moving ? "walk" : "stand"), frame, phase), 0, 0, -12, 1, 2, 16)) {
     ctx.restore();
     return;
   }
-  if (family === "mimic" && sheetCell(ctx, MIMIC_SHEET, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), 0, 0, -12, 1, 2, 16)) {
+  if (family === "mimic" && sheetCell(ctx, MIMIC_SHEET, poseCol(pose || (moving ? "walk" : "stand"), frame, phase), 0, 0, -12, 1, 2, 16)) {
     ctx.restore();
     return;
   }
   if (fi >= 0) {
-    const col = (fi * 4 + Math.max(0, ranks.indexOf(rank))) * 11 + poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y));
+    const col = (fi * 4 + Math.max(0, ranks.indexOf(rank))) * 11 + poseCol(pose || (moving ? "walk" : "stand"), frame, phase);
     if (sheetCell(ctx, "/art/sprites/foes.png", col, 0, 0, -12, 1, 2, 16)) {
       ctx.restore();
       return;
     }
+  }
+  const fall = FALL[family];
+  if (fall && wholeSprite(ctx, fall[0], fall[1], fall[2], fall[3], fall[4])) {
+    if (pose === "swing") px(ctx, 14, 8, 4, 2, "#e8dcc8");
+    ctx.restore();
+    return;
+  }
+  const spot = CREATURE[family];
+  if (spot && sheetCell(ctx, "/art/creatures/tilemap.png", spot[0], spot[1], 0, 4, 1, 1, 17)) {
+    if (pose === "swing") px(ctx, 14, 8, 4, 2, "#e8dcc8");
+    else if (pose === "cast") px(ctx, 12, 2, 3, 3, "#f4e27a");
+    ctx.restore();
+    return;
   }
   px(ctx, 4, 18, 8, 2, "#120c10");
   if (family === "bat") {
@@ -1654,10 +1643,8 @@ function propGround(theme: string, x: number, y: number, tile: number): Tile {
   return T.grass;
 }
 
-// playtest1c (owner-reported 2026-10-02, "oversized crowned ghost"): a boss draws at the people's scale like every
-// other body (the doubled 32x64 sprite broke the one-pixel scale); its cold-fire ground ring and glow mark it instead.
 function scaleFor(boss?: boolean, mini?: boolean): number {
-  if (boss) return 1;
+  if (boss) return 2;
   if (mini) return 1;
   return 1;
 }
@@ -1910,16 +1897,13 @@ let fringeCanvas: HTMLCanvasElement | null = null;
 const fringeCache = new Map<string, HTMLCanvasElement>();
 const tileCanvas = () => Object.assign(document.createElement("canvas"), { width: TILE, height: TILE });
 const sheetReady = (url: string) => !!landSheet[url]?.complete && (landSheet[url]?.naturalWidth ?? 0) > 0;
-// playtest1c (owner-reported 2026-10-02, "the jagged hedge band"): fringes go through the wild writer's soft drift masks
-// (same twelve-cell layout); border-dither.png stays the not-yet-loaded fallback.
-const fringeMask = () => (sheetReady(WILD_BORDER) ? landSheet[WILD_BORDER] : landSheet[BORDER_SHEET]);
-const fringeReady = () => sheetReady(WILD_BORDER) && sheetReady(WILD_FLECKS) && sheetReady(BORDER_SHEET) && (sheetReady(seasonSheet(seasonNow, "vale")) || sheetReady("/art/writer/vale.png")) && ["snow", "sand", "ash", "swamp"].every((b) => sheetReady(WILD_GROUND[b]));
+const fringeReady = () => sheetReady(BORDER_SHEET) && (sheetReady(seasonSheet(seasonNow, "vale")) || sheetReady("/art/writer/vale.png")) && ["snow", "sand", "ash", "swamp"].every((b) => sheetReady(`/art/writer/${b}.png`));
 /** playtest1: a fringe still waiting on a sheet reuses its one canvas instead of making a new one each frame. */
 const fringePending = new Map<string, HTMLCanvasElement>();
 
 /** Paint the neighbour biome's own ground through one fringe mask cell into acc. No new colours: both are locked art. */
 function paintFringe(acc: CanvasRenderingContext2D, ground: Tile, cell: number, x: number, y: number, n: number, theme: string, frame: number) {
-  const mask = fringeMask();
+  const mask = landSheet[BORDER_SHEET];
   if (!mask || !mask.complete || mask.naturalWidth === 0) return;
   fringeCanvas ??= tileCanvas();
   const off = fringeCanvas.getContext("2d");
@@ -1958,11 +1942,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
       [EDGE.w, 3, -1, 0],
     ];
     for (const [bit, cell, dx, dy] of side) if (e & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell + v, x, y, n, g.theme, g.frame);
-    // playtest1c: the neighbour's crumbs thin out across the tile (frost by the snow, grit by the waste, soot, mud).
-    for (const [bit, cell, dx, dy] of side) {
-      const nb = skin.biome[i + dy * g.w + dx];
-      if (e & bit && nb > 0) sheetCell(acc, WILD_FLECKS, cell, nb - 1, 0, 0);
-    }
     const nook: [number, number, number, number][] = [
       [CORNER.ne, 8, 1, -1],
       [CORNER.se, 9, 1, 1],
@@ -1970,16 +1949,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
       [CORNER.nw, 11, -1, -1],
     ];
     for (const [bit, cell, dx, dy] of nook) if (c & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
-    // playtest1c: where two sides take the same neighbour's ground, round the square corner they leave (wild-border 12-15).
-    if (sheetReady(WILD_BORDER)) {
-      const convex: [number, number, number, number][] = [
-        [EDGE.n | EDGE.e, 12, 0, -1],
-        [EDGE.s | EDGE.e, 13, 0, 1],
-        [EDGE.s | EDGE.w, 14, 0, 1],
-        [EDGE.n | EDGE.w, 15, 0, -1],
-      ];
-      for (const [bits, cell, dx, dy] of convex) if ((e & bits) === bits) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
-    }
     // Only keep it once every sheet is in, so a half-loaded first frame is never frozen.
     if (fringeReady()) {
       fringeCache.set(key, done);
@@ -1988,31 +1957,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
   }
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(done, 0, 0, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
-}
-
-/**
- * playtest1c (owner-reported 2026-10-02, boxy water and ice; the snow pond; the town pond): where a water, pool or ice
- * tile meets dry ground, the wild shore rim is laid on that side (a reed bank, the square's stone kerb, a snowbank),
- * and an inner corner where the land touches only diagonally, so a pond has one soft outline instead of tile boxes.
- */
-const WET: ReadonlySet<number> = new Set([T.water, T.pool, T.ice]);
-function paintShore(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: number, y: number, at: (j: number) => number) {
-  const row = tile === T.ice || (g.theme === "over" && y < 16) ? SHORE_ROW.snowbank : tile === T.pool ? SHORE_ROW.stone : SHORE_ROW.bank;
-  const dry = (nx: number, ny: number) => nx >= 0 && ny >= 0 && nx < g.w && ny < g.h && !WET.has(at(ny * g.w + nx));
-  const n = dry(x, y - 1);
-  const e = dry(x + 1, y);
-  const s = dry(x, y + 1);
-  const w = dry(x - 1, y);
-  const gx = x * TILE;
-  const gy = y * TILE;
-  if (n) sheetCell(ctx, SHORE, SHORE_SIDE.n, row, gx, gy);
-  if (e) sheetCell(ctx, SHORE, SHORE_SIDE.e, row, gx, gy);
-  if (s) sheetCell(ctx, SHORE, SHORE_SIDE.s, row, gx, gy);
-  if (w) sheetCell(ctx, SHORE, SHORE_SIDE.w, row, gx, gy);
-  if (!n && !e && dry(x + 1, y - 1)) sheetCell(ctx, SHORE, 4, row, gx, gy);
-  if (!s && !e && dry(x + 1, y + 1)) sheetCell(ctx, SHORE, 5, row, gx, gy);
-  if (!s && !w && dry(x - 1, y + 1)) sheetCell(ctx, SHORE, 6, row, gx, gy);
-  if (!n && !w && dry(x - 1, y - 1)) sheetCell(ctx, SHORE, 7, row, gx, gy);
 }
 
 /** The play view. Ground first, then props and people sorted by foot position, then weather. */
@@ -2153,9 +2097,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
       if (b.doorX < 0 || signed.has(b.doorY * g.w + b.doorX)) continue;
       out.push({ x: b.doorX * TILE + 8, y: b.doorY * TILE + 2, r: LIGHT.doorLamp, c: LIGHTS.torch, seed: b.x & 3, flick: true });
     }
-    // playtest1c: the Opened Grave's cold fire.
-    const grave = g.tiles.indexOf(T.stairD);
-    if (grave >= 0) out.push({ x: (grave % g.w) * TILE, y: Math.floor(grave / g.w) * TILE + 2, r: LIGHT.brazier, c: NEON_LIGHT.blue, seed: 3, flick: true });
     const fest = g.festivalId();
     const lit = fest === "harvest" ? g.lanternsLit() : [];
     HARVEST.lanterns.forEach(([x, y], i) => {
@@ -2178,15 +2119,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
     for (const r of g.riftMouths()) out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
-    // playtest1c: each dungeon mouth's cold-fire braziers light the vale blue at night: one light between the pair,
-    // brazier-sized, so the scene's light count stays inside retro1's limit.
-    for (const [k, id] of Object.entries(g.entrances)) {
-      const [tx, ty] = k.split(",").map(Number);
-      const lamps = ENTRANCE_LAMPS[entranceKind(id)];
-      const lx = lamps.reduce((a, l) => a + l[0], 0) / lamps.length;
-      const ly = lamps.reduce((a, l) => a + l[1], 0) / lamps.length;
-      out.push({ x: tx * TILE - TILE + lx, y: (ty + 1) * TILE - 48 + ly, r: LIGHT.brazier, c: NEON_LIGHT.blue, seed: tx & 3, flick: true });
-    }
     if (g.festivalId() === "bloom") g.bloomsTonight().forEach((b, i) => { if (!g.bloomPicked(i)) out.push({ x: b.x * TILE + 8, y: b.y * TILE + 6, r: LIGHT.bloom, c: LIGHTS.ghost, seed: i & 3, flick: false }); });
   }
   // gfx2 (C5): moving lights. Spells and bolts in flight (theirs and yours) light the world in their strip's emits
@@ -2537,7 +2469,7 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   for (const r of g.roamers) {
     if (!r.boss || !r.name) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
-    drawLabel(ctx, r.name, r.x, r.y - LABEL.lift - 4, "red"); // playtest1c: over a people-scale boss
+    drawLabel(ctx, r.name, r.x, r.y - 46, "red");
   }
   if (g.mapId === "town") {
     for (const d of roomDoors(g)) {
@@ -2620,8 +2552,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         px(ctx, x * TILE + 4, y * TILE + 10, 2, 2, "#4a8a48");
         px(ctx, x * TILE + 11, y * TILE + 11, 1, 5, "#143028");
       }
-      if ((tile === T.water || tile === T.pool || tile === T.ice) && (g.theme === "over" || g.theme === "camp" || g.theme === "town")) paintShore(ctx, g, tile, x, y, at);
-      else if (tile === T.water || tile === T.pool || tile === T.ice) {
+      if ((tile === T.water || tile === T.pool || tile === T.ice) && g.theme !== "town") {
         const shore = (nx: number, ny: number, ox: number, oy: number, sw: number, sh: number) => {
           if (nx < 0 || ny < 0 || nx >= g.w || ny >= g.h) return;
           const nt = g.tiles[ny * g.w + nx];
@@ -2677,27 +2608,14 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         const kind = tile === T.tree ? "tree" : tile === T.rock ? "rock" : tile === T.pump ? "pump" : "grave";
         const by = y * TILE + (kind === "tree" ? 8 : 10);
         const dug = kind === "grave" && g.graveDug(x, y);
-        // On the vale a prop matches the ground it stands on: a frosted tree on snow skin, a dead one on ash or swamp.
-        const biome = skin ? SKIN_PROP[skin.biome[i]] : biomeOf(g.theme, y, x);
         props.push({
           y: by,
           fn: () => {
-            propSprite(ctx, kind, x * TILE, y * TILE, biome, g.frame);
+            // On the vale a prop matches the ground it stands on: a frosted tree on snow skin, a dead one on ash or swamp.
+            propSprite(ctx, kind, x * TILE, y * TILE, skin ? SKIN_PROP[skin.biome[i]] : biomeOf(g.theme, y, x));
             if (dug) sheetCell(ctx, GRAVE_DUG, 0, 0, x * TILE, y * TILE + 9);
           },
         });
-        // playtest1c: the wild art's glow (yew wisps, cinder embers, a swamp light, a grave candle, a carved face)
-        const tree = biome === "ash" || biome === "swamp" || (biome === "sand" ? tileRoll(x, y, 2) === 0 : TREE_GLOW.has(tileRoll(x, y, 8)));
-        const lit = kind === "pump" || (kind === "grave" && tileRoll(x, y, 4) === GRAVE_CELL.candle) || (kind === "rock" && biome === "ash") || (kind === "tree" && tree);
-        if (lit) glow.push((c) => void propSprite(c, kind, x * TILE, y * TILE, biome, g.frame, true));
-      }
-      // playtest1c (owner-reported 2026-10-02, "dungeon entrances are a tiny ladder"): a dungeon's way in on the vale is
-      // a 48x48 mouth over its stair tile (a mason's stairwell, a crypt mouth or a barrow arch) with cold-fire braziers;
-      // the town's Opened Grave is a 32x32 broken grave over 2x2 tiles. Drawn with the actors, its foot on the stair's.
-      if (tile === T.stairD && (g.mapId === "world" || g.mapId === "town")) {
-        const look: EntranceKind | "grave" = g.mapId === "town" ? "grave" : entranceKind(g.entrances[`${x},${y}`] ?? "");
-        props.push({ y: (y + 1) * TILE - 1, fn: () => void paintEntrance(ctx, look, x, y, g.frame) });
-        glow.push((c) => void paintEntrance(c, look, x, y, g.frame, true));
       }
       if (caveBone(g, i, tile)) {
         props.push({
@@ -2786,8 +2704,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       y: r.y,
       actor: body,
       fn: () => {
-        // playtest1c: a boss stands in its cold-fire ring (under its shadow and body)
-        if (r.boss) sheetCell(ctx, BOSS_AURA, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32);
         if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);
         else blobShadow(ctx, g, r.x, r.y - 2);
         body(ctx);
@@ -2801,7 +2717,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     });
     // gfx3 glow mask: the eyes, lantern face and sparks stay lit in the dark. Not on unexplored rock.
     const glowFrom = glow.length;
-    if (r.boss && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) glow.push((c) => void sheetCell(c, BOSS_AURA_EM, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32));
     if (hasGlowMask(r.family) && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) {
       glow.push((c) => {
         emPass = true;

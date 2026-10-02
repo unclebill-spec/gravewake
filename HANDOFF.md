@@ -8,7 +8,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 641 as of playtest1b), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 671 as of playtest1c), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)

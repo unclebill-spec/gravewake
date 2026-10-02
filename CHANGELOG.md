@@ -2,6 +2,16 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1c, art audit part 1 (drawing only)
+- specs/ART_AUDIT.md: ranked inventory of 34 art items; C2 list.
+- New palette-locked wild art: seasonal trees, dead wood, rocks, graves; snow/ash/sand/swamp ground with soft drifted edges.
+- Animated water and ice; town pond recolored blue-violet; shore rims; whole pumpkins in two sizes.
+- Real dungeon entrances (cave and grave mouths with blue lamps, stairs instead of the ladder, the Opened Grave).
+- Bosses drawn at true size with a 4-frame glow aura.
+- Animation: redrawn rat, scarecrow idle tilt and hop, Pumpkin Lord idle settle, calmer staggered idle bobs for folk and foes.
+- Old third-party tilemap and tree sheets no longer loaded. Sim, maps, saves untouched.
+- check:game 671; fail-proofs 774/774.
+
 ## 2026-10-02: playtest1b, owner playtest looks pass
 - Neon signs on all 16 town doors (inn, casino, every shop), lit at night; gold building names near doors.
 - Name labels over nearby people (vendors blue, companion violet, bosses red).

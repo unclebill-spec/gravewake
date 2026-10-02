@@ -927,3 +927,14 @@ swim line is replaced when you climb out; jack-o'-lanterns drawn whole.
 OWNER-APPROVED BALANCE  [OWNER-APPROVED 2026-10-02 Bill]
 Mana: max MP = old formula x2.5, MP regen = old rate x3 (sim.ts MANA). Fresh wizard 83 MP (was 33): 6 Smites
 from full and most of a 7th, 0.90 MP/s regen (was 0.30). Spell costs and damage unchanged.
+
+OWNER-REQUESTED ART AUDIT  [OWNER-REQUESTED 2026-10-02 02:07 ET: playtest1c art audit, batch C part C1]
+No old graphics in play: trees, deadwood, rocks, graves, pumpkins, water, ice, the biome grounds, shore rims,
+dungeon mouths and floor stairs are the pixel writer's wild art (wild_writer.py, sheets public/art/writer/wild-*,
+constants src/game/wild.ts). The creature tilemap, fall pack, brileta/held trees and rocks, land dead trees and
+decoration sheet are out of the draw. Trees are 32x48 on their trunk tile; headstones 16x32 (house scale);
+bosses draw at 1x in a cold-fire ring. Water, pond, pool, ice and the snow/ash/sand/swamp grounds are cut from
+128x128 wrapping sheets by world position (no tile grid), with bank / stone kerb / snowbank rims. Dungeon mouths
+on the vale are 48x48 (stairwell, crypt mouth, barrow arch) with blue cold-fire braziers; the town's Opened
+Grave is 32x32. Fringes use the soft drift masks plus biome crumbs. Idle breathes on a 4 s beat per body.
+Looks only: g.tiles, collision, sim, saves untouched. Inventory and C2 list: specs/ART_AUDIT.md.
