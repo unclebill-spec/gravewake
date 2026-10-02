@@ -2,6 +2,14 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1e, bigger world and no black edges (OWNER-APPROVED)
+- Vale grows from 64x60 to 128x120: every biome has 4x its old area. Town stays 40x30.
+- Map writer phase 3 lays the vale from a fixed seed: old roads at twice the size, winding trails to every dungeon, rift, boss, cart and watch post, 24 landmarks and 14 caches, and a forest band around the edge. Every place is reachable.
+- Fix: the map writer's trail search used low-precision costs, so trails failed to connect.
+- No black void: the camera stops at the map edge, small maps are centred, and past the edge you see border forest or rock (drawn once and cached). The mini map matches.
+- Old saves: vale positions are doubled on load and stepped off blocked tiles; the world version is saved.
+- check:game 718; map-writer 31/31; fail-proofs 847/847.
+
 ## 2026-10-02: playtest1d, art audit part 2 (drawing only)
 - Three new town house styles (stone, timber, boarded) and a log cabin at full size; windows and door lamps glow at night.
 - Softer per-season town grass with clover, tufts, flowers and autumn leaves (replaces the recolored cozy-pack tile).

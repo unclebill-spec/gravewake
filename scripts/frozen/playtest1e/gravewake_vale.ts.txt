@@ -7,16 +7,15 @@
  * dithered transitions instead of ruled lines. Roads, doors, water, ice, stairs, and dirt are never
  * re-skinned. Seeded by a fixed string, so every player and every load sees the same vale.
  */
-import { T, worldBiome } from "../../src/game/content";
+import { T } from "../../src/game/content";
 import { blendBiomes, type BlendResult } from "./map_writer";
 
 /** Biome order in the skin: index -> the ground tile whose art it shows. */
 export const VALE_BIOMES = ["vale", "winter", "waste", "cinder", "swamp"] as const;
 export const VALE_GROUND: readonly number[] = [T.grass, T.snow, T.sand, T.ash, T.swamp];
 
-/** The numbers: a fixed seed, borders wander up to 3 tiles either way, the big wobble is 10 tiles long (playtest1e: the
- * vale is twice the old size each way, so its borders wander a little further). */
-export const VALE_BLEND = { seed: "gravewake-vale", reach: 3, scale: 10 } as const;
+/** The numbers: a fixed seed, borders wander up to 2 tiles either way, the big wobble is 6 tiles long. */
+export const VALE_BLEND = { seed: "gravewake-vale", reach: 2, scale: 6 } as const;
 
 /** Which ground spills over which at a border (one fringe per border): snow over sand over ash over swamp over grass. */
 export const VALE_RANK: readonly number[] = [0, 4, 3, 2, 1];
@@ -26,7 +25,11 @@ export const VALE_BLENDABLE: readonly number[] = [T.grass, T.snow, T.sand, T.ash
 
 /** The world's own rectangle rule (buildWorld / biomeTile / propGround), as a skin index. */
 export function valeBiomeAt(x: number, y: number): number {
-  return { vale: 0, snow: 1, sand: 2, ash: 3, swamp: 4 }[worldBiome(x, y)];
+  if (y < 16) return 1;
+  if (x > 48) return 2;
+  if (y > 46) return 3;
+  if (x > 26 && x < 42 && y > 22 && y < 40) return 4;
+  return 0;
 }
 
 /** The skin for one world grid. Pure: the same tiles give the same skin, byte for byte. */

@@ -344,5 +344,50 @@ const inRoom = (r, x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r
   check("gravewake", "rift zone placement: the exit is the game's up stair, traps only (no secrets, they would not survive a reroll), traps never cut off a foe, same seed same pocket", riftOk === n && riftCrack === 0 && JSON.stringify(A.toJSON(r1.map)) === JSON.stringify(A.toJSON(r2.map)) && JSON.stringify(r1.feats) === JSON.stringify(r2.feats), `${riftOk}/${n}, secret rooms ${riftCrack}/${n}`);
 }
 
+// ---- Phase 3: the overworld ([OWNER-APPROVED 2026-10-02: playtest1e bigger world]) ----
+{
+  const O = { ground0: 1, ground1: 2, road: 3, trail: 4, tree: 5, rock: 6, water: 7, cache: 8, grave: 9, pump: 10, ice: 11 };
+  const codes = { road: O.road, trail: O.trail, tree: O.tree, rock: O.rock, water: O.water, cache: O.cache, grave: O.grave, pump: O.pump, ice: O.ice };
+  const dress = (ground, kinds) => ({ ground, trees: 0.14, rocks: 0.03, pump: 0.01, pond: "water", landmarks: 4, caches: 2, kinds });
+  const sites = [{ x: 10, y: 10 }, { x: 70, y: 12 }, { x: 15, y: 50 }, { x: 66, y: 52 }];
+  const opts = (seed, extra = {}) => ({ seed, w: 80, h: 64, codes, biomes: [dress(O.ground0, ["stones", "graves", "pond", "patch"]), dress(O.ground1, ["glade", "pond", "stones", "graves"])], biomeAt: (x) => (x < 40 ? 0 : 1), roads: [{ x0: 40, y0: 0, x1: 40, y1: 63 }, { x0: 0, y0: 32, x1: 79, y1: 32 }], sites, stamps: [{ x: 20, y: 20, w: 6, h: 5, tile: O.water }], edge: 2, spacing: 10, ...extra });
+  const hashO = (r) => createHash("md5").update(r.tiles).update(JSON.stringify([r.landmarks, r.caches])).digest("hex");
+  const seeds = [...Array(12).keys()].map((s) => `ow-${s}`);
+  const same = seeds.filter((s) => hashO(A.writeOverworld(opts(s))) === hashO(A.writeOverworld(opts(s))) && hashO(A.writeOverworld(opts(s))) === hashO(B.writeOverworld(opts(s)))).length;
+  const distinct = new Set(seeds.map((s) => hashO(A.writeOverworld(opts(s))))).size;
+  check("overworld", "same options, same bytes (tiles, landmarks, caches), across two separate loads; different seeds give different vales", same === seeds.length && distinct === seeds.length, `${same}/${seeds.length} same, ${distinct} distinct`);
+  const walk = (t) => t !== O.tree && t !== O.rock && t !== O.water && t !== O.ice;
+  let reach = 0, spaced = 0, edged = 0, stamped = 0, roads = 0, caches = 0, kinds = new Set();
+  for (const s of seeds) {
+    const r = A.writeOverworld(opts(s));
+    const d = A.stepsFrom(r.tiles, r.w, r.h, 40, 32, walk);
+    const spots = [...sites, ...r.landmarks, ...r.caches];
+    // a pond landmark is its water: it counts when its shore is reachable (any tile within 4)
+    const near = (p) => { for (let y = p.y - 4; y <= p.y + 4; y++) for (let x = p.x - 4; x <= p.x + 4; x++) if (x >= 0 && y >= 0 && x < r.w && y < r.h && d[y * r.w + x] >= 0) return true; return false; };
+    if (spots.every((p) => (p.kind === "pond" ? near(p) : d[p.y * r.w + p.x] >= 0))) reach++;
+    const lm = r.landmarks;
+    if (lm.length >= 6 && lm.every((a, i) => lm.every((b, j) => i === j || Math.hypot(a.x - b.x, a.y - b.y) >= 10))) spaced++;
+    let band = true;
+    for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+      if (!(x < 2 || y < 2 || x >= r.w - 2 || y >= r.h - 2)) continue;
+      const t = r.tiles[y * r.w + x];
+      if (t !== O.tree && t !== O.road) band = false;
+    }
+    if (band) edged++;
+    let st = true;
+    for (let y = 20; y < 25; y++) for (let x = 20; x < 26; x++) if (r.tiles[y * r.w + x] !== O.water) st = false;
+    if (st) stamped++;
+    let rd = true;
+    for (let y = 0; y < 64; y++) if (r.tiles[y * r.w + 40] !== O.road) rd = false;
+    for (let x = 0; x < 80; x++) if (r.tiles[32 * r.w + x] !== O.road) rd = false;
+    if (rd) roads++;
+    if (r.caches.length >= 2 && r.caches.every((c) => r.tiles[c.y * r.w + c.x] === O.cache)) caches++;
+    for (const l of lm) kinds.add(l.kind);
+  }
+  check("overworld", "every site, landmark (a pond by its shore) and cache is reachable from the crossroads on foot (trees, rocks, water and ice block), on every seed", reach === seeds.length, `${reach}/${seeds.length}`);
+  check("overworld", "landmarks are spread out: at least six per vale, each at least the spacing from every other, and every kind turns up across seeds", spaced === seeds.length && kinds.size === 5, `${spaced}/${seeds.length} ${[...kinds].join(",")}`);
+  check("overworld", "the edge band is dense forest except where a road runs out; the stamp (a lake) is untouched; the roads run end to end; every cache sits on a cache tile", edged === seeds.length && stamped === seeds.length && roads === seeds.length && caches === seeds.length, `edge ${edged} stamp ${stamped} roads ${roads} caches ${caches}`);
+}
+
 console.log(`\nmap-writer checks: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

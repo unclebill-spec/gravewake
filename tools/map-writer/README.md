@@ -114,7 +114,24 @@ It says which biome a tile looks like. It does not change tiles. The caller deci
 
 The slot: `biome?: { names, weights?, reach?, scale? }` on both writers. One name (or none, `"default"`) fills the layer with 0. Two or more need `weights(x, y)` (refused without): the heaviest name wins each tile, then `blendBiomes` (seeded from the map's own seed) roughs up the borders. Tiles, rooms, and foes are byte-identical with or without the slot.
 
-**Looks only in Gravewake.** `gravewake_vale.ts` builds the vale's base from the world's own rectangle rule (`valeBiomeAt`: winter y<16, waste x>48, cinder y>46, swamp 27-41 x 23-39, vale elsewhere), lets open ground and the ground under props blend (never a road, door, water, ice, stair, or dirt), and uses a fixed seed (`"gravewake-vale"`, reach 2, scale 6, rank snow > sand > ash > swamp > grass). `draw.ts` shows each tile's skin biome with that biome's existing sheet (a tree or rock as that biome's kind) and lays a fringe along each marked side: the neighbour's own ground drawn through a mask from `public/art/writer/border-dither.png` (pixel writer, one locked ink, used for its alpha only). The sim never reads the skin, so the grid, collision, zone names and levels, foe families, placements, and saves are as before. Group `mapwriter2` in `scripts/gravewake-check.mjs` checks this.
+**Looks only in Gravewake.** `gravewake_vale.ts` builds the vale's base from the world's own rectangle rule (`valeBiomeAt`: winter y<16, waste x>48, cinder y>46, swamp 27-41 x 23-39, vale elsewhere), lets open ground and the ground under props blend (never a road, door, water, ice, stair, or dirt), and uses a fixed seed (`"gravewake-vale"`, reach 2, scale 6 on the old 64x60 vale; reach 3, scale 10 on the 128x120 one since playtest1e, rank snow > sand > ash > swamp > grass). `draw.ts` shows each tile's skin biome with that biome's existing sheet (a tree or rock as that biome's kind) and lays a fringe along each marked side: the neighbour's own ground drawn through a mask from `public/art/writer/border-dither.png` (pixel writer, one locked ink, used for its alpha only). The sim never reads the skin, so the grid, collision, zone names and levels, foe families, placements, and saves are as before. Group `mapwriter2` in `scripts/gravewake-check.mjs` checks this.
+
+## Phase 3: the overworld
+
+[OWNER-APPROVED 2026-10-02: playtest1e bigger world]
+
+`writeOverworld({ seed, w, h, codes, biomes, biomeAt, roads, sites, stamps?, edge?, spacing? })` lays a whole open-air map and returns `{ w, h, tiles, landmarks, caches, trails, trailTiles }`. In order:
+
+1. Each tile gets its biome's ground (`biomeAt` is the caller's own zone rule). Then groves of trees from two octaves of value noise, scattered rocks and, where a biome has them, pumpkins.
+2. `stamps` (a lake, an ice sheet) are laid and held.
+3. `roads` are straight, axis-aligned and run end to end. They may cross a stamp (a bridge).
+4. Every site (a mouth, a camp, a cart) is cleared and joined to the road net by a trail. The trail is the cheapest path over a slow noise cost, so it bends round groves and never crosses a stamp or the edge band.
+5. Landmarks are spread out on a jittered grid, at least `spacing` apart (default 12), in each biome's own kinds in turn: standing stones, a graveyard, a pond (water or ice), a pumpkin patch, or a hidden glade (a ring of trees with one gap). Each one gets its own trail. The first `caches` in each biome hold a cache tile.
+6. A dense forest band `edge` tiles deep (default 2) rings the map, broken only by roads. `edgeBand(tiles, w, h, edge, code, skip)` lays it again after a game's own prop pass.
+
+Same options give the same bytes. `check_map_writer.mjs` group `overworld` checks this. It also checks that every site, landmark and cache is reachable, that landmarks are spaced, and that the band, stamp, roads and caches are intact.
+
+**Gravewake.** `gravewake_world.ts` builds the 128x120 vale: twice the old plan each way, with the old roads, lake and ice at twice the size, and seed `"gravewake-world-1e"`. The phase-2 skin runs on it with reach 3 and scale 10.
 
 ## Feeding the game's placement (Gravewake)
 
@@ -141,7 +158,7 @@ const mimic = mimicChest(tiles, w, site, floor, floors, false, feats);
 From the game root (`work/`):
 
 ```bash
-node tools/map-writer/check_map_writer.mjs                       # 27 checks; MAP_SEEDS=300 by default (the game's own group is `mapwriter` in scripts/gravewake-check.mjs)
+node tools/map-writer/check_map_writer.mjs                       # 31 checks (27 + 4 overworld, playtest1e); MAP_SEEDS=300 by default (the game's own group is `mapwriter` in scripts/gravewake-check.mjs)
 MAP_PYTHON=python3 node tools/map-writer/make_gravewake.mjs <shots dir> [json dir]
 python3 tools/map-writer/render_map.py map.json out.png [scale]  # one map
 ```

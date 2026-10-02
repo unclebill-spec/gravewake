@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CLASSES, type ClassId, type StatPath } from "./content";
 import { AudioBus } from "./audio";
-import { cameraFor, drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
+import { drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
 import { ACTS, Game, type Act } from "./sim";
 import { CAMP_ICON, PORTRAITS } from "./looks"; // playtest1b
 import {
@@ -684,9 +684,9 @@ export function Gravewake() {
     const sx = ((clientX - rect.left) / rect.width) * canvas.width;
     const sy = ((clientY - rect.top) / rect.height) * canvas.height;
     const zoom = viewRef.current?.k ?? g.zoom;
-    // playtest1e: the draw's own camera (it stops at the map's edge), so a tap lands where it was aimed
-    const cam = cameraFor(g, canvas.width, canvas.height, zoom);
-    g.setGoal(cam.x + sx / zoom, cam.y + sy / zoom);
+    const camX = Math.round(g.px - canvas.width / (2 * zoom));
+    const camY = Math.round(g.py - canvas.height / (2 * zoom));
+    g.setGoal(camX + sx / zoom, camY + sy / zoom);
   }
 
   /** Title, HUD, and the panel for whichever mode the simulation is in. */

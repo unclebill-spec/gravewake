@@ -91,8 +91,17 @@ function unfade2Draw(src) {
 // edits were frozen as they stood after install1 under scripts/frozen/playtest1/ (md5s pinned in group playtest1).
 // The older groups' byte pins read those frozen copies, so they still prove their own batch's edits; group playtest1
 // checks the live files' behaviour.
+// playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: the vale is twice its old 64x60 plan each way; a vale
+// tile the older checks name on the old plan (x, y) is WS * x, WS * y now. Town, camp, rooms and floors are unchanged.
+const WS = 2;
 const PT1_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx", "src/game/content.ts", "src/game/crowd.ts", "src/game/screen.ts"];
-const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.split("/").pop()}.txt` : f);
+// playtest1e (batch D, [OWNER-APPROVED 2026-10-02: playtest1e bigger world]): batch D edits sim, draw, content, the shell,
+// bounty and festivals (and the map writer). They were frozen as playtest1d shipped them under scripts/frozen/playtest1e/;
+// bounty and festivals had not moved since install1, so the older module pins read those frozen copies, and the 1c/1d
+// groups read the 1d copies through pt1dFile. Group playtest1e pins the frozen copies and the live files.
+const PT1E_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/content.ts", "src/game/Gravewake.tsx", "src/game/bounty.ts", "src/game/festivals.ts"];
+const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.split("/").pop()}.txt` : PT1E_FROZEN.includes(f) ? `scripts/frozen/playtest1e/${f.split("/").pop()}.txt` : f);
+const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
 // install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
 // hook, the title button, the Display button). uninstall1Ui takes exactly these out, so older groups still pin the rest.
@@ -242,9 +251,9 @@ if (on("move")) {
   check("move", "land does not coast", Math.abs(coast.px - stopped) < 1, `slid ${coast.px - stopped}`);
 
   const ice = fresh();
-  ice.enterWorld(32 * TILE, 40 * TILE);
-  ice.px = 10 * TILE + 8;
-  ice.py = 5 * TILE + 8;
+  ice.enterWorld(WS * 32 * TILE, WS * 40 * TILE);
+  ice.px = WS * 10 * TILE + 8;
+  ice.py = WS * 5 * TILE + 8;
   ice.slideX = 0;
   ice.slideY = 0;
   holdRight(ice, 6);
@@ -429,12 +438,12 @@ if (on("doors")) {
   check("doors", "bought croft opens", croft.ownedHome && croft.coin === 0 && croft.inside === "croft", croft.logLine);
 
   const gate = fresh();
-  gate.enterWorld(32 * TILE + 8, 44 * TILE + 8);
+  gate.enterWorld(WS * 32 * TILE + 8, WS * 44 * TILE + 8);
   gate.update(0.05);
   check("doors", "town gate is a step", gate.mapId === "town", gate.logLine);
 
   const pit = fresh();
-  pit.enterWorld(18 * TILE + 8, 42 * TILE + 8);
+  pit.enterWorld(WS * 18 * TILE + 8, WS * 42 * TILE + 8);
   pit.calm = 99;
   pit.update(0.05);
   check("doors", "a stair is a step", pit.mapId === "dungeon" && pit.dungeon === "pocketvale", pit.logLine);
@@ -2141,9 +2150,9 @@ if (on("bounty")) {
   }
   {
     const g = fresh();
-    g.enterWorld(32 * TILE + 8, 45 * TILE + 8);
+    g.enterWorld(WS * 32 * TILE + 8, WS * 45 * TILE + 8);
     const world = { tiles: [...g.tiles], w: g.w, h: g.h, entrances: Object.keys(g.entrances), npcs: g.npcs.map((n) => [Math.floor(n.x / TILE), Math.floor(n.y / TILE)]) };
-    const steps = F.walkSteps(world.tiles, world.w, world.h, 32, 46);
+    const steps = F.walkSteps(world.tiles, world.w, world.h, F.GATE.x, F.GATE.y);
     const bad = [];
     for (let n = 0; n < 120; n++) {
       g.opened = new Set([...g.opened].filter((k) => !k.startsWith("bounty:")));
@@ -2153,7 +2162,7 @@ if (on("bounty")) {
       const far = (x, y) => Math.hypot(p.x - x, p.y - y) >= F.BOUNTY.lairClear;
       if (steps[i] < 0) bad.push(`${n} out of reach`);
       if (![F.T.grass, F.T.dirt, F.T.snow, F.T.ash, F.T.sand, F.T.swamp, F.T.bone].includes(world.tiles[i])) bad.push(`${n} on tile ${world.tiles[i]}`);
-      if (Math.hypot(p.x - 32, p.y - 46) < F.BOUNTY.gateClear) bad.push(`${n} by the gate`);
+      if (Math.hypot(p.x - F.GATE.x, p.y - F.GATE.y) < F.BOUNTY.gateClear) bad.push(`${n} by the gate`);
       if (!world.entrances.every((k) => far(...k.split(",").map(Number)))) bad.push(`${n} by a mouth`);
       if (!world.npcs.every(([x, y]) => far(x, y))) bad.push(`${n} by a merchant or watch`);
     }
@@ -2164,7 +2173,7 @@ if (on("bounty")) {
     g.level = 12;
     g.worldMs = nightMs(3);
     const p = g.bountyPost();
-    g.enterWorld(32 * TILE + 8, 45 * TILE + 8);
+    g.enterWorld(WS * 32 * TILE + 8, WS * 45 * TILE + 8);
     g.calm = 0;
     g.update(0.05);
     const r = g.roamers.find((o) => o.bounty);
@@ -2183,7 +2192,7 @@ if (on("bounty")) {
     g.level = 12;
     g.worldMs = nightMs(3);
     const p = g.bountyPost();
-    g.enterWorld(32 * TILE + 8, 45 * TILE + 8);
+    g.enterWorld(WS * 32 * TILE + 8, WS * 45 * TILE + 8);
     g.update(0.05);
     const r = g.roamers.find((o) => o.bounty);
     const seen = watchBattles(g);
@@ -2220,7 +2229,7 @@ if (on("bounty")) {
       p = g.bountyPost();
       if (p.kind === "remnant") break;
     }
-    g.enterWorld(32 * TILE + 8, 45 * TILE + 8);
+    g.enterWorld(WS * 32 * TILE + 8, WS * 45 * TILE + 8);
     const r = g.roamers.find((o) => o.mini && o.def === "bride");
     g.mode = "play";
     g.touchFoe(r);
@@ -3524,7 +3533,7 @@ if (on("season")) {
     check("season", "a seasonal fish trades at the Drowned Hook like any catch", g.fishPoints === p + 12);
   }
   {
-    const biomes = { winter: [30, 8], waste: [52, 30], cinder: [30, 50], swamp: [34, 30], vale: [20, 30] };
+    const biomes = { winter: [WS * 30, WS * 8], waste: [WS * 52, WS * 30], cinder: [WS * 30, WS * 50], swamp: [WS * 34, WS * 30], vale: [WS * 20, WS * 30] };
     const lists = { winter: ["wolf", "ghost", "bat"], waste: ["mummy", "skeleton", "ghoul"], cinder: ["pumpkin", "scare", "witch"], swamp: ["witch", "tree", "zombie"], vale: ["zombie", "skeleton", "ghost", "bat"] };
     const bad = [];
     const shares = {};
@@ -3568,7 +3577,7 @@ if (on("season")) {
       const night = fresh();
       night.level = 20;
       night.worldMs = dayMs(S.order.indexOf(season) * 6 + 1) + F.DAY_MS;
-      night.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+      night.enterWorld(WS * 30 * TILE + 8, WS * 50 * TILE + 8);
       const t = {};
       let n = 0;
       for (let i = 0; i < 3000; i++) { night.roamers = []; night.nightCool = 0; night.calm = 0; night.frame = i * 3.7; night.spawnNightRoamer(0.05); for (const r of night.roamers) { t[r.def] = (t[r.def] ?? 0) + 1; n++; } }
@@ -3693,7 +3702,7 @@ if (on("daysweep")) {
     const h = fresh();
     h.level = 12;
     h.worldMs = 3 * C + F.DAY_MS + 60000;
-    h.enterWorld(26 * TILE + 8, 51 * TILE + 8);
+    h.enterWorld(WS * 26 * TILE + 8, (WS * 52 - 1) * TILE + 8);
     ticks(h, 4);
     const lord = h.roamers.find((r) => r.festival === "harvest" && r.boss && r.aggro);
     h.worldMs = 4 * C + 1000;
@@ -3718,8 +3727,8 @@ if (on("daysweep")) {
       for (let i = 0; i < 300; i++) {
         g.mode = "play";
         g.roamers = [];
-        g.px = 30 * TILE + 8;
-        g.py = 50 * TILE + 8;
+        g.px = WS * 30 * TILE + 8;
+        g.py = WS * 50 * TILE + 8;
         g.startWildFight(false);
         hold(g, 10);
         const lead = g.roamers.find((r) => r.aggro && !r.helper);
@@ -3837,8 +3846,8 @@ if (on("festival")) {
     const kr = k.roamers.find((r) => r.festival === "krampus");
     const mouths = Object.keys(k.entrances).map((e) => e.split(",").map(Number));
     const spots = [...simSrc.slice(simSrc.indexOf("const WORLD_BOSSES = ["), simSrc.indexOf("];", simSrc.indexOf("const WORLD_BOSSES = ["))).matchAll(/tx: (\d+), ty: (\d+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
-    const clearOk = mouths.length >= 4 && spots.length === 9 && [H.lord, K.spot].every((s) => mouths.every(([x, y]) => Math.hypot(x - s.x, y - s.y) >= 6) && spots.every(([x, y]) => Math.hypot(x - s.x, y - s.y) >= 8));
-    check("festival", "the Lord stands in the Cinder patch (26,52) at L max(10, zone), Krampus in the Winter hollow (12,11) at L max(16, zone); both clear of every dungeon mouth (6+ tiles) and world boss spot (8+); once down, neither comes back that night", clearOk && at === `26,52 L${Math.max(10, zoneLevel(26, 52, 8))}` && !g.roamers.some((r) => r.festival) && !!kr && Math.floor(kr.x / TILE) === 12 && Math.floor(kr.y / TILE) === 11 && kr.level === Math.max(16, zoneLevel(12, 11, 8)), `${at} | ${kr ? `${Math.floor(kr.x / TILE)},${Math.floor(kr.y / TILE)} L${kr.level}` : "none"}`);
+    const clearOk = mouths.length >= 4 && spots.length === 9 && [H.lord, K.spot].every((s) => mouths.every(([x, y]) => Math.hypot(x - s.x, y - s.y) >= WS * 6) && spots.every(([x, y]) => Math.hypot(x - s.x, y - s.y) >= WS * 8));
+    check("festival", "the Lord stands in the Cinder patch (26,52 on the old plan; 52,104 on the twice-size vale) at L max(10, zone), Krampus in the Winter hollow (12,11; now 24,22) at L max(16, zone); both clear of every dungeon mouth (6+ old tiles) and world boss spot (8+); once down, neither comes back that night", clearOk && at === `${WS * 26},${WS * 52} L${Math.max(10, zoneLevel(WS * 26, WS * 52, 8))}` && !g.roamers.some((r) => r.festival) && !!kr && Math.floor(kr.x / TILE) === WS * 12 && Math.floor(kr.y / TILE) === WS * 11 && kr.level === Math.max(16, zoneLevel(WS * 12, WS * 11, 8)), `${at} | ${kr ? `${Math.floor(kr.x / TILE)},${Math.floor(kr.y / TILE)} L${kr.level}` : "none"}`);
   }
   {
     // Harvest Moon in town: Hessa's stall at nightfall, the carving, the judge.
@@ -3918,12 +3927,12 @@ if (on("festival")) {
     const winter = ["wolf", "ghost", "bat"];
     const spaced = list.every((a, i) => list.every((b, j) => i === j || Math.hypot(a.x - b.x, a.y - b.y) >= F.BOUNTY.lairClear * 2));
     const bossSpots = [...simSrc.slice(simSrc.indexOf("const WORLD_BOSSES = ["), simSrc.indexOf("];", simSrc.indexOf("const WORLD_BOSSES = ["))).matchAll(/tx: (\d+), ty: (\d+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
-    const clear = bossSpots.length === 9 && list.every((a) => a.y < 16 && Math.hypot(a.x - K.spot.x, a.y - K.spot.y) >= F.BOUNTY.lairClear * 2 && bossSpots.every(([bx, by]) => Math.hypot(a.x - bx, a.y - by) >= F.BOUNTY.lairClear * 2));
+    const clear = bossSpots.length === 9 && list.every((a) => a.y < WS * 16 && Math.hypot(a.x - K.spot.x, a.y - K.spot.y) >= F.BOUNTY.lairClear * 2 && bossSpots.every(([bx, by]) => Math.hypot(a.x - bx, a.y - by) >= F.BOUNTY.lairClear * 2));
     // Over two years of winters, no name ever sits within 8 tiles of a world boss spot.
     let near = 0;
     for (let y = 0; y < 4; y++) { const n = fresh(); n.worldMs = nightOf(9 + 24 * y); for (const a of n.naughtyTonight()) if (bossSpots.some(([bx, by]) => Math.hypot(a.x - bx, a.y - by) < 8)) near++; }
     const named = list.every((a) => K.names.includes(a.name.split(",")[0]) && winter.includes(a.fam) && a.name.endsWith(`${F.monsterById(a.fam).name} Stalker`)) && new Set(list.map((a) => a.name)).size === 3;
-    check("festival", "Krampusnacht's naughty list: 3 named Stalkers on Winter hollow lairs (y < 16), wolf/ghost/bat, spaced 8 tiles apart and 8 clear of Krampus and of every world boss spot; same night same list, a new list next year", near === 0 && list.length === 3 && roam.length === 3 && spaced && clear && named && JSON.stringify(again.naughtyTonight()) === JSON.stringify(list) && JSON.stringify(next.naughtyTonight()) !== JSON.stringify(list) && K.stalkers === 3, list.map((a) => `${a.name}@${a.x},${a.y}/${a.affix}`).join(" | "));
+    check("festival", "Krampusnacht's naughty list: 3 named Stalkers on Winter hollow lairs (y < 16 on the old plan, 32 now), wolf/ghost/bat, spaced 8 tiles apart and 8 clear of Krampus and of every world boss spot; same night same list, a new list next year", near === 0 && list.length === 3 && roam.length === 3 && spaced && clear && named && JSON.stringify(again.naughtyTonight()) === JSON.stringify(list) && JSON.stringify(next.naughtyTonight()) !== JSON.stringify(list) && K.stalkers === 3, list.map((a) => `${a.name}@${a.x},${a.y}/${a.affix}`).join(" | "));
     const seen = watchBattles(g);
     const r = roam[0];
     g.mode = "play";
@@ -4511,8 +4520,8 @@ if (on("festival2")) {
     const fest = g.roamers.filter((r) => r.festival);
     const court = g.roamers.filter((r) => r.naughty);
     const a = world(21);
-    check("festival2", "no new boss: still 21 roster bosses and only the Pumpkin Lord and Krampus as festival bosses; on Drowned Bloom and Ashen Fair nights no festival boss stands, the Tzar is in WORLD_BOSSES once at (38,32) and nowhere else, and no court pack is a boss or the Tzar", F.FESTIVAL_BOSSES.map((b) => b.id).join(",") === "pumpkinlord,krampus" && (simSrc.match(/\{ id: "tzar", tx: 38, ty: 32, lv: 72 \}/g) ?? []).length === 1 && !/tzar/.test(festSrc.replace(/Drowned Tzar's court|the Tzar's/g, "")) && tzars.length <= 1 && tzars.every((r) => Math.hypot(r.x - (38 * TILE + 8), r.y - (32 * TILE + 8)) < 3 * TILE) && !fest.length && !a.roamers.some((r) => r.festival) && court.length === 3 && court.every((r) => !r.boss && r.def !== "tzar") && a.roamers.filter((r) => r.naughty).every((r) => !r.boss), `tzar ${tzars.length} fest ${fest.length} court ${court.length}`);
-    check("festival2", "the numbers: flood x 24-44 y 20-42, 6 blooms 3 apart touch 12 at 4 silver; 3 court packs; seal and ticket junk rank 1, half-chance chest; dance 3 silver, 3 turns, 4 steps, 0.8 s flares, 60 s, touch 12, 4 a step, 10 for all four", B.flood.x0 === 24 && B.flood.x1 === 44 && B.flood.y0 === 20 && B.flood.y1 === 42 && B.blooms === 6 && B.bloomGap === 3 && B.touch === 12 && B.bloomPay === 4 && B.court === 3 && B.courtFamily === "ghost" && B.cofferChance === 0.5 && A.prizeChance === 0.5 && A.turnPrice === 3 && A.turns === 3 && A.steps === 4 && A.showSeconds === 0.8 && A.runSeconds === 60 && A.touch === 12 && A.stepPay === 4 && A.perfectBonus === 10 && A.sideshow === 3 && [B.bloom, B.seal, A.ticket].every((i) => i.kind === "junk" && i.rank === 1) && B.npc.id === "ottla" && A.npc.id === "sallow" && B.names.length === 8 && A.names.length === 8, JSON.stringify(B.flood));
+    check("festival2", "no new boss: still 21 roster bosses and only the Pumpkin Lord and Krampus as festival bosses; on Drowned Bloom and Ashen Fair nights no festival boss stands, the Tzar is in WORLD_BOSSES once at (38,32 on the old plan; 76,64 now) and nowhere else, and no court pack is a boss or the Tzar", F.FESTIVAL_BOSSES.map((b) => b.id).join(",") === "pumpkinlord,krampus" && (simSrc.match(/\{ id: "tzar", tx: 76, ty: 64, lv: 72 \}/g) ?? []).length === 1 && !/tzar/.test(festSrc.replace(/Drowned Tzar's court|the Tzar's/g, "")) && tzars.length <= 1 && tzars.every((r) => Math.hypot(r.x - (WS * 38 * TILE + 8), r.y - (WS * 32 * TILE + 8)) < 3 * TILE) && !fest.length && !a.roamers.some((r) => r.festival) && court.length === 3 && court.every((r) => !r.boss && r.def !== "tzar") && a.roamers.filter((r) => r.naughty).every((r) => !r.boss), `tzar ${tzars.length} fest ${fest.length} court ${court.length}`);
+    check("festival2", "the numbers: flood x 24-44 y 20-42 on the old plan (48-89, 40-85 on the twice-size vale), 6 blooms 3 apart touch 12 at 4 silver; 3 court packs; seal and ticket junk rank 1, half-chance chest; dance 3 silver, 3 turns, 4 steps, 0.8 s flares, 60 s, touch 12, 4 a step, 10 for all four", B.flood.x0 === WS * 24 && B.flood.x1 === WS * 44 + 1 && B.flood.y0 === WS * 20 && B.flood.y1 === WS * 42 + 1 && B.blooms === 6 && B.bloomGap === 3 && B.touch === 12 && B.bloomPay === 4 && B.court === 3 && B.courtFamily === "ghost" && B.cofferChance === 0.5 && A.prizeChance === 0.5 && A.turnPrice === 3 && A.turns === 3 && A.steps === 4 && A.showSeconds === 0.8 && A.runSeconds === 60 && A.touch === 12 && A.stepPay === 4 && A.perfectBonus === 10 && A.sideshow === 3 && [B.bloom, B.seal, A.ticket].every((i) => i.kind === "junk" && i.rank === 1) && B.npc.id === "ottla" && A.npc.id === "sallow" && B.names.length === 8 && A.names.length === 8, JSON.stringify(B.flood));
   }
 
   // Drowned Bloom.
@@ -4531,7 +4540,7 @@ if (on("festival2")) {
       const f = w.floodAt(x, y);
       const t = w.tiles[y * w.w + x];
       if (f) flooded++;
-      if (f && (x < 24 || x > 44 || y < 20 || y > 42 || ![F.T.grass, F.T.dirt, F.T.swamp, F.T.ash, F.T.bone].includes(t))) wrong++;
+      if (f && (x < WS * 24 || x > WS * 44 + 1 || y < WS * 20 || y > WS * 42 + 1 || ![F.T.grass, F.T.dirt, F.T.swamp, F.T.ash, F.T.bone].includes(t))) wrong++;
       if (other.floodAt(x, y) || day.floodAt(x, y)) wrong++;
     }
     const t = town(15);
@@ -4541,7 +4550,7 @@ if (on("festival2")) {
     const walk = (d) => {
       const g2 = fresh();
       g2.worldMs = nightOf(d);
-      g2.enterWorld(...center(30, 31));
+      g2.enterWorld(...center(WS * 30, WS * 31));
       g2.roamers = [];
       g2.nightCool = 999;
       g2.calm = 999;
@@ -4756,7 +4765,7 @@ if (on("festival2")) {
     let near = 0, out = 0;
     for (let y = 0; y < 4; y++) for (const a of world(21 + 24 * y).sideshowTonight()) {
       if (bossSpots.some(([bx, by]) => Math.hypot(a.x - bx, a.y - by) < F.BOUNTY.lairClear * 2)) near++;
-      if (!(a.y > 46 && a.x <= 48) || !cinder.includes(a.fam)) out++;
+      if (!(a.y > WS * 46 + 1 && a.x <= WS * 48 + 1) || !cinder.includes(a.fam)) out++;
     }
     const spaced = list.every((a, i) => list.every((b, j) => i === j || Math.hypot(a.x - b.x, a.y - b.y) >= F.BOUNTY.lairClear * 2));
     const named = list.every((a) => A.names.includes(a.name.split(",")[0]) && a.name.endsWith(`${F.monsterById(a.fam).name} Stalker`) && a.id.startsWith("sideshow-")) && new Set(list.map((a) => a.name)).size === 3;
@@ -4806,7 +4815,7 @@ if (on("festival2")) {
     ticks(h, 2);
     const walks = h.roamers.filter((x) => x.naughty).map((x) => x.naughty);
     const fieldsNow = simSrc.match(/saveSlot\(slot: number\) \{[\s\S]*?\n {2}\}/)?.[0] ?? "";
-    check("festival2", "saves: no new save field (the slot keeps its SAVE_KEYS keys, none festival-named); picked blooms and struck courtiers ride the opened set as fest: keys and reload; a reloaded night does not respawn a struck courtier", fieldsNow.length > 100 && keys.length === SAVE_KEYS && !/bloom|dance|court|sideshow|ashen/i.test(fieldsNow) && !keys.some((k) => /bloom|dance|court|sideshow|ottla|sallow|fair/i.test(k)) && h.bloomPicked(0) && h.packCaught(struck) && walks.length === 2 && !walks.includes(struck), `${keys.length} keys ` + keys.filter((k) => /fest|bloom/i.test(k)).join(","));
+    check("festival2", "saves: no new save field (the slot keeps its SAVE_KEYS keys, none festival-named); picked blooms and struck courtiers ride the opened set as fest: keys and reload; a reloaded night does not respawn a struck courtier", fieldsNow.length > 100 && keys.filter((k) => k !== "worldV").length === SAVE_KEYS && !/bloom|dance|court|sideshow|ashen/i.test(fieldsNow) && !keys.some((k) => /bloom|dance|court|sideshow|ottla|sallow|fair/i.test(k)) && h.bloomPicked(0) && h.packCaught(struck) && walks.length === 2 && !walks.includes(struck), `${keys.length} keys ` + keys.filter((k) => /fest|bloom/i.test(k)).join(","));
     const body = (name) => simSrc.match(new RegExp(`\\n  (?:private )?${name}\\([^)]*\\)[^{]*\\{[\\s\\S]*?\\n  \\}`))?.[0] ?? "";
     const loot = ["festivalFell", "handBlooms", "endDance"].map(body);
     const drops = loot.flatMap((s) => [...s.matchAll(/makeDrop\(([^)]*)\)/g)].map((m) => m[1]));
@@ -4902,22 +4911,25 @@ if (on("mapwriter2")) {
   const readme = readFileSync("tools/map-writer/README.md", "utf8");
   const S = V.T;
   const fnv = (arr) => { let h = 0x811c9dc5; for (const t of arr) { h ^= t; h = Math.imul(h, 16777619) >>> 0; } return h.toString(16); };
-  const vale = () => { const g = fresh(); g.enterWorld(32 * TILE + 8, 45 * TILE + 8); g.roamers = []; return g; };
+  const vale = () => { const g = fresh(); g.enterWorld(WS * 32 * TILE + 8, WS * 45 * TILE + 8); g.roamers = []; return g; };
   const g = vale();
   const { w, h, tiles } = g;
   const skin = V.valeSkin(tiles, w, h);
   const readmeAt = readme.indexOf(`## Phase 2: biome blending\n\n${TAG}`);
   check("mapwriter2", "rules: the phase-2 note is in GAME_LAYOUT_TWO, AGENTS.project.md, and the map-writer README's phase-2 section, dated and tagged, and says the blend is looks only (grid, collision, zones, saves unchanged)", [rules, agents].every((t) => t.includes(TAG) && /looks only/i.test(t.slice(t.indexOf(TAG), t.indexOf(TAG) + 1200))) && readmeAt > 0 && /looks only/i.test(readme.slice(readmeAt, readmeAt + 3000)));
   // Pinned from the tree before this batch (qa/mw2/pins_before.json).
-  check("mapwriter2", "the vale's tile grid is byte-identical to before the batch (64x60, FNV 84f128a8): every tree, rock, pump, road, door, stair, the lake, the ice, and the reserved boss, merchant, and rift spots", w === 64 && h === 60 && fnv(tiles) === "84f128a8" && fnv(vale().tiles) === "84f128a8", fnv(tiles));
+  // playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: the vale was relaid at twice the size by the map
+  // writer's phase 3, so the grid, zone, reach and lair pins below are the playtest1e grid's (qa/playtest1e/pins.json);
+  // what they prove is unchanged: one fixed grid, every place on it reachable, the skin looks only.
+  check("mapwriter2", "the vale's tile grid is one fixed grid (playtest1e: 128x120, FNV 90207da9; it was 64x60, FNV 84f128a8): every tree, rock, pump, road, door, stair, the lake, the ice, and the reserved boss, merchant, and rift spots", w === 128 && h === 120 && fnv(tiles) === "90207da9" && fnv(vale().tiles) === "90207da9", fnv(tiles));
   const zones = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) zones.push(zoneLevel(x, y, 20));
-  check("mapwriter2", "zone levels are the rectangle rule, unchanged: every vale tile's zoneLevel at hero level 20 hashes as before (FNV ca551b7e)", fnv(zones) === "ca551b7e", fnv(zones));
+  check("mapwriter2", "zone levels are the rectangle rule (playtest1e: at twice the size): every vale tile's zoneLevel at hero level 20 hashes to the pin (FNV e712a8dd; was ca551b7e)", fnv(zones) === "e712a8dd", fnv(zones));
   // Reachability with the game's own collision (solidAt for the hero), props counted as blocked.
   const prop = new Set([S.tree, S.rock, S.pump, S.grave]);
   const pass = (x, y) => !g.solidAt(x * TILE + 8, y * TILE + 8, true) && !prop.has(tiles[y * w + x]);
   const seen = new Uint8Array(w * h);
-  const q = [45 * w + 32];
+  const q = [WS * 45 * w + WS * 32];
   seen[q[0]] = 1;
   while (q.length) {
     const i = q.pop();
@@ -4942,12 +4954,12 @@ if (on("mapwriter2")) {
   const festNights = [];
   const festKinds = new Set();
   for (let d = 0; d < 120; d++) {
-    const n = fresh(); n.worldMs = d * V.CYCLE_MS + V.DAY_MS + 60000; n.enterWorld(32 * TILE + 8, 45 * TILE + 8);
+    const n = fresh(); n.worldMs = d * V.CYCLE_MS + V.DAY_MS + 60000; n.enterWorld(WS * 32 * TILE + 8, WS * 45 * TILE + 8);
     for (const [kind, list] of [["naughty", n.naughtyTonight()], ["court", n.courtTonight()], ["sideshow", n.sideshowTonight()], ["bloom", n.bloomsTonight()]]) for (const c of list) if (c && Number.isFinite(c.x)) { festNights.push(c.y * w + c.x); festKinds.add(kind); }
   }
   const lost = [...spots, ...festNights].filter((i) => !seen[i]);
-  check("mapwriter2", `reachability (the game's solidAt for the hero, props blocked): from the town gate the same ${reached.length} tiles are reachable as before the batch (3688, FNV f09dd9ac), and every road, door, stair, rift mouth, merchant and watch post, boss spot, festival lair, and 120 nights of Krampus, court, sideshow, and bloom spots is among them`, reached.length === 3688 && fnv(reached) === "f09dd9ac" && !lost.length && festKinds.size === 4 && lairs.length > 20, `${reached.length} ${fnv(reached)} lost ${lost.slice(0, 5).join(",")} spots ${spots.length} fest ${festNights.length} ${[...festKinds]}`);
-  check("mapwriter2", "festival lairs are the same list as before (they are picked from the grid; 2055 lairs, FNV 5844b4ec)", lairs.length === 2055 && fnv(lairs) === "5844b4ec", `${lairs.length} ${fnv(lairs)}`);
+  check("mapwriter2", `reachability (the game's solidAt for the hero, props blocked): from the town gate the same ${reached.length} tiles are reachable (playtest1e pin 13711, FNV e93d21cb; before the bigger vale 3688, f09dd9ac), and every road, door, stair, rift mouth, merchant and watch post, boss spot, festival lair, and 120 nights of Krampus, court, sideshow, and bloom spots is among them`, reached.length === 13711 && fnv(reached) === "e93d21cb" && !lost.length && festKinds.size === 4 && lairs.length > 20, `${reached.length} ${fnv(reached)} lost ${lost.slice(0, 5).join(",")} spots ${spots.length} fest ${festNights.length} ${[...festKinds]}`);
+  check("mapwriter2", "festival lairs are one fixed list (they are picked from the grid; playtest1e 11031 lairs, FNV 68478901; before the bigger vale 2055, 5844b4ec)", lairs.length === 11031 && fnv(lairs) === "68478901", `${lairs.length} ${fnv(lairs)}`);
   // Real walks across five borders: snow/vale on the road and off it, waste/vale on the road, swamp/vale on the road, cinder/vale off it.
   const crossings = [];
   const walk = (x, y, key, until, label) => {
@@ -4996,13 +5008,14 @@ if (on("mapwriter2")) {
   const border = (cells) => { let off = 0, a = 0, b = 0; for (const [i, j] of cells) { const si = skin.biome[i] !== V.valeBiomeAt(i % w, (i / w) | 0), sj = skin.biome[j] !== V.valeBiomeAt(j % w, (j / w) | 0); if (si || sj) off++; if (si) a++; if (sj) b++; } return { n: cells.length, off, a, b }; };
   const openPair = ([i, j]) => open.has(tiles[i]) && open.has(tiles[j]);
   const lines = {
-    "snow/vale y15|16": [...Array(49).keys()].map((x) => [15 * w + x, 16 * w + x]),
-    "snow/waste y15|16": [...Array(15).keys()].map((k) => [15 * w + 49 + k, 16 * w + 49 + k]),
-    "waste/vale x48|49": [...Array(44).keys()].map((k) => [(16 + k) * w + 48, (16 + k) * w + 49]),
-    "cinder/vale y46|47": [...Array(49).keys()].map((x) => [46 * w + x, 47 * w + x]),
-    "swamp/vale x26|27": [...Array(17).keys()].map((k) => [(23 + k) * w + 26, (23 + k) * w + 27]),
-    "swamp/vale x41|42": [...Array(17).keys()].map((k) => [(23 + k) * w + 41, (23 + k) * w + 42]),
-    "swamp/vale y22|23": [...Array(15).keys()].map((k) => [22 * w + 27 + k, 23 * w + 27 + k]),
+    // playtest1e: the same seven lines on the twice-size vale
+    "snow/vale y31|32": [...Array(98).keys()].map((x) => [31 * w + x, 32 * w + x]),
+    "snow/waste y31|32": [...Array(30).keys()].map((k) => [31 * w + 98 + k, 32 * w + 98 + k]),
+    "waste/vale x97|98": [...Array(88).keys()].map((k) => [(32 + k) * w + 97, (32 + k) * w + 98]),
+    "cinder/vale y93|94": [...Array(98).keys()].map((x) => [93 * w + x, 94 * w + x]),
+    "swamp/vale x53|54": [...Array(34).keys()].map((k) => [(46 + k) * w + 53, (46 + k) * w + 54]),
+    "swamp/vale x83|84": [...Array(34).keys()].map((k) => [(46 + k) * w + 83, (46 + k) * w + 84]),
+    "swamp/vale y45|46": [...Array(30).keys()].map((k) => [45 * w + 54 + k, 46 * w + 54 + k]),
   };
   const rag = Object.entries(lines).map(([k, cells]) => [k, border(cells.filter(openPair))]);
   check("mapwriter2", "borders are ragged, not ruled: on each of the seven vale border lines (open ground both sides) 25%+ of the places leave the line, and the long ones (40+ places) wander both ways", rag.every(([, r]) => r.off >= r.n * 0.25 && (r.n < 40 || (r.a > 0 && r.b > 0))), rag.map(([k, r]) => `${k} ${r.off}/${r.n} (${r.a}|${r.b})`).join("; "));
@@ -5018,20 +5031,20 @@ if (on("mapwriter2")) {
   const again = V2.valeSkin(tiles, w, h);
   const other = V.valeSkin(tiles, w, h, "another vale");
   const code = valeSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  check("mapwriter2", "seeded: the vale skin is the same bytes from a second module, a different seed gives a different skin; the numbers are seed 'gravewake-vale', reach 2, scale 6, rank grass 0 swamp 1 ash 2 sand 3 snow 4; the adapter names no Math.random, Date, or performance", Buffer.from(again.biome).equals(Buffer.from(skin.biome)) && Buffer.from(again.edges).equals(Buffer.from(skin.edges)) && !Buffer.from(other.biome).equals(Buffer.from(skin.biome)) && V.VALE_BLEND.seed === "gravewake-vale" && V.VALE_BLEND.reach === 2 && V.VALE_BLEND.scale === 6 && V.VALE_RANK.join() === "0,4,3,2,1" && !/Math\.random|Date\b|performance\./.test(code));
+  check("mapwriter2", "seeded: the vale skin is the same bytes from a second module, a different seed gives a different skin; the numbers are seed 'gravewake-vale', reach 3, scale 10 (playtest1e: 2 and 6 on the old 64x60 vale), rank grass 0 swamp 1 ash 2 sand 3 snow 4; the adapter names no Math.random, Date, or performance", Buffer.from(again.biome).equals(Buffer.from(skin.biome)) && Buffer.from(again.edges).equals(Buffer.from(skin.edges)) && !Buffer.from(other.biome).equals(Buffer.from(skin.biome)) && V.VALE_BLEND.seed === "gravewake-vale" && V.VALE_BLEND.reach === 3 && V.VALE_BLEND.scale === 10 && V.VALE_RANK.join() === "0,4,3,2,1" && !/Math\.random|Date\b|performance\./.test(code));
   check("mapwriter2", "the sim never reads the skin: sim.ts names no valeSkin, blendBiomes, gravewake_vale, or border sheet, so collision, zones, foes, festivals, and saves cannot see it", !/valeSkin|blendBiomes|gravewake_vale|border-dither|BORDER_SHEET/.test(simSrc));
   // Saves: the same slot, from and to a border tile.
   {
     const a = vale();
     a.mode = "play";
-    [a.px, a.py] = [20 * TILE + 8, 16 * TILE + 8];
+    [a.px, a.py] = [WS * 20 * TILE + 8, WS * 16 * TILE + 8];
     a.saveSlot(0);
     const saved = JSON.parse(store.get([...store.keys()].find((k) => /save/i.test(k))) ?? "[]");
     const slot = Array.isArray(saved) ? saved[0] : saved;
     const keys = Object.keys(slot ?? {});
     const b = fresh();
     b.loadSlot(0);
-    check("mapwriter2", "saves: a save on a border tile has the same 56 keys, none for the skin, and loads back onto the same spot in the same grid", keys.length === 56 && !keys.some((k) => /skin|blend|biome|fringe/i.test(k)) && b.mapId === "world" && Math.floor(b.px / TILE) === 20 && Math.floor(b.py / TILE) === 16 && fnv(b.tiles) === "84f128a8", `${keys.length} keys, ${b.mapId} ${Math.floor(b.px / TILE)},${Math.floor(b.py / TILE)}`);
+    check("mapwriter2", "saves: a save on a border tile has the same 56 keys (plus playtest1e's worldV), none for the skin, and loads back onto the same spot in the same grid", keys.filter((k) => k !== "worldV").length === 56 && !keys.some((k) => /skin|blend|biome|fringe/i.test(k)) && b.mapId === "world" && Math.floor(b.px / TILE) === WS * 20 && Math.floor(b.py / TILE) === WS * 16 && fnv(b.tiles) === "90207da9", `${keys.length} keys, ${b.mapId} ${Math.floor(b.px / TILE)},${Math.floor(b.py / TILE)}`);
   }
   // Art: the fringe masks.
   {
@@ -5187,7 +5200,7 @@ if (on("gfx1")) {
   {
     const night = 30 * 60 * 1000 + 15 * 60 * 1000 + 120000;
     const g = fresh();
-    g.enterWorld(10 * TILE + 8, 33 * TILE + 9);
+    g.enterWorld(WS * 10 * TILE + 8, (WS * 30 + 3) * TILE + 9); // playtest1e: three tiles south of the riftvale mouth on the bigger vale
     g.worldMs = 30 * 60 * 1000 + 60000;
     const dayW = D.sceneAmbient(g);
     g.worldMs = night;
@@ -5204,7 +5217,7 @@ if (on("gfx1")) {
     g.enterDungeon("ossuary");
     const dung = D.sceneAmbient(g);
     check("gfx1", "light: off outdoors by day (world and town look as before), the moon ambient on a vale night, the town's twilight at night (lighter than the vale, so its lamps own the night), the cave ambient below ground", dayW === null && dayT === null && JSON.stringify(nightW) === JSON.stringify(D.LIGHT.worldNight) && JSON.stringify(nightT) === JSON.stringify(D.LIGHT.townNight) && D.LIGHT.townNight.every((v, i) => v > D.LIGHT.worldNight[i]) && JSON.stringify(dung) === JSON.stringify(D.ambientOf("ossuary", "#241830")), `${dayW} ${dayT} ${nightW} ${nightT} ${dung}`);
-    check("gfx1", "light: on a vale night the hero carries the lantern light first (72 px, candle colour) and the rift gate glows hex violet (72 px) over its doorway; in town at night every lit door has a torch lamp", lw[0].x === g.px - 0 * 0 + (lw[0].x - g.px) && lw[0].r === 72 && lw[0].r === D.LIGHT.heroNight && JSON.stringify(lw[0].c) === JSON.stringify(D.LIGHTS.candle) && !!gate && gate.r === 72 && gate.x === 10 * TILE + 8 && lt.filter((l) => l.r === D.LIGHT.doorLamp).length >= Math.min(doors.size, D.LIGHT.budget - 1) - 6 && lt.length <= D.LIGHT.budget, `${lw.length} gate ${JSON.stringify(gate)} town ${lt.length} doors ${doors.size}`);
+    check("gfx1", "light: on a vale night the hero carries the lantern light first (72 px, candle colour) and the rift gate glows hex violet (72 px) over its doorway; in town at night every lit door has a torch lamp", lw[0].x === g.px - 0 * 0 + (lw[0].x - g.px) && lw[0].r === 72 && lw[0].r === D.LIGHT.heroNight && JSON.stringify(lw[0].c) === JSON.stringify(D.LIGHTS.candle) && !!gate && gate.r === 72 && gate.x === WS * 10 * TILE + 8 && lt.filter((l) => l.r === D.LIGHT.doorLamp).length >= Math.min(doors.size, D.LIGHT.budget - 1) - 6 && lt.length <= D.LIGHT.budget, `${lw.length} gate ${JSON.stringify(gate)} town ${lt.length} doors ${doors.size}`);
     const s1 = D.sconces(g), g2 = fresh(); g2.enterDungeon("ossuary"); const s2 = D.sconces(g2);
     const rock = [D.T.wall, D.T.runeDoor, D.T.crack, D.T.brazier, D.T.statue];
     const faceOk = (gg, ss) => ss.every((s) => gg.tiles[s.y * gg.w + s.x] === D.T.wall && rock.includes(gg.tiles[(s.y - 1) * gg.w + s.x]) && !rock.includes(gg.tiles[(s.y + 1) * gg.w + s.x]));
@@ -6239,13 +6252,15 @@ if (on("fade1")) {
       Math.random = () => { calls++; s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
       Date.now = () => 1790000000000;
       const seen = { clips: 0, frames: 0, puffs: 0, faded: new Set(), auto: 0, retro: 0, lightsOff: 0 };
+      // playtest1e: every frame's foes (id, place, facing, HP) after the draw, so a write-back the AI later hides still shows
+      const each = hashTop("md5");
       try {
         const g = new X.Game();
         g.start("warrior", "str", "A");
         g.held.clear();
         g.level = 12;
         g.worldMs = 2 * DAY + DUSK + 60000;
-        g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+        g.enterWorld(WS * 30 * TILE + 8, WS * 50 * TILE + 8); // playtest1e: the same spot on the twice-size vale
         const ids = new Set(), log = [];
         const keys = ["KeyD", "KeyS", "KeyA", "KeyW"];
         const mapAt = g.mapId;
@@ -6273,13 +6288,14 @@ if (on("fade1")) {
               for (const r of fading) if (X.F.fadeOf(r.id, g.worldMs) < X.F.FADE.lightAt && lights.some((l) => l.x === r.x)) seen.lightsOff = -999;
             }
           }
+          each.update(JSON.stringify(g.roamers.map((r) => [r.id, r.x, r.y, r.ang, r.hp])));
         }
         g.saveSlot(0);
         const state = JSON.stringify({ roamers: g.roamers, px: g.px, py: g.py, hp: g.hp, mp: g.mp, xp: g.xp, gold: g.gold, worldMs: g.worldMs, frame: g.frame, mode: g.mode, mapId: g.mapId, phase: g.phase, calls });
         // Item uids come from one module-wide counter (each new Game takes the next ones); number them per save.
         const uids = new Map();
         const save = (localStorage.getItem("gravewake-saves-v1") ?? "").replace(/"uid":"i\d+"/g, (u) => { if (!uids.has(u)) uids.set(u, `"uid":"#${uids.size}"`); return uids.get(u); });
-        return { trace: JSON.stringify({ log, calls, map: [mapAt, g.mapId], end: [g.px, g.py, g.hp, g.worldMs, g.frame, g.phase] }), log, state, save, seen };
+        return { trace: JSON.stringify({ log, calls, map: [mapAt, g.mapId], end: [g.px, g.py, g.hp, g.worldMs, g.frame, g.phase] }), log, state, save, seen, frames: each.digest("hex") };
       } finally {
         Math.random = realRandom;
         Date.now = realNow;
@@ -6288,8 +6304,8 @@ if (on("fade1")) {
     const A = night(1337, false), A2 = night(1337, false), B = night(1337, true);
     const spawns = A.log.filter((e) => /^r\d/.test(e[0]));
     const hashA = md5s(A.trace);
-    check("fade1", `fixed seed (1337, 120 s of vale night, hero walking): ${spawns.length} night spawns; the trace (every foe's id, x, y, kind, level, world ms, frame and tick of first sight, and the end state) is byte-identical run to run and to retro1's pinned trace e4bdd690…`, spawns.length >= 15 && A.trace === A2.trace && hashA === "e4bdd6909bd32edc92b8883f185fd951", hashA);
-    check("fade1", `drawing the fade changes nothing: with drawWorld run on ${B.seen.frames} frames in Auto (960x640 at the C10 zoom) and Retro (320x240 at 1x), the spawn positions and times, the end state (every roamer, the hero, HP, world clock, Math.random use) and the save are byte-identical to the undrawn run`, B.trace === A.trace && B.state === A.state && B.save === A.save && !!A.save && B.seen.frames > 200, `${md5s(B.trace)} ${B.state === A.state} ${B.save === A.save}`);
+    check("fade1", `fixed seed (1337, 120 s of vale night, hero walking): ${spawns.length} night spawns; the trace (every foe's id, x, y, kind, level, world ms, frame and tick of first sight, and the end state) is byte-identical run to run and to its pinned trace (playtest1e re-pinned it on the bigger vale: 7191d8a3…; retro1's was e4bdd690…)`, spawns.length >= 15 && A.trace === A2.trace && hashA === "7191d8a3a64730f13de0a1de3ca61b60", `${hashA} ${spawns.length} ${A.trace === A2.trace}`);
+    check("fade1", `drawing the fade changes nothing: with drawWorld run on ${B.seen.frames} frames in Auto (960x640 at the C10 zoom) and Retro (320x240 at 1x), the spawn positions and times, the end state (every roamer, the hero, HP, world clock, Math.random use) and the save are byte-identical to the undrawn run, and so is every frame's foes after the draw (playtest1e)`, B.trace === A.trace && B.frames === A.frames && B.state === A.state && B.save === A.save && !!A.save && B.seen.frames > 200, `${md5s(B.trace)} ${B.state === A.state} ${B.save === A.save}`);
     check("fade1", `and the fade really drew: every night spawn was seen mid-fade (${B.seen.faded.size} of ${spawns.length}), the dither clipped in Auto on ${B.seen.auto} frames and in Retro on ${B.seen.retro}, ${B.seen.puffs} mist puffs went into the pool, and no fading foe lit before half-fade`, B.seen.faded.size === spawns.length && B.seen.auto > 0 && B.seen.retro > 0 && B.seen.puffs > 0 && B.seen.puffs <= spawns.length && B.seen.lightsOff === 0 && B.seen.clips > 0);
   }
 
@@ -6389,7 +6405,9 @@ if (on("fade2")) {
   // 3. Fixed seed, each festival: spawns and the end state are fade1's byte for byte once the tag is taken out.
   const nights = {};
   {
-    const GOLD = { harvest: ["666bbaf9b408193c123297dd09e7cab6", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["ce5ceb8029d9dd1a35a447bf9f6dbed3", "aca95fb82718ec368d0d17492dfa772e"], bloom: ["b5326b687d8962ae487c39f679ce1743", "45dcdfc7c0ac3b022c9787af4f562524"], ashen: ["dafbe36ac85ee0f963f62ec11b1e84f3", "e623712df0d376a77a78b3181d19b222"] };
+    // playtest1e: re-pinned on the twice-size vale (fade1's were harvest 666bbaf9/1c816d68, krampus ce5ceb80/aca95fb8,
+    // bloom b5326b68/45dcdfc7, ashen dafbe36a/e623712d); drawn and undrawn runs must still agree byte for byte below.
+    const GOLD = { harvest: ["ad4dc81acf875d1cc5278074044eb774", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["1865dfdbe389d6b005dbb4d9f1249871", "aca95fb82718ec368d0d17492dfa772e"], bloom: ["de58f099ac04d0b647b80f9434ee5947", "596914b01b7ae7e8e4405af7fb803265"], ashen: ["7ae29800a300386abd160739176b7266", "3253af283ef3ca316a24402a05567718"] };
     const night = (fid, drawn) => seeded(2026, () => {
       const g = new X.Game();
       g.start("warrior", "str", "A");
@@ -6398,7 +6416,7 @@ if (on("fade2")) {
       let day = -1;
       for (let d = 1; d < 600 && day < 0; d++) { g.worldMs = d * X.CYCLE_MS + X.DAY_MS + 60000; if (g.festivalId() === fid) day = d; }
       g.hp = g.maxHp;
-      g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+      g.enterWorld(WS * 30 * TILE + 8, WS * 50 * TILE + 8); // playtest1e: the same spot on the twice-size vale
       g.update(1 / 60);
       const first = g.roamers.find((r) => r.festival === fid && r.boss) ?? g.roamers.find((r) => r.naughty);
       const spot = g["openNear"](first.x - 64, first.y);
@@ -6446,7 +6464,7 @@ if (on("fade2")) {
       const endA = A.end.replace(/}$/, `,"calls":${A.calls}}`);
       const logH = md5s(JSON.stringify(A.log)), endH = md5s(endA);
       const tagsOk = A.tags.length > 0 && A.tags.every((t) => t.at === t.now && (t.fest || t.helper));
-      check("fade2", `fixed seed, ${fid} (night of day ${A.day}, 90 s, the hero walks in and fights): ${A.log.length} foes seen, ${A.tags.length} tagged; every spawn (id, place, kind, level, HP, world ms, frame, tick) and the end state (every roamer, the hero, XP, silver, the opened keys, Math.random use) are fade1's byte for byte with the tag taken out`, logH === GOLD[fid][0] && endH === GOLD[fid][1] && tagsOk, `${logH} ${endH} ${JSON.stringify(A.tags.slice(0, 2))}`);
+      check("fade2", `fixed seed, ${fid} (night of day ${A.day}, 90 s, the hero walks in and fights): ${A.log.length} foes seen, ${A.tags.length} tagged; every spawn (id, place, kind, level, HP, world ms, frame, tick) and the end state (every roamer, the hero, XP, silver, the opened keys, Math.random use) are the pinned trace byte for byte (playtest1e re-pinned on the bigger vale) with the tag taken out`, logH === GOLD[fid][0] && endH === GOLD[fid][1] && tagsOk, `${logH} ${endH} ${JSON.stringify(A.tags.slice(0, 2))}`);
       check("fade2", `visual only, ${fid}: drawn in Auto and Retro on ${B.seen.frames} frames, the same night gives the same spawns, end state, raw roamers (tags included), Math.random use and save (the save has no tag); ${B.seen.fading.size} festival foes seen mid-fade`, JSON.stringify(B.log) === JSON.stringify(A.log) && B.end === A.end && B.raw === A.raw && B.save === A.save && B.calls === A.calls && !/spawnAt/.test(A.save), `${JSON.stringify(B.log) === JSON.stringify(A.log)} ${B.end === A.end} ${B.raw === A.raw} ${B.save === A.save} ${B.calls === A.calls} fading ${[...B.seen.fading].join(",")} tags ${A.tags.map((t) => `${t.id}@${t.at - A.tags[0].at}`).join(",")}`);
     }
   }
@@ -6562,8 +6580,9 @@ if (on("fade2")) {
     g.saveSlot(0);
     const again = JSON.parse(localStorage.getItem("gravewake-saves-v1"))[0];
     const old = JSON.parse(fixture)[0];
-    const sameKeys = JSON.stringify(Object.keys(again).sort()) === JSON.stringify(Object.keys(old).sort());
-    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game as fade1 loads (state after 5 s matches fade1's byte for byte, tag aside), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "ae99dacbc076176bc8f2d341d2204c60" && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
+    // playtest1e: the save gains worldV, and the old vale position is migrated onto the twice-size vale (state re-pinned).
+    const sameKeys = JSON.stringify(Object.keys(again).filter((k) => k !== "worldV").sort()) === JSON.stringify(Object.keys(old).sort()) && again.worldV === 2;
+    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game loads every time (state after 5 s matches the pin byte for byte, tag aside; playtest1e moved the hero onto the bigger vale), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "f0233b75d39bc40719e8171e6c650332" && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
   }
 }
 
@@ -7036,8 +7055,9 @@ if (on("playtest1")) {
     const keys = (src, from) => { const a = src.indexOf(from); const b = src.indexOf("\n    };", a); return [...src.slice(a, b).matchAll(/^ {6}([a-zA-Z]+)[:,]/gm)].map((m) => m[1]); };
     const frozenSim = readFileSync("scripts/frozen/playtest1/sim.ts.txt", "utf8");
     const oldKeys = keys(frozenSim, "    all[slot] = {");
-    const newKeys = keys(sim, "  saveRecord(): SaveBlob {\n    return {");
-    const blob = (src) => src.slice(src.indexOf("type SaveBlob = {"), src.indexOf("};", src.indexOf("type SaveBlob = {")));
+    // playtest1e: the record gains one key, worldV (the vale's scale, for the position migration); every older key is install1's, in order.
+    const newKeys = keys(sim, "  saveRecord(): SaveBlob {\n    return {").filter((k) => k !== "worldV");
+    const blob = (src) => src.slice(src.indexOf("type SaveBlob = {"), src.indexOf("};", src.indexOf("type SaveBlob = {"))).replace(/\n[^\n]*(\bworldV\b|playtest1e)[^\n]*/g, "");
     // an install1-era slot (written by today's record, the same keys) loads through loadSlot into a town spot that is now a wall
     const old = fresh();
     old.enterTown(18 * TILE + 8, 22 * TILE + 8);
@@ -7046,7 +7066,7 @@ if (on("playtest1")) {
     localStorage.setItem("gravewake-saves-v1", JSON.stringify([rec, null, null]));
     const l = new Game();
     l.loadSlot(0);
-    check("playtest1", "saves stay compatible: the save record has exactly install1's keys in install1's order, SaveBlob and the slot key are unchanged, and an old town save standing on a moved door loads onto open ground", oldKeys.length > 40 && JSON.stringify(oldKeys) === JSON.stringify(newKeys) && blob(frozenSim) === blob(sim) && /const SAVE_KEY = "gravewake-saves-v1";/.test(sim) && l.mapId === "town" && !l["solidFeet"](), `${oldKeys.length}/${newKeys.length} ${l.px},${l.py}`);
+    check("playtest1", "saves stay compatible: the save record has exactly install1's keys in install1's order (plus playtest1e's worldV), SaveBlob and the slot key are unchanged (worldV aside), and an old town save standing on a moved door loads onto open ground", oldKeys.length > 40 && JSON.stringify(oldKeys) === JSON.stringify(newKeys) && blob(frozenSim) === blob(sim) && /const SAVE_KEY = "gravewake-saves-v1";/.test(sim) && l.mapId === "town" && !l["solidFeet"](), `${oldKeys.length}/${newKeys.length} ${l.px},${l.py}`);
     localStorage.removeItem("gravewake-saves-v1");
     localStorage.removeItem("gravewake-autosave-v1");
     const hooks = ["visibilitychange", "pagehide", "beforeunload", "popstate", "blur"].every((e) => ui.includes(`window.addEventListener("${e}"`) || ui.includes(`document.addEventListener("${e}"`));
@@ -7230,11 +7250,11 @@ if (on("playtest1b")) {
     const g = fresh("wizard", "int");
     g.enterTown();
     const town = md5b(g.tiles);
-    g.enterWorld(32 * TILE + 8, 46 * TILE + 8);
-    const world = md5b(g.tiles);
+    g.enterWorld(WS * 32 * TILE + 8, WS * 46 * TILE + 8);
+    const world = md5b(g.tiles); // playtest1e: the owner-approved twice-size vale (it was f513d4b0 on 64x60)
     g.enterCamp();
     const camp = md5b(g.tiles);
-    check("playtest1b", "placement is untouched: the town, the vale and the camp grids hash exactly as on playtest1's sim (every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "f513d4b0cd3599487dc39303fb4d0774" && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
+    check("playtest1b", "placement is untouched: the town and the camp grids hash exactly as on playtest1's sim, and the vale as on playtest1e's twice-size grid (every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "3d4b038dfd1b2e538ce821b1763c1849" && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
   }
 
   // 9. The notes.
@@ -7277,8 +7297,9 @@ if (on("playtest1c")) {
 
   // 0. Batch B frozen, and C touched only drawing: sim, content, crowd, looks and the shell are playtest1b's.
   {
-    const same = ["sim.ts", "content.ts", "crowd.ts", "looks.ts", "Gravewake.tsx"].filter((f) => md5f(`src/game/${f}`) !== md5f(`scripts/frozen/playtest1c/${f}.txt`));
-    const moved = ["draw.ts", "screen.ts"].filter((f) => md5f(`src/game/${f}`) !== md5f(`scripts/frozen/playtest1c/${f}.txt`));
+    // playtest1e: "live" here is the tree as playtest1d shipped it (pt1dFile reads batch D's frozen copies).
+    const same = ["sim.ts", "content.ts", "crowd.ts", "looks.ts", "Gravewake.tsx"].filter((f) => md5f(pt1dFile(f)) !== md5f(`scripts/frozen/playtest1c/${f}.txt`));
+    const moved = ["draw.ts", "screen.ts"].filter((f) => md5f(pt1dFile(f)) !== md5f(`scripts/frozen/playtest1c/${f}.txt`));
     check("playtest1c", "batch C is drawing only: sim, content (so g.tiles and every map), crowd, looks and the shell are byte for byte playtest1b's; only draw, screen (the preload list) and the new wild.ts move", same.length === 0 && moved.length === 2 && existsSync("src/game/wild.ts"), `${same.join(",")} | ${moved.join(",")}`);
     check("playtest1c", "wild.ts is art only: it imports nothing but content's dungeon list, and the sim never names it", /^import \{ DUNGEONS \} from "\.\/content";$/m.test(wild) && (wild.match(/^import /gm) ?? []).length === 1 && !readFileSync("src/game/sim.ts", "utf8").includes("./wild"));
   }
@@ -7424,8 +7445,9 @@ if (on("playtest1d")) {
 
   // 0. Drawing only: sim, content (so g.tiles and every map), crowd, looks and the shell are playtest1c's byte for byte.
   {
-    const same = ["sim.ts", "content.ts", "crowd.ts", "looks.ts", "Gravewake.tsx"].filter((f) => md5f(`src/game/${f}`) !== md5f(FROZEN(f)));
-    const moved = ["draw.ts", "wild.ts", "screen.ts"].filter((f) => md5f(`src/game/${f}`) !== md5f(FROZEN(f)));
+    // playtest1e: "live" here is the tree as playtest1d shipped it (pt1dFile reads batch D's frozen copies).
+    const same = ["sim.ts", "content.ts", "crowd.ts", "looks.ts", "Gravewake.tsx"].filter((f) => md5f(pt1dFile(f)) !== md5f(FROZEN(f)));
+    const moved = ["draw.ts", "wild.ts", "screen.ts"].filter((f) => md5f(pt1dFile(f)) !== md5f(FROZEN(f)));
     check("playtest1d", "batch C2 is drawing only: sim, content (g.tiles and every map), crowd, looks and the shell are byte for byte playtest1c's (frozen in scripts/frozen/playtest1d); only draw, wild (art names) and screen (the preload list) move", same.length === 0 && moved.length === 3, `${same} | ${moved}`);
     check("playtest1d", "wild.ts is still art only: one import (content's dungeon list), and the sim never names it", /^import \{ DUNGEONS \} from "\.\/content";$/m.test(wild) && (wild.match(/^import /gm) ?? []).length === 1 && !readFileSync("src/game/sim.ts", "utf8").includes("./wild"));
   }
@@ -7474,14 +7496,14 @@ if (on("playtest1d")) {
   {
     const g = new X.Game();
     g.start("wizard", "int", "Q");
-    g.enterWorld(11 * 16 + 8, 9 * 16 + 8);
-    const k = 6 * g.w + 11;
+    g.enterWorld(WS * 11 * 16 + 8, WS * 9 * 16 + 8); // playtest1e: the ice on the twice-size vale
+    const k = 6 * 64 + 11; // the index from Bill's shot (the old 64-wide vale)
     g.enterDungeon(X.DUNGEONS[0].id);
     g["applyFeats"]({ hidden: [], traps: [{ x: k % g.w, y: Math.floor(k / g.w), kind: "plate", phase: 0 }] });
     g.px = (k % g.w) * 16 + 8; g.py = Math.floor(k / g.w) * 16 + 24; g.roamers = [];
     if (g.fog) g.fog.fill(1);
     const below = frame(g).filter((u) => u.endsWith("/trap.png")).length;
-    g.enterWorld(11 * 16 + 8, 9 * 16 + 8);
+    g.enterWorld(WS * 11 * 16 + 8, WS * 9 * 16 + 8);
     g.roamers = [];
     const stale = g.trapAt(k) >= 0;
     const vale = frame(g).filter((u) => u.endsWith("/trap.png")).length;
@@ -7549,13 +7571,258 @@ if (on("playtest1d")) {
   // Last: the live files are byte for byte what playtest1d ships (any later edit must re-pin here, on purpose).
   {
     const LIVE = {"sim.ts": "04d3325b77505c886beba0d81bfac5d5", "draw.ts": "63ac4c27a789a596773da09b34330ffb", "wild.ts": "3556b437c111253f89c1d2425b7df206", "Gravewake.tsx": "bdf6866b62280f7c2c3cf1651061bf2b", "looks.ts": "8282846aac6f1ea0e98f69b78e002c32", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "cc0750c767699b1d3936a9b04cc62c2d"};
-    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`src/game/${f}`) !== h).map(([f]) => f);
-    check("playtest1d", "the live game files are byte for byte playtest1d's (sim, draw, wild, shell, looks, content, crowd, screen)", moved.length === 0 && Object.keys(LIVE).length === 8, moved.join(", "));
+    // playtest1e: batch D froze the files it edits in scripts/frozen/playtest1e; this pins them there (group playtest1e pins the live ones).
+    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(pt1dFile(f)) !== h).map(([f]) => f);
+    check("playtest1d", "the game files as playtest1d shipped them (frozen in scripts/frozen/playtest1e where batch D edits them) are byte for byte playtest1d's (sim, draw, wild, shell, looks, content, crowd, screen)", moved.length === 0 && Object.keys(LIVE).length === 8, moved.join(", "));
+  }
+}
+
+if (on("playtest1e")) {
+  // [OWNER-APPROVED 2026-10-02: playtest1e bigger world] [OWNER-APPROVED 2026-10-02: playtest1e no void] batch D1:
+  // the vale is twice the size each way (4x every biome's area), laid by the map writer's phase 3 with roads, trails,
+  // landmarks and caches; the camera stops at the map's edge and anything past it is themed border, never black;
+  // old saves land on the bigger vale.
+  const { readFileSync, writeFileSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-02: playtest1e bigger world]";
+  const TAG2 = "[OWNER-APPROVED 2026-10-02: playtest1e no void]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5b = (b) => createHash("md5").update(b).digest("hex");
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1e.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport { WORLD, WORLD_DOOR, worldBiome, planBiome, T, DUNGEONS, RIFTS } from "${root}/src/game/content.ts";\nexport * as MW from "${root}/tools/map-writer/map_writer.ts";\nexport * as GW from "${root}/tools/map-writer/gravewake_world.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1e.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1e.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document };
+  let drawn = [];
+  let allDraws = []; // every stand-in canvas's draws, offscreen caches included
+  globalThis.Image = class { constructor() { this.complete = true; this.naturalWidth = 16; this.naturalHeight = 16; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const noop = () => {};
+  // A stand-in canvas: it keeps the transform and records every drawImage and fillRect in world pixels.
+  const mock = () => {
+    const st = { m: [1, 0, 0, 1, 0, 0], draws: [], fills: [] };
+    const toWorld = (x, y) => [x, y]; // drawWorld draws in world pixels under its camera transform
+    const o = {
+      st,
+      setTransform(a, b, c, d, e, f) { st.m = [a, b, c, d, e, f]; },
+      drawImage(im, ...a) { const [dx, dy] = a.length >= 8 ? [a[4], a[5]] : [a[0], a[1]]; st.draws.push([im && im._s, ...toWorld(dx, dy), st.m[4], st.m[5], st.m[0]]); allDraws.push([im && im._s, dx, dy]); drawn.push(im && im._s); },
+      fillRect(x, y, w, h) { st.fills.push([x, y, w, h, o.fillStyle, st.m[4], st.m[5], st.m[0]]); },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop: noop }) : noop), set: (t, k, v) => ((t[k] = v), true) });
+  };
+  globalThis.document = { createElement: () => ({ getContext: () => mock(), width: 16, height: 16 }) };
+  const X = await import(pathToFileURL(join(dir, "pt1e.mjs")).href);
+  const { T: TT, WORLD: WD } = X;
+  const sim = readFileSync("src/game/sim.ts", "utf8");
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+  const gw = readFileSync("tools/map-writer/gravewake_world.ts", "utf8");
+  const mw = readFileSync("tools/map-writer/map_writer.ts", "utf8");
+  const mk = () => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); return g; };
+  const START = [X.WORLD_DOOR.x * TILE + 8, (X.WORLD_DOOR.y + 2) * TILE + 8];
+
+  // 1. The vale: 128x120, the map writer's, seeded; the town stays 40x30.
+  const g = mk();
+  g.enterWorld(...START);
+  const { w, h, tiles } = g;
+  const g2 = new X.Game();
+  g2.enterWorld(...START);
+  const laid = X.GW.gravewakeWorld([{ x: 10, y: 10 }]), laid2 = X.GW.gravewakeWorld([{ x: 10, y: 10 }]);
+  check("playtest1e", "the vale is 128x120 (twice the old 64x60 each way), WORLD records it (scale 2, was 64x60), and two separate games build the same grid byte for byte", w === 128 && h === 120 && WD.w === 128 && WD.h === 120 && WD.scale === 2 && WD.was.w === 64 && WD.was.h === 60 && md5b(tiles) === md5b(g2.tiles), `${w}x${h}`);
+  check("playtest1e", "the grid is the map writer's phase 3 (writeOverworld through gravewake_world.ts), seeded by a fixed string, no Math.random or clock; the same sites give the same bytes", /export function writeOverworld\(/.test(mw) && /WORLD_SEED = "gravewake-world-1e"/.test(gw) && /gravewakeWorld\(sites\)/.test(sim) && !/Math\.random|Date\.now|performance\.now/.test(gw + mw.slice(mw.indexOf("export function writeOverworld"))) && md5b(laid.tiles) === md5b(laid2.tiles));
+  const t2 = mk(); t2.enterTown();
+  check("playtest1e", "the town stays 40x30, and the camp and every dungeon keep their own size", t2.w === 40 && t2.h === 30);
+
+  // 2. Every biome has 4x its old area: the zone rule is the old rectangles at twice the size.
+  {
+    const now = {}, was = {};
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) now[X.worldBiome(x, y)] = (now[X.worldBiome(x, y)] ?? 0) + 1;
+    for (let y = 0; y < 60; y++) for (let x = 0; x < 64; x++) was[X.planBiome(x, y)] = (was[X.planBiome(x, y)] ?? 0) + 1;
+    const names = Object.keys(was);
+    check("playtest1e", `every biome is exactly 4x its old area (${names.map((n) => `${n} ${was[n]}→${now[n]}`).join(", ")}), and worldBiome is planBiome at half the coordinates`, names.length === 5 && names.every((n) => now[n] === 4 * was[n]) && [[0, 0], [97, 31], [98, 32], [53, 46], [84, 46], [63, 94]].every(([x, y]) => X.worldBiome(x, y) === X.planBiome(x >> 1, y >> 1)), JSON.stringify(now));
+    const sizes = {}; for (const [k, v] of Object.entries(was)) sizes[k] = v;
+    check("playtest1e", "the zone helpers read the new rule: biome names, ground and foe families come from worldBiome on the vale; levels count distance from the gate in old tiles (WORLD.scale), so a band covers the same share of the bigger vale", /const z = worldBiome\(tx, ty\);/.test(sim) && /const dist = Math\.hypot\(tx - GATE\.x, ty - GATE\.y\) \/ WORLD\.scale;/.test(sim) && zoneLevel(64, 110, 20) === 12 && zoneLevel(64, 100, 20) === 10 && zoneLevel(64, 92, 20) === 8);
+  }
+
+  // 3. Everything is reachable on foot; landmarks and caches are spread out in every biome.
+  const plan = X.worldPlan();
+  {
+    const prop = new Set([TT.tree, TT.rock, TT.pump, TT.grave]);
+    const pass = (x, y) => !g.solidAt(x * TILE + 8, y * TILE + 8, true) && !prop.has(tiles[y * w + x]);
+    const seen = new Uint8Array(w * h);
+    const q = [(X.WORLD_DOOR.y + 2) * w + X.WORLD_DOOR.x];
+    seen[q[0]] = 1;
+    while (q.length) {
+      const i = q.pop(); const x = i % w, y = (i / w) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        if (!seen[j] && pass(nx, ny)) { seen[j] = 1; q.push(j); }
+      }
+    }
+    const near = (p, r) => { for (let y = p.y - r; y <= p.y + r; y++) for (let x = p.x - r; x <= p.x + r; x++) if (x >= 0 && y >= 0 && x < w && y < h && seen[y * w + x]) return true; return false; };
+    const lostL = plan.landmarks.filter((l) => !near(l, l.kind === "pond" ? 4 : 1));
+    const lostC = plan.caches.filter((c) => !near(c, 1));
+    const sites = [...X.DUNGEONS.filter((d) => !d.town).map((d) => ({ x: d.tx, y: d.ty + 1, id: d.id })), ...X.RIFTS.map((r) => ({ x: r.tx, y: r.ty + 1, id: r.id }))].filter((s) => s.x > 0 && s.y > 0);
+    const lostS = sites.filter((s) => !near(s, 1));
+    const open = seen.reduce((a, b) => a + b, 0);
+    check("playtest1e", `on foot from the town door (the game's own collision, props blocked) the hero reaches ${open} tiles, every dungeon mouth and rift (${sites.length}), every landmark (${plan.landmarks.length}; a pond by its shore) and every cache (${plan.caches.length})`, open > 12000 && !lostL.length && !lostC.length && !lostS.length && sites.length >= 8, `${lostL.map((l) => `${l.kind}@${l.x},${l.y}`)} | ${lostC.map((c) => `${c.x},${c.y}`)} | ${lostS.map((s) => s.id)}`);
+    const byBiome = {};
+    for (const l of plan.landmarks) { const b = X.worldBiome(l.x, l.y); byBiome[b] = byBiome[b] ?? { l: 0, c: 0, kinds: new Set() }; byBiome[b].l++; byBiome[b].kinds.add(l.kind); }
+    for (const c of plan.caches) { const b = X.worldBiome(c.x, c.y); byBiome[b] = byBiome[b] ?? { l: 0, c: 0, kinds: new Set() }; byBiome[b].c++; }
+    const spaced = plan.landmarks.every((a, i) => plan.landmarks.every((b, j) => i === j || Math.hypot(a.x - b.x, a.y - b.y) >= 12));
+    const chests = plan.caches.every((c) => tiles[c.y * w + c.x] === TT.chest);
+    check("playtest1e", `things to find, spread out: every biome has a landmark and a cache, the big ones at least three of two kinds or more (${Object.entries(byBiome).map(([b, v]) => `${b} ${v.l}/${v.c}`).join(", ")}), at least 12 tiles apart, each cache a chest on the grid`, Object.keys(byBiome).length === 5 && Object.values(byBiome).every((v) => v.l >= 1 && v.c >= 1) && Object.entries(byBiome).filter(([b]) => b !== "swamp").every(([, v]) => v.l >= 3 && v.kinds.size >= 2) && plan.landmarks.length >= 20 && spaced && chests && plan.caches.length >= 12, JSON.stringify({ spaced, chests }));
+    let trail = 0; for (const t of tiles) if (t === TT.dirt) trail++;
+    let road = 0; for (const t of tiles) if (t === TT.road) road++;
+    check("playtest1e", `roads and trails: the old roads at twice the size run end to end (x=64, y=80, the winter road y=16), the lake bridge stands, and ${trail} trail tiles wind to every site and landmark`, [...Array(h).keys()].every((y) => tiles[y * w + 64] === TT.road || tiles[y * w + 64] === TT.door || y === X.WORLD_DOOR.y) && [...Array(w).keys()].every((x) => tiles[80 * w + x] === TT.road || x === 64) && [...Array(w).keys()].filter((x) => tiles[16 * w + x] === TT.road).length >= w - 4 && trail >= 300 && road >= 360, `road ${road} trail ${trail}`);
+  }
+
+  // 4. The edge: a dense forest band two deep (roads run out through it), and nothing on the vale is black past it.
+  {
+    let bad = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!(x < 2 || y < 2 || x >= w - 2 || y >= h - 2)) continue;
+      const t = tiles[y * w + x];
+      if (t !== TT.tree && t !== TT.road && t !== TT.bridge) bad++;
+    }
+    check("playtest1e", "the vale's edge is a dense forest band two tiles deep, broken only where a road runs out", bad === 0, `${bad} open edge tiles`);
+  }
+
+  // 5. The camera stops at the map's edge in every view the game draws (Auto, phone landscape, Retro 320x240).
+  {
+    const views = [[960, 640, g.zoom, "auto"], [844, 390, 2, "phone"], [320, 240, 1, "retro"], [1920, 1080, 3, "wide"]];
+    const corners = [[8, 8], [w * TILE - 8, 8], [8, h * TILE - 8], [w * TILE - 8, h * TILE - 8], [START[0], START[1]]];
+    const bad = [];
+    for (const [vw, vh, k, tag] of views) for (const [px, py] of corners) {
+      const c = X.cameraFor({ px, py, w, h }, vw, vh, k);
+      if (c.x < 0 || c.y < 0 || c.x + vw / k > w * TILE + 1 || c.y + vh / k > h * TILE + 1) bad.push(`${tag}@${px},${py}`);
+    }
+    const mid = X.cameraFor({ px: 1000, py: 900, w, h }, 320, 240, 1);
+    const small = X.cameraFor({ px: 8, py: 8, w: 10, h: 8 }, 320, 240, 1);
+    check("playtest1e", "the camera is clamped to the map in Auto, phone landscape (844x390), Retro (320x240) and a wide screen, at all four corners; mid-map it centres on the hero as before; a map smaller than the view is centred", bad.length === 0 && mid.x === 1000 - 160 && mid.y === 900 - 120 && small.x === Math.round((160 - 320) / 2) && small.y === Math.round((128 - 240) / 2), bad.join(" "));
+    check("playtest1e", "drawWorld and the tap aim use the same camera (cameraFor), so a tap lands where it was aimed at the edge too", /const cam = cameraFor\(g, viewW, viewH, zoom\);/.test(draw) && /const cam = cameraFor\(g, canvas\.width, canvas\.height, zoom\);\n\s+g\.setGoal\(cam\.x \+ sx \/ zoom, cam\.y \+ sy \/ zoom\);/.test(ui) && !/Math\.round\(g\.px - canvas\.width/.test(ui));
+    // a tap at the corner of a Retro screen in the vale's top-left corner walks to the tile under it
+    const tg = mk(); tg.enterWorld(3 * TILE + 8, 3 * TILE + 8);
+    const cam = X.cameraFor(tg, 320, 240, 1);
+    tg.setGoal(cam.x + 300, cam.y + 200);
+    check("playtest1e", "a tap on a Retro screen at the vale's corner aims at the world point under the finger (the clamped camera, not the hero-centred one)", cam.x === 0 && cam.y === 0 && !!tg.goal && Math.abs(tg.goal.x - 300) < 1 && Math.abs(tg.goal.y - 200) < 1, JSON.stringify([cam, tg.goal]));
+  }
+  // 6. Past the edge: themed border art, never the black clear colour.
+  {
+    const frameOf = (gg, vw, vh, k) => { const c = mock(); X.drawWorld(c, gg, vw, vh, k); return c.st; };
+    const cg = mk(); cg.enterWorld(...START); cg.enterCamp();
+    allDraws = [];
+    const st = frameOf(cg, 1920, 1080, 2);
+    const cached = allDraws.filter((d) => d[0]);
+    const blits = st.draws.filter((d) => !d[0]).length;
+    allDraws = [];
+    const st2 = frameOf(cg, 1920, 1080, 2);
+    const again = allDraws.filter((d) => d[0] && (d[1] < 0 || d[2] < 0)).length;
+    const cam = X.cameraFor(cg, 1920, 1080, 2);
+    // every tile cell in view that is off the map gets drawn (ground and a tree), none left to the clear colour
+    const need = new Set();
+    for (let ty = Math.floor(cam.y / TILE); ty < Math.ceil((cam.y + 540) / TILE); ty++) for (let tx = Math.floor(cam.x / TILE); tx < Math.ceil((cam.x + 960) / TILE); tx++) if (tx < 0 || ty < 0 || tx >= cg.w || ty >= cg.h) need.add(`${tx},${ty}`);
+    const got = new Set(cached.map((d) => `${Math.floor(d[1] / TILE)},${Math.floor(d[2] / TILE)}`));
+    const missing = [...need].filter((k) => !got.has(k));
+    const trees = cached.filter((d) => /trees/.test(d[0]) && (d[1] < 0 || d[2] < 0)).length;
+    // tree rows south of the map: the two below it are live in the y-sort, the rest come from the cache
+    const southCells = new Set(cached.filter((d) => /trees/.test(d[0]) && d[2] + 32 >= (cg.h + 2) * TILE).map((d) => Math.floor((d[2] + 32) / TILE)));
+    const liveSouth = allDraws.filter((d) => d[0] && /trees/.test(d[0]) && d[2] + 32 >= cg.h * TILE).length;
+    void st2;
+    check("playtest1e", `outdoors past the edge is themed border, not black: the camp at 1920x1080 (smaller than the view, so centred) draws all ${need.size} off-map cells with the edge's ground and trees (${trees} trees)`, cg.w * TILE * 2 < 1920 && need.size > 50 && missing.length === 0 && trees > 20 && southCells.size >= 4 && liveSouth > 0, `${missing.length} missing ${missing.slice(0, 6)} trees ${trees} south rows ${southCells.size} live ${liveSouth}`);
+    // the corner map at the vale's corner: the off-map cells are filled (border forest), not left to the black ground
+    const mm = mock(); const mg = mk(); mg.enterWorld(8, 8); X.drawMinimap(mm, mg, 96);
+    const offFills = mm.st.fills.filter((f) => f[4] !== "#140e12" && f[0] < 48 && f[1] < 48).length;
+    check("playtest1e", `the border is drawn once into an offscreen cache and blitted (${blits} blit a frame): the next frame draws only the two live tree rows below the map off it (${again} sprites), not the whole border again`, blits >= 1 && again > 0 && again < 200 && /let beyondMemo/.test(draw) && /beyondMemo = \{ key: all \? key : "", m, c \};/.test(draw), `${blits} ${again}`);
+    check("playtest1e", `the corner map shows the border forest past the edge outdoors (not black: ${offFills} cells filled in its top-left quarter at the vale's corner), and paintBeyond runs only when the view itself passes the map, so the clamped vale never pays for it`, offFills >= 140 && /past the edge outdoors the corner map shows the border forest too/.test(draw) && /const past = camX < 0 \|\| camY < 0 \|\| camX \+ viewW \/ zoom > g\.w \* TILE \|\| camY \+ viewH \/ zoom > g\.h \* TILE;/.test(draw));
+    const before = frameOf((() => { const v = mk(); v.enterWorld(8 * TILE, 8 * TILE); return v; })(), 320, 240, 1);
+    // only the draw's one-tile slack ring may fall off the map, and nothing drawn there reaches the screen (sprites are at most 32x48)
+    const bcam = { x: -before.draws[0][3], y: -before.draws[0][4] };
+    const offs = before.draws.filter((d) => d[0] && (d[1] < 0 || d[2] < 0) && d[1] + (/tree/.test(d[0]) ? 32 : 16) > bcam.x && d[2] + (/tree/.test(d[0]) ? 48 : 16) > bcam.y && (d[1] + 8 < 0 || d[2] + 8 < 0) && !(/tree/.test(d[0]) && d[2] + 40 >= 0));
+    check("playtest1e", "on the vale the camera never shows past the edge: at the corner in Retro the view starts inside the map, and nothing drawn off the map reaches the screen", offs.length === 0 && bcam.x >= 0 && bcam.y >= 0, JSON.stringify([bcam, offs.slice(0, 4)]));
+    check("playtest1e", "paintBeyond: outdoors (vale, camp, town) the edge's own ground and a tree per cell; below ground rock, fog-dark until seen (drawn live where there is fog, from the cache elsewhere); never on the title", /const OUTDOOR_EDGE = new Set\(\["over", "camp", "town"\]\);/.test(draw) && /if \(g\.mode !== "title" && past\) \{\n\s+if \(g\.fog \|\| typeof document === "undefined"\) paintBeyond\(ctx, g, bx0, by0, bx1, by1, props\);\n\s+else beyondCached\(ctx, g, bx0, by0, bx1, by1, props\);/.test(draw) && /propSprite\(ctx, "tree", x \* TILE, y \* TILE, biome, g\.frame\)/.test(draw));
+    const dg = mk(); dg.enterDungeon(X.DUNGEONS.find((d) => !d.town).id);
+    const ds = frameOf(dg, 1920, 1080, 1);
+    const dcam = X.cameraFor(dg, 1920, 1080, 1);
+    check("playtest1e", "below ground a view bigger than the floor is rock or fog-dark past the edge, never left unpainted", dcam.x < 0 || dcam.y < 0 ? ds.fills.some((f) => f[4] === "#07060a") || ds.draws.some((d) => d[1] < 0 || d[2] < 0) : true, JSON.stringify(dcam));
+  }
+
+  // 7. Old saves: positions migrate safely; new saves say worldV 2.
+  {
+    const sg = mk();
+    sg.enterWorld(...START);
+    const rec = sg.saveRecord();
+    check("playtest1e", "a new save writes worldV: 2 after campY, and the record's other keys are as before", rec.worldV === 2 && Object.keys(rec).indexOf("worldV") === Object.keys(rec).indexOf("campY") + 1);
+    // a pre-1e save at every open tile of the old 64x60 grid's sample (every 3rd tile): it loads onto open ground, near its doubled spot
+    const bad = []; let n = 0;
+    for (let oy = 2; oy < 58; oy += 3) for (let ox = 2; ox < 62; ox += 3) {
+      const old = { ...rec, mapId: "world", px: ox * TILE + 8, py: oy * TILE + 8, campX: ox * TILE + 8, campY: oy * TILE + 8 };
+      delete old.worldV;
+      const m = X.migrateWorldSave(old);
+      const l = new X.Game();
+      l.loadRecord(old);
+      n++;
+      const tx = Math.floor(l.px / TILE), ty = Math.floor(l.py / TILE), t = l.tiles[ty * l.w + tx];
+      const stuck = l["solidFeet"]() || [TT.tree, TT.rock, TT.water, TT.ice, TT.pump, TT.grave].includes(t);
+      const far = Math.hypot(l.px - (ox * 2 * TILE + 16), l.py - (oy * 2 * TILE + 16)) > 16 * TILE;
+      if (l.mapId !== "world" || stuck || far || m.px !== ox * TILE * 2 + 16 || m.campX !== ox * TILE * 2 + 16 || !old.px) bad.push(`${ox},${oy}`);
+    }
+    check("playtest1e", `an old (pre-1e) vale save is migrated like playtest1a's town saves: the hero's spot and the camp's return spot are doubled, and it loads onto open ground near its doubled spot (${n} old spots tried, every 3rd tile of the 64x60 grid)`, bad.length === 0 && n > 300, bad.slice(0, 8).join(" "));
+    const keep = { ...rec }; delete keep.worldV;
+    const m0 = X.migrateWorldSave(keep);
+    const town = X.migrateWorldSave({ ...keep, mapId: "town", px: 100, py: 120 });
+    const drops = X.migrateWorldSave({ ...keep, drops: [{ mapId: "world", x: 160, y: 200, item: null }, { mapId: "town", x: 50, y: 60, item: null }], portal: { mapId: "world", px: 300, py: 400 } });
+    const same = X.migrateWorldSave(rec);
+    check("playtest1e", "migration is pure and once only: a town save keeps its town spot, world drops and a world portal anchor double (town drops stay), a new save (worldV 2) passes through untouched, and the record passed in is not changed", m0 !== keep && keep.worldV === undefined && town.px === 100 && town.py === 120 && drops.drops[0].x === 320 && drops.drops[0].y === 400 && drops.drops[1].x === 50 && drops.portal.px === 600 && drops.portal.py === 800 && same === rec && /if \(raw !== record\) this\.landMigrated\(\);/.test(sim));
+    const ok = /const raw = migrateWorldSave\(record\);/.test(sim) && /worldV\?: number;/.test(sim);
+    // the round trip: an old slot in localStorage loads through loadSlot and saves back as a new one
+    localStorage.setItem("gravewake-saves-v1", JSON.stringify([{ ...keep, mapId: "world", px: 20 * TILE + 8, py: 50 * TILE + 8 }, null, null]));
+    const ls = new X.Game(); ls.loadSlot(0); ls.saveSlot(0);
+    const back = JSON.parse(localStorage.getItem("gravewake-saves-v1"))[0];
+    localStorage.removeItem("gravewake-saves-v1");
+    check("playtest1e", "an old slot loads through loadSlot onto the bigger vale and saves back as a new record (worldV 2, its new spot), so it is never doubled twice", ok && ls.mapId === "world" && back.worldV === 2 && back.px === ls.px && Math.abs(ls.px - 40 * TILE) < 8 * TILE && Math.abs(ls.py - 100 * TILE) < 8 * TILE, `${ls.px},${ls.py}`);
+    const ck = /const key = this\.mapId === "world" \? `world:cache:\$\{tx\}:\$\{ty\}`/.test(sim);
+    check("playtest1e", "a cache on the vale is keyed by its tile (world:cache:x:y), so it is opened once per save and never collides with a dungeon chest key", ck);
+  }
+
+  // 8. Input: keyboard, pad stick and tap still walk the bigger vale.
+  {
+    const run = (setup) => { const k = mk(); k.enterWorld(64 * TILE + 8, 82 * TILE + 8); k.roamers = []; const x0 = k.px; for (let i = 0; i < 90; i++) { setup(k, i); k.update(1 / 60); } return k.px - x0; };
+    const key = run((k) => { k.held.clear(); k.held.add("KeyD"); });
+    const pad = run((k) => { k.stickX = 1; k.stickY = 0; });
+    const tap = run((k, i) => { if (i === 0) k.setGoal(k.px + 200, k.py); });
+    check("playtest1e", `all three input schemes walk the bigger vale east along the road from the gate (keyboard ${Math.round(key)} px, pad stick ${Math.round(pad)} px, tap ${Math.round(tap)} px in 1.5 s)`, key > 60 && pad > 60 && tap > 60);
+  }
+
+  // 9. Performance: the vale is built once (memoized) and copied after; the draw's tile loop stays the view's size.
+  {
+    const t0 = performance.now(); for (let i = 0; i < 20; i++) { const q = new X.Game(); q.enterWorld(...START); } const per = (performance.now() - t0) / 20;
+    const st = (() => { const c = mock(); const v = mk(); v.enterWorld(...START); X.drawWorld(c, v, 960, 640, v.zoom); return c.st; })();
+    check("playtest1e", `the vale is laid once and copied after (${per.toFixed(2)} ms per enterWorld), and a frame draws only the view (${st.draws.length} sprites at 960x640), so the bigger map costs no frame time`, per < 8 && /if \(!worldMemo\) worldMemo = layWorld\(\);/.test(sim) && st.draws.length < 2500, `${per} ${st.draws.length}`);
+  }
+
+  // 10. The notes.
+  {
+    const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const readme = readFileSync("tools/map-writer/README.md", "utf8");
+    check("playtest1e", "rules/GAME_LAYOUT_TWO.txt, AGENTS.project.md and the map-writer README (phase 3) carry the dated owner notes, including that the g.tiles rule is lifted for the vale only", [rules, agents].every((t) => t.includes(TAG) && t.includes(TAG2) && /lifted for the vale only/.test(t)) && readme.includes("## Phase 3: the overworld") && readme.includes(TAG));
+    check("playtest1e", "the frozen references (scripts/frozen/playtest1e) are playtest1d's sim, draw, content, shell, bounty and festivals byte for byte, and the older pins read them", md5f("scripts/frozen/playtest1e/sim.ts.txt") === "04d3325b77505c886beba0d81bfac5d5" && md5f("scripts/frozen/playtest1e/draw.ts.txt") === "63ac4c27a789a596773da09b34330ffb" && md5f("scripts/frozen/playtest1e/content.ts.txt") === "363ab7b0efeac538717636f7478838b0" && md5f("scripts/frozen/playtest1e/Gravewake.tsx.txt") === "bdf6866b62280f7c2c3cf1651061bf2b" && md5f("scripts/frozen/playtest1e/bounty.ts.txt") === "8b71d8a405b42bbd61af08f6e60c32bc" && md5f("scripts/frozen/playtest1e/festivals.ts.txt") === "d6c5fd0abacc274cff6d5d35356422fa" && pinFile("src/game/bounty.ts").startsWith("scripts/frozen/playtest1e/"));
+  }
+  globalThis.Image = had.Image;
+  globalThis.document = had.document;
+
+  // Last: the live files are byte for byte what playtest1e ships (any later edit must re-pin here, on purpose: qa/playtest1e/repin.py).
+  {
+    const LIVE = {"src/game/sim.ts": "c909777a3b3ad62894296b6d3b1aeef7", "src/game/draw.ts": "f44c0e93ff39252740c959aabc9884ef", "src/game/content.ts": "d8ee5cbd237c2896fefbad760d0cad86", "src/game/Gravewake.tsx": "8260af8345576dbc081da2fd064731d9", "src/game/bounty.ts": "c7d2ddceadee04efd5bd502ef8b56dd4", "src/game/festivals.ts": "d0e2b1052602741715c0279089762d8c", "tools/map-writer/map_writer.ts": "b231f85001aee13f7fe5b1bb9a6ba67c", "tools/map-writer/gravewake_vale.ts": "910518acdefa35eed839fe9323bcaf89", "tools/map-writer/gravewake_world.ts": "3e1c2a70dce85efe73f460b664c84946"};
+    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
+    check("playtest1e", "the live game files are byte for byte playtest1e's (sim, draw, content, shell, bounty, festivals, the map writer and its vale and world adapters)", moved.length === 0 && Object.keys(LIVE).length === 9, moved.join(", "));
   }
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b, playtest1c, playtest1d");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

@@ -162,20 +162,20 @@ leech        Chapel Leech
 POCKETS  (no boss)
 ================================================================
 Two floors. Dungeon level rule. Trash only + possible Stalker + possible Goblin.
-pocketvale 4 @18,42 / pocketwaste 16 @50,22 / pocketcinder 26 @40,48 /
-pocketwinter 30 @18,8 / pocketswamp 40 @34,24
+pocketvale 4 @36,84 / pocketwaste 16 @100,44 / pocketcinder 26 @80,96 /
+pocketwinter 30 @36,16 / pocketswamp 40 @68,48
 
 ================================================================
 [OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER]
 GENERATED SITES  (tools/map-writer; seeded, no Math.random)
 ================================================================
-Generated dungeon (one): barrow  Shifting Barrow  L14 @44,32, 3 floors, cave tiles.
+Generated dungeon (one): barrow  Shifting Barrow  L14 @88,64, 3 floors, cave tiles.
   Rooms and corridors from the map writer; same seed, same floors. Trash: floor-roamer rule (all except bat).
   Boss room (the deepest room) on the last floor: a Stalker pack guards it, never a boss.
   Vault room: one chest (the mimic odds apply). Secrets, traps, mimic: the game's own placement on the writer's grid.
   No captive (the site is not in the rescue list).
   Hooks: zeppelin stop once visited; floor curses as any dungeon run; no bounty; no festival; no season pick (delves keep the even pick).
-Rift zone (a site type of its own; not a pocket, not a dungeon): riftvale  Ashen Rift  @10,30.
+Rift zone (a site type of its own; not a pocket, not a dungeon): riftvale  Ashen Rift  @20,60.
   One floor. L = zone of the rift tile. Trash only (the rift tile's own families) + possible Stalker (~1/14) + possible Goblin (camp odds).
   No boss, no secrets, no mimic, no captive, no curse, no zeppelin. Traps may lie on its floor.
   The pocket rerolls each day-night cycle (seed = rift spot + cycle). You come back out on the exact spot you went in

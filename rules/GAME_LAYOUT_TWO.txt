@@ -228,7 +228,7 @@ Town gate (32,46). Vale + winter / waste / cinder / swamp.
 12 families, 21 bosses, 21 remnants, Stalkers, Loot Goblin, 5 pockets.
 [OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES] + 2 festival bosses (Pumpkin Lord, Krampus), each only on its own festival night.
 [OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] + 1 mimic: a 13th family, a solo rare that wakes from a dungeon chest.
-[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] + 1 generated dungeon (Shifting Barrow, barrow @44,32, L14, 3 floors) and 1 rift zone (Ashen Rift, riftvale @10,30), both laid by tools/map-writer. No boss in either: still 21 bosses, 21 remnants, 5 pockets.
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] + 1 generated dungeon (Shifting Barrow, barrow @88,64, L14, 3 floors) and 1 rift zone (Ashen Rift, riftvale @20,60), both laid by tools/map-writer. No boss in either: still 21 bosses, 21 remnants, 5 pockets.
 Do not use Bellwarden / Death Knight / Bone Tyrant on this title.
 Save: anvil_run_gravewake_run0. Death: fallen overlay, reload last save. No gold tax.
 
@@ -683,20 +683,20 @@ leech        Chapel Leech
 POCKETS  (no boss)
 ================================================================
 Two floors. Dungeon level rule. Trash only + possible Stalker + possible Goblin.
-pocketvale 4 @18,42 / pocketwaste 16 @50,22 / pocketcinder 26 @40,48 /
-pocketwinter 30 @18,8 / pocketswamp 40 @34,24
+pocketvale 4 @36,84 / pocketwaste 16 @100,44 / pocketcinder 26 @80,96 /
+pocketwinter 30 @36,16 / pocketswamp 40 @68,48
 
 ================================================================
 [OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER]
 GENERATED SITES  (tools/map-writer; seeded, no Math.random)
 ================================================================
-Generated dungeon (one): barrow  Shifting Barrow  L14 @44,32, 3 floors, cave tiles.
+Generated dungeon (one): barrow  Shifting Barrow  L14 @88,64, 3 floors, cave tiles.
   Rooms and corridors from the map writer; same seed, same floors. Trash: floor-roamer rule (all except bat).
   Boss room (the deepest room) on the last floor: a Stalker pack guards it, never a boss.
   Vault room: one chest (the mimic odds apply). Secrets, traps, mimic: the game's own placement on the writer's grid.
   No captive (the site is not in the rescue list).
   Hooks: zeppelin stop once visited; floor curses as any dungeon run; no bounty; no festival; no season pick (delves keep the even pick).
-Rift zone (a site type of its own; not a pocket, not a dungeon): riftvale  Ashen Rift  @10,30.
+Rift zone (a site type of its own; not a pocket, not a dungeon): riftvale  Ashen Rift  @20,60.
   One floor. L = zone of the rift tile. Trash only (the rift tile's own families) + possible Stalker (~1/14) + possible Goblin (camp odds).
   No boss, no secrets, no mimic, no captive, no curse, no zeppelin. Traps may lie on its floor.
   The pocket rerolls each day-night cycle (seed = rift spot + cycle). You come back out on the exact spot you went in
@@ -946,3 +946,19 @@ chimney ember, door lamp). The town lawn is the writer's town-grass.png, drawn p
 /art/spells/gen. Biomes get a dark rim line (wild-border-rim.png) where they meet the vale. Floor stairs take the
 dungeon's theme (wild-stairs-themes.png). Trap plates draw only inside a dungeon (fixes the grey square on the ice).
 Looks only: g.tiles, collision, sim, saves untouched.
+
+OWNER-APPROVED BIGGER WORLD (D1)  [OWNER-APPROVED 2026-10-02: playtest1e bigger world] [OWNER-APPROVED 2026-10-02: playtest1e no void]
+Bill: "the world and biomes feel super tiny". The vale is 128x120 (was 64x60): every biome has 4x the area. The
+zone rule is the old rectangles at twice the size (content.ts worldBiome / planBiome); every place above (@x,y)
+is given on the new grid. The grid is laid by the map writer's phase 3 (tools/map-writer writeOverworld via
+gravewake_world.ts, seed "gravewake-world-1e"): ground, groves, the old roads at twice the size (x=64, y=80, the
+winter road y=16, the lake bridge x=42), a winding trail from every mouth, rift, boss, cart, watch and the town
+door to the roads, and landmarks spread out per biome (standing stones, graveyards, ponds, pumpkin patches, hidden
+glades) with 14 trail caches (chests keyed world:cache:x:y). A forest band two tiles deep rings the edge. The town
+stays 40x30, the camp and dungeons as before. The "g.tiles never changes" rule is lifted for the vale only, by
+this approval. Zone levels count distance from the gate in old tiles, so the bands cover the same share.
+No void: the camera is clamped to the map (cameraFor), and a map smaller than the view is centred; past the edge
+outdoors (vale, camp, town) is drawn as the edge ground plus dense trees, below ground as rock (fog-dark until
+seen). Saves: a save without worldV (every save before playtest1e) has its vale position, camp spot, world portal
+and world drops doubled on load (migrateWorldSave); a tree or rock under the new spot pushes the hero off as
+always. New saves write worldV: 2.

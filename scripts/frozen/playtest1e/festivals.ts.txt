@@ -16,7 +16,7 @@
  *
  * Pure data and picks here; the sim owns state (opened keys fest:<id>:<day>:...).
  */
-import { BOUNTY, mulberry, worldBiome, type MonsterDef } from "./content";
+import { BOUNTY, mulberry, type MonsterDef } from "./content";
 import { featSeed, type Spot } from "./feats";
 import { GATE } from "./bounty";
 
@@ -44,15 +44,15 @@ export const HARVEST = {
   touch: 12,
   lanternPay: 3,
   allLitBonus: 15,
-  /** The Pumpkin Lord's patch: open Cinder ash, 17 tiles south-west of the town gate (64,90), 20 tiles from any
-   * dungeon mouth and 28 from any world boss spot (so a fight never spills into a stair or a boss). */
-  lord: { x: 52, y: 104, lv: 10 },
+  /** The Pumpkin Lord's patch: open Cinder ash, 8.5 tiles south-west of the town gate (32,46), 10 tiles from any
+   * dungeon mouth and 14 from any world boss spot (so a fight never spills into a stair or a boss). */
+  lord: { x: 26, y: 52, lv: 10 },
 };
 
 export const KRAMPUSNACHT = {
-  /** Krampus stands in the Winter hollow, well west of the Wolfman (64,12), from dusk to dawn: open snow,
-   * 13 tiles from the nearest dungeon mouth and 20 from any world boss spot (playtest1e: twice the old plan). */
-  spot: { x: 24, y: 22, lv: 16 },
+  /** Krampus stands in the Winter hollow, well west of the Wolfman (32,6), from dusk to dawn: open snow,
+   * 6.7 tiles from the nearest dungeon mouth and 10 from any world boss spot. */
+  spot: { x: 12, y: 11, lv: 16 },
   /** Naughty-list stalkers: packs on the existing Stalker build, named off the list, in the Winter hollow. */
   stalkers: 3,
   names: ["Greedy Tobiah", "Liar Agnes", "Little Mott the Biter", "Sly Hanne", "Sour Piet", "Wicked Lise", "Gutter Klaus", "Spiteful Wenna"],
@@ -81,7 +81,7 @@ export function carveScore(day: number, eyes: string, mouth: string) {
 }
 
 /**
- * The night's naughty list: KRAMPUSNACHT.stalkers names on Winter hollow lairs (bounty lairTiles, the snow zone),
+ * The night's naughty list: KRAMPUSNACHT.stalkers names on Winter hollow lairs (bounty lairTiles, y < 16),
  * at least BOUNTY.lairClear * 2 (8 tiles) from Krampus, from each other, and from every world boss spot in
  * `bosses` (so a name never sits on the Wolfman's doorstep). Same night, same list.
  */
@@ -91,7 +91,7 @@ export function naughtyList(day: number, lairs: number[], w: number, familiesAt:
   const pool = lairs.filter((i) => {
     const x = i % w;
     const y = Math.floor(i / w);
-    return worldBiome(x, y) === "snow" && Math.hypot(x - k.x, y - k.y) >= BOUNTY.lairClear * 2 && Math.hypot(x - GATE.x, y - GATE.y) >= BOUNTY.gateClear && bosses.every((b) => Math.hypot(x - b.x, y - b.y) >= BOUNTY.lairClear * 2);
+    return y < 16 && Math.hypot(x - k.x, y - k.y) >= BOUNTY.lairClear * 2 && Math.hypot(x - GATE.x, y - GATE.y) >= BOUNTY.gateClear && bosses.every((b) => Math.hypot(x - b.x, y - b.y) >= BOUNTY.lairClear * 2);
   });
   const out: Naughty[] = [];
   const names = [...KRAMPUSNACHT.names];
@@ -116,8 +116,8 @@ export type { Spot };
 
 /** Spring: Drowned Bloom. The swamps flood and the Drowned Tzar's court rises. */
 export const DROWNED_BLOOM = {
-  /** The flood: the swamp (x 54-83, y 46-79 on the twice-size vale, playtest1e) and 3 tiles of bank around it. Drawn only: nothing walks differently. */
-  flood: { x0: 48, x1: 89, y0: 40, y1: 85 },
+  /** The flood: the swamp (x 27-41, y 23-39) and 3 tiles of bank around it. Drawn only: nothing walks differently. */
+  flood: { x0: 24, x1: 44, y0: 20, y1: 42 },
   /** Ottla keeps the plaza stall (the stall tile Hessa uses on Harvest Moon). */
   npc: { id: "ottla", name: "Weir-wife Ottla", look: "fisher" },
   /** Bloom gathering: six blooms surface on flooded open ground, 3+ tiles apart. Walk onto one to pick it. */
@@ -151,7 +151,7 @@ export const ASHEN_FAIR = {
   stepPay: 4,
   /** All four steps: this much more, and the night's first perfect dance wins a fair prize (one chest-table roll). */
   perfectBonus: 10,
-  /** The sideshow: named Stalker packs on Cinder lairs (the ash zone), 8 apart and 8 clear of every world boss spot. */
+  /** The sideshow: named Stalker packs on Cinder lairs (y > 46, x <= 48), 8 apart and 8 clear of every world boss spot. */
   sideshow: 3,
   names: ["Gristle the Fire-Eater", "Madame Cinders", "the Grinning Gourd", "Strawman Hob", "the Tallow Twins", "Long Meg the Stilt-Walker", "Ashjaw the Swallower", "Mother Soot"],
   ticket: { name: "Fair ticket", kind: "junk" as const, rank: 1 as const },
@@ -164,9 +164,9 @@ export function inFlood(x: number, y: number) {
   return x >= f.x0 && x <= f.x1 && y >= f.y0 && y <= f.y1;
 }
 
-/** The swamp itself (x 54-83, y 46-79 on the twice-size vale, playtest1e); the flood's banks are the rest of the flood. */
+/** The swamp itself (x 27-41, y 23-39); the flood's banks are the rest of the flood. */
 export function inSwamp(x: number, y: number) {
-  return worldBiome(x, y) === "swamp";
+  return x > 26 && x < 42 && y > 22 && y < 40;
 }
 
 /** Named packs on a pool of lairs: `count` names, 8 tiles apart (BOUNTY.lairClear * 2), seeded by tag and day. */
@@ -197,10 +197,10 @@ export function courtList(day: number, lairs: number[], w: number, familiesAt: (
   return namedPacks("court", day, pool, w, DROWNED_BLOOM.court, DROWNED_BLOOM.names, familiesAt, DROWNED_BLOOM.courtFamily);
 }
 
-/** The night's sideshow: ASHEN_FAIR.sideshow names on Cinder lairs (the ash zone: the Cinder's own families,
+/** The night's sideshow: ASHEN_FAIR.sideshow names on Cinder lairs (y > 46, x <= 48: the Cinder's own families,
  * lantern man, scarecrow, witch). Same night, same sideshow. */
 export function sideshowList(day: number, lairs: number[], w: number, familiesAt: (x: number, y: number) => MonsterDef[], bosses: Spot[] = []): Naughty[] {
-  const pool = lairs.filter((i) => worldBiome(i % w, Math.floor(i / w)) === "ash" && clearOf(i % w, Math.floor(i / w), bosses));
+  const pool = lairs.filter((i) => Math.floor(i / w) > 46 && i % w <= 48 && clearOf(i % w, Math.floor(i / w), bosses));
   return namedPacks("sideshow", day, pool, w, ASHEN_FAIR.sideshow, ASHEN_FAIR.names, familiesAt);
 }
 

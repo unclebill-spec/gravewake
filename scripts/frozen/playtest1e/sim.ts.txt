@@ -1,9 +1,5 @@
 import {
   BAITS,
-  WORLD,
-  WORLD_DOOR,
-  worldBiome,
-  planBiome,
   BOUNTY,
   CATCHES,
   CLASSES,
@@ -64,8 +60,7 @@ import { curseFloor, pickCurse, placeCaptive, rescueFor } from "./runs";
 import { mimicChest } from "./mimic";
 // OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. Generated floors and rift zones come from the fourth writer.
 import { gravewakeFloor, gravewakeRift, guardPick } from "../../tools/map-writer/gravewake";
-import { WORLD_BRIDGE, WORLD_DRESS, gravewakeWorld } from "../../tools/map-writer/gravewake_world";
-import { edgeBand, riftSeed, rng32, subSeed, type MapResult } from "../../tools/map-writer/map_writer";
+import { riftSeed, rng32, subSeed, type MapResult } from "../../tools/map-writer/map_writer";
 import { GATE, fromGate, lairTiles, nightOf, postBounty, type Posting } from "./bounty";
 import { DIG, digKey, digWakes } from "./graves";
 import { DERBY, dayOf, derbyDay, derbyMark, derbyRival, derbySize } from "./derby";
@@ -368,8 +363,6 @@ type SaveBlob = {
   pagePaid?: boolean;
   campX?: number;
   campY?: number;
-  /** playtest1e: 2 once world places are on the twice-size vale. A save without it is migrated on load (migrateWorldSave). */
-  worldV?: number;
   drops?: {
     x: number;
     y: number;
@@ -1454,34 +1447,6 @@ export class Game {
         }
       }
     }
-  }
-
-  /**
-   * playtest1e: a migrated (pre-1e) vale save lands where its doubled spot falls on the new grid; if that is a tree, a
-   * rock, water or any wall, step to the nearest open tile centre (nearest first, a fixed order, as unstick does).
-   */
-  private landMigrated() {
-    const open = () => !this.solidFeet() && !this.blockedProp(this.px, this.py) && !this.blockedProp(this.px - 5, this.py + 3) && !this.blockedProp(this.px + 5, this.py + 3);
-    if (open()) return;
-    const ox = Math.floor(this.px / TILE);
-    const oy = Math.floor(this.py / TILE);
-    const keep = [this.px, this.py];
-    for (let r = 1; r < 16; r++) {
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          const tx = ox + dx;
-          const ty = oy + dy;
-          if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
-          const t = this.tiles[ty * this.w + tx];
-          if (t === T.door || t === T.stairD || t === T.stairU) continue;
-          this.px = tx * TILE + 8;
-          this.py = ty * TILE + 8;
-          if (open()) return;
-        }
-      }
-    }
-    [this.px, this.py] = keep;
   }
 
   /** The vale. Walking off a town edge lands here. */
@@ -3222,13 +3187,12 @@ export class Game {
    * west and east are two tiles off the door when that tile is open ground, else the south road.
    */
   private worldBeside(side: TownSide) {
-    const D = WORLD_DOOR;
-    const at = { s: [GATE.x, GATE.y], n: [D.x, D.y - 2], w: [D.x - 2, D.y], e: [D.x + 2, D.y] }[side];
+    const at = { s: [32, 46], n: [32, 42], w: [30, 44], e: [34, 44] }[side];
     if (side !== "s") {
       const world = buildWorld();
       const t = world.tiles[at[1] * world.w + at[0]];
       const open = t === T.road || t === T.grass || t === T.dirt || t === T.swamp || t === T.ash || t === T.sand || t === T.snow;
-      if (!open) return { x: GATE.x * TILE + 8, y: GATE.y * TILE + 8 };
+      if (!open) return { x: 32 * TILE + 8, y: 46 * TILE + 8 };
     }
     return { x: at[0] * TILE + 8, y: at[1] * TILE + 8 };
   }
@@ -3444,7 +3408,7 @@ export class Game {
       if (Math.random() < 0.07) this.startWildFight(false);
       return;
     }
-    const bridge = this.mapId === "world" && tx === WORLD_BRIDGE.x && ty >= WORLD_BRIDGE.y0 && ty <= WORLD_BRIDGE.y1;
+    const bridge = this.mapId === "world" && tx === 21 && ty >= 28 && ty <= 32;
     if (bridge && this.level < 3) {
       if (!this.warnedBridge) {
         this.warnedBridge = true;
@@ -3851,7 +3815,7 @@ export class Game {
       if (def?.town || this.dungeon === "grave" || this.dungeon === "hearth") {
         if (this.dungeon === "hearth") this.enterInside("chapel", true);
         else this.enterTown(this.dungeon === "grave" ? 14 * TILE : 6 * TILE, this.dungeon === "grave" ? 18 * TILE : 20 * TILE);
-      } else this.enterWorld(Math.max(TILE, (def?.tx ?? WORLD_DOOR.x) * TILE), Math.max(TILE, ((def?.ty ?? 80) + 1) * TILE));
+      } else this.enterWorld(Math.max(TILE, (def?.tx ?? 32) * TILE), Math.max(TILE, ((def?.ty ?? 40) + 1) * TILE));
       this.logLine = home ? `You climb back into the open air. ${home}` : "You climb back into the open air.";
       return;
     }
@@ -3862,8 +3826,7 @@ export class Game {
   }
 
   private openChest(tx: number, ty: number) {
-    // playtest1e: a vale trail cache is keyed by its tile alone (the last dungeon's id and floor linger on the vale).
-    const key = this.mapId === "world" ? `world:cache:${tx}:${ty}` : `${this.mapId}:${this.dungeon}:${this.floor}:${tx}:${ty}`;
+    const key = `${this.mapId}:${this.dungeon}:${this.floor}:${tx}:${ty}`;
     const mim = this.mapId === "dungeon" ? this.feats?.mimic : undefined;
     if (mim && mim.x === tx && mim.y === ty && !this.opened.has(this.mimicKey())) {
       this.wakeMimic(mim);
@@ -6866,8 +6829,8 @@ export class Game {
   }
 
   leaveCamp() {
-    const x = this.campX || GATE.x * TILE + 8;
-    const y = this.campY || GATE.y * TILE + 8;
+    const x = this.campX || 32 * TILE + 8;
+    const y = this.campY || 46 * TILE + 8;
     this.enterWorld(x, y);
     this.mode = "play";
     this.logLine = "You break camp. The road is where you left it.";
@@ -7052,7 +7015,6 @@ export class Game {
       pagePaid: this.pagePaid,
       campX: this.campX,
       campY: this.campY,
-      worldV: WORLD.scale,
       drops: this.drops.map((d) => ({ ...d, item: d.item ? { ...d.item } : null })),
     };
   }
@@ -7105,8 +7067,7 @@ export class Game {
   }
 
   /** Restore one save record (a slot's, or the autosave's) and rebuild the map under the saved pixel. */
-  loadRecord(record: SaveBlob) {
-    const raw = migrateWorldSave(record);
+  loadRecord(raw: SaveBlob) {
     this.cls = raw.cls;
     this.path = raw.path;
     this.name = raw.name;
@@ -7165,7 +7126,6 @@ export class Game {
     this.energy = this.cls === "vampire" ? 0 : Math.min(raw.energy, this.maxEnergy);
     if (raw.mapId === "world") {
       this.enterWorld(raw.px, raw.py);
-      if (raw !== record) this.landMigrated();
       // A save made inside a rift sits on its mouth: hold the mouth until you step off, as on the way out.
       this.riftHold = `${Math.floor(raw.px / TILE)},${Math.floor(raw.py / TILE)}`;
     } else if (raw.mapId === "camp") this.enterCamp(true);
@@ -7199,69 +7159,51 @@ export class Game {
   }
 }
 
-/**
- * playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: a save from before the twice-size vale keeps its
- * place. Every world pixel it holds (the hero on the vale, the camp's return spot, a town portal's anchor, drops lying
- * on the vale) is doubled, the way playtest1a moved town saves onto the new town. loadRecord then steps a hero who
- * lands in a tree, rock, water or wall to the nearest open tile (landMigrated). Pure: the record passed in is not changed.
- */
-export function migrateWorldSave(raw: SaveBlob): SaveBlob {
-  if ((raw.worldV ?? 1) >= WORLD.scale) return raw;
-  const k = WORLD.scale;
-  const fit = (v: number, n: number) => Math.max(TILE + 8, Math.min(n * TILE - TILE - 8, Math.round(v * k)));
-  const out: SaveBlob = { ...raw, worldV: k };
-  if (raw.mapId === "world") {
-    out.px = fit(raw.px, WORLD.w);
-    out.py = fit(raw.py, WORLD.h);
-  }
-  if (raw.campX) out.campX = fit(raw.campX, WORLD.w);
-  if (raw.campY) out.campY = fit(raw.campY, WORLD.h);
-  if (raw.portal && raw.portal.mapId === "world") out.portal = { ...raw.portal, px: fit(raw.portal.px, WORLD.w), py: fit(raw.portal.py, WORLD.h) };
-  if (raw.drops) out.drops = raw.drops.map((d) => (d.mapId === "world" ? { ...d, x: fit(d.x, WORLD.w), y: fit(d.y, WORLD.h) } : d));
-  return out;
-}
-
 /** World bosses and where they stand. A slain one leaves its remnant here for two day-night cycles. */
 const WORLD_BOSSES = [
-  { id: "bride", tx: 32, ty: 84, lv: 14 },
-  { id: "shade", tx: 28, ty: 72, lv: 18 },
-  { id: "saint", tx: 120, ty: 44, lv: 28 },
-  { id: "mummyboss", tx: 116, ty: 60, lv: 36 },
-  { id: "ashmare", tx: 96, ty: 104, lv: 38 },
-  { id: "wolfman", tx: 64, ty: 12, lv: 52 },
-  { id: "queen", tx: 24, ty: 42, lv: 58 },
-  { id: "tzar", tx: 76, ty: 64, lv: 72 },
-  { id: "leech", tx: 54, ty: 60, lv: 78 },
+  { id: "bride", tx: 16, ty: 42, lv: 14 },
+  { id: "shade", tx: 14, ty: 36, lv: 18 },
+  { id: "saint", tx: 60, ty: 22, lv: 28 },
+  { id: "mummyboss", tx: 58, ty: 30, lv: 36 },
+  { id: "ashmare", tx: 48, ty: 52, lv: 38 },
+  { id: "wolfman", tx: 32, ty: 6, lv: 52 },
+  { id: "queen", tx: 12, ty: 21, lv: 58 },
+  { id: "tzar", tx: 38, ty: 32, lv: 72 },
+  { id: "leech", tx: 27, ty: 30, lv: 78 },
 ];
 
 /** Loot Goblin odds by biome: the camp's numbers, shared with a rift's possible goblin. */
-// playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: the zone rule is content.ts worldBiome (the old
-// rectangles at twice the size); distances from the town gate count in old tiles (WORLD.scale), so the level bands
-// cover the same share of the bigger vale.
 function goblinChance(tx: number, ty: number) {
-  const z = worldBiome(tx, ty);
-  return z === "swamp" ? 0.15 : z === "vale" ? 0.08 : 0.12;
+  const swamp = tx > 26 && tx < 42 && ty > 22 && ty < 40;
+  const outer = ty < 16 || tx > 48 || ty > 46;
+  return swamp ? 0.15 : outer ? 0.12 : 0.08;
 }
 
 function zoneLevel(tx: number, ty: number, player: number) {
-  const dist = Math.hypot(tx - GATE.x, ty - GATE.y) / WORLD.scale;
+  const dist = Math.hypot(tx - 32, ty - 46);
   const band = dist < 8 ? 0 : dist < 16 ? 2 : dist < 26 ? 5 : 8;
-  const biome = { snow: 4, sand: 3, ash: 3, swamp: 6, vale: 1 }[worldBiome(tx, ty)];
+  let biome = 1;
+  if (ty < 16) biome = 4;
+  else if (tx > 48) biome = 3;
+  else if (ty > 46) biome = 3;
+  else if (tx > 26 && tx < 42 && ty > 22 && ty < 40) biome = 6;
   return Math.max(1, Math.round(player * 0.35 + band + biome));
 }
 
 function biomeName(tx: number, ty: number) {
-  return { snow: "Winter hollow", sand: "Dry waste", ash: "Cinder", swamp: "Scourge swamp", vale: "Decayed vale" }[worldBiome(tx, ty)];
+  if (ty < 16) return "Winter hollow";
+  if (tx > 48) return "Dry waste";
+  if (ty > 46) return "Cinder";
+  if (tx > 26 && tx < 42 && ty > 22 && ty < 40) return "Scourge swamp";
+  return "Decayed vale";
 }
 
 function familiesFor(tx: number, ty: number, mapId: string): MonsterDef[] {
   if (mapId === "dungeon") return FAMILIES;
-  // The camp and the town keep the old rule on their own small grids.
-  const z = mapId === "world" ? worldBiome(tx, ty) : planBiome(tx, ty);
-  if (z === "snow") return FAMILIES.filter((m) => m.id === "wolf" || m.id === "ghost" || m.id === "bat");
-  if (z === "sand") return FAMILIES.filter((m) => m.id === "mummy" || m.id === "skeleton" || m.id === "ghoul");
-  if (z === "ash") return FAMILIES.filter((m) => m.id === "pumpkin" || m.id === "scare" || m.id === "witch");
-  if (z === "swamp") return FAMILIES.filter((m) => m.id === "witch" || m.id === "tree" || m.id === "zombie");
+  if (ty < 16) return FAMILIES.filter((m) => m.id === "wolf" || m.id === "ghost" || m.id === "bat");
+  if (tx > 48) return FAMILIES.filter((m) => m.id === "mummy" || m.id === "skeleton" || m.id === "ghoul");
+  if (ty > 46) return FAMILIES.filter((m) => m.id === "pumpkin" || m.id === "scare" || m.id === "witch");
+  if (tx > 26 && tx < 42 && ty > 22 && ty < 40) return FAMILIES.filter((m) => m.id === "witch" || m.id === "tree" || m.id === "zombie");
   return FAMILIES.filter((m) => m.id === "zombie" || m.id === "skeleton" || m.id === "ghost" || m.id === "bat");
 }
 
@@ -7548,61 +7490,67 @@ function buildTown() {
   return { w, h, tiles, npcs };
 }
 
-/** The world boss stands and the road carts, on the vale grid (twice the old plan). */
-const WORLD_CARTS: [number, number][] = [
-  [64, 84],
-  [40, 72],
-  [104, 48],
-  [80, 100],
-  [60, 24],
-  [68, 52],
-];
-
-/**
- * The vale. playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: 128x120, laid by the map writer
- * (tools/map-writer/gravewake_world.ts, phase 3: groves, roads, winding trails to every place, landmarks and trail caches
- * spread through each biome, a forest band round the edge). Every place sits at twice its old tile. Built once and
- * copied: the sim stamps the world's tiles (a boss's clearing) on its own copy.
- */
-let worldMemo: { w: number; h: number; tiles: Uint8Array; entrances: Record<string, string>; npcs: Npc[]; landmarks: { x: number; y: number; kind: string }[]; caches: { x: number; y: number }[] } | null = null;
-/** playtest1e: the vale's landmarks and caches as the map writer laid them (copies; the checks and the mini map read them). */
-export function worldPlan() {
-  if (!worldMemo) worldMemo = layWorld();
-  const l = worldMemo;
-  return { landmarks: l.landmarks.map((m) => ({ ...m })), caches: l.caches.map((c) => ({ x: c.x, y: c.y })) };
-}
 function buildWorld() {
-  if (!worldMemo) worldMemo = layWorld();
-  const m = worldMemo;
-  return { w: m.w, h: m.h, tiles: m.tiles.slice(), entrances: { ...m.entrances }, npcs: m.npcs.map((n) => ({ ...n })), landmarks: m.landmarks, caches: m.caches };
-}
-
-function layWorld() {
-  const sites: { x: number; y: number }[] = [];
-  for (const d of DUNGEONS) if (!d.town) sites.push({ x: d.tx, y: d.ty });
-  for (const r of RIFTS) sites.push({ x: r.tx, y: r.ty });
-  for (const b of WORLD_BOSSES) sites.push({ x: b.tx, y: b.ty });
-  for (const [x, y] of WORLD_CARTS) sites.push({ x, y });
-  const npcs: Npc[] = [
-    { id: "m1", name: "Road Merchant", x: 66 * TILE, y: 84 * TILE, coat: "#6a5040", role: "merchant" },
-    { id: "m2", name: "Campfire Trader", x: 40 * TILE, y: 72 * TILE, coat: "#8a5a30", role: "merchant" },
-    { id: "m3", name: "Waste Cart", x: 104 * TILE, y: 48 * TILE, coat: "#c4b48a", role: "merchant" },
-    { id: "m4", name: "Ash Seller", x: 80 * TILE, y: 100 * TILE, coat: "#4a4038", role: "merchant" },
-    { id: "m5", name: "Snow Peddler", x: 60 * TILE, y: 24 * TILE, coat: "#d0d8e4", role: "merchant" },
-    { id: "m6", name: "Swamp Cart", x: 68 * TILE, y: 52 * TILE, coat: "#2a4030", role: "merchant" },
-    { id: "g1", name: "Vale Watch", x: 68 * TILE, y: 80 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g2", name: "Waste Watch", x: 100 * TILE, y: 80 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g3", name: "Cinder Watch", x: 80 * TILE, y: 94 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g4", name: "Winter Watch", x: 68 * TILE, y: 16 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g5", name: "Swamp Watch", x: 64 * TILE + 20, y: 60 * TILE, coat: "#2a3140", role: "guard" },
-  ];
-  for (const n of npcs) sites.push({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE) });
-  sites.push({ x: WORLD_DOOR.x, y: WORLD_DOOR.y }, { x: HARVEST.lord.x, y: HARVEST.lord.y }, { x: KRAMPUSNACHT.spot.x, y: KRAMPUSNACHT.spot.y });
-  const laid = gravewakeWorld(sites);
-  const { w, h, tiles } = laid;
+  const w = 64;
+  const h = 60;
+  const tiles = new Uint8Array(w * h);
   const entrances: Record<string, string> = {};
-  tiles[WORLD_DOOR.y * w + WORLD_DOOR.x] = T.door;
-  for (let y = WORLD_DOOR.y + 1; y <= GATE.y; y++) tiles[y * w + WORLD_DOOR.x] = T.road;
+  const reserved = new Set<string>();
+  for (const d of DUNGEONS) {
+    if (d.town) continue;
+    reserved.add(`${d.tx},${d.ty}`);
+    reserved.add(`${d.tx},${d.ty + 1}`);
+  }
+  const bosses = [
+    [16, 42],
+    [14, 36],
+    [60, 22],
+    [58, 30],
+    [48, 52],
+    [32, 6],
+    [12, 21],
+    [38, 32],
+    [27, 30],
+  ];
+  for (const [x, y] of bosses) reserved.add(`${x},${y}`);
+  const merchants = [
+    [32, 42],
+    [20, 36],
+    [52, 24],
+    [40, 50],
+    [30, 12],
+    [34, 26],
+  ];
+  for (const [x, y] of merchants) reserved.add(`${x},${y}`);
+  reserved.add("32,44");
+  reserved.add("32,45");
+  reserved.add("32,46");
+  // Map writer: a rift mouth and the tile below it stay open ground.
+  for (const r of RIFTS) {
+    reserved.add(`${r.tx},${r.ty}`);
+    reserved.add(`${r.tx},${r.ty + 1}`);
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let t: number = T.grass;
+      if (y < 16) t = T.snow;
+      else if (x > 48) t = T.sand;
+      else if (y > 46) t = T.ash;
+      else if (x > 26 && x < 42 && y > 22 && y < 40) t = T.swamp;
+      if (x === 32 || y === 40 || (y < 16 && y === 8)) t = T.road;
+      const n = hash(x, y);
+      const key = `${x},${y}`;
+      if (!reserved.has(key) && t !== T.road && n > 0.84) t = T.tree;
+      if (!reserved.has(key) && n > 0.975) t = T.rock;
+      if (!reserved.has(key) && t === T.grass && n > 0.955 && n <= 0.968) t = T.pump;
+      tiles[y * w + x] = t;
+    }
+  }
+  for (let y = 28; y <= 32; y++) for (let x = 18; x <= 23; x++) tiles[y * w + x] = T.water;
+  for (let y = 28; y <= 32; y++) tiles[y * w + 21] = T.road;
+  tiles[44 * w + 32] = T.door;
+  tiles[45 * w + 32] = T.road;
+  tiles[46 * w + 32] = T.road;
   for (const d of DUNGEONS) {
     if (d.town) continue;
     if (d.tx < 0 || d.ty < 0 || d.tx >= w || d.ty >= h) continue;
@@ -7611,11 +7559,23 @@ function layWorld() {
     const below = (d.ty + 1) * w + d.tx;
     if (d.ty + 1 < h && (tiles[below] === T.tree || tiles[below] === T.water || tiles[below] === T.rock)) tiles[below] = T.dirt;
   }
-  spreadProps(tiles, w, h, false, 0);
-  // the edge forest stays dense (spreadProps spaces props three apart); the roads run out through it
-  edgeBand(tiles, w, h, 2, T.tree, (t) => t === T.road);
+  const npcs: Npc[] = [
+    { id: "m1", name: "Road Merchant", x: 33 * TILE, y: 42 * TILE, coat: "#6a5040", role: "merchant" },
+    { id: "m2", name: "Campfire Trader", x: 20 * TILE, y: 36 * TILE, coat: "#8a5a30", role: "merchant" },
+    { id: "m3", name: "Waste Cart", x: 52 * TILE, y: 24 * TILE, coat: "#c4b48a", role: "merchant" },
+    { id: "m4", name: "Ash Seller", x: 40 * TILE, y: 50 * TILE, coat: "#4a4038", role: "merchant" },
+    { id: "m5", name: "Snow Peddler", x: 30 * TILE, y: 12 * TILE, coat: "#d0d8e4", role: "merchant" },
+    { id: "m6", name: "Swamp Cart", x: 34 * TILE, y: 26 * TILE, coat: "#2a4030", role: "merchant" },
+    { id: "g1", name: "Vale Watch", x: 34 * TILE, y: 40 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g2", name: "Waste Watch", x: 50 * TILE, y: 40 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g3", name: "Cinder Watch", x: 40 * TILE, y: 47 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g4", name: "Winter Watch", x: 34 * TILE, y: 8 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g5", name: "Swamp Watch", x: 32 * TILE + 20, y: 30 * TILE, coat: "#2a3140", role: "guard" },
+  ];
+  spreadProps(tiles, w, h, false);
+  for (let y = 4; y <= 6; y++) for (let x = 8; x <= 13; x++) tiles[y * w + x] = T.ice;
   for (const n of npcs) clearAround(tiles, w, h, n.x, n.y);
-  return { w, h, tiles, entrances, npcs, landmarks: laid.landmarks.map((l) => ({ x: l.x, y: l.y, kind: l.kind })), caches: laid.caches };
+  return { w, h, tiles, entrances, npcs };
 }
 
 function carveFloor(dungeon: string, floor: number, floors: number, pocket: boolean) {
@@ -7702,7 +7662,11 @@ function carveRift(def: DungeonDef, cycle: number) {
 }
 
 function biomeTile(x: number, y: number): number {
-  return WORLD_DRESS[worldBiome(x, y)].ground;
+  if (y < 16) return T.snow;
+  if (x > 48) return T.sand;
+  if (y > 46) return T.ash;
+  if (x > 26 && x < 42 && y > 22 && y < 40) return T.swamp;
+  return T.grass;
 }
 
 function clearAround(tiles: Uint8Array<ArrayBufferLike>, w: number, h: number, px: number, py: number) {
@@ -7714,18 +7678,18 @@ function clearAround(tiles: Uint8Array<ArrayBufferLike>, w: number, h: number, p
       const i = y * w + x;
       const t = tiles[i];
       if (t !== T.tree && t !== T.rock && t !== T.pump && t !== T.grave) continue;
-      tiles[i] = biomeTile(x, y);
+      const road = x === 32 || y === 40 || (y < 16 && y === 8) || (x === 21 && y >= 28 && y <= 32);
+      tiles[i] = road ? T.road : biomeTile(x, y);
     }
   }
 }
 
-function spreadProps(tiles: Uint8Array<ArrayBufferLike>, w: number, h: number, town: boolean, edge = 3) {
+function spreadProps(tiles: Uint8Array<ArrayBufferLike>, w: number, h: number, town: boolean) {
   const propish = (t: number) => t === T.tree || t === T.rock || t === T.pump;
   const hard = (t: number) => t === T.wall || t === T.door || t === T.water || t === T.pool || t === T.ice || t === T.stairD || t === T.stairU || t === T.chest;
   const blocksGrave = (t: number) => t === T.wall || t === T.water || t === T.pool;
   const restore = (x: number, y: number) => (town ? T.grass : biomeTile(x, y));
-  // playtest1e: the vale keeps its edge forest (edge 0); the town still clears three tiles in from its fence.
-  const margin = edge;
+  const margin = 3;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;

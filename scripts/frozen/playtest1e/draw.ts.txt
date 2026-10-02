@@ -1,4 +1,4 @@
-import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worldBiome, type Item, type Tile } from "./content";
+import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, type Item, type Tile } from "./content";
 import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
@@ -1642,15 +1642,21 @@ function paintMonster(
 /** Which outdoor band a world tile belongs to, for tree and rock colors. */
 function biomeOf(theme: string, ty: number, tx: number): string {
   if (theme !== "over") return theme;
-  return worldBiome(tx, ty); // playtest1e: the twice-size vale's zone rule (content.ts)
+  if (ty < 16) return "snow";
+  if (tx > 48) return "sand";
+  if (ty > 46) return "ash";
+  if (tx > 26 && tx < 42 && ty > 22 && ty < 40) return "swamp";
+  return "vale";
 }
 
 /** Ground showing under a tree or rock, so the trunk does not erase the shore or the road. */
 function propGround(theme: string, x: number, y: number, tile: number): Tile {
   if (theme === "town") return tile === T.grave ? T.dirt : T.grass;
-  // playtest1e: the vale reads its twice-size zones; the camp keeps the old rule on its own small grid.
-  const z = theme === "over" ? worldBiome(x, y) : planBiome(x, y);
-  return z === "snow" ? T.snow : z === "sand" ? T.sand : z === "ash" ? T.ash : z === "swamp" ? T.swamp : T.grass;
+  if (y < 16) return T.snow;
+  if (x > 48) return T.sand;
+  if (y > 46) return T.ash;
+  if (x > 26 && x < 42 && y > 22 && y < 40) return T.swamp;
+  return T.grass;
 }
 
 // playtest1c (owner-reported 2026-10-02, "oversized crowned ghost"): a boss draws at the people's scale like every
@@ -2008,7 +2014,7 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
  */
 const WET: ReadonlySet<number> = new Set([T.water, T.pool, T.ice]);
 function paintShore(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: number, y: number, at: (j: number) => number) {
-  const row = tile === T.ice || (g.theme === "over" && worldBiome(x, y) === "snow") ? SHORE_ROW.snowbank : tile === T.pool ? SHORE_ROW.stone : SHORE_ROW.bank;
+  const row = tile === T.ice || (g.theme === "over" && y < 16) ? SHORE_ROW.snowbank : tile === T.pool ? SHORE_ROW.stone : SHORE_ROW.bank;
   const dry = (nx: number, ny: number) => nx >= 0 && ny >= 0 && nx < g.w && ny < g.h && !WET.has(at(ny * g.w + nx));
   const n = dry(x, y - 1);
   const e = dry(x + 1, y);
@@ -2559,86 +2565,12 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   }
 }
 
-/**
- * playtest1e [OWNER-APPROVED 2026-10-02: playtest1e no void] (Bill: "remove the black void past map edges"): the camera
- * follows the hero but stops at the map's edge, so a map wider than the view never shows past it; a map narrower than
- * the view (the camp, a room, the town on a wide screen) sits centred and the border pass paints past its edge. The tap
- * scheme reads the same camera (Gravewake.tsx), so a tap still lands where it was aimed.
- */
-export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h">, viewW: number, viewH: number, zoom: number) {
-  const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(0, Math.min(size - view, hero - view / 2))));
-  return { x: axis(g.px, viewW / zoom, g.w * TILE), y: axis(g.py, viewH / zoom, g.h * TILE) };
-}
-
-/** playtest1e: what lies past a map's edge: deep forest on the vale, the camp and the town (on the edge tile's own
- * ground), the rock the floor is cut from below ground and indoors. Picture only; nothing walks there. */
-const OUTDOOR_EDGE = new Set(["over", "camp", "town"]);
-/**
- * playtest1e: the border past a fog-free map (camp, town, rooms) drawn once into an offscreen canvas, margin tiles deep
- * all round, and blitted each frame. Trees whose canopy reaches into the map from the south (the two rows below it)
- * stay in the y-sort, drawn live, so the hero walks behind them as before. Rebuilt when the map, theme or season
- * changes, when a bigger view needs a deeper margin, or until every sheet it used has loaded.
- */
-let beyondMemo: { key: string; m: number; c: HTMLCanvasElement } | null = null;
-function beyondCached(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: number, x1: number, y1: number, props: { y: number; fn: () => void }[]) {
-  const need = Math.max(4, -x0, -y0, x1 - g.w, y1 - g.h);
-  const key = `${g.mapId}:${g.inside}:${g.theme}:${g.w}x${g.h}:${seasonNow}`;
-  if (!beyondMemo || beyondMemo.key !== key || beyondMemo.m < need) {
-    const m = Math.ceil(need / 4) * 4;
-    const c = document.createElement("canvas");
-    c.width = (g.w + 2 * m) * TILE;
-    c.height = (g.h + 2 * m + 2) * TILE;
-    const cx = c.getContext("2d");
-    if (!cx) return paintBeyond(ctx, g, x0, y0, x1, y1, props);
-    cx.imageSmoothingEnabled = false;
-    cx.setTransform(1, 0, 0, 1, m * TILE, (m + 2) * TILE);
-    const later: { y: number; fn: () => unknown }[] = [];
-    paintBeyond(cx, g, -m, -m, g.w + m, g.h + m, later, (y) => y < g.h || y >= g.h + 2);
-    later.sort((a, b) => a.y - b.y);
-    let all = true;
-    for (const p of later) if (p.fn() === false) all = false;
-    beyondMemo = { key: all ? key : "", m, c };
-  }
-  const b = beyondMemo;
-  ctx.drawImage(b.c, -b.m * TILE, -(b.m + 2) * TILE);
-  // the two rows below the map, live in the y-sort (their canopies overlap the map's last rows)
-  const outdoor = OUTDOOR_EDGE.has(g.theme);
-  if (!outdoor) return;
-  for (let y = g.h; y < Math.min(y1, g.h + 2); y++) for (let x = x0; x < x1; x++) {
-    const biome = biomeOf(g.theme, g.h - 1, Math.max(0, Math.min(g.w - 1, x)));
-    props.push({ y: y * TILE + 8, fn: () => void propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
-  }
-}
-
-function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: number, x1: number, y1: number, props: { y: number; fn: () => unknown }[], treeRow: (y: number) => boolean = () => true) {
-  const outdoor = OUTDOOR_EDGE.has(g.theme);
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      if (x >= 0 && y >= 0 && x < g.w && y < g.h) continue;
-      const cx = Math.max(0, Math.min(g.w - 1, x));
-      const cy = Math.max(0, Math.min(g.h - 1, y));
-      const n = (((x * 13 + y * 7) % 10) + 10) % 10 / 10;
-      if (!outdoor) {
-        // unexplored rock stays the fog's dark, as it is inside the map
-        if (g.fog && g.fog[cy * g.w + cx] === 0) px(ctx, x * TILE, y * TILE, TILE, TILE, "#07060a");
-        else drawTile(ctx, T.wall, x, y, n, g.theme, T.wall, g.frame, T.wall, T.wall, T.wall);
-        continue;
-      }
-      const base = propGround(g.theme, cx, cy, T.tree);
-      drawTile(ctx, base, x, y, n, g.theme, base, g.frame, base, base, base);
-      const biome = biomeOf(g.theme, cy, cx);
-      if (treeRow(y)) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
-    }
-  }
-}
-
 export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
   seasonNow = g.season();
   sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
   const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
-  const cam = cameraFor(g, viewW, viewH, zoom);
-  const camX = cam.x + mag;
-  const camY = cam.y;
+  const camX = Math.round(g.px - viewW / (2 * zoom)) + mag;
+  const camY = Math.round(g.py - viewH / (2 * zoom));
   ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
   ctx.imageSmoothingEnabled = false;
   const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
@@ -2658,17 +2590,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   kitNow = floorKit(g);
   // On the vale, open ground shows its skin biome; road verges read the skin too. Every other tile is as before.
   const look = (j: number, t: number) => (skin && SKIN_OPEN.has(t) && t !== T.tree && t !== T.rock && t !== T.pump && t !== T.grave ? VALE_GROUND[skin.biome[j]] : t);
-  const bx0 = Math.floor(camX / TILE) - 1;
-  const by0 = Math.floor(camY / TILE) - 1;
-  const bx1 = Math.ceil((camX + viewW / zoom) / TILE) + 1;
-  const by1 = Math.ceil((camY + viewH / zoom) / TILE) + 3;
-  // playtest1e: only when the view itself reaches past the map (a map smaller than the screen; the vale's clamped
-  // camera never does), and from a cache where the map has no fog, so the border costs one blit a frame.
-  const past = camX < 0 || camY < 0 || camX + viewW / zoom > g.w * TILE || camY + viewH / zoom > g.h * TILE;
-  if (g.mode !== "title" && past) {
-    if (g.fog || typeof document === "undefined") paintBeyond(ctx, g, bx0, by0, bx1, by1, props);
-    else beyondCached(ctx, g, bx0, by0, bx1, by1, props);
-  }
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const i = y * g.w + x;
@@ -3723,8 +3644,8 @@ function mapColor(t: number, theme: string, y: number, x: number): string {
   if (t === T.dirt) return "#a07850";
   if (t === T.stairD || t === T.stairU || t === T.chest) return "#e07a2f";
   if (t === T.tree) return townish(theme) ? "#2f7a40" : "#1e4a34";
-  if (t === T.snow || (t === T.grass && theme === "over" && worldBiome(x, y) === "snow")) return "#d5e4ee";
-  if (t === T.sand || (theme === "over" && worldBiome(x, y) === "sand" && t !== T.road)) return "#c4b48a";
+  if (t === T.snow || (t === T.grass && theme === "over" && y < 16)) return "#d5e4ee";
+  if (t === T.sand || (theme === "over" && x > 48 && t !== T.road)) return "#c4b48a";
   if (t === T.ash) return "#4a4038";
   if (t === T.swamp) return "#243428";
   if (t === T.floor) return "#c4a574";
@@ -3770,14 +3691,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
     for (let x = 0; x < span; x++) {
       const tx = cx - span / 2 + x;
       const ty = cy - span / 2 + y;
-      if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) {
-        // playtest1e: past the edge outdoors the corner map shows the border forest too, not black
-        if (OUTDOOR_EDGE.has(g.theme)) {
-          ctx.fillStyle = mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
-          ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
-        }
-        continue;
-      }
+      if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) continue;
       const i = ty * g.w + tx;
       if (g.fog && g.fog[i] === 0) continue;
       ctx.fillStyle = mapColor(g.hidden.has(i) ? T.wall : g.tiles[i], g.theme, ty, tx);
