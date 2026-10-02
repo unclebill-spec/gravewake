@@ -79,6 +79,22 @@ PALETTE_V2_ADD = frozenset((
 ))
 LOCKED_V2 = LOCKED | PALETTE_V2_ADD
 
+# [OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b gloom and glow] Bill's favourite look is "gloom and glow": dark
+# scenes full of glowing things, his signature glows neon blue cold fire (top pick), violet neon and red neon. The
+# locked set had the deep and mid steps of each (#2a3a6a #3a6ad0, #4a2a78 #7a5ad0, #6a2030 #c43838) but no bright neon
+# tube, so palette v3 adds exactly four: blue tube #4ab8ff, cold-fire core #9ae4ff, violet tube #b07aff, red tube
+# #ff3a50. Their own set again: every older sheet keeps snapping to LOCKED / LOCKED_V2 byte for byte.
+PALETTE_V3_GLOW = frozenset((
+    "#4ab8ff", "#9ae4ff", "#b07aff", "#ff3a50",
+))
+LOCKED_V3 = LOCKED_V2 | PALETTE_V3_GLOW
+# The three signature glow ramps (deep halo, mid, tube, core), all in LOCKED_V3.
+NEON = {
+    "blue": ("#16304a", "#2a3a6a", "#3a6ad0", "#4ab8ff", "#9ae4ff", "#e7f4ff"),
+    "violet": ("#241848", "#4a2a78", "#7a5ad0", "#b07aff", "#c9a0e8", "#f4fbff"),
+    "red": ("#2a1018", "#6a2030", "#c43838", "#ff3a50", "#ffd0d0", "#fff8ee"),
+}
+
 # The colors the first sprite set already used. Shade steps look here first,
 # so the new bodies stay close to the old set before reaching into the wider list.
 SPRITE_CORE = frozenset((

@@ -3,7 +3,6 @@ import { CLASSES, type ClassId, type StatPath } from "./content";
 import { AudioBus } from "./audio";
 import { drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
 import { ACTS, Game, type Act } from "./sim";
-import { CAMP_ICON, PORTRAITS } from "./looks"; // playtest1b
 import {
   ASPECTS,
   ASPECT_LABEL,
@@ -817,22 +816,14 @@ export function Gravewake() {
             Name
             <input value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-border bg-surface px-3 py-2 text-fg" />
           </label>
-          {/* playtest1b (owner-requested 2026-10-02): the sprite writer's busts, each in its class's glow (gloom and glow),
-              four across on a wide screen, two on a narrow one; the chosen card lights in that glow. */}
-          <div className="grid w-full max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4" data-testid="class-cards">
+          <div className="grid w-full max-w-lg grid-cols-2 gap-2">
             {(Object.keys(CLASSES) as ClassId[]).map((id) => (
-              <button
-                key={id}
-                type="button"
-                data-testid={`class-${id}`}
-                aria-pressed={cls === id}
-                onClick={() => setCls(id)}
-                className={`flex flex-col items-center gap-1 rounded border bg-[#0c0a08] px-2 pt-2 pb-2 text-center transition-shadow ${cls === id ? "" : "border-border opacity-80"}`}
-                style={cls === id ? { borderColor: CLASS_GLOW[id], boxShadow: `0 0 0 1px ${CLASS_GLOW[id]}, 0 0 14px ${CLASS_GLOW[id]}` } : undefined}
-              >
+              <button key={id} type="button" onClick={() => setCls(id)} className={`flex gap-2 rounded border px-2 py-2 text-left ${cls === id ? "border-primary bg-surface" : "border-border"}`}>
                 <Portrait role={id} />
-                <span className="block font-display text-lg leading-tight" style={cls === id ? { color: CLASS_GLOW[id] } : undefined}>{CLASSES[id].label}</span>
-                <span className="text-[11px] leading-snug text-muted">{CLASSES[id].blurb}</span>
+                <span>
+                  <span className="block font-display text-lg leading-tight">{CLASSES[id].label}</span>
+                  <span className="text-xs text-muted">{CLASSES[id].blurb}</span>
+                </span>
               </button>
             ))}
           </div>
@@ -938,11 +929,10 @@ export function Gravewake() {
               {game.wading ? <div className="text-primary">Swimming · half speed</div> : null}
               {game.sliding ? <div className="text-primary">Ice underfoot</div> : null}
               {game.fishPoints > 0 ? <div className="text-muted">Fish points {game.fishPoints}</div> : null}
-              {/* playtest1b (owner-reported 2026-10-02 01:03 ET): "Lantern Night" is the festival, not the hour; say so. */}
-              <div className="text-muted" data-testid="festival-line">{game.seasonName()} festival</div>
+              <div className="text-muted">{game.seasonName()}</div>
               <div className="text-muted" data-testid="season-line">{game.seasonLine()}</div>
               <div className="mt-1 flex gap-1 text-[10px]">
-                <span className="rounded border border-border px-1" data-testid="phase-chip" title="Clock phase">{game.phase === "night" ? "Night" : game.theme === "town" ? "Day · town twilight" : "Day"}</span>
+                <span className="rounded border border-border px-1">{game.phase === "night" ? "Night" : "Day"}</span>
                 <span className="rounded border border-border px-1">WX {game.weatherLabel()}</span>
               </div>
               </div>
@@ -1012,8 +1002,8 @@ export function Gravewake() {
               data-testid="minimap"
               width={96}
               height={96}
-              className={`absolute z-10 touch-none bg-bg ${pip ? "h-6 w-6" : "h-24 w-24"}`}
-              style={{ boxShadow: "0 0 8px rgba(74, 184, 255, 0.35)", left: Math.max(0, Math.min(miniAt.x, (typeof window !== "undefined" ? window.innerWidth : 1e4) - (pip ? 24 : 96))), top: Math.max(0, Math.min(miniAt.y, (typeof window !== "undefined" ? window.innerHeight : 1e4) - (pip ? 24 : 96))), imageRendering: "pixelated" }}
+              className={`absolute z-10 touch-none border border-border bg-bg ${pip ? "h-6 w-6" : "h-24 w-24"}`}
+              style={{ left: Math.max(0, Math.min(miniAt.x, (typeof window !== "undefined" ? window.innerWidth : 1e4) - (pip ? 24 : 96))), top: Math.max(0, Math.min(miniAt.y, (typeof window !== "undefined" ? window.innerHeight : 1e4) - (pip ? 24 : 96))), imageRendering: "pixelated" }}
               onPointerDown={(e) => {
                 const now = performance.now();
                 if (now - miniTap.current < 280) setPip((v) => !v);
@@ -1044,9 +1034,7 @@ export function Gravewake() {
             type="button"
             data-testid="hud-camp"
             aria-label={game.mapId === "camp" ? "Break camp" : "Pitch camp"}
-            aria-disabled={!game.canCamp()}
-            data-can={game.canCamp() ? "1" : "0"}
-            className={`gw-camp absolute bottom-36 left-3 z-10 flex h-12 w-12 flex-col items-center justify-center border border-border bg-surface ${game.canCamp() ? "" : "opacity-40"}`}
+            className="gw-camp absolute bottom-36 left-3 z-10 h-12 w-12 border border-border bg-surface"
             style={{ imageRendering: "pixelated", left: "calc(0.75rem + var(--sal))", bottom: "calc(9rem + var(--sab))" }}
             onPointerDown={() => {
               unlock();
@@ -1054,15 +1042,17 @@ export function Gravewake() {
               bump();
             }}
           >
-            {/* playtest1b (owner-requested 2026-10-02): the pixel writer's tent and cold-fire campfire, the flame on two
-                frames; in camp the struck tent. Labelled, and dimmed wherever camp() would refuse. */}
-            <span
-              aria-hidden
-              data-testid="hud-camp-icon"
-              className={game.mapId === "camp" ? "block h-8 w-8" : "gw-camp-fire block h-8 w-8"}
-              style={{ backgroundImage: `url(${CAMP_ICON})`, backgroundSize: "96px 32px", backgroundPosition: game.mapId === "camp" ? "-64px 0" : "0 0", imageRendering: "pixelated" }}
-            />
-            <span className="text-[9px] leading-none text-fg" data-testid="hud-camp-label">{game.mapId === "camp" ? "Break" : "Camp"}</span>
+            <svg viewBox="0 0 16 16" className="h-8 w-8">
+              <rect width="16" height="16" fill="#1c1814" />
+              <rect x="2" y="11" width="12" height="2" fill="#4a3020" />
+              <rect x="3" y="8" width="2" height="3" fill="#6a3c28" />
+              <rect x="5" y="6" width="2" height="5" fill="#6a3c28" />
+              <rect x="7" y="4" width="2" height="7" fill="#c4a574" />
+              <rect x="9" y="6" width="2" height="5" fill="#6a3c28" />
+              <rect x="11" y="8" width="2" height="3" fill="#6a3c28" />
+              <rect x="7" y="12" width="2" height="2" fill="#e07a2f" />
+              <rect x="6" y="13" width="4" height="1" fill="#f0c080" />
+            </svg>
           </button>
 
           <div className="absolute right-3 bottom-3 z-10 flex flex-col items-end gap-2" style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))" }}>
@@ -1622,7 +1612,7 @@ export function Gravewake() {
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={!game.canCamp()} className="rounded border border-border px-3 py-2 text-sm disabled:opacity-40" onClick={() => { game.camp(); bump(); }}>
+                <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.camp(); bump(); }}>
                   Pitch camp
                 </button>
                 <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.openPortal(); bump(); }}>
@@ -1946,35 +1936,15 @@ function FsIcon({ out }: { out: boolean }) {
   );
 }
 
-/** playtest1b: each class's signature glow on the select screen (the neon tubes of palette v3). */
-const CLASS_GLOW: Record<ClassId, string> = { warrior: "#4ab8ff", wizard: "#b07aff", assassin: "#9ae4ff", vampire: "#ff3a50" };
-const PORTRAIT_ORDER = ["warrior", "wizard", "assassin", "vampire"];
-
-/**
- * Bust for one class on the select screen. playtest1b: the sprite writer's 48 x 64 portrait (portraits.png, shown at
- * a whole 2x); a class without one keeps the old canvas bust.
- */
+/** Small canvas bust for one class on the select screen. */
 function Portrait({ role }: { role: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const cell = PORTRAIT_ORDER.indexOf(role);
   useEffect(() => {
-    if (cell >= 0) return;
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx) return;
     drawPortrait(ctx, role);
-  }, [role, cell]);
-  if (cell >= 0) {
-    return (
-      <span
-        role="img"
-        aria-label={`${role} portrait`}
-        data-testid={`portrait-${role}`}
-        className="block h-32 w-24 shrink-0"
-        style={{ backgroundImage: `url(${PORTRAITS})`, backgroundSize: "384px 128px", backgroundPosition: `-${cell * 96}px 0`, imageRendering: "pixelated" }}
-      />
-    );
-  }
+  }, [role]);
   return <canvas ref={ref} width={64} height={80} className="h-20 w-16 shrink-0" />;
 }
 

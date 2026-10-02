@@ -912,3 +912,18 @@ Leaving the page: autosave on hide, close, blur, fullscreen exit and every 45 s 
 slot-shaped record; slots untouched); pause under "Tap to resume"; resume there on reload; the back gesture asks
 "Leave game?"; closing asks the browser's leave prompt.
 Ground: the town cobble, dirt, water, pool, fence, the vale road and room floors are pixel-writer strips.
+
+OWNER-REQUESTED LOOKS  [OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b looks, "gloom and glow"]
+Dark scenes full of glowing things. Signature glows: neon blue cold fire (first), violet neon, red neon, on
+lanterns, wisps, signs and town decor. Palette v3 = v2 + #4ab8ff #9ae4ff #b07aff #ff3a50 (NEON ramps).
+Every town room door hangs its trade's neon sign (emissive). Names float over people within 6 tiles; a room's
+name shows in gold by its door within 3. Homes (cottages, crofts, tradeless houses) keep a picket yard one tile
+out on grass, gap at the door path; looks only. Every building is house scale. The town on the vale is a walled
+hamlet icon with blue gate lamps. Camp button dims where you cannot camp. Minimap: iron frame, neon corner
+studs, markers for stairs (violet), gates (blue), doors (gold), and the hero.
+Playtest notes 2026-10-02: the phase chip names town twilight; "Lantern Night" is labelled a festival; the
+swim line is replaced when you climb out; jack-o'-lanterns drawn whole.
+
+OWNER-APPROVED BALANCE  [OWNER-APPROVED 2026-10-02 Bill]
+Mana: max MP = old formula x2.5, MP regen = old rate x3 (sim.ts MANA). Fresh wizard 83 MP (was 33): 6 Smites
+from full and most of a 7th, 0.90 MP/s regen (was 0.30). Spell costs and damage unchanged.

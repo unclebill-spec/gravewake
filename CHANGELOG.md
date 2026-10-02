@@ -2,6 +2,18 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1b, owner playtest looks pass
+- Neon signs on all 16 town doors (inn, casino, every shop), lit at night; gold building names near doors.
+- Name labels over nearby people (vendors blue, companion violet, bosses red).
+- Class portraits on neon-edged character select cards.
+- Camp button: new tent-and-blue-fire icon, dimmed/disabled in town; camp exit always asks "Leave camp?".
+- Camp map art redo: tent, animated blue campfire, log seats, bedroll, lanterns, glowing mushrooms; camp and rooms darken at night.
+- Interiors: new back walls, lamps, shelves, floorboards, rugs; cottages get bed, table, dresser, blue-fire stove, plant.
+- Picket fences back around cottages and the croft (decor only).
+- [OWNER-APPROVED 2026-10-02 Bill] Mana: max MP x2.5, regen x3; spell damage and costs unchanged.
+- Fixes: false swim message on dry cobble, half pumpkins, half-size Drowned Hook, Day chip wording, Lantern Night festival label, mini map iron frame + markers.
+- check:game 641; fail-proofs 739/739.
+
 ## 2026-10-02: playtest1a, owner playtest bug fixes
 - Town is now 40×30. Every door is on its house's south face and can be reached on foot. Doors open only from the front, and the walls behind them are solid. You leave town only through road gates, and entering puts you at the matching gate. Old saves standing on a moved door or inside a wall are nudged to the nearest open tile.
 - You swim only when your whole foot box is over water. NPCs no longer use the player's hero-class looks. The legacy ground tiles were replaced with pixel-writer art.

@@ -785,15 +785,11 @@ export class Game {
     return 16 + this.sta * 4 + this.level * 2;
   }
 
-  /**
-   * [OWNER-APPROVED 2026-10-02 Bill] (playtest 01:05 ET, "mana runs out after ~2 spells"): the pool is the old formula
-   * times MANA.pool, so a fresh wizard holds 83 MP (was 33): 6 Smites (12 MP) from full and most of a 7th, 13 arts (6 MP).
-   * Spell costs and damage are unchanged.
-   */
   get maxEnergy() {
     if (this.cls === "vampire") return 0;
-    const base = this.cls === "wizard" ? 8 + this.int * 3 + this.level : this.cls === "assassin" ? 8 + this.dex * 2 + this.level : 8 + this.str * 2 + this.level;
-    return Math.round(base * MANA.pool);
+    if (this.cls === "wizard") return 8 + this.int * 3 + this.level;
+    if (this.cls === "assassin") return 8 + this.dex * 2 + this.level;
+    return 8 + this.str * 2 + this.level;
   }
 
   get atk() {
@@ -2937,9 +2933,7 @@ export class Game {
     const hpRate = (0.15 + this.sta * 0.02) * bless * (this.cls === "vampire" && this.blessing > this.worldMs ? 1.5 : 1);
     this.hp = Math.min(this.maxHp, this.hp + hpRate * dt);
     if (this.cls !== "vampire") {
-      // [OWNER-APPROVED 2026-10-02 Bill]: regen is the old rate times MANA.regen (a fresh wizard: 0.30 -> 0.90 MP/s,
-      // a Smite back every ~13 s instead of ~40 s).
-      const er = (0.12 + this.fort * 0.03) * bless * MANA.regen;
+      const er = (0.12 + this.fort * 0.03) * bless;
       this.energy = Math.min(this.maxEnergy, this.energy + er * dt);
       if (this.stam < 40) this.stam = Math.min(40, this.stam + 8 * dt);
     } else if (this.blood < 20) this.blood = Math.min(20, this.blood + 2 * dt);
@@ -3041,11 +3035,8 @@ export class Game {
     } else this.stuckT = 0;
     if (this.wading && !this.notedWade) {
       this.notedWade = true;
-      this.logLine = WADE_LINE;
+      this.logLine = "You sink in. Swimming is half speed.";
     }
-    // playtest1b (owner-reported 2026-10-02 01:03 ET, "swim message on dry town cobble"): the wade line used to stay in
-    // the log after you climbed out, so it still read "You sink in" on the road. Leaving the water now says so.
-    if (!this.wading && this.notedWade && this.logLine === WADE_LINE) this.logLine = DRY_LINE;
     if (!this.wading) this.notedWade = false;
     if (this.sliding && !this.notedSlide) {
       this.notedSlide = true;
@@ -3222,14 +3213,6 @@ export class Game {
 
   /** Step onto a door and the building becomes its own room. The door inside leads back out. */
   private checkDoor(dt: number) {
-    // playtest1b (owner-reported 2026-10-01, the camp door cooldown pass-through): the camp's south mark asks the
-    // moment your feet reach it, or slip past it into the tree line below, cooldown or not. Before, walking south on
-    // arrival crossed the mark inside the 0.45 s door cooldown and the trees slid you off it, so it never asked.
-    if (this.mapId === "camp" && this.mode === "play" && !this.askLeave && this.onCampMark()) {
-      this.doorCool = 0;
-      this.askLeaveCamp();
-      return;
-    }
     if (this.doorCool > 0) {
       this.doorCool = Math.max(0, this.doorCool - dt);
       return;
@@ -6779,23 +6762,6 @@ export class Game {
       : "The tent is up. The fire holds. The south mark leads back to the road.";
   }
 
-  /** playtest1b: feet on the camp's south mark, or below its row within a tile of it (the trees push you there). */
-  private onCampMark(): boolean {
-    const i = this.tiles.indexOf(T.door);
-    if (i < 0) return false;
-    const mx = i % this.w;
-    const my = (i - mx) / this.w;
-    const tx = Math.floor(this.px / TILE);
-    const ty = Math.floor(this.py / TILE);
-    return (tx === mx && ty === my) || (ty > my && Math.abs(tx - mx) <= 1);
-  }
-
-  /** playtest1b: the HUD's camp button is lit where it works: in the wild out of a fight, or in camp to break it. */
-  canCamp(): boolean {
-    if (this.mapId === "camp") return true;
-    return this.mapId === "world" && this.mode !== "battle" && this.mode !== "dead" && this.fallen <= 0; // camp()'s own test
-  }
-
   /** playtest1 (owner-reported 2026-10-01): breaking camp, or walking onto its south mark, asks "Leave camp?". */
   askLeaveCamp() {
     if (this.mapId !== "camp" || this.mode !== "play") return;
@@ -6816,12 +6782,6 @@ export class Game {
     const ty = Math.floor(this.py / TILE);
     if (this.tiles[ty * this.w + tx] === T.door) {
       this.py = (ty - 1) * TILE + 8;
-      this.facing = "n";
-    } else if (this.onCampMark()) {
-      // playtest1b: slipped past the mark into the trees: back to the clearing above it
-      const i = this.tiles.indexOf(T.door);
-      this.px = (i % this.w) * TILE + 8;
-      this.py = (Math.floor(i / this.w) - 1) * TILE + 8;
       this.facing = "n";
     }
     this.doorCool = 0.45;
@@ -7278,22 +7238,6 @@ const ROOMS: RoomDef[] = [
 
 function roomByDoor(x: number, y: number) {
   return ROOMS.find((r) => r.doorX === x && r.doorY === y);
-}
-
-/** playtest1b: the room behind a town door (its trade and its name), for the signs. Picture only. */
-/**
- * [OWNER-APPROVED 2026-10-02 Bill] mana change (playtest1b): max MP x2.5 and MP regen x3 for every mana class, so a
- * caster gets about 6-8 casts from full and refills noticeably faster. Spell costs and damage are not touched.
- */
-export const MANA = { pool: 2.5, regen: 3 } as const;
-
-/** playtest1b: the log line on stepping into water, and the one that replaces it on climbing out. */
-export const WADE_LINE = "You sink in. Swimming is half speed.";
-export const DRY_LINE = "You climb out onto dry ground.";
-
-export function townRoomAt(x: number, y: number): { id: string; name: string; kind: string } | undefined {
-  const r = roomByDoor(x, y);
-  return r ? { id: r.id, name: r.name, kind: r.kind } : undefined;
 }
 
 function buildRoom(kind: string) {

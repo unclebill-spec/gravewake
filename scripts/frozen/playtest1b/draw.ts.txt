@@ -4,8 +4,6 @@ import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
 import { HARVEST } from "./festivals";
 import type { Game } from "./sim";
-import { townRoomAt } from "./sim";
-import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
 import { ATLAS_CELL, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { secretTile, spikeStage } from "./feats";
@@ -383,14 +381,9 @@ function paintHouse(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: num
 }
 
 /** Interior wall and the exit door. Wood, a window, a step. */
-function paintRoomEdge(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: number, frame = 0) {
+function paintRoomEdge(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: number) {
   const gx = x * TILE;
   const gy = y * TILE;
-  // playtest1b B2 (owner-reported 2026-10-02, "cottage interior ... very low detail"): the hearth writer's wall: a beamed
-  // plaster back wall with a wainscot, night-blue windows, cold-blue sconces and a shelf; beams down the sides.
-  const back = y === 0;
-  const cell = tile === T.door ? ROOM_CELL.door : !back ? ROOM_CELL.side : x % 4 === 2 ? ROOM_CELL.window : x % 4 === 0 && x > 0 ? (Math.floor(frame / 3 + x) % 7 === 0 ? ROOM_CELL.sconce2 : ROOM_CELL.sconce) : x === 9 ? ROOM_CELL.shelf : ROOM_CELL.plain;
-  if (sheetCell(ctx, ROOM_WALL, cell, 0, gx, gy)) return;
   px(ctx, gx, gy, TILE, TILE, "#6b4c34");
   px(ctx, gx, gy, TILE, 2, "#8a6848");
   px(ctx, gx, gy + 14, TILE, 2, "#3a2818");
@@ -629,16 +622,11 @@ function drawTile(
   }
   if (tile === T.floor && townish(theme)) {
     // playtest1: the writer's floorboards; the old seam and random marks are only the not-yet-loaded fallback.
-    // playtest1b B2 (owner-reported 2026-10-02, "bare brick floor"): rooms lay the hearth writer's long boards; the short
-    // planks (which read as brick) stay for the town footprints and as the fallback.
-    if (theme.startsWith("room:") && sheetCell(ctx, ROOM_BOARDS, Math.abs(x * 3 + y) % 4, 0, gx, gy)) {
-      // drawn
-    } else if (!sheetCell(ctx, PT1_GROUND.floor, Math.abs(x + y * 3) % 4, 0, gx, gy)) {
+    if (!sheetCell(ctx, PT1_GROUND.floor, Math.abs(x + y * 3) % 4, 0, gx, gy)) {
       px(ctx, gx + 0, gy + 15, TILE, 1, "#3a2818");
       px(ctx, gx + 4, gy + 4, 2, 6, "#4a3424");
     }
-    // playtest1b B2: rooms have the writer's bed now; this flat bedroll block only stays on the town map.
-    if ((x === 3 || x === 4) && y === 4 && !theme.startsWith("room:")) {
+    if ((x === 3 || x === 4) && y === 4) {
       px(ctx, gx + (x === 3 ? 2 : 0), gy + 5, x === 3 ? 14 : 12, 8, "#6a3048");
       px(ctx, gx + (x === 3 ? 2 : 0), gy + 4, x === 3 ? 14 : 8, 3, "#e8dcc8");
     }
@@ -671,10 +659,7 @@ function drawTile(
       px(ctx, gx + 7, gy + 8, 2, 2, "#8a2030");
       px(ctx, gx + 11, gy + 7, 2, 2, "#141414");
     }
-    // playtest1b B2: the woven writer rug over the same 4x2 tiles (the flat block is the not-yet-loaded fallback).
-    if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6 && sheetCell(ctx, ROOM_RUG, x - 5, y - 5, gx, gy)) {
-      // drawn
-    } else if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6) {
+    if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6) {
       px(ctx, gx, gy, TILE, TILE, x === 5 || y === 5 ? "#6a3040" : "#5a2838");
       px(ctx, gx + 2, gy + 2, 4, 2, "#8a4860");
       if (x === 5 && y === 5) px(ctx, gx, gy, TILE, 2, "#c4a050");
@@ -760,16 +745,13 @@ function drawTile(
     paintCaveFloor(ctx, x, y, theme, drew);
   }
   if ((tile === T.wall || secretTile(tile)) && cave && !paintWallKit(ctx, x, y, theme, above, below, left, right)) paintCaveWall(ctx, x, y, theme, above, n);
-  if ((tile === T.wall || tile === T.door) && theme.startsWith("room:")) paintRoomEdge(ctx, tile, x, y, frame);
+  if ((tile === T.wall || tile === T.door) && theme.startsWith("room:")) paintRoomEdge(ctx, tile, x, y);
   else if ((tile === T.wall || tile === T.door) && theme === "town") paintTownFootprint(ctx, tile, x, y, n);
   else if ((tile === T.wall || tile === T.door) && townish(theme)) paintHouse(ctx, tile, x, y, above, below, left, right);
-  // playtest1b B2 (owner-reported 2026-10-02, "camp graphics unchanged"): the tent's footprint is camp grass under the
-  // writer tent (the green block is only the not-yet-loaded fallback); the mark and the fire stand on camp dirt.
-  if (tile === T.wall && theme === "camp" && !seasonCell(ctx, "camp-grass", "/art/writer/camp-grass.png", Math.abs(x * 3 + y * 5) % 4, gx, gy)) {
+  if (tile === T.wall && theme === "camp") {
     px(ctx, gx, gy, TILE, TILE, "#3c8636");
     px(ctx, gx + 4, gy + 10, 2, 3, "#2a6828");
   }
-  if ((tile === T.door || tile === T.hearth) && theme === "camp" && sheetCell(ctx, "/art/writer/camp-dirt.png", Math.abs(x * 5 + y * 3) % 4, 0, gx, gy)) return;
   if (tile === T.wall && theme === "over") {
     px(ctx, gx, gy, TILE, TILE, "#4a545c");
     px(ctx, gx, gy, TILE, 3, "#6a7480");
@@ -938,7 +920,7 @@ function paintBossTrophy(ctx: CanvasRenderingContext2D, family: string, x: numbe
   ctx.drawImage(im, col * 16 + 3, TROPHY_HEAD_TOP[family] ?? 0, 10, 10, x * TILE + 3, y * TILE + 2, 10, 10);
 }
 if (typeof Image !== "undefined") {
-  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "trees", "town-trees"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
+  for (const url of [FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "trees", "town-trees"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -1036,12 +1018,7 @@ function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" | "pump
     return;
   }
   if (kind === "pump") {
-    // playtest1b (owner-reported 2026-10-02, "half pumpkins"): the old pick read the sheet's 16px grid at (6,5), which
-    // cuts the big jack-o'-lantern down its middle. These are the two whole pumpkins' own boxes on the same sheet.
-    if (biome === "town") {
-      const small = Math.abs(Math.round(x / TILE) * 3 + Math.round(y / TILE)) % 3 === 0;
-      if (small ? sheetCell(ctx, "/art/land/decoration.png", 112, 80, x, y, 1, 1, 1) : sheetCell(ctx, "/art/land/decoration.png", 80, 64, x - 8, y - 16, 2, 2, 1)) return;
-    }
+    if (biome === "town" && landCell(ctx, "decoration", 6, 5, x - 8, y - 16, 2, 2)) return;
     px(ctx, ox - 6, oy - 10, 12, 9, "#e07a2f");
     px(ctx, ox - 7, oy - 8, 2, 5, "#c45a18");
     px(ctx, ox + 5, oy - 8, 2, 5, "#c45a18");
@@ -1691,13 +1668,12 @@ function townBuildings(g: Game): TownBuilding[] {
       }
     }
     const bw = x1 - x0 + 1;
-    // Five or more wide on an even column is a cabin; everything else is a house.
-    // playtest1b (owner-reported 2026-10-02 01:04 ET, "some houses drawn half size"): narrow footprints used to get the
-    // 32x46 shack, half a house's 61x91, so the Drowned Hook stood at half scale. Every building is house scale now.
-    const cabin = bw >= 5 && x0 % 2 === 0;
+    // Same pick as before: five or more wide is a house (a cabin on even columns), else a shack.
+    const big = bw >= 5;
+    const cabin = big && x0 % 2 === 0;
     const which = x0 % 3;
     const suffix = which === 1 ? "-warm" : which === 2 ? "-slate" : "";
-    const file = cabin ? "/art/cozy/cabin.png" : `/art/land/house${suffix}.png`;
+    const file = cabin ? "/art/cozy/cabin.png" : `${big ? "/art/land/house" : "/art/land/shack"}${suffix}.png`;
     out.push({ x: x0, y: y0, w: bw, h: y1 - y0 + 1, doorX, doorY, file });
   }
   buildingCache.set(g.tiles, out);
@@ -1776,60 +1752,6 @@ function paintYardFence(ctx: CanvasRenderingContext2D, b: TownBuilding) {
     }
   }
 }
-
-/** playtest1b: every room door in town (a building can hold two: Noll's cottage and the South Croft share one), cached. */
-const roomDoorCache = new WeakMap<object, { x: number; y: number; bx: number; room: { id: string; name: string; kind: string } }[]>();
-function roomDoors(g: Game) {
-  const hit = roomDoorCache.get(g.tiles);
-  if (hit) return hit;
-  const out: { x: number; y: number; bx: number; room: { id: string; name: string; kind: string } }[] = [];
-  for (const b of townBuildings(g)) {
-    for (let ty = b.y; ty < b.y + b.h; ty++) {
-      for (let tx = b.x; tx < b.x + b.w; tx++) {
-        if (g.tiles[ty * g.w + tx] !== T.door) continue;
-        const room = townRoomAt(tx, ty);
-        if (room) out.push({ x: tx, y: ty, bx: b.x, room });
-      }
-    }
-  }
-  roomDoorCache.set(g.tiles, out);
-  return out;
-}
-
-/** Home kinds that keep a fenced yard: cottages, crofts, and any house with no trade behind its door. */
-const YARD_KINDS = new Set(["cottage", "croft"]);
-const yardCache = new WeakMap<object, { x: number; y: number; cell: number }[]>();
-/** playtest1b: the yard fence pieces for every home, worked out once per town grid. cell 0 = rail, 1 = side, 2 = gate post. */
-export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
-  const hit = yardCache.get(g.tiles);
-  if (hit) return hit;
-  const out: { x: number; y: number; cell: number }[] = [];
-  const taken = new Set<number>();
-  for (const b of townBuildings(g)) {
-    const room = b.doorX >= 0 ? townRoomAt(b.doorX, b.doorY) : undefined;
-    if (room && !YARD_KINDS.has(room.kind)) continue;
-    const x0 = b.x - 1, y0 = b.y - 1, x1 = b.x + b.w, y1 = b.y + b.h;
-    const southDoor = b.doorY === b.y + b.h - 1;
-    const doors = roomDoors(g).filter((d) => d.bx === b.x && d.y >= b.y && d.y < b.y + b.h);
-    const gap = (tx: number, ty: number) => (southDoor ? ty === y1 && (tx === b.doorX || doors.some((d) => d.x === tx)) : b.doorX >= 0 && Math.abs(tx - b.doorX) + Math.abs(ty - b.doorY) === 1);
-    const open = (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < g.w && ty < g.h && g.tiles[ty * g.w + tx] === T.grass;
-    for (let ty = y0; ty <= y1; ty++) {
-      for (let tx = x0; tx <= x1; tx++) {
-        const edge = ty === y0 || ty === y1 || tx === x0 || tx === x1;
-        if (!edge || !open(tx, ty) || gap(tx, ty) || taken.has(ty * g.w + tx)) continue;
-        const nextToGap = gap(tx - 1, ty) || gap(tx + 1, ty);
-        const side = (tx === x0 || tx === x1) && ty !== y0 && ty !== y1;
-        taken.add(ty * g.w + tx);
-        out.push({ x: tx, y: ty, cell: nextToGap ? 2 : side ? 1 : 0 });
-      }
-    }
-  }
-  yardCache.set(g.tiles, out);
-  return out;
-}
-
-/** playtest1b B2: the same seeded flicker beat as the shop signs (a lantern dips now and then). */
-const signFrameOf = (frame: number, seed: number) => (Math.floor(frame / 3) + seed * 7) % 11 === 0;
 
 function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuilding) {
   paintYardFence(ctx, b);
@@ -2061,9 +1983,6 @@ export function sceneAmbient(g: Game): RGB | null {
   if (g.phase !== "night") return null;
   if (g.mapId === "world") return LIGHT.worldNight;
   if (g.mapId === "town") return LIGHT.townNight;
-  // playtest1b B2 (gloom and glow): the camp and the town's rooms dim at night too, so their cold-blue fires show.
-  if (g.mapId === "camp") return LIGHT.worldNight;
-  if (g.mapId === "inside" && g.theme.startsWith("room:")) return LIGHT.townNight;
   return null;
 }
 
@@ -2085,18 +2004,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     }
   }
   if (g.mapId === "town") {
-    // playtest1b: a door with a sign is lit by the sign's neon (blue, violet or red); a bare door keeps its torch.
-    const signed = new Set<number>();
-    for (const d of roomDoors(g)) {
-      if (!SIGN_GLOW[d.room.kind]) continue;
-      const at = signSpot(d.x, d.y);
-      signed.add(d.y * g.w + d.x);
-      out.push({ x: at.x + 8, y: at.y + 10, r: LIGHT.doorLamp, c: NEON_LIGHT[SIGN_GLOW[d.room.kind]], seed: d.bx & 3, flick: false });
-    }
-    for (const b of townBuildings(g)) {
-      if (b.doorX < 0 || signed.has(b.doorY * g.w + b.doorX)) continue;
-      out.push({ x: b.doorX * TILE + 8, y: b.doorY * TILE + 2, r: LIGHT.doorLamp, c: LIGHTS.torch, seed: b.x & 3, flick: true });
-    }
+    for (const b of townBuildings(g)) if (b.doorX >= 0) out.push({ x: b.doorX * TILE + 8, y: b.doorY * TILE + 2, r: LIGHT.doorLamp, c: LIGHTS.torch, seed: b.x & 3, flick: true });
     const fest = g.festivalId();
     const lit = fest === "harvest" ? g.lanternsLit() : [];
     HARVEST.lanterns.forEach(([x, y], i) => {
@@ -2104,20 +2012,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
       if (c) out.push({ x: x * TILE + 8, y: y * TILE - 2, r: LIGHT.lantern, c, seed: i & 3, flick: true });
     });
   }
-  // playtest1b B2: the camp fire and its lantern posts, and a room's sconces, stove and candle, burn cold blue.
-  if (g.theme === "camp") {
-    const i = g.tiles.indexOf(T.hearth);
-    if (i >= 0) out.push({ x: (i % g.w) * TILE + 8, y: Math.floor(i / g.w) * TILE - 2, r: LIGHT.brazier, c: NEON_LIGHT.blue, seed: 2, flick: true });
-    for (const d of CAMP_DRESS) if (d.lit) out.push({ x: d.x * TILE + 11, y: d.y * TILE + 3, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: false });
-    const m = g.tiles.indexOf(T.door);
-    if (m >= 0) out.push({ x: (m % g.w) * TILE + 4, y: Math.floor(m / g.w) * TILE + 1, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: 1, flick: false });
-  }
-  if (g.theme.startsWith("room:")) {
-    for (let x = 4; x < g.w - 1; x += 4) out.push({ x: x * TILE + 8, y: 6, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: x & 3, flick: true });
-    for (const d of ROOM_DRESS[g.theme.slice(5)] ?? []) if (d.lit) out.push({ x: d.lit.x, y: d.lit.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: true });
-  }
   if (g.mapId === "world") {
-    for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
     for (const r of g.riftMouths()) out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
     if (g.festivalId() === "bloom") g.bloomsTonight().forEach((b, i) => { if (!g.bloomPicked(i)) out.push({ x: b.x * TILE + 8, y: b.y * TILE + 6, r: LIGHT.bloom, c: LIGHTS.ghost, seed: i & 3, flick: false }); });
   }
@@ -2439,47 +2334,6 @@ export function spellLight(s: { x: number; y: number; tx: number; ty: number; ki
 /** Flame foes: the Lantern Man and Lantern King, the Pumpkin Lord, the Headless Horseman (his lantern head). */
 export const FLAME_FOES: ReadonlySet<string> = new Set(["pumpkin", "lanternking", "pumpkinlord", "horseman"]);
 
-/** playtest1b: the vale's town doors (one today), found once per world grid. */
-const doorCache = new WeakMap<object, { x: number; y: number }[]>();
-function townDoors(g: Game): { x: number; y: number }[] {
-  if (g.mapId !== "world") return [];
-  const hit = doorCache.get(g.tiles);
-  if (hit) return hit;
-  const out: { x: number; y: number }[] = [];
-  for (let i = 0; i < g.w * g.h; i++) if (g.tiles[i] === T.door) out.push({ x: i % g.w, y: Math.floor(i / g.w) });
-  doorCache.set(g.tiles, out);
-  return out;
-}
-
-/**
- * playtest1b (owner-requested 2026-10-02): names over heads, in the small pixel font with an ink edge, drawn after the
- * light layer so they read at night. Townsfolk within LABEL.near tiles (trades in cold blue, the rest bone), your
- * companion in violet, a named boss in red wherever it is on screen. Houses show their name in gold on the sign plate
- * when you stand at the door. Picture only.
- */
-function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
-  if (g.mode === "title") return;
-  const near = (x: number, y: number) => Math.hypot(x - g.px, y - g.py) <= LABEL.near * TILE;
-  for (const n of g.npcs) {
-    if (!n.name || !near(n.x, n.y)) continue;
-    const row: FontRow = TRADE_ROLES.has(n.role) ? "blue" : "bone";
-    drawLabel(ctx, n.name, n.x, n.y - LABEL.lift, row);
-  }
-  if (g.companion && g.companion.name) drawLabel(ctx, g.companion.name, g.companion.x, g.companion.y - LABEL.lift, "violet");
-  for (const r of g.roamers) {
-    if (!r.boss || !r.name) continue;
-    if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
-    drawLabel(ctx, r.name, r.x, r.y - 46, "red");
-  }
-  if (g.mapId === "town") {
-    for (const d of roomDoors(g)) {
-      if (Math.hypot(d.x * TILE + 8 - g.px, (d.y + 1) * TILE + 8 - g.py) > 3 * TILE) continue;
-      const at = signSpot(d.x, d.y);
-      drawLabel(ctx, d.room.name, d.x * TILE + 8, at.y - 2, "gold");
-    }
-  }
-}
-
 export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
   seasonNow = g.season();
   sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
@@ -2578,8 +2432,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         props.push({
           y: y * TILE + 14,
           fn: () => {
-            // playtest1b B2: the old orange stumps are gone; a few writer stones mark the clearing's edge instead.
-            if ((x + y) % 4 === 0) sheetCell(ctx, CAMP_GEAR, GEAR.stones, 0, x * TILE, y * TILE - 2, 1, 1);
+            sheetCell(ctx, "/art/held/fence.png", Math.abs(x + y * 3) % 8, 0, x * TILE, y * TILE - 6, 1, 1);
           },
         });
       }
@@ -2589,11 +2442,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
           fn: () => {
             const gx = x * TILE;
             const gy = y * TILE;
-            // playtest1b B2: the writer tent, 80x80, standing on the 5x4 footprint with its flap on the door column.
-            if (sheetCell(ctx, CAMP_TENT, 0, 0, gx, gy - 16, 5, 5)) {
-              glow.push((c) => void sheetCell(c, CAMP_TENT_EM, 0, 0, gx, gy - 16, 5, 5));
-              return;
-            }
             px(ctx, gx + 4, gy + TILE * 3, TILE * 4, 3, "#1a2414");
             px(ctx, gx, gy + 8, TILE * 5, TILE * 2, "#4a3020");
             px(ctx, gx + 8, gy, TILE * 4, 10, "#6a3c28");
@@ -2634,63 +2482,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   if (g.theme === "town") {
     for (const b of townBuildings(g)) {
       props.push({ y: (b.y + b.h) * TILE - 1, fn: () => paintTownBuilding(ctx, g, b) });
-    }
-    // playtest1b (owner-reported 2026-10-02 01:04 ET, "fences around homes gone"): each home's yard has its writer
-    // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
-    // the seeded footprint and never touches g.tiles, so placement and collision are as they were.
-    for (const f of yardFences(g)) {
-      props.push({ y: f.y * TILE + 14, fn: () => void sheetCell(ctx, PT1_FENCE, f.cell, 0, f.x * TILE, f.y * TILE, 1, 1) });
-    }
-    // playtest1b (owner-requested 2026-10-02): every house with a door hangs its trade's sign beside it, the icon in a
-    // neon tube (blue cold fire, violet, red); the tube is emissive, so it glows at night.
-    for (const d of roomDoors(g)) {
-      const at = signSpot(d.x, d.y);
-      props.push({ y: (d.y + 1) * TILE, fn: () => void drawSign(ctx, d.room.kind, at.x, at.y, g.frame, d.bx) });
-      glow.push((c) => void drawSign(c, d.room.kind, at.x, at.y, g.frame, d.bx, true));
-    }
-  }
-  // playtest1b B2 (owner-reported 2026-10-02, "camp graphics unchanged"): the camp is a lit clearing. A cold-blue fire on
-  // the hearth (four frames), log seats, a bedroll, a pack, two lantern posts, glow caps on the grass, and the way out
-  // is a trail stake with a lantern. All looks: the camp grid, the mark and the hearth are where they always were.
-  if (g.theme === "camp") {
-    for (let i = 0; i < g.tiles.length; i++) {
-      const t = g.tiles[i];
-      const x = i % g.w;
-      const y = (i - x) / g.w;
-      if (t === T.hearth) {
-        const f = Math.floor(g.frame) % 4;
-        props.push({ y: y * TILE + 13, fn: () => void sheetCell(ctx, CAMP_FIRE, f, 0, x * TILE, y * TILE - 16, 1, 2) });
-        glow.push((c) => void sheetCell(c, CAMP_FIRE_EM, f, 0, x * TILE, y * TILE - 16, 1, 2));
-      } else if (t === T.door) {
-        const f = signFrameOf(g.frame, x) ? GEAR.mark2 : GEAR.mark;
-        props.push({ y: y * TILE + 14, fn: () => void sheetCell(ctx, CAMP_GEAR, f, 0, x * TILE, y * TILE - 4, 1, 1) });
-        glow.push((c) => void sheetCell(c, CAMP_GEAR_EM, f, 0, x * TILE, y * TILE - 4, 1, 1));
-      } else if (t === T.grass && x > 1 && y > 1 && x < g.w - 2 && y < g.h - 2 && (x * 7 + y * 3) % 11 === 0) {
-        props.push({ y: y * TILE + 12, fn: () => void sheetCell(ctx, CAMP_GEAR, GEAR.caps, 0, x * TILE, y * TILE, 1, 1) });
-        glow.push((c) => void sheetCell(c, CAMP_GEAR_EM, GEAR.caps, 0, x * TILE, y * TILE, 1, 1));
-      }
-    }
-    for (const d of CAMP_DRESS) {
-      const cell = d.cell === GEAR.lantern && signFrameOf(g.frame, d.x) ? GEAR.lantern2 : d.cell;
-      props.push({ y: d.y * TILE + 12, fn: () => void sheetCell(ctx, CAMP_GEAR, cell, 0, d.x * TILE, d.y * TILE - (d.lit ? 4 : 0), 1, 1) });
-      if (d.lit) glow.push((c) => void sheetCell(c, CAMP_GEAR_EM, cell, 0, d.x * TILE, d.y * TILE - 4, 1, 1));
-    }
-  }
-  // playtest1b B2 (owner-reported 2026-10-02, "cottage interior: flat colored rectangles"): writer furniture on the spots
-  // the painted shapes held: a quilted bed, a table with a cold candle and stools, a dresser, an iron stove, a plant.
-  if (g.theme.startsWith("room:")) {
-    for (const d of ROOM_DRESS[g.theme.slice(5)] ?? []) {
-      const cell = d.cell === 4 && Math.floor(g.frame / 2) % 2 === 1 ? 5 : d.cell;
-      props.push({ y: d.y + 30, fn: () => void sheetCell(ctx, ROOM_KIT, cell, 0, d.x, d.y, 2, 2, 32) });
-      glow.push((c) => void sheetCell(c, ROOM_KIT_EM, cell, 0, d.x, d.y, 2, 2, 32));
-    }
-    for (let x = 4; x < g.w - 1; x += 4) glow.push((c) => void sheetCell(c, ROOM_WALL_EM, ROOM_CELL.sconce, 0, x * TILE, 0));
-  }
-  // playtest1b: the town on the vale is a walled hamlet standing on its door (the old one-tile house is its fallback).
-  if (g.mapId === "world") {
-    for (const d of townDoors(g)) {
-      props.push({ y: (d.y + 1) * TILE - 1, fn: () => void drawTownIcon(ctx, d.x, d.y, g.frame) });
-      glow.push((c) => void drawTownIcon(c, d.x, d.y, g.frame, true));
     }
   }
   for (const n of g.npcs) {
@@ -2892,7 +2683,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
     paintLight(ctx, g, camX, camY, viewW / zoom, viewH / zoom, actors, glow);
   }
-  paintLabels(ctx, g);
   for (const n of g.nums) {
     let x = Math.round(n.x);
     const y = Math.round(n.y);
@@ -3524,8 +3314,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
   if (g.theme === "over") {
     for (let y = 0; y < g.h; y++) {
       for (let x = 0; x < g.w; x++) {
-        // playtest1b: the town's own icon (the walled hamlet); the old roof stamp is its fallback
-        if (g.tiles[y * g.w + x] === T.door && !drawTownMapIcon(ctx, ox + x * scale + scale / 2, oy + (y + 1) * scale, Math.max(1, Math.round(scale / 3)))) stampHamlet(ctx, ox, oy, scale, x, y);
+        if (g.tiles[y * g.w + x] === T.door) stampHamlet(ctx, ox, oy, scale, x, y);
       }
     }
   }
@@ -3597,72 +3386,6 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
     }
   }
-  // playtest1b: the town icon on the corner map too
-  if (g.theme === "over") {
-    for (const d of townDoors(g)) {
-      const mx = (d.x - (cx - span / 2)) * s;
-      const my = (d.y - (cy - span / 2)) * s;
-      if (mx > -12 && my > -12 && mx < size + 12 && my < size + 12) drawTownMapIcon(ctx, mx + s / 2, my + s, 1);
-    }
-  }
-  // playtest1b (owner-reported 2026-10-02 01:06 ET, "mini map needs a framed border and more detail"): markers for
-  // the things you steer by, drawn over the ground: dungeon stairs (violet), gates and road exits (cold-fire blue),
-  // doors (gold), then the hero as an outlined pointer, then an iron frame with neon corner studs.
-  const mark = (x: number, y: number, fill: string, r: number) => {
-    const mx = Math.floor(x * s + s / 2);
-    const my = Math.floor(y * s + s / 2);
-    ctx.fillStyle = "#07060a";
-    ctx.fillRect(mx - r - 1, my - r - 1, r * 2 + 3, r * 2 + 3);
-    ctx.fillStyle = fill;
-    ctx.fillRect(mx - r, my - r, r * 2 + 1, r * 2 + 1);
-  };
-  for (let y = 0; y < span; y++) {
-    for (let x = 0; x < span; x++) {
-      const tx = cx - span / 2 + x;
-      const ty = cy - span / 2 + y;
-      if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) continue;
-      const i = ty * g.w + tx;
-      if ((g.fog && g.fog[i] === 0) || g.hidden.has(i)) continue;
-      const t = g.tiles[i];
-      if (t === T.stairD || t === T.stairU) mark(x, y, "#b07aff", 1);
-      else if (t === T.exit && (g.theme !== "town" || (tx + ty) % 4 === 0)) mark(x, y, "#4ab8ff", 0);
-      else if (t === T.door && g.theme !== "over") mark(x, y, "#e0c060", 0);
-    }
-  }
-  const hx = Math.floor(size / 2);
-  const hy = Math.floor(size / 2);
-  ctx.fillStyle = "#07060a";
-  ctx.fillRect(hx - 3, hy - 2, 7, 5);
-  ctx.fillRect(hx - 2, hy - 3, 5, 7);
   ctx.fillStyle = "#e07a2f";
-  ctx.fillRect(hx - 2, hy - 1, 5, 3);
-  ctx.fillRect(hx - 1, hy - 2, 3, 5);
-  ctx.fillStyle = "#fff8ee";
-  ctx.fillRect(hx, hy - 1, 1, 1);
-  miniFrame(ctx, size);
-}
-
-/** playtest1b: the corner map's frame: ink edge, iron band, a bevel, and a cold-fire stud in each corner. */
-function miniFrame(ctx: CanvasRenderingContext2D, size: number) {
-  const band = (o: number, c: string) => {
-    ctx.fillStyle = c;
-    ctx.fillRect(o, o, size - o * 2, 1);
-    ctx.fillRect(o, size - 1 - o, size - o * 2, 1);
-    ctx.fillRect(o, o, 1, size - o * 2);
-    ctx.fillRect(size - 1 - o, o, 1, size - o * 2);
-  };
-  band(0, "#07060a");
-  band(1, "#4a4450");
-  band(2, "#6a6660");
-  band(3, "#2a2420");
-  for (const [x, y] of [[0, 0], [size - 6, 0], [0, size - 6], [size - 6, size - 6]]) {
-    ctx.fillStyle = "#07060a";
-    ctx.fillRect(x, y, 6, 6);
-    ctx.fillStyle = "#3a6ad0";
-    ctx.fillRect(x + 1, y + 1, 4, 4);
-    ctx.fillStyle = "#4ab8ff";
-    ctx.fillRect(x + 2, y + 2, 2, 2);
-    ctx.fillStyle = "#e7f4ff";
-    ctx.fillRect(x + 2, y + 2, 1, 1);
-  }
+  ctx.fillRect(size / 2 - 1, size / 2 - 1, 3, 3);
 }

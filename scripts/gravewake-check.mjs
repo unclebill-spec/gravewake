@@ -144,6 +144,9 @@ function on(group) {
   return wanted.size === 0 || wanted.has("all") || wanted.has(group);
 }
 
+// playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
+// added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
+const LATER_MODULES = new Set(["src/game/looks.ts"]);
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -5969,7 +5972,7 @@ if (on("retro1")) {
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
     // fade1: draw.ts is compared with fade1's own edits taken out, and fade.ts is fade1's (both pinned in group fade1).
     const bad = Object.entries(SAME).filter(([f, h]) => (f === "src/game/draw.ts" ? md5s(unfade1(readFileSync(pinFile(f), "utf8"))) : f === "src/game/sim.ts" ? simPin() : f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
-    const extra = files.filter((f) => !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx" && f !== "src/game/fade.ts");
+    const extra = files.filter((f) => !LATER_MODULES.has(f) && !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx" && f !== "src/game/fade.ts");
     check("retro1", "play and drawing are untouched: sim.ts (zoom, movement, collision, combat numbers, aggro ranges, spawn rules, saves), draw.ts (camera, culling, fog, light layer, particles, minimap), light.ts (the 24-light budget), content, particles, audio and every other game module are byte-identical to screen1; only screen.ts and the shell changed", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
   }
 
@@ -6137,7 +6140,7 @@ if (on("fade1")) {
     const RETRO1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
     const bad = Object.entries(RETRO1).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
-    const extra = files.filter((f) => !(f in RETRO1) && f !== "src/game/draw.ts" && f !== "src/game/fade.ts");
+    const extra = files.filter((f) => !LATER_MODULES.has(f) && !(f in RETRO1) && f !== "src/game/draw.ts" && f !== "src/game/fade.ts");
     check("fade1", "looks only: sim.ts (the spawn rule, distance and timing, AI, aggro, HP, damage, collision, the sim tick, saves), particles.ts, light.ts, screen.ts (every preset), the shell and every other game module are byte-identical to retro1; only draw.ts and the new fade.ts change", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
     const drawPin = unfade2Draw(readFileSync(pinFile("src/game/draw.ts"), "utf8")); // playtest1: the frozen copy
     const un = unfade1(drawPin);
@@ -6371,7 +6374,7 @@ if (on("fade2")) {
     const FADE1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
     const bad = Object.entries(FADE1).filter(([f, h]) => (f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
-    const extra = files.filter((f) => !(f in FADE1) && !["src/game/sim.ts", "src/game/draw.ts", "src/game/fade.ts"].includes(f));
+    const extra = files.filter((f) => !LATER_MODULES.has(f) && !(f in FADE1) && !["src/game/sim.ts", "src/game/draw.ts", "src/game/fade.ts"].includes(f));
     check("fade2", "only sim.ts (the tag), draw.ts (three calls, the scene clock line, the box scale) and fade.ts change; content, festivals, particles, light, screen, the shell and every other game module are byte-identical to fade1", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
     const simF = readFileSync(pinFile("src/game/sim.ts"), "utf8"), drawF = readFileSync(pinFile("src/game/draw.ts"), "utf8"); // playtest1: frozen
     const s1 = unfade2Sim(simF), d1 = unfade2Draw(drawF);
@@ -6802,7 +6805,7 @@ if (on("install1")) {
     const FADE2 = {"src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524", "src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/draw.ts": "1272a03419b94195caa0c2f1d0327747", "src/game/fade.ts": "55607bb925c330ba06cd60cd9aa6f6d7", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "b00b377ffa9ffcf48cdd71ff6d70bcf1"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
     const bad = Object.entries(FADE2).filter(([f, h]) => (f === "src/game/Gravewake.tsx" ? md5s(uninstall1Ui(readFileSync(pinFile(f), "utf8"))) : md5(f)) !== h).map(([f]) => f);
-    const extra = files.filter((f) => !(f in FADE2));
+    const extra = files.filter((f) => !LATER_MODULES.has(f) && !(f in FADE2));
     const uiF = readFileSync(pinFile("src/game/Gravewake.tsx"), "utf8"); // playtest1: the frozen shell
     const un = uninstall1Ui(uiF);
     const quiet = ![inst, btn].some((t) => /localStorage|sessionStorage|indexedDB|saveSlot|loadSlot|from "\.\.\/game\/sim"/.test(t));
@@ -7048,13 +7051,189 @@ if (on("playtest1")) {
   // Last: the six live files are byte for byte what playtest1 shipped (any later edit must re-pin here, on purpose).
   {
     const LIVE = {"sim.ts": "3a858c787e32a6f065ce4f3b90a9d632", "draw.ts": "e5876c297e76b404e729122a902cd955", "Gravewake.tsx": "b2c6a686816a6114aedef0a2d6db27f7", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "adb554d637cf3ad8f7c500e8d5a2525e"};
+    // playtest1b (owner-requested 2026-10-02): batch B edits sim, draw and the shell on purpose, so this pin now reads
+    // playtest1's six files as frozen in scripts/frozen/playtest1b/ (group playtest1b pins the live ones last).
+    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`scripts/frozen/playtest1b/${f}.txt`) !== h).map(([f]) => f);
+    check("playtest1", "the six game files as playtest1 shipped them (sim, draw, shell, content, crowd, screen; frozen in scripts/frozen/playtest1b/ once batch B began) are byte for byte playtest1's", moved.length === 0, moved.join(", "));
+  }
+}
+
+
+if (on("playtest1b")) {
+  // [OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b looks] Bill's batch B ("gloom and glow") and his 2026-10-02 playtest
+  // notes (bugs/playtest-2026-10-02/NOTES.md), plus the [OWNER-APPROVED 2026-10-02 Bill] mana change.
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b looks";
+  const MANA_TAG = "[OWNER-APPROVED 2026-10-02 Bill]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5b = (a) => createHash("md5").update(Buffer.from(a)).digest("hex");
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1b.ts"), `export * from "${root}/src/game/draw.ts";\nexport * as L from "${root}/src/game/looks.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport { townRoomAt, MANA, WADE_LINE, DRY_LINE } from "${root}/src/game/sim.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1b.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "pt1b.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const D = await import(pathToFileURL(join(dir, "pt1b.mjs")).href);
+  const T = D.T;
+  const L = D.L;
+  const sim = readFileSync("src/game/sim.ts", "utf8");
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+  const looks = readFileSync("src/game/looks.ts", "utf8");
+  const py = (code) => {
+    try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })); }
+    catch (e) { return { error: String(e.stderr || e.message).slice(-300) }; }
+  };
+  const nightOf = (g) => { for (let i = 0; i < 400 && g.phase !== "night"; i++) g.worldMs += 5000; return g; };
+
+  // 0. The frozen references: playtest1's six files, and the live sim, draw and shell have moved on from them.
+  {
+    const PT1 = { "sim.ts": "3a858c787e32a6f065ce4f3b90a9d632", "draw.ts": "e5876c297e76b404e729122a902cd955", "Gravewake.tsx": "b2c6a686816a6114aedef0a2d6db27f7", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "adb554d637cf3ad8f7c500e8d5a2525e" };
+    const bad = Object.entries(PT1).filter(([f, h]) => !existsSync(`scripts/frozen/playtest1b/${f}.txt`) || md5f(`scripts/frozen/playtest1b/${f}.txt`) !== h).map(([f]) => f);
+    const moved = ["sim.ts", "draw.ts", "Gravewake.tsx"].filter((f) => md5f(`src/game/${f}`) !== PT1[f]);
+    check("playtest1b", "the frozen references (scripts/frozen/playtest1b) are playtest1's sim, draw, shell, content, crowd and screen byte for byte, and batch B moved on from them only in sim, draw and the shell (content, crowd and screen are untouched)", bad.length === 0 && moved.length === 3 && ["content.ts", "crowd.ts", "screen.ts"].every((f) => md5f(`src/game/${f}`) === PT1[f]), `${bad.join(",")} | ${moved.join(",")}`);
+  }
+
+  // 1. Palette v3 and the writer sheets.
+  {
+    const pal = readFileSync("tools/sprite-writer/palette_locked.py", "utf8");
+    const four = ["#4ab8ff", "#9ae4ff", "#b07aff", "#ff3a50"];
+    check("playtest1b", "palette v3 is the locked v2 set plus exactly four neon tubes (#4ab8ff #9ae4ff #b07aff #ff3a50), with the NEON ramps (blue, violet, red), under the dated owner tag", (pal.match(/PALETTE_V3_GLOW = frozenset\(\(\n([^)]*)\)\)/)?.[1].match(/#[0-9a-f]{6}/g) ?? []).join() === four.join() && /LOCKED_V3\s*=\s*LOCKED_V2\s*\|\s*PALETTE_V3_GLOW/.test(pal) && /NEON\s*=/.test(pal) && pal.includes("[OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b"));
+    const SHEETS = ["writer/font-small.png", "writer/town-signs.png", "writer/town-signs_em.png", "writer/town-icon.png", "writer/town-icon_em.png", "writer/town-map-icon.png", "writer/camp-icon.png", "sprites/portraits.png", "writer/camp-tent.png", "writer/camp-tent_em.png", "writer/camp-fire.png", "writer/camp-fire_em.png", "writer/camp-gear.png", "writer/camp-gear_em.png", "writer/room-wall.png", "writer/room-wall_em.png", "writer/room-kit.png", "writer/room-kit_em.png", "writer/room-rug.png", "writer/room-boards.png"];
+    const res = py(`import json, sys\nsys.path.insert(0, 'tools/sprite-writer')\nfrom palette_locked import LOCKED_V3\nfrom PIL import Image\nout = {}\nfor f in ${JSON.stringify(SHEETS)}:\n    im = Image.open('public/art/' + f).convert('RGBA')\n    bad = set()\n    for r, g, b, a in im.getdata():\n        if a not in (0, 255) or (a and '#%02x%02x%02x' % (r, g, b) not in LOCKED_V3): bad.add('#%02x%02x%02x/%d' % (r, g, b, a))\n    out[f] = [im.width, im.height, sorted(bad)[:3]]\nprint(json.dumps(out))`);
+    const off = res.error ? [res.error] : Object.entries(res).filter(([, v]) => v[2].length).map(([f, v]) => `${f}:${v[2]}`);
+    check("playtest1b", `every batch B sheet (${SHEETS.length}: font, signs, town icon, map icon, camp icon, portraits, camp tent, fire, gear, room wall, kit, rug, floorboards, and their glow masks) is palette v3 with no soft pixels`, off.length === 0, off.join(" "));
+    const size = (f) => (res[f] ? `${res[f][0]}x${res[f][1]}` : "?");
+    check("playtest1b", "the sheets have the cells the game reads: 13 signs x 2 frames (416x16), portraits 4 x 48x64, tent 80x80, fire 4 x 16x32, gear 9 x 16, wall 7 x 16, kit 6 x 32, rug 64x32", size("writer/town-signs.png") === "416x16" && size("sprites/portraits.png") === "192x64" && size("writer/camp-tent.png") === "80x80" && size("writer/camp-fire.png") === "64x32" && size("writer/camp-gear.png") === "144x16" && size("writer/room-wall.png") === "112x16" && size("writer/room-kit.png") === "192x32" && size("writer/room-rug.png") === "64x32", SHEETS.map(size).join(" "));
+  }
+
+  // 2. Signs on every room door, names over people.
+  {
+    const g = fresh();
+    g.enterTown();
+    const kinds = [];
+    for (let i = 0; i < g.tiles.length; i++) if (g.tiles[i] === T.door) { const r = D.townRoomAt(i % g.w, Math.floor(i / g.w)); if (r) kinds.push(r.kind); }
+    const missing = kinds.filter((k) => !L.SIGN_KINDS.includes(k) || !L.SIGN_GLOW[k]);
+    check("playtest1b", `every town room door hangs its trade's neon sign: all ${kinds.length} room doors (inn, casino, every shop and cottage, and the South Croft's second door in Noll's building) have a sign cell and a glow colour, and the town draws one sign and one glow mask per room door (owner-reported: no signs on inn, casino, other shops)`, kinds.length === 16 && missing.length === 0 && kinds.includes("inn") && kinds.includes("casino") && kinds.includes("croft") && /for \(const d of roomDoors\(g\)\) \{\n {6}const at = signSpot\(d\.x, d\.y\);\n {6}props\.push\(\{ y: \(d\.y \+ 1\) \* TILE, fn: \(\) => void drawSign\(ctx, d\.room\.kind/.test(draw) && /glow\.push\(\(c\) => void drawSign\(c, d\.room\.kind/.test(draw), missing.join(","));
+    const lab = draw.indexOf("paintLabels(ctx, g)");
+    check("playtest1b", "names float over people within 6 tiles (trades cold blue, the companion violet, named bosses red) and a room's name shows in gold by its door, drawn after the light layer so they read at night (owner-reported: no names over characters)", L.LABEL.near === 6 && lab > draw.indexOf("paintLight(ctx, g") && /function paintLabels/.test(draw) && /FONT_ROW/.test(looks));
+  }
+
+  // 3. The camp button, the camp mark.
+  {
+    const g = fresh();
+    g.enterTown();
+    const town = g.canCamp();
+    g.enterWorld(32 * TILE + 8, 46 * TILE + 8);
+    const world = g.canCamp();
+    g.enterCamp();
+    const camp = g.canCamp();
+    check("playtest1b", "the camp button dims where camping is not allowed: canCamp is false in town and true on the vale and in camp, and the HUD button carries aria-disabled, data-can and a 40% fade from it, with the writer's tent-and-fire icon (owner-reported: camp button still shows in town)", !town && world && camp && /aria-disabled=\{!game\.canCamp\(\)\}/.test(ui) && /data-can=\{game\.canCamp\(\) \? "1" : "0"\}/.test(ui) && /data-testid="hud-camp-icon"/.test(ui) && /opacity-40/.test(ui), `${town} ${world} ${camp}`);
+    const h = fresh();
+    h.enterWorld(32 * TILE + 8, 46 * TILE + 8);
+    h.enterCamp();
+    h.held.add("KeyS");
+    let asked = false, left = false;
+    for (let i = 0; i < 200 && !asked; i++) { h.update(1 / 60); asked = h.askLeave; left = h.mapId !== "camp"; if (left) break; }
+    check("playtest1b", "walking south out of camp always stops at the mark and asks \"Leave camp?\" first (it used to slip past the prompt when the door cooldown was running)", asked && !left, `asked ${asked} left ${left}`);
+  }
+
+  // 4. Portraits on the select screen.
+  check("playtest1b", "the class select shows the sprite writer's four portraits (portraits.png, 48x64 busts at 2x) on neon-edged cards, one per class (owner-reported: no character portraits)", /data-testid=\{`portrait-\$\{role\}`\}/.test(ui) && /data-testid="class-cards"/.test(ui) && /PORTRAITS/.test(ui) && existsSync("tools/sprite-writer/portrait_writer.py"));
+
+  // 5. Mana: more MP and faster regen, damage the same.
+  {
+    const w = fresh("wizard", "int");
+    const max = w.maxEnergy;
+    w.energy = 0;
+    w["regen"](1);
+    const per = w.energy;
+    const war = fresh();
+    check("playtest1b", `${MANA_TAG} max MP is the old formula x2.5 and regen x3 (MANA): a fresh wizard holds 83 MP (was 33), 6 Smites of 12 from full and most of a 7th, 13 arts of 6, and regains 0.90 MP a second (was 0.30); a warrior holds 63 (was 25); the vampire still has none`, D.MANA.pool === 2.5 && D.MANA.regen === 3 && max === 83 && Math.floor(max / 12) === 6 && Math.floor(max / 6) === 13 && Math.abs(per - 0.9) < 1e-9 && war.maxEnergy === 63 && fresh("vampire", "int").maxEnergy === 0, `${max} ${per} ${war.maxEnergy}`);
+    const hits = [];
+    for (const cls of ["wizard", "warrior", "assassin"]) {
+      const roll = Math.random;
+      let s = 11;
+      Math.random = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      const g = fresh(cls, "str");
+      g.enterWorld(32 * TILE + 8, 47 * TILE + 8);
+      g.roamers = [{ id: "t", def: "skeleton", family: "skeleton", tint: "#e8dcc8", x: g.px + 40, y: g.py, level: 1, ang: 0, hp: 500, max: 500, aggro: true, atk: 0, ac: 0, cool: 99 }];
+      g.energy = 50;
+      g.smite();
+      for (let i = 0; i < 20; i++) g.update(0.05);
+      hits.push(500 - g.roamers[0].hp);
+      Math.random = roll;
+    }
+    // 26, 28, 28: the same seeded Smites measured on playtest1's sim (qa/playtest1b/smite_dmg.mjs) before the change.
+    check("playtest1b", `${MANA_TAG} spell damage and costs are unchanged: the same seeded Smite deals what it dealt on playtest1's sim (wizard 26, warrior 28, assassin 28), Smite still costs 12 and an art 6`, hits.join() === "26,28,28" && /if \(this\.energy < 12\) \{/.test(sim) && /this\.energy -= 12;/.test(sim) && /this\.energy -= 6;/.test(sim), hits.join());
+  }
+
+  // 6. The playtest notes' cheap fixes.
+  {
+    const g = fresh();
+    g.enterTown();
+    g.px = 17 * TILE + 8; g.py = 15 * TILE + 8; g.held.clear();
+    g.update(0.05);
+    const wet = g.wading && g.logLine === D.WADE_LINE;
+    g.px = 21 * TILE + 8; g.py = 13 * TILE + 8;
+    g.update(0.05);
+    check("playtest1b", "the swim line goes when you climb out: stepping into the town pond says \"You sink in. Swimming is half speed.\", and back on dry cobble the log says \"You climb out onto dry ground.\" instead of keeping the swim line (owner-reported: false swim message on the cobble road)", wet && !g.wading && g.logLine === D.DRY_LINE, `${wet} ${g.wading} ${g.logLine}`);
+    check("playtest1b", "the HUD names the hour plainly: the phase chip says Night at night and \"Day · town twilight\" in town by day, and the season's festival line reads \"Lantern Night festival\" (owner-reported: a \"Day\" chip during Lantern Night)", /data-testid="phase-chip"[^>]*>\{game\.phase === "night" \? "Night" : game\.theme === "town" \? "Day · town twilight" : "Day"\}/.test(ui) && /data-testid="festival-line">\{game\.seasonName\(\)\} festival</.test(ui));
+    const fences = D.yardFences(g);
+    const onGrass = fences.every((f) => g.tiles[f.y * g.w + f.x] === T.grass);
+    const stoops = [];
+    for (let i = 0; i < g.tiles.length; i++) if (g.tiles[i] === T.door) stoops.push(`${i % g.w},${Math.floor(i / g.w) + 1}`);
+    const blocking = fences.filter((f) => stoops.includes(`${f.x},${f.y}`));
+    check("playtest1b", `homes have their picket yards back: ${fences.length} writer fence pieces ring the cottages and tradeless houses one tile out, only on town grass, never on a door's stoop, and looks only (g.tiles is untouched) (owner-reported: fences around homes gone)`, fences.length > 30 && onGrass && blocking.length === 0 && /sheetCell\(ctx, PT1_FENCE, f\.cell/.test(draw), `${fences.length} ${onGrass} ${blocking.length}`);
+    check("playtest1b", "every town building is house scale: the 32x46 shack is drawn nowhere, so the Drowned Hook's narrow lot gets a full house (owner-reported: some houses drawn half size)", !draw.includes("/art/land/shack") && /const file = cabin \? "\/art\/cozy\/cabin\.png" : `\/art\/land\/house\$\{suffix\}\.png`;/.test(draw));
+    const pump = py(`import json\nfrom PIL import Image\nim = Image.open('public/art/land/decoration.png').convert('RGBA')\na = im.split()[3]\nprint(json.dumps([a.crop((80, 64, 112, 96)).getbbox(), a.crop((112, 80, 128, 96)).getbbox(), a.crop((96, 80, 128, 112)).getbbox()]))`);
+    const inside = (b, w, h) => Array.isArray(b) && b[0] > 0 && b[1] > 0 && b[2] < w && b[3] <= h;
+    check("playtest1b", "the town's jack-o'-lanterns are whole: the old grid cell (6,5) cut the big one down the middle; the two source boxes drawn now hold each pumpkin entire, clear of their left, top and right edges (owner-reported: half pumpkins)", !draw.includes('landCell(ctx, "decoration", 6, 5') && draw.includes('sheetCell(ctx, "/art/land/decoration.png", 80, 64, x - 8, y - 16, 2, 2, 1)') && draw.includes('sheetCell(ctx, "/art/land/decoration.png", 112, 80, x, y, 1, 1, 1)') && inside(pump[0], 32, 32) && Array.isArray(pump[1]) && pump[1][0] > 0 && Array.isArray(pump[2]) && pump[2][0] === 0, JSON.stringify(pump));
+    check("playtest1b", "the corner map has a frame and markers: an iron band with cold-fire corner studs, dungeon stairs in violet, gates in blue, doors in gold, and an outlined hero pointer (owner-reported: the mini map needs a framed border)", /miniFrame\(ctx, size\);\n\}/.test(draw) && /mark\(x, y, "#b07aff", 1\)/.test(draw) && /mark\(x, y, "#4ab8ff", 0\)/.test(draw) && /mark\(x, y, "#e0c060", 0\)/.test(draw));
+  }
+
+  // 7. B2: the camp and the rooms.
+  {
+    check("playtest1b", "the camp is redrawn by the hearth writer: the tent stands on its footprint (the green block and brown box are only the not-loaded fallback), a four-frame cold-blue fire burns on the hearth, log seats, a bedroll, a pack and two lantern posts sit around it, and the old orange stumps are gone (owner-reported: camp graphics unchanged)", /sheetCell\(ctx, CAMP_TENT, 0, 0, gx, gy - 16, 5, 5\)/.test(draw) && /sheetCell\(ctx, CAMP_FIRE, f, 0, x \* TILE, y \* TILE - 16, 1, 2\)/.test(draw) && L.CAMP_DRESS.length === 6 && !draw.includes('"/art/held/fence.png"') && draw.includes("...HEARTH_SHEETS,"));
+    check("playtest1b", "rooms are furnished by the hearth writer: a beamed back wall with night windows and blue sconces, long floorboards (the short planks read as brick), a woven rug on the old 4x2 spot, and Pell's and every cottage has a quilted bed, a candle table, a dresser, an iron stove and a plant (owner-reported: the cottage interior is flat rectangles)", /if \(sheetCell\(ctx, ROOM_WALL, cell, 0, gx, gy\)\) return;/.test(draw) && /sheetCell\(ctx, ROOM_RUG, x - 5, y - 5, gx, gy\)/.test(draw) && /theme\.startsWith\("room:"\) && sheetCell\(ctx, ROOM_BOARDS/.test(draw) && L.ROOM_DRESS.cottage.length === 5 && L.ROOM_DRESS.inn.length === 1);
+    const c = fresh();
+    c.enterWorld(32 * TILE + 8, 46 * TILE + 8);
+    c.enterCamp();
+    const dayCamp = D.sceneAmbient(c);
+    nightOf(c);
+    const nightCamp = D.sceneAmbient(c);
+    const lamps = D.sceneLights(c, 0, 0, 1000, 1000).filter((l) => l.c === L.NEON_LIGHT.blue).length;
+    check("playtest1b", "gloom and glow: at night the camp and the town's rooms dim like the town and vale, and their fire, lanterns, sconces and stove light the dark in cold-fire blue; by day nothing dims", dayCamp === null && nightCamp !== null && lamps >= 4 && /g\.mapId === "inside" && g\.theme\.startsWith\("room:"\)\) return LIGHT\.townNight/.test(draw), `${dayCamp} ${nightCamp} ${lamps}`);
+  }
+
+  // 8. Placement stays seeded; saves unchanged.
+  {
+    const g = fresh("wizard", "int");
+    g.enterTown();
+    const town = md5b(g.tiles);
+    g.enterWorld(32 * TILE + 8, 46 * TILE + 8);
+    const world = md5b(g.tiles);
+    g.enterCamp();
+    const camp = md5b(g.tiles);
+    check("playtest1b", "placement is untouched: the town, the vale and the camp grids hash exactly as on playtest1's sim (every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "f513d4b0cd3599487dc39303fb4d0774" && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
+  }
+
+  // 9. The notes.
+  {
+    const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("playtest1b", "rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md record batch B under its dated owner tag and the mana change under [OWNER-APPROVED 2026-10-02 Bill]", rules.includes(TAG) && agents.includes(TAG) && rules.includes(MANA_TAG) && agents.includes(MANA_TAG) && sim.includes(MANA_TAG));
+  }
+
+  // Last: the live files are byte for byte what playtest1b ships (any later edit must re-pin here, on purpose).
+  {
+    const LIVE = {"sim.ts": "04d3325b77505c886beba0d81bfac5d5", "draw.ts": "282057abaa339a22576c35d3d213d28a", "Gravewake.tsx": "bdf6866b62280f7c2c3cf1651061bf2b", "looks.ts": "8282846aac6f1ea0e98f69b78e002c32", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "adb554d637cf3ad8f7c500e8d5a2525e"};
     const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`src/game/${f}`) !== h).map(([f]) => f);
-    check("playtest1", "the six live game files are byte for byte playtest1's (sim, draw, shell, content, crowd, screen)", moved.length === 0, moved.join(", "));
+    check("playtest1b", "the live game files are byte for byte playtest1b's (sim, draw, shell, looks, content, crowd, screen)", moved.length === 0, moved.join(", "));
   }
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

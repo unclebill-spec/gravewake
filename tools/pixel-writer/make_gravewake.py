@@ -23,6 +23,7 @@ from pixel_writer import basin, cobble, planks, road, town_fence
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sprite-writer"))
 from palette_locked import LOCKED, LOCKED_V2  # noqa: E402
+from palette_locked import LOCKED_V3, NEON  # noqa: E402  playtest1b
 from ramps import RAMPS  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[2] / "public" / "art" / "writer"
@@ -412,7 +413,99 @@ def main() -> None:
     print(f"gfx2 sheets {len(floors)}, palette v2 locked")
     masks = gfx3_sheets()
     print(f"gfx3 glow masks {len(masks)}")
+    b1 = playtest1b_b1()
+    print(f"playtest1b B1 sheets {len(b1)}, palette v3 locked")
+    b2 = playtest1b_b2()
+    print(f"playtest1b B2 sheets {len(b2)}, palette v3 locked")
     print(f"wrote {OUT}")
+
+
+# playtest1b (owner-requested 2026-10-02 00:52 ET, batch B1 looks): name-label font, shop signs, the town icon on the
+# vale and the map, the camp button. Palette v3 (LOCKED_V3: the locked set plus four neon tubes, Bill's "gloom and
+# glow"). Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1b_b1()"  (from this folder).
+def _check_v3(name: str, im: Image.Image) -> None:
+    for r, g, b, a in im.convert("RGBA").getdata():
+        if a not in (0, 255):
+            raise SystemExit(f"{name}: a soft pixel (alpha {a})")
+        if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V3:
+            raise SystemExit(f"{name}: #{r:02x}{g:02x}{b:02x} is not in palette v3")
+
+
+def playtest1b_b1() -> dict:
+    from glow_writer import SIGN_KINDS, camp_icon, font_sheet, sign, town_icon, town_map_icon
+    made = {
+        "font-small.png": font_sheet().image(),
+        "town-signs.png": cells([sign(k, f, NEON) for k in SIGN_KINDS for f in (0, 1)]),
+        "town-icon.png": cells([town_icon(f, NEON) for f in (0, 1)]),
+        "town-map-icon.png": town_map_icon(NEON).image(),
+        "camp-icon.png": cells([camp_icon(k, NEON) for k in ("a", "b", "break")]),
+    }
+    # emissive copies (the game draws them in the light layer's glow pass): only the neon pixels, halo to hot
+    glow = {c for ramp in NEON.values() for c in ramp[1:]}
+    for name in ("town-signs.png", "town-icon.png"):
+        em = made[name].copy()
+        px = em.load()
+        for y in range(em.height):
+            for x in range(em.width):
+                r, g, b, a = px[x, y]
+                if a and f"#{r:02x}{g:02x}{b:02x}" not in glow:
+                    px[x, y] = (0, 0, 0, 0)
+        made[name.replace(".png", "_em.png")] = em
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    # one sheet to look at, x4 nearest
+    sheet = Image.new("RGBA", (420, 150), (12, 10, 8, 255))
+    x = 2
+    for name in ("town-icon.png", "camp-icon.png", "town-map-icon.png"):
+        sheet.alpha_composite(made[name], (x, 2))
+        x += made[name].width + 6
+    sheet.alpha_composite(made["town-signs.png"].crop((0, 0, 208, 16)), (2, 46))
+    sheet.alpha_composite(made["town-signs.png"].crop((208, 0, 416, 16)), (2, 64))
+    sheet.alpha_composite(made["font-small.png"], (2, 84))
+    sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(OUT / "preview-playtest1b.png")
+    return made
+
+
+def playtest1b_b2() -> dict:
+    """playtest1b B2 (owner-requested 2026-10-02): the camp and the room interiors, gloom and glow (hearth_writer)."""
+    from hearth_writer import GEAR, KIT, WALLS, camp_fire, camp_gear, camp_tent, room_boards, room_kit, room_rug, room_wall
+    made = {
+        "camp-tent.png": camp_tent(NEON).image(),
+        "camp-fire.png": cells([camp_fire(f, NEON) for f in range(4)]),
+        # GEAR order, then the lantern post's and the camp mark's second flicker frames
+        "camp-gear.png": cells([camp_gear(k, NEON) for k in GEAR] + [camp_gear("lantern", NEON, 1), camp_gear("mark", NEON, 1)]),
+        # WALLS order, then the sconce's second frame
+        "room-wall.png": cells([room_wall(k, NEON) for k in WALLS] + [room_wall("sconce", NEON, 1)]),
+        # KIT order, then the stove's second frame
+        "room-kit.png": cells([room_kit(k, NEON) for k in KIT] + [room_kit("stove", NEON, 1)]),
+        "room-rug.png": room_rug(NEON).image(),
+        "room-boards.png": cells([room_boards(i) for i in range(4)]),
+    }
+    glow = {c for ramp in NEON.values() for c in ramp[1:]}
+    glow -= {NEON["violet"][1], NEON["violet"][2], NEON["red"][1], NEON["red"][2]}  # patch cloth and pennant are not lit
+    for name in ("camp-tent.png", "camp-fire.png", "camp-gear.png", "room-wall.png", "room-kit.png"):
+        em = made[name].copy()
+        px = em.load()
+        for y in range(em.height):
+            for x in range(em.width):
+                r, g, b, a = px[x, y]
+                if a and f"#{r:02x}{g:02x}{b:02x}" not in glow:
+                    px[x, y] = (0, 0, 0, 0)
+        made[name.replace(".png", "_em.png")] = em
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    sheet = Image.new("RGBA", (300, 200), (12, 10, 8, 255))
+    sheet.alpha_composite(made["camp-tent.png"], (2, 2))
+    sheet.alpha_composite(made["camp-fire.png"], (90, 2))
+    sheet.alpha_composite(made["camp-gear.png"], (90, 40))
+    sheet.alpha_composite(made["room-wall.png"], (90, 60))
+    sheet.alpha_composite(made["room-kit.png"], (2, 90))
+    sheet.alpha_composite(made["room-rug.png"], (2, 130))
+    sheet.alpha_composite(made["room-boards.png"], (80, 130))
+    sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(OUT / "preview-playtest1b-b2.png")
+    return made
 
 
 if __name__ == "__main__":
