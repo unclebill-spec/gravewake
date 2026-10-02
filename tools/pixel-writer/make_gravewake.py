@@ -19,6 +19,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pixel_writer import GLYPHS, Canvas, big_slab, cells, flagstone, floor_decal, floor_ramp, lamp_bracket, lamp_flicker, portal_gate, wall_face, wall_ramp, wall_rim, wall_top, bloom_prop, border_mask, boss_plaque, fair_prop, festival_prop, flood_tile, bounty_board, croft_piece, derby_trophy, grave_dug, mimic_breath, brick, pressure_plate, shackle, spike_grate, crack, field, flame, glyph_strip, grass, pit, preview, rune_door, saint, sconce, season_remap, soil, strip, water
+from pixel_writer import basin, cobble, planks, road, town_fence
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sprite-writer"))
 from palette_locked import LOCKED, LOCKED_V2  # noqa: E402
@@ -337,6 +338,42 @@ def season_sheets() -> list:
     return made
 
 
+# playtest1 (owner-reported 2026-10-01, old ground textures): the town cobble and town water were the third-party
+# land pack (blue-greys and bright cyans, none locked), the town dirt was the cozy pack's striped orange soil, the vale
+# road, the room floors and the town pool were drawn in code with random marks. All five are writer strips now.
+TOWN_STONE = ("#2a2420", ["#4a4450", "#5a564e", "#6a6660", "#8a867c", "#b7b2a6"])
+PT1_GROUNDS = {
+    "town-cobble": lambda i: cobble(300 + i, TOWN_STONE[0], TOWN_STONE[1], i),
+    "town-dirt": lambda i: soil(320 + i * 5, "#6a5040", "#4a3424", "#8a6848", "#2a221c", i),
+    "vale-road": lambda i: road(340 + i, "#b09060", "#8a6844", "#6a5038", "#d8c4a0", "#8a7a64", i),
+    "room-floor": lambda i: planks(360 + i, "#6a5038", "#5a4030", "#2a1c14", "#4a3424", "#8a6848", "#c4b49a", i),
+    "town-pool": lambda i: basin(i, "#6a6058", "#8a867c", "#3a3028", "#1a3848", "#16344c", "#8ec4d4"),
+}
+
+
+def playtest1_grounds() -> list:
+    made = []
+    for name, make in PT1_GROUNDS.items():
+        tiles = [make(i) for i in range(4)]
+        for t in tiles:
+            for row in t.p:
+                for c in row:
+                    if c is None or c.lower() not in LOCKED:
+                        raise SystemExit(f"{name}: {c} is not in the locked palette (or a hole)")
+        strip(tiles).save(OUT / f"{name}.png")
+        made.append(tiles)
+    fence = [town_fence(k, "#1a1008", "#6a5038", "#8a6848", "#3a2818", "#8a867c") for k in ("h", "v", "end")]
+    for t in fence:
+        for row in t.p:
+            for c in row:
+                if c is not None and c.lower() not in LOCKED:
+                    raise SystemExit(f"town-fence: {c} is not in the locked palette")
+    strip(fence).save(OUT / "town-fence.png")
+    made.append(fence)
+    preview([t for ts in made for t in ts], 4).save(OUT / "preview-playtest1.png")
+    return made
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     vale = [grass(10 + i * 9, "#1a3828", "#102018", "#3a6840", "#c4b49a", i) for i in range(8)]
@@ -363,6 +400,8 @@ def main() -> None:
     # One sheet to look at. Nearest neighbor, so a bad pixel is obvious.
     sheet = vale + camp_grass + camp_dirt + pond
     preview(sheet, 4).save(OUT / "preview.png")
+    pt1 = playtest1_grounds()
+    print(f"playtest1 grounds {len(pt1)}, palette locked")
     feats = feat_sheets()
     print(f"feat sheets {len(feats)}, palette locked")
     seasons = season_sheets()

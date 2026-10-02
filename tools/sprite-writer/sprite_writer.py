@@ -342,11 +342,21 @@ PEOPLE: dict[str, dict] = {
                     glow=("#9ec060", "#6a8a32")),
     "portal": _p(cloth="#1a2438", trim="#c4b4e0", hat="cowl", hatc="#101820", weapon="crystal", robe=True,
                  extra=("runes",), glow=(WHITE_HOT, "#c4b4e0"), topper="#c4b4e0"),
+    # playtest1 (owner-reported 2026-10-01): townsfolk never wear a hero class's look. The brawn, cunning and
+    # arcane companions (who wore the warrior, assassin and wizard) get their own cut and palette.
+    "sellsword": _p(build="broad", cloth="#6a3a28", trim="#c4a15a", hat="headband", hatc="#2a4a38", weapon="sword",
+                    pants="#3a3228", hairstyle="pony", hair="#8a4038", beard="#8a4038", extra=("bandolier",),
+                    glow=(SMEAR, "#c4a15a")),
+    "cutpurse": _p(build="slim", cloth="#4a4038", trim="#c4a15a", hat="flatcap", hatc="#2a241c", weapon="dagger",
+                   pants="#2a241c", hairstyle="curly", hair="#c4a15a", extra=("scarf",), glow=(SMEAR, "#8a9090")),
+    "hedgemage": _p(cloth="#2a4a38", trim="#c4a15a", hat="widebrim", hatc="#3a3228", weapon="staff", robe=True,
+                    hairstyle="long", hair="#8a5840", glow=(GOLD_HI, "#9ec060"), topper="#9ec060",
+                    extra=("stains",)),
 }
 
 # Which parts a crowd member may vary. Hats, tools, and silhouette stay fixed per role.
 TOWN = {"guard", "hunter", "undertaker", "zeppelin", "inn", "shop", "guild", "bank", "casino", "patron",
-        "smith", "tailor", "fisher", "merchant", "alchemist", "portal"}
+        "smith", "tailor", "fisher", "merchant", "alchemist", "portal", "sellsword", "cutpurse", "hedgemage"}
 HAIRSTYLES = ["short", "long", "bun", "pony", "curly", "slick", "bald", "spiky"]
 
 
@@ -401,7 +411,10 @@ def _legs(s: Sprite, spec: dict, legs: str, uy: int, robe: bool) -> None:
             if legs == "idle" and i == 1:
                 s.set(fx + 1, hip + 1, lt(pants))  # relaxed knee
         if robe and ft < 26:
-            continue  # a lifted foot hides under the hem
+            # playtest1: a lifted foot under a person's robe shows its toe on row 27, so a robed walk reads as steps.
+            if spec.get("_person"):
+                s.rect(fx, 27, 3, 1, boot)
+            continue
         if "bare" in spec["extra"]:
             s.rect(fx, ft + 1, 3, 2, boot)
             s.set(fx + 1, ft, boot)
@@ -1168,21 +1181,29 @@ def human(role: str, pose: str | int = "stand", rank: str = "mob", sash: str | N
     """A 3/4 person in one of the eleven poses."""
     if isinstance(pose, int):
         pose = "walk0" if pose else "stand"
-    spec = folk_spec(role, variant)
+    spec = dict(folk_spec(role, variant))
+    spec["_person"] = True
     if rank == "rare":
         spec = dict(spec)
         spec["cloth"] = RARE_CLOTH.get(role, "#2a6a48")
     if rank == "boss":
         spec = dict(spec)
         spec["trim"] = GOLD
-    return _person(spec, pose, rank, sash, role)
+    return _person(spec, pose, rank, sash, role, bob=True)
 
 
 RARE_CLOTH = {"witch": "#2a6a48", "vampire": "#2a3a6a"}
 
 
-def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str) -> Sprite:
+# playtest1 (owner-reported 2026-10-01, the hero floated): people's two contact frames sit 1 px lower than the
+# passing frame, so the body bobs 2 px a stride. Creatures keep BODY as it was (foes.png and its masks unchanged).
+PEOPLE_BOB = {"walk0": 1, "walk2": 1}
+
+
+def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str, bob: bool = False) -> Sprite:
     ux, uy, hdy, legs, larm, rarm = BODY[pose]
+    if bob:
+        uy += PEOPLE_BOB.get(pose, 0)
     arms = spec.get("arms") or {}
     if pose in arms:
         larm, rarm = arms[pose]
@@ -1280,6 +1301,73 @@ def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str) -> Sp
             s.empty(lhx, lhy - 1, ring)
     elif pose == "cast2":
         _scatter(s, core, ring, seed)
+    return s
+
+
+# playtest1 (owner-reported 2026-10-01): the swim, slide, fish and climb poses are writer frames too, so no code
+# path draws the old painted person. moves.png: MOVES frames per role, in people.png's role order.
+MOVES = ("swim0", "swim1", "slide", "fish0", "fish1", "climb0", "climb1")
+WATER_LINE = 22
+RIPPLE = ("#7aa4b4", "#3a78a0")
+ICE_SPRAY = ("#e8f2f8", "#c5d8e6")
+ROD = ("#6a5030", "#c8d0c0")
+# base pose, arm override (left, right), legs override, extra drop of the whole body
+MOVE_BODY = {
+    "swim0": ("stand", ("fwd", "back"), None, 0),
+    "swim1": ("stand", ("back", "fwd"), None, 1),
+    "slide": ("stand", ("open", "open"), "brace", 1),
+    "fish0": ("stand", ("down", "fwd"), None, 0),
+    "fish1": ("idle", ("down", "fwd"), None, 0),
+    "climb0": ("walk0", ("up", "down"), "walk0", 0),
+    "climb1": ("walk2", ("down", "up"), "walk2", 0),
+}
+
+
+def human_move(role: str, move: str, variant: int = 0) -> Sprite:
+    """A move pose for a person: the same body, head and kit as the eleven frames."""
+    spec = dict(folk_spec(role, variant))
+    spec["_person"] = True
+    base, (larm, rarm), legs, drop = MOVE_BODY[move]
+    spec["arms"] = {base: (larm, rarm)}
+    if move.startswith("fish") or move.startswith("climb") or move == "slide":
+        spec["item"] = None
+    keep_weapon = spec["weapon"]
+    if move.startswith("fish") or move.startswith("climb"):
+        spec["weapon"] = "none"
+    if legs:
+        body = dict(BODY)
+        ux, uy, hdy, _, la, ra = body[base]
+        BODY[base] = (ux, uy, hdy, legs, la, ra)
+        try:
+            s = _person(spec, base, "mob", None, role)
+        finally:
+            BODY.update(body)
+    else:
+        s = _person(spec, base, "mob", None, role)
+    spec["weapon"] = keep_weapon
+    if drop:
+        s.p = [[None] * s.w for _ in range(drop)] + s.p[: s.h - drop]
+    if move.startswith("swim"):
+        line = WATER_LINE + drop
+        xs = [x for x in range(s.w) if any(s.p[y][x] for y in range(line))]
+        s.clear(0, line, s.w, s.h - line)
+        if xs:
+            x0, x1 = max(0, min(xs) - 1), min(s.w - 1, max(xs) + 1)
+            for x in range(x0, x1 + 1):
+                if (x + drop) % 3 != 2:
+                    s.set(x, line, RIPPLE[0])
+            s.rect(x0 + 2, line + 1, max(1, x1 - x0 - 3), 1, RIPPLE[1])
+    elif move == "slide":
+        s.pts([(2, 29), (3, 28), (13, 29), (12, 28)], ICE_SPRAY[0])
+        s.pts([(1, 29), (14, 29)], ICE_SPRAY[1])
+    elif move.startswith("fish"):
+        # the rod: from the hand up and out to the cell's edge, the line hangs from the tip
+        hand = next(((x, y) for y in range(14, 26) for x in range(15, 9, -1) if s.p[y][x] and s.p[y][x] not in (INK,)), (12, 20))
+        hx, hy = hand
+        tip_y = hy - 7 + (1 if move == "fish1" else 0)
+        for i in range(0, 15 - hx + 1):
+            s.set(hx + i, hy - (i * (hy - tip_y)) // max(1, 15 - hx), ROD[0])
+        s.rect(15, tip_y + 1, 1, 4 if move == "fish0" else 5, ROD[1])
     return s
 
 

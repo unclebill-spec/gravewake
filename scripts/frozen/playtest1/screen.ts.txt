@@ -255,23 +255,10 @@ export async function enterFullscreen() {
   } catch {
     /* desktop, iPad and most browsers refuse the lock: fine */
   }
-  // playtest1 (owner-reported 2026-10-01): hold Escape in fullscreen (Chrome then needs a long press to leave),
-  // so a stray key does not drop the game out of fullscreen. Only where the Keyboard Lock API exists.
-  try {
-    const kb = (navigator as Navigator & { keyboard?: { lock?: (keys?: string[]) => Promise<void> } }).keyboard;
-    if (kb && typeof kb.lock === "function") await kb.lock(["Escape"]);
-  } catch {
-    /* not supported, or not in fullscreen: fine */
-  }
 }
 
 export async function exitFullscreen() {
   const d = document as FsDoc;
-  try {
-    (navigator as Navigator & { keyboard?: { unlock?: () => void } }).keyboard?.unlock?.();
-  } catch {
-    /* nothing held */
-  }
   try {
     const o = (typeof screen !== "undefined" ? screen.orientation : undefined) as LockOrientation | undefined;
     if (o && typeof o.unlock === "function") o.unlock();
@@ -372,15 +359,12 @@ export const PRELOAD = [
   "/art/sprites/people.png",
   "/art/sprites/foes.png",
   "/art/sprites/allies.png",
-  "/art/sprites/moves.png",
   "/art/creatures/tilemap.png",
   "/art/writer/vale.png",
   "/art/writer/water.png",
   "/art/writer/lamp.png",
   "/art/cozy/grass.png",
-  // playtest1: the writer's town grounds replace /art/cozy/dirt.png and the land pack's cobble and water.
-  "/art/writer/town-cobble.png",
-  "/art/writer/town-dirt.png",
+  "/art/cozy/dirt.png",
   "/art/cozy/cabin.png",
   "/art/held/trees.png",
   "/art/held/rocks.png",

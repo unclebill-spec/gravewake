@@ -2,6 +2,16 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1a, owner playtest bug fixes
+- Town is now 40×30. Every door is on its house's south face and can be reached on foot. Doors open only from the front, and the walls behind them are solid. You leave town only through road gates, and entering puts you at the matching gate. Old saves standing on a moved door or inside a wall are nudged to the nearest open tile.
+- You swim only when your whole foot box is over water. NPCs no longer use the player's hero-class looks. The legacy ground tiles were replaced with pixel-writer art.
+- Rain in the vale: the edge-blend sheets now load, so the game stops creating canvases every frame, and rain draws from one pre-drawn layer. Throttled fps went from about 29 to about 56.
+- Walk cycle runs at 8 fps with stride and pass frames. New sprite-writer moves sheet covers swim, slide, fish and climb.
+- Leave camp? prompt. Autosave on hide, blur, fullscreen exit and every 45 s. Tap-to-resume overlay, Continue button, back-gesture Leave game? prompt.
+- Spells are visible: drawn on top, 0.6 s long, fly from the hand to the target. Fixed spell art paths that had spaces in them. Damage and costs are unchanged.
+- Manifest now describes the game as a real-time action RPG.
+- check:game 592 → 618. Fail-proofs 700/700.
+
 ## 2026-10-01: install1 + pages, Install button and GitHub Pages
 - Added an in-game Install button. It uses the web app manifest, icons made with pixel-writer, and a service worker for offline play. Updates use a network-first index plus versioned caches. On iOS the button is replaced by an "Add to Home Screen" tip. Touch, pad and keyboard can all reach it.
 - `npm run build:pages` makes a build for https://unclebill-spec.github.io/gravewake/ (GRAVEWAKE_BASE=/gravewake/), and it's published on the gh-pages branch. The normal build is unchanged.

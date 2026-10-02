@@ -200,7 +200,7 @@ export const KITS: Record<KitId, { focus: "heal" | "curse" | "drain"; look: stri
   },
   cunning: {
     focus: "curse",
-    look: "cutpurse", // playtest1: townsfolk never wear a hero look
+    look: "assassin",
     tree: [
       { name: "Needle Hex", need: 10, kind: "curse", power: 6 },
       { name: "Pocket Siphon", need: 14, kind: "drain", power: 7 },
@@ -210,7 +210,7 @@ export const KITS: Record<KitId, { focus: "heal" | "curse" | "drain"; look: stri
   },
   brawn: {
     focus: "drain",
-    look: "sellsword", // playtest1: townsfolk never wear a hero look
+    look: "warrior",
     tree: [
       { name: "Shoulder", need: 10, kind: "drain", power: 7 },
       { name: "Bark", need: 14, kind: "aggro", power: 2 },
@@ -220,7 +220,7 @@ export const KITS: Record<KitId, { focus: "heal" | "curse" | "drain"; look: stri
   },
   arcane: {
     focus: "drain",
-    look: "hedgemage", // playtest1: townsfolk never wear a hero look
+    look: "wizard",
     tree: [
       { name: "Star Prick", need: 10, kind: "drain", power: 6 },
       { name: "Ink Hex", need: 15, kind: "curse", power: 8 },

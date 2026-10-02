@@ -10,7 +10,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
       { title: "Gravewake" },
       { name: "theme-color", content: "#140e12" },
-      { name: "description", content: "A twilight turn-based RPG of graves, cinder, and winter roads." },
+      { name: "description", content: "A real-time gothic Halloween action RPG of graves, cinder and winter roads." },
       // screen1: a home-screen launch on iPhone opens full screen; the bars draw over the game, not over a white strip.
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },

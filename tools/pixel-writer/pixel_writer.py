@@ -1553,3 +1553,127 @@ def floor_decal(kind: str, ramp: list[str], bone: list[str], growth: list[str], 
             t.rect(x, y, w, 1, f3)
             t.set(x, y, f5)
     return t
+
+
+# ---- playtest1 (owner-reported 2026-10-01): the town and room grounds, out of the old third-party sheets. ----
+
+
+def cobble(seed: int, mortar: str, ramp: list[str], kind: int) -> Tile:
+    """Town cobbles. Rounded setts in staggered rows, each lit top-left and shaded bottom-right, mortar between.
+    ramp is dark to light: shade, body, body2, lit, glint. The border rows are mortar, so tiles meet on a joint."""
+    shade, body, body2, lit, glint = ramp
+    rng = random.Random(seed * 31 + kind)
+    t = Tile()
+    t.fill(mortar)
+    rows = ((0, 5), (5, 5), (10, 6))
+    for r, (y0, h) in enumerate(rows):
+        off = (kind * 3 + r * 4) % 6
+        x = -off
+        while x < 16:
+            w = 5 + rng.randrange(3)
+            x0, x1 = max(0, x + 1), min(16, x + w)
+            if x1 - x0 >= 2:
+                fill = body if rng.randrange(3) else body2
+                t.rect(x0, y0 + 1, x1 - x0, h - 1, fill)
+                # round the corners off
+                for cx, cy in ((x0, y0 + 1), (x1 - 1, y0 + 1), (x0, y0 + h - 1), (x1 - 1, y0 + h - 1)):
+                    if (x0 == x + 1 or cx != x0) and (x1 == x + w or cx != x1 - 1):
+                        t.set(cx, cy, mortar)
+                t.rect(x0 + 1, y0 + 1, max(1, x1 - x0 - 2), 1, lit)
+                t.rect(x0 + 1, y0 + h - 1, max(1, x1 - x0 - 2), 1, shade)
+                if x1 - x0 >= 4 and rng.randrange(2):
+                    t.set(x0 + 1 + rng.randrange(x1 - x0 - 2), y0 + 2, glint)
+            x += w
+    return t
+
+
+def road(seed: int, base: str, rut: str, dark: str, light: str, pebble: str, kind: int) -> Tile:
+    """A packed cart road: no stripes. A worn soft patch or two (rounded, a shade down), lit pebbles with a shadow
+    pixel under them, and a 2x2 clod. Tiles in any direction, so a bend reads the same as a straight."""
+    rng = random.Random(seed * 7 + kind)
+    t = Tile()
+    t.fill(base)
+    for _ in range(1 + kind % 2):
+        w, h = 4 + rng.randrange(3), 2 + rng.randrange(2)
+        x, y = 1 + rng.randrange(16 - w - 1), 1 + rng.randrange(16 - h - 1)
+        t.rect(x, y, w, h, rut)
+        t.set(x, y, base)
+        t.set(x + w - 1, y + h - 1, base)
+        t.rect(x + 1, y + h, w - 2, 1, rut)
+    for _ in range(3):
+        x, y = 1 + rng.randrange(13), 1 + rng.randrange(13)
+        t.rect(x, y, 2, 1, pebble)
+        t.set(x, y, light)
+        t.rect(x, y + 1, 2, 1, dark)
+    x, y = 2 + rng.randrange(11), 2 + rng.randrange(11)
+    t.rect(x, y, 2, 2, dark if kind % 2 else light)
+    return t
+
+
+def planks(seed: int, base: str, base2: str, seam: str, grain: str, lit: str, nail: str, kind: int) -> Tile:
+    """Room floorboards. Four boards of 4 px, a dark seam under each, butt joints staggered from row to row,
+    a lit top edge, grain strokes and a nail head at each joint."""
+    rng = random.Random(seed * 13 + kind)
+    t = Tile()
+    for b in range(4):
+        y0 = b * 4
+        t.rect(0, y0, 16, 4, base if (b + kind) % 2 else base2)
+        t.rect(0, y0, 16, 1, lit)
+        t.rect(0, y0 + 3, 16, 1, seam)
+        j = (kind * 5 + b * 7) % 16
+        t.rect(j, y0, 1, 4, seam)
+        t.set((j + 1) % 16, y0 + 1, nail)
+        t.set((j + 15) % 16, y0 + 2, nail)
+        gx = (j + 3 + rng.randrange(6)) % 16
+        t.rect(gx, y0 + 1 + rng.randrange(2), 3, 1, grain)
+    return t
+
+
+def basin(frame: int, rim: str, rim_hi: str, rim_lo: str, deep: str, mid: str, light: str) -> Tile:
+    """A stone-rimmed town pool, one frame of its ripple."""
+    t = Tile()
+    t.fill(rim)
+    t.rect(0, 0, 16, 1, rim_hi)
+    t.rect(0, 15, 16, 1, rim_lo)
+    t.rect(2, 2, 12, 12, deep)
+    t.rect(2, 9, 12, 5, mid)
+    t.rect(2, 2, 12, 1, rim_lo)
+    y = 4 + frame % 4
+    t.rect(4, y, 5, 1, light)
+    t.rect(9, (y + 4) % 9 + 4, 3, 1, light)
+    for x in (1, 6, 11):
+        t.set(x, 1, rim_lo)
+    return t
+
+
+def town_fence(kind: str, line: str, wood: str, wood_hi: str, wood_dk: str, cap: str) -> Tile:
+    """playtest1: the town's edge fence, in 3/4 view. h: a run along the north or south edge (two rails, a post at
+    each end and one in the middle). v: a run down the east or west edge (stacked posts, a rail seen end-on between).
+    end: a gate post, taller, with an iron cap, where the fence meets a road."""
+    t = Tile()
+
+    def post(x: int, top: int, bottom: int) -> None:
+        t.rect(x - 1, top - 1, 4, bottom - top + 2, line)
+        t.rect(x, top, 2, bottom - top, wood)
+        t.rect(x, top, 1, bottom - top, wood_hi)
+        t.rect(x, bottom - 1, 2, 1, wood_dk)
+
+    if kind == "h":
+        for y in (6, 10):
+            t.rect(0, y - 1, 16, 4, line)
+            t.rect(0, y, 16, 2, wood)
+            t.rect(0, y, 16, 1, wood_hi)
+        for x in (1, 13):
+            post(x, 3, 14)
+        post(7, 4, 14)
+    elif kind == "v":
+        t.rect(6, 0, 4, 16, line)
+        t.rect(7, 0, 2, 16, wood_dk)
+        t.rect(7, 0, 1, 16, wood)
+        post(7, 1, 7)
+        post(7, 9, 15)
+    else:
+        post(7, 1, 15)
+        t.rect(6, 0, 4, 2, line)
+        t.rect(7, 0, 2, 1, cap)
+    return t

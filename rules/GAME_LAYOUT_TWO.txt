@@ -896,3 +896,19 @@ Farm particles, blood pools, HUD sparkles, cone glitter, panel sparkles, rainbow
 OPTIMIZATION LAW (short)
 Put detail in the texture, not the count. Pool every burst. One instanced draw for all 2×2 chips.
 Over cap = kill oldest. See GAME_LAYOUT_ONE_FX_PIPELINE.txt.
+
+OWNER-REPORTED BUGS  [OWNER-REPORTED 2026-10-01 23:25 ET: playtest1 phone playtest fixes]
+Town: 40x30. Every house door is on its south face with a stoop; doors open only from the front (walking north
+into them). The back wall is solid. Only the ten road gates lead out; each leads to the vale on its own side, and
+the vale's town door brings you back at the gate on the side you came from. A writer fence rings the rest.
+Swim only when the whole foot box (py-2..py+3) is over water; the pond bank is land.
+The hero's look is the player's alone: NPCs, crowd and companions asking for a hero class wear sellsword,
+cutpurse, hedgemage or patron. Swim, slide, fish and climb are sprite-writer frames (moves.png).
+Walk: 2 3 4 3 at the game's 8 frames a second (125 ms a frame).
+Spells: 0.6 s on screen, drawn over the actors, a flight (55%) then an impact burst; picture only, no damage,
+targeting or cost moved. Smite or a rail spell that finds nothing shows a fizzle ring.
+Camp: breaking camp or stepping on the south mark asks "Leave camp?" (touch, keys, pad); the world waits.
+Leaving the page: autosave on hide, close, blur, fullscreen exit and every 45 s (gravewake-autosave-v1, a
+slot-shaped record; slots untouched); pause under "Tap to resume"; resume there on reload; the back gesture asks
+"Leave game?"; closing asks the browser's leave prompt.
+Ground: the town cobble, dirt, water, pool, fence, the vale road and room floors are pixel-writer strips.

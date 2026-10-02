@@ -16,7 +16,6 @@ import {
   STICK_CAP,
   canFullscreen,
   computeView,
-  enterFullscreen,
   fullscreenElement,
   inStickZone,
   isIos,
@@ -73,10 +72,6 @@ export function Gravewake() {
   const [portraitOk, setPortraitOk] = useState(false);
   const [tip, setTip] = useState(false);
   const [fs, setFs] = useState(false);
-  // playtest1 (owner-reported 2026-10-01, the Android edge swipe lost progress): the game paused itself because the
-  // page went away or fullscreen ended (resumeTap), or the back gesture asked to leave (leaveAsk).
-  const [resumeTap, setResumeTap] = useState(false);
-  const [leaveAsk, setLeaveAsk] = useState(false);
   useIosTipRequest(() => setTip(true)); // install1: the Install button on iPhone opens screen1's tip
   const [padOn, setPadOn] = useState(false);
   const [titleDisplay, setTitleDisplay] = useState(false);
@@ -309,17 +304,6 @@ export function Gravewake() {
           return;
         }
       }
-      // playtest1 (owner-reported 2026-10-01): "Leave camp?" takes Y or Enter for yes, N, Escape or Backspace for no.
-      // (Arrows and Tab still move between its two buttons, and Enter or Space press the focused one.)
-      if (game.askLeave) {
-        const focused = document.activeElement instanceof HTMLElement && document.activeElement.closest("[data-testid='leave-camp']");
-        if (e.code === "KeyY" || (e.code === "Enter" && !focused)) game.answerLeave(true);
-        else if (e.code === "KeyN" || e.code === "Escape" || e.code === "Backspace") game.answerLeave(false);
-        else return;
-        e.preventDefault();
-        setTick((n) => n + 1);
-        return;
-      }
       game.held.add(e.code);
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
       const bind = game.keyBind;
@@ -382,57 +366,10 @@ export function Gravewake() {
       setTick((n) => n + 1);
     };
     const up = (e: KeyboardEvent) => game.held.delete(e.code);
-    // playtest1 (owner-reported 2026-10-01, the Android edge swipe lost progress). Every way a phone page goes
-    // away writes the autosave (its own key; the three slots are untouched) and, mid-play, pauses with a "Tap to
-    // resume" cover: tab hidden, page hidden or closed, window blur, fullscreen ending. A 45 s autosave runs too.
-    const playing = () => game.mode !== "title" && game.mode !== "dead";
-    const away = (pause: boolean) => {
-      if (!playing()) return;
-      game.held.clear();
-      game.autosave(true);
-      if (!pause) return;
-      if (game.mode !== "pause" && game.mode !== "map" && game.mode !== "level") game.togglePause();
-      setResumeTap(true);
-      setTick((n) => n + 1);
-    };
-    const blur = () => {
-      game.held.clear();
-      if (playing()) game.autosave(true);
-    };
+    const blur = () => game.held.clear();
     const vis = () => {
       if (document.visibilityState === "visible") void audio.ctx?.resume();
-      else away(true);
     };
-    const pageHide = () => away(false);
-    const unload = (e: BeforeUnloadEvent) => {
-      if (!playing()) return;
-      game.autosave(true);
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    const autoId = window.setInterval(() => {
-      if (playing() && document.visibilityState === "visible") game.autosave(false);
-    }, 45000);
-    // The back gesture (Android edge swipe, the browser Back) pops a trap entry first: it asks "Leave game?".
-    let trapped = false;
-    const trap = () => {
-      if (trapped || !playing()) return;
-      trapped = true;
-      try {
-        history.pushState({ ...(history.state ?? {}), gravewakeTrap: 1 }, "", location.href);
-      } catch {
-        trapped = false;
-      }
-    };
-    const pop = () => {
-      if (!trapped) return;
-      trapped = false;
-      if (!playing()) return;
-      away(true);
-      trap();
-      setLeaveAsk(true);
-    };
-    window.__leaveTrap = { arm: trap, armed: () => trapped, drop: () => { trapped = false; } };
     const wheel = (e: WheelEvent) => {
       if (game.mode === "title") return;
       e.preventDefault();
@@ -465,14 +402,7 @@ export function Gravewake() {
       setPortrait(window.innerHeight > window.innerWidth);
       setFsAvail(canFullscreen() || !isStandalone());
     };
-    let wasFs = !!fullscreenElement();
-    const fsChange = () => {
-      const now = !!fullscreenElement();
-      setFs(now);
-      // playtest1: leaving fullscreen mid-play (an edge swipe on Android does this first) pauses and saves.
-      if (wasFs && !now) away(true);
-      wasFs = now;
-    };
+    const fsChange = () => setFs(!!fullscreenElement());
     sense();
     try {
       setPortraitOk(sessionStorage.getItem("gravewake-portrait-ok") === "1");
@@ -500,13 +430,6 @@ export function Gravewake() {
       if (!alive) return;
       readyAt.current = performance.now();
       setReady(true);
-      // playtest1: a page that went away mid-play comes back exactly there, paused under "Tap to resume".
-      const auto = game.mode === "title" ? game.readAuto() : null;
-      if (auto?.live && game.resumeAuto()) {
-        game.togglePause();
-        setResumeTap(true);
-        setTick((n) => n + 1);
-      }
       if (isIos() && !isStandalone() && !screenRef.current.tipShown) setTip(true);
     });
     window.__screenTest = {
@@ -525,9 +448,6 @@ export function Gravewake() {
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
     document.addEventListener("visibilitychange", vis);
-    window.addEventListener("pagehide", pageHide);
-    window.addEventListener("beforeunload", unload);
-    window.addEventListener("popstate", pop);
     canvas.addEventListener("wheel", wheel, { passive: false });
     return () => {
       alive = false;
@@ -548,11 +468,6 @@ export function Gravewake() {
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
       document.removeEventListener("visibilitychange", vis);
-      window.removeEventListener("pagehide", pageHide);
-      window.removeEventListener("beforeunload", unload);
-      window.removeEventListener("popstate", pop);
-      window.clearInterval(autoId);
-      delete window.__leaveTrap;
       canvas.removeEventListener("wheel", wheel);
       delete window.__controlsTest;
     };
@@ -650,26 +565,6 @@ export function Gravewake() {
   const begin = () => {
     unlock();
     gameRef.current?.start(cls, path, name);
-    bump();
-  };
-
-  // playtest1: once play starts, the back gesture hits the "Leave game?" trap before it can leave the page.
-  const inPlay = !!game && game.mode !== "title";
-  useEffect(() => {
-    if (inPlay) window.__leaveTrap?.arm();
-  }, [inPlay]);
-  const pausedNow = game?.mode === "pause";
-  useEffect(() => {
-    if (!pausedNow) setResumeTap(false);
-  }, [pausedNow]);
-
-  /** playtest1: the cover's tap. Back to fullscreen where the phone allows it (the tap is the gesture it needs). */
-  const resumeFromTap = () => {
-    const g = gameRef.current;
-    unlock();
-    if (coarse && canFullscreen() && !fullscreenElement()) void enterFullscreen();
-    if (g?.mode === "pause") g.togglePause();
-    setResumeTap(false);
     bump();
   };
 
@@ -835,20 +730,6 @@ export function Gravewake() {
                 </button>
               ))}
             </div>
-          ) : null}
-          {game?.readAuto() ? (
-            <button
-              type="button"
-              data-testid="continue"
-              onClick={() => {
-                unlock();
-                gameRef.current?.resumeAuto();
-                bump();
-              }}
-              className="rounded border border-primary px-6 py-2 font-display text-lg"
-            >
-              Continue · <span className="text-sm text-muted">{game.autoBrief()}</span>
-            </button>
           ) : null}
           <button type="button" data-padfirst onClick={begin} className="rounded bg-primary px-6 py-3 font-display text-lg text-bg">
             Wake in town
@@ -1685,23 +1566,6 @@ export function Gravewake() {
             </Panel>
           ) : null}
 
-          {game.askLeave ? (
-            <div data-padmodal data-testid="leave-camp" role="dialog" aria-modal="true" aria-labelledby="leave-camp-title" className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
-              <div className="flex w-full max-w-xs flex-col gap-3 rounded border border-primary bg-surface p-4 text-center">
-                <h2 id="leave-camp-title" className="font-display text-2xl">Leave camp?</h2>
-                <p className="text-sm text-muted">The fire goes out behind you. The road is where you left it.</p>
-                <div className="flex gap-3">
-                  <button type="button" data-testid="leave-yes" className="min-h-12 flex-1 rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.answerLeave(true); bump(); }}>
-                    Yes
-                  </button>
-                  <button type="button" data-testid="leave-no" data-padfirst data-padback autoFocus className="min-h-12 flex-1 rounded border border-border px-3 py-2" onClick={() => { game.answerLeave(false); bump(); }}>
-                    No
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
           {game.mode === "dead" ? (
             <Panel>
               <h2 className="font-display text-xl">Fallen</h2>
@@ -1712,52 +1576,6 @@ export function Gravewake() {
             </Panel>
           ) : null}
         </>
-      ) : null}
-
-      {leaveAsk && game && game.mode !== "title" ? (
-        <div data-padmodal data-testid="leave-game" role="dialog" aria-modal="true" className="absolute inset-0 z-[55] flex items-center justify-center bg-black/70 p-4">
-          <div className="flex w-full max-w-xs flex-col gap-3 rounded border border-primary bg-surface p-4 text-center">
-            <h2 className="font-display text-2xl">Leave game?</h2>
-            <p className="text-sm text-muted">Your night is saved. Continue picks it up from the title.</p>
-            <div className="flex gap-3">
-              <button type="button" data-testid="leave-game-stay" data-padfirst data-padback autoFocus className="min-h-12 flex-1 rounded bg-primary px-3 py-2 text-bg" onClick={() => { setLeaveAsk(false); resumeFromTap(); }}>
-                Stay
-              </button>
-              <button
-                type="button"
-                data-testid="leave-game-go"
-                className="min-h-12 flex-1 rounded border border-border px-3 py-2"
-                onClick={() => {
-                  gameRef.current?.autosave(true);
-                  setLeaveAsk(false);
-                  window.__leaveTrap?.drop();
-                  history.go(-2);
-                }}
-              >
-                Leave
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {resumeTap && !leaveAsk && game && game.mode === "pause" ? (
-        <button
-          type="button"
-          data-padmodal
-          data-padfirst
-          data-testid="tap-resume"
-          className="absolute inset-0 z-[52] flex flex-col items-center justify-center gap-2 bg-black/70 text-center"
-          onClick={resumeFromTap}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") return;
-            resumeFromTap();
-          }}
-          autoFocus
-        >
-          <span className="font-display text-3xl text-fg">Tap to resume</span>
-          <span className="text-sm text-muted">{coarse && canFullscreen() ? "(fullscreen)" : "Saved. The night waits."}</span>
-        </button>
       ) : null}
 
       {tip ? (
@@ -1983,8 +1801,6 @@ function Panel({ children }: { children: ReactNode }) {
 
 declare global {
   interface Window {
-    /** playtest1: the back-gesture trap (arm once play starts; armed while its history entry is on top). */
-    __leaveTrap?: { arm: () => void; armed: () => boolean; drop: () => void };
     __controlsTest?: {
       getX: () => number;
       getY: () => number;

@@ -6,7 +6,7 @@
  */
 export const CROWD_SHEET = "/art/sprites/folk-variants.png";
 export const CROWD_VARIANTS = 4;
-export const CROWD_ROLES = ["guard", "hunter", "undertaker", "zeppelin", "inn", "shop", "guild", "bank", "casino", "patron", "smith", "tailor", "fisher", "merchant", "alchemist", "portal", "sellsword", "cutpurse", "hedgemage"];
+export const CROWD_ROLES = ["guard", "hunter", "undertaker", "zeppelin", "inn", "shop", "guild", "bank", "casino", "patron", "smith", "tailor", "fisher", "merchant", "alchemist", "portal"];
 /**
  * Roles that are one fixed person and always wear their people.png cell. The town hunter is one man,
  * day and night. His looks stay in folk-variants.png (the sheet is a writer output and is not redrawn);

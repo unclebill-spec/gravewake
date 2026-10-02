@@ -241,3 +241,15 @@ QUICK TEST
 Produce one 16×16 chest with this lock. Zoom until pixels are countable.
 If the chest is muddy, the pipeline is wrong — fix size/filter/prompt
 before making a tileset or a character sheet.
+
+
+OWNER-REPORTED BUGS
+-------------------
+[OWNER-REPORTED 2026-10-01 23:25 ET: playtest1 phone playtest fixes] Bill's phone playtest (batch A). Movement and collision fixes were allowed; placement stays seeded, art is palette-locked and made by the writers, saves stay backward compatible.
+- Town: 40x30; every door on its house's south face with a stoop, front-only entry, solid backs; only the ten road gates lead out, each on its own side; the vale's town door arrives at the matching gate; an old save standing in a wall is lifted to open ground (unstick).
+- Swimming needs the whole foot box over water. The hero's look is the player's alone (NPCs and companions wear sellsword, cutpurse, hedgemage, patron). Swim/slide/fish/climb come from public/art/sprites/moves.png (sprite writer). The walk cycles 2 3 4 3 at 8 frames a second.
+- Spells (picture only): 0.6 s, drawn over the actors, flight then impact; the spell writer's strips preload; a wizard's Smite is shadow purple.
+- Speed: the vale's fringe sheets preload (a missing sheet made the vale build a canvas per fringed tile per frame); rain is one pre-drawn sliding layer.
+- Camp asks "Leave camp?". The shell autosaves (gravewake-autosave-v1) on hide, close, blur, fullscreen exit and every 45 s, pauses under "Tap to resume", resumes on reload, traps the back gesture with "Leave game?" and raises beforeunload. Installing with the Install button is still the best protection against the Android back gesture.
+- Ground: town cobble, dirt, water, pool, fence, vale road and room floors are pixel-writer strips (the land pack's cobble/water and the cozy dirt are no longer drawn).
+- Checks: group playtest1. The six game files it changed are frozen as install1 left them in scripts/frozen/playtest1/; the older groups' byte pins read those copies.

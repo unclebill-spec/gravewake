@@ -378,9 +378,6 @@ type SaveBlob = {
 };
 
 const SAVE_KEY = "gravewake-saves-v1";
-/** playtest1: the autosave's own key. Its record is a SaveBlob, the same shape as a slot. */
-const AUTO_KEY = "gravewake-autosave-v1";
-export type AutoSave = { v: 1; at: number; live: boolean; rec: SaveBlob };
 const SERVICES = ["inn", "shop", "guild", "priest", "bank", "casino", "smith", "alchemist", "tailor", "zeppelin", "hunter", "mystic", "fisher"];
 
 /** Rank 4 armor belongs to the wearer's class set. */
@@ -412,10 +409,6 @@ function nextNight(ms: number) {
 export class Game {
   mode: Mode = "title";
   cls: ClassId = "warrior";
-  /** playtest1: the hero shows the writer's climb frames until this world ms (a stair or ladder just taken). Picture only, not saved. */
-  climbUntil = 0;
-  /** playtest1 (owner-reported 2026-10-01): "Leave camp?" is up. The world waits while it is. Not saved. */
-  askLeave = false;
   path: StatPath = "str";
   name = "Wanderer";
   level = 1;
@@ -490,9 +483,7 @@ export class Game {
   /** Short visual bursts: chips, dust, ash, ticks. Fixed pool, never saved. See particles.ts. */
   readonly fx = new ParticlePool();
   /** A bolt or a ring. It fades. It does not linger. */
-  /** A drawn spell. Picture only: nothing in play reads it. playtest1: max is its whole life, so draw.ts can run the
-   * flight, then the impact flash. */
-  spells: { x: number; y: number; tx: number; ty: number; life: number; max?: number; kind: "bolt" | "ring" | "nova" | "mend" | "cone"; color: string }[] = [];
+  spells: { x: number; y: number; tx: number; ty: number; life: number; kind: "bolt" | "ring" | "nova" | "mend" | "cone"; color: string }[] = [];
   /** Death toast. Then slot 1 reloads, or town if that slot is empty. */
   fallen = 0;
   darkUntil = 0;
@@ -737,8 +728,6 @@ export class Game {
 
   private fireAct(act: Act) {
     if (this.mode === "title" || this.mode === "dead") return;
-    // playtest1: while "Leave camp?" is up the pad drives its two buttons (the UI pad layer), not the hero.
-    if (this.askLeave) return;
     if (this.mode === "fish") {
       if (act === "use") this.reel();
       else if (act === "pause") this.togglePause();
@@ -1386,7 +1375,7 @@ export class Game {
     this.battle = null;
     this.talk = null;
     this.mode = "play";
-    this.logLine = "Twilight holds the town. A road gate at any edge leads to the vale. Walk into a door or a stair. E speaks and fights.";
+    this.logLine = "Twilight holds the town. Walk off any edge for the vale. Walk into a gate or a stair. E speaks and fights.";
     this.enterTown(20 * TILE + 8, 14 * TILE + 8);
   }
 
@@ -1403,7 +1392,6 @@ export class Game {
     this.npcs = built.npcs;
     this.px = x;
     this.py = y;
-    this.unstick();
     this.roamers = [];
     this.entrances = {};
     this.critters = [
@@ -1416,33 +1404,6 @@ export class Game {
     this.syncPortal();
     this.syncFolk();
     this.syncRescued();
-  }
-
-  /**
-   * playtest1: a save, a revive or a portal that lands the hero's feet in a wall (an old save from before the town's
-   * doors moved south, say) steps them to the nearest open tile centre instead, nearest first, a fixed search order.
-   */
-  private unstick() {
-    if (!this.solidFeet()) return;
-    const ox = Math.floor(this.px / TILE);
-    const oy = Math.floor(this.py / TILE);
-    for (let r = 1; r < 8; r++) {
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          const tx = ox + dx;
-          const ty = oy + dy;
-          if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
-          const t = this.tiles[ty * this.w + tx];
-          if (t === T.door || t === T.water || t === T.pool || t === T.stairD || t === T.stairU) continue;
-          const keep = [this.px, this.py];
-          this.px = tx * TILE + 8;
-          this.py = ty * TILE + 8;
-          if (!this.solidFeet()) return;
-          [this.px, this.py] = keep;
-        }
-      }
-    }
   }
 
   /** The vale. Walking off a town edge lands here. */
@@ -2833,8 +2794,6 @@ export class Game {
     if (this.actFor > 0) this.actFor = Math.max(0, this.actFor - dt);
     if (this.spellCool > 0) this.spellCool = Math.max(0, this.spellCool - dt);
     if (this.mode === "title" || this.mode === "dead" || this.mode === "pause" || this.mode === "map" || this.mode === "level") return;
-    if (this.askLeave && (this.mapId !== "camp" || this.mode !== "play")) this.askLeave = false;
-    if (this.askLeave) return;
     this.worldMs += dt * 1000;
     this.tickWeather();
     this.syncMood();
@@ -3106,28 +3065,17 @@ export class Game {
     return this.equip.feet?.special === "Waterwalk";
   }
 
-  /**
-   * playtest1 (owner-reported bug 2026-10-01): you swim only once your whole foot box (py - 2 .. py + 3, the same box
-   * solidFeet uses) is over water. Before, the one pixel at your heel decided, so a hero on the road with a heel
-   * over the pond's top row read as swimming.
-   */
-  private wetFeet(x: number, y: number) {
-    const a = this.tileUnder(x, y - 2);
-    const b = this.tileUnder(x, y + 3);
-    return (a === T.water || a === T.pool) && (b === T.water || b === T.pool);
-  }
-
   /** Ice wins over water. Water-walking boots report land, so the pose is a walk. */
   private groundKind(): "land" | "water" | "ice" {
     const t = this.tileUnder(this.px, this.py);
     if (t === T.ice) return "ice";
-    if (this.wetFeet(this.px, this.py) && !this.hasWaterWalk()) return "water";
+    if ((t === T.water || t === T.pool) && !this.hasWaterWalk()) return "water";
     return "land";
   }
 
   poseFor(x: number, y: number, moving: boolean, waterwalk: boolean): "stand" | "walk" | "wade" | "slide" {
     const t = this.tileUnder(x, y);
-    if (this.wetFeet(x, y) && !waterwalk) return "wade";
+    if ((t === T.water || t === T.pool) && !waterwalk) return "wade";
     if (t === T.ice) return moving ? "slide" : "stand";
     return moving ? "walk" : "stand";
   }
@@ -3136,8 +3084,7 @@ export class Game {
   private solidAt(px: number, py: number, hero = false) {
     const tx = Math.floor(px / TILE);
     const ty = Math.floor(py / TILE);
-    // playtest1: off the town map only through a road gate; the rest of the edge is a fence.
-    if (this.mapId === "town" && (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h)) return !townGateSide(Math.max(0, Math.min(this.w - 1, tx)), Math.max(0, Math.min(this.h - 1, ty)));
+    if (this.mapId === "town" && (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h)) return false;
     if (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h) return true;
     const t = this.tiles[ty * this.w + tx];
     if (t === T.wall || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t)) return true;
@@ -3173,39 +3120,10 @@ export class Game {
     }
   }
 
-  /**
-   * playtest1: the vale tile on one side of the town door (32,44): south is the road it always used (32,46); north,
-   * west and east are two tiles off the door when that tile is open ground, else the south road.
-   */
-  private worldBeside(side: TownSide) {
-    const at = { s: [32, 46], n: [32, 42], w: [30, 44], e: [34, 44] }[side];
-    if (side !== "s") {
-      const world = buildWorld();
-      const t = world.tiles[at[1] * world.w + at[0]];
-      const open = t === T.road || t === T.grass || t === T.dirt || t === T.swamp || t === T.ash || t === T.sand || t === T.snow;
-      if (!open) return { x: 32 * TILE + 8, y: 46 * TILE + 8 };
-    }
-    return { x: at[0] * TILE + 8, y: at[1] * TILE + 8 };
-  }
-
-  /** playtest1: walking into the vale's town door arrives at the town gate on the side you came from. */
-  private enterTownFrom(facing: "n" | "s" | "e" | "w") {
-    const side: TownSide = facing === "n" ? "s" : facing === "s" ? "n" : facing === "e" ? "w" : "e";
-    const at = TOWN_ARRIVE[side];
-    this.enterTown(at.x, at.y);
-    this.facing = at.facing;
-  }
-
   private edgeCheck() {
     if (this.mapId !== "town") return;
     if (this.px < 8 || this.py < 8 || this.px > this.w * TILE - 8 || this.py > this.h * TILE - 8) {
-      // playtest1: only a road gate leads out, and it leads out on its own side of the vale's town door.
-      const side = townGateSide(Math.max(0, Math.min(this.w - 1, Math.floor(this.px / TILE))), Math.max(0, Math.min(this.h - 1, Math.floor(this.py / TILE))));
-      if (!side) return;
-      const out = this.worldBeside(side);
-      this.enterWorld(out.x, out.y);
-      this.facing = side === "n" ? "n" : side === "s" ? "s" : side === "w" ? "w" : "e";
-      this.doorCool = 0.45;
+      this.enterWorld(32 * TILE + 8, 46 * TILE + 8);
       this.logLine = "The vale is gloomy even at noon. Roads are quieter than the brush.";
       if (this.level < 3) this.logLine = "Stay on the road. The east bridge is not for a first night.";
     }
@@ -3242,13 +3160,12 @@ export class Game {
     }
     if (!hearth && !grave && !pit && !gate && !mouth) return;
     const before = `${this.mapId}:${this.floor}:${this.dungeon}`;
-    if (hearth || grave || mouth) this.climbUntil = this.worldMs + 500; // playtest1: down the ladder
     if (hearth) this.enterDungeon("hearth");
     else if (grave) this.enterDungeon("grave");
     else if (pit) this.useStair(here);
     else if (gate) {
       this.audio?.door();
-      this.enterTownFrom(this.facing);
+      this.enterTown();
       this.logLine = "The town keeps its twilight.";
     } else this.enterDungeon(mouth);
     const after = `${this.mapId}:${this.floor}:${this.dungeon}`;
@@ -3267,8 +3184,6 @@ export class Game {
     if (this.mapId === "town") {
       const room = roomByDoor(tx, ty);
       if (!room) return false;
-      // playtest1 (owner-reported bug): a house door opens only from the front, walking north into it from its stoop.
-      if (this.py < ty * TILE + 8) return false;
       this.enterInside(room.id);
       return true;
     }
@@ -3277,8 +3192,7 @@ export class Game {
       return true;
     }
     if (this.mapId === "camp") {
-      // playtest1: the south mark asks first.
-      this.askLeaveCamp();
+      this.leaveCamp();
       return true;
     }
     return false;
@@ -3709,7 +3623,7 @@ export class Game {
     if (this.mapId === "dungeon" && this.touchSecret()) return;
     if (this.mapId === "world" && here === T.door) {
       this.audio?.door();
-      this.enterTownFrom(this.facing);
+      this.enterTown();
       this.logLine = "The town keeps its twilight.";
       return;
     }
@@ -3772,7 +3686,6 @@ export class Game {
 
   private useStair(here: number) {
     if (this.escortHolds()) return;
-    this.climbUntil = this.worldMs + 500;
     const def = dungeonById(this.dungeon);
     const max = def?.floors ?? 5;
     if (here === T.stairD) {
@@ -5348,7 +5261,6 @@ export class Game {
     this.actPose = "cast";
     this.actFor = 0.28;
     if (!foe) {
-      this.bolt(this.px, this.py - 14, this.px, this.py - 14, "ring"); // playtest1: a fizzle you can see
       this.logLine = `${name} finds nothing.`;
       return;
     }
@@ -5368,8 +5280,7 @@ export class Game {
     for (const r of this.roamers) {
       if (!this.liveFoe(r)) continue;
       if (Math.hypot(r.x - this.px, r.y - this.py) > 96) continue;
-      // playtest1: a wizard's Smite is the Deathbolt's shadow purple, so it reads as his; damage is unchanged.
-      this.bolt(this.px, this.py - 12, r.x, r.y - 10, "bolt", this.cls === "wizard" ? "#6a3a8a" : "#f4e27a");
+      this.bolt(this.px, this.py - 12, r.x, r.y - 10, "bolt");
       if ((r.tell ?? 0) > 0 && r.casting === "big") {
         if (this.worldMs < this.smiteLock) this.logLine = "Smite is spent.";
         else {
@@ -5385,10 +5296,7 @@ export class Game {
       break;
     }
     if (!n && this.smiteSaint()) n = 1;
-    if (!n) {
-      this.bolt(this.px, this.py - 14, this.px, this.py - 14, "ring"); // playtest1: a fizzle you can see
-      this.logLine = "Smite finds nothing.";
-    }
+    if (!n) this.logLine = "Smite finds nothing.";
     this.audio?.spell();
   }
 
@@ -5839,8 +5747,7 @@ export class Game {
 
   private bolt(x: number, y: number, tx: number, ty: number, kind: "bolt" | "ring" | "nova" | "mend" | "cone" = "bolt", color = "#f4e27a") {
     if (this.spells.length >= 12) this.spells.shift();
-    // playtest1 (owner-reported 2026-10-01, spells did not show): 0.6 s on screen, flight then impact (was 0.32 s).
-    this.spells.push({ x, y, tx, ty, life: SPELL_LIFE, max: SPELL_LIFE, kind, color });
+    this.spells.push({ x, y, tx, ty, life: 0.32, kind, color });
   }
 
   /** Four chips around a point, through the pool (combat channel, cap 24, oldest dies first). */
@@ -6698,8 +6605,7 @@ export class Game {
 
   camp() {
     if (this.mapId === "camp") {
-      // playtest1: breaking camp asks first.
-      this.askLeaveCamp();
+      this.leaveCamp();
       return;
     }
     if (this.mapId !== "world" || this.mode === "battle" || this.mode === "dead" || this.fallen > 0) {
@@ -6760,32 +6666,6 @@ export class Game {
     this.logLine = this.companion
       ? "The tent is up. The fire holds. Talk to them, then take the south mark when you mean to leave."
       : "The tent is up. The fire holds. The south mark leads back to the road.";
-  }
-
-  /** playtest1 (owner-reported 2026-10-01): breaking camp, or walking onto its south mark, asks "Leave camp?". */
-  askLeaveCamp() {
-    if (this.mapId !== "camp" || this.mode !== "play") return;
-    this.askLeave = true;
-    this.held.clear();
-    this.logLine = "Leave camp?";
-  }
-
-  /** Yes breaks camp as before. No keeps you by the fire, a step back from the south mark. */
-  answerLeave(yes: boolean) {
-    if (!this.askLeave) return;
-    this.askLeave = false;
-    if (yes) {
-      this.leaveCamp();
-      return;
-    }
-    const tx = Math.floor(this.px / TILE);
-    const ty = Math.floor(this.py / TILE);
-    if (this.tiles[ty * this.w + tx] === T.door) {
-      this.py = (ty - 1) * TILE + 8;
-      this.facing = "n";
-    }
-    this.doorCool = 0.45;
-    this.logLine = "You stay by the fire.";
   }
 
   leaveCamp() {
@@ -6906,17 +6786,7 @@ export class Game {
   /** Write this life into one of the three local slots. */
   saveSlot(slot: number) {
     const all = this.readSaves();
-    all[slot] = this.saveRecord();
-    localStorage.setItem(SAVE_KEY, JSON.stringify(all));
-    this.logLine = `Saved in slot ${slot + 1}.`;
-  }
-
-  /**
-   * playtest1 (owner-reported 2026-10-01, the Android edge swipe lost progress): this life as one save record, the
-   * same SaveBlob a slot holds (one shape, so an autosave and a slot load through the same loadRecord).
-   */
-  saveRecord(): SaveBlob {
-    return {
+    all[slot] = {
       cls: this.cls,
       path: this.path,
       name: this.name,
@@ -6977,57 +6847,14 @@ export class Game {
       campY: this.campY,
       drops: this.drops.map((d) => ({ ...d, item: d.item ? { ...d.item } : null })),
     };
-  }
-
-  /**
-   * playtest1: the autosave, its own key beside the three slots (the slots are never touched by it). live marks a
-   * page that went away mid-play (hidden, swiped off, closed), so the next load resumes it at once. Never written
-   * on the title, at death or while fallen. Returns whether it wrote.
-   */
-  autosave(live: boolean): boolean {
-    if (this.mode === "title" || this.mode === "dead" || this.fallen > 0) return false;
-    try {
-      const auto: AutoSave = { v: 1, at: Date.now(), live, rec: this.saveRecord() };
-      localStorage.setItem(AUTO_KEY, JSON.stringify(auto));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /** playtest1: the autosave, if there is a readable one. */
-  readAuto(): AutoSave | null {
-    try {
-      const a = JSON.parse(localStorage.getItem(AUTO_KEY) || "null") as AutoSave | null;
-      return a && a.v === 1 && a.rec && typeof a.rec.cls === "string" ? a : null;
-    } catch {
-      return null;
-    }
-  }
-
-  autoBrief() {
-    const a = this.readAuto();
-    return a ? `${a.rec.name} · ${CLASSES[a.rec.cls]?.label ?? a.rec.cls} · Lv ${a.rec.level}` : "";
-  }
-
-  /** playtest1: pick up exactly where the autosave left off (the same restore a slot uses). */
-  resumeAuto(): boolean {
-    const a = this.readAuto();
-    if (!a) return false;
-    this.loadRecord(a.rec);
-    this.logLine = "Back where you left off.";
-    return true;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(all));
+    this.logLine = `Saved in slot ${slot + 1}.`;
   }
 
   /** Restore a slot and rebuild the map under the saved pixel. */
   loadSlot(slot: number) {
     const raw = this.readSaves()[slot];
     if (!raw) return;
-    this.loadRecord(raw);
-  }
-
-  /** Restore one save record (a slot's, or the autosave's) and rebuild the map under the saved pixel. */
-  loadRecord(raw: SaveBlob) {
     this.cls = raw.cls;
     this.path = raw.path;
     this.name = raw.name;
@@ -7218,8 +7045,8 @@ type RoomDef = {
 };
 
 const ROOMS: RoomDef[] = [
-  { id: "inn", name: "The Lantern Inn", kind: "inn", doorX: 5, doorY: 6, outX: 5, outY: 7 },
-  { id: "shop", name: "The Counter", kind: "shop", doorX: 14, doorY: 6, outX: 14, outY: 7 },
+  { id: "inn", name: "The Lantern Inn", kind: "inn", doorX: 9, doorY: 5, outX: 10, outY: 5 },
+  { id: "shop", name: "The Counter", kind: "shop", doorX: 17, doorY: 5, outX: 18, outY: 5 },
   { id: "guild", name: "The Guildhall", kind: "guild", doorX: 30, doorY: 6, outX: 30, outY: 7 },
   { id: "bank", name: "The Counting House", kind: "bank", doorX: 34, doorY: 6, outX: 34, outY: 7 },
   { id: "bram", name: "Bram's cottage", kind: "cottage", doorX: 5, doorY: 11, outX: 5, outY: 12, home: "bram", who: "Bram" },
@@ -7227,13 +7054,13 @@ const ROOMS: RoomDef[] = [
   { id: "ivy", name: "Ivy's cottage", kind: "cottage", doorX: 26, doorY: 11, outX: 26, outY: 12, home: "ivy", who: "Ivy" },
   { id: "chapel", name: "The Chapel", kind: "chapel", doorX: 5, doorY: 19, outX: 5, outY: 20 },
   { id: "casino", name: "The Felt", kind: "casino", doorX: 27, doorY: 19, outX: 27, outY: 20 },
-  { id: "smith", name: "The Smithy", kind: "smith", doorX: 34, doorY: 19, outX: 34, outY: 20 },
+  { id: "smith", name: "The Smithy", kind: "smith", doorX: 34, doorY: 15, outX: 34, outY: 14 },
   { id: "fisher", name: "The Drowned Hook", kind: "fisher", doorX: 18, doorY: 20, outX: 18, outY: 21 },
-  { id: "croft", name: "The South Croft", kind: "croft", doorX: 18, doorY: 26, outX: 18, outY: 27 },
-  { id: "noll", name: "Noll's cottage", kind: "cottage", doorX: 13, doorY: 26, outX: 13, outY: 27, home: "noll", who: "Noll" },
-  { id: "tailor", name: "The Needle", kind: "tailor", doorX: 5, doorY: 26, outX: 5, outY: 27 },
-  { id: "alchemy", name: "The Cauldron", kind: "alchemy", doorX: 27, doorY: 26, outX: 27, outY: 27 },
-  { id: "mystic", name: "The Moon and Star", kind: "mystic", doorX: 34, doorY: 26, outX: 34, outY: 27 },
+  { id: "croft", name: "The South Croft", kind: "croft", doorX: 18, doorY: 23, outX: 18, outY: 22 },
+  { id: "noll", name: "Noll's cottage", kind: "cottage", doorX: 13, doorY: 22, outX: 13, outY: 21, home: "noll", who: "Noll" },
+  { id: "tailor", name: "The Needle", kind: "tailor", doorX: 5, doorY: 22, outX: 5, outY: 21 },
+  { id: "alchemy", name: "The Cauldron", kind: "alchemy", doorX: 27, doorY: 22, outX: 27, outY: 21 },
+  { id: "mystic", name: "The Moon and Star", kind: "mystic", doorX: 34, doorY: 22, outX: 34, outY: 21 },
 ];
 
 function roomByDoor(x: number, y: number) {
@@ -7305,40 +7132,9 @@ function boneKin(r: Roamer) {
   return r.family === "skeleton" || r.family === "lich" || r.def === "lich" || r.def === "saint" || r.def === "abbot";
 }
 
-/** playtest1: a drawn spell's time on screen, its flight then its impact. Picture only. */
-export const SPELL_LIFE = 0.6;
-/** playtest1: the town is 40 x 30 (two margin rows south of the south houses). */
-const TOWN_H = 30;
-/**
- * playtest1 (owner-reported bug 2026-10-01): the town is left only through its four road gates, the edge tiles where a
- * road meets the map edge. Everywhere else the edge is a fence. Each gate maps to a side of the vale's town door.
- */
-const TOWN_GATES: [number, number][] = [
-  [20, 0], [21, 0],
-  [20, TOWN_H - 1], [21, TOWN_H - 1],
-  [0, 12], [0, 13], [0, 21],
-  [39, 12], [39, 13], [39, 21],
-];
-export type TownSide = "n" | "s" | "w" | "e";
-/** Where a gate's road enters the town: the hero's arrival pixel and facing for each side. */
-export const TOWN_ARRIVE: Record<TownSide, { x: number; y: number; facing: "n" | "s" | "e" | "w" }> = {
-  s: { x: 21 * TILE, y: (TOWN_H - 2) * TILE + 8, facing: "n" },
-  n: { x: 21 * TILE, y: 1 * TILE + 8, facing: "s" },
-  w: { x: 1 * TILE + 8, y: 13 * TILE, facing: "e" },
-  e: { x: 38 * TILE + 8, y: 13 * TILE, facing: "w" },
-};
-/** The side of town a gate tile is on, or "" for a fence. */
-export function townGateSide(tx: number, ty: number): TownSide | "" {
-  if (!TOWN_GATES.some(([x, y]) => x === tx && y === ty)) return "";
-  if (ty === 0) return "n";
-  if (ty === TOWN_H - 1) return "s";
-  return tx === 0 ? "w" : "e";
-}
-
 function buildTown() {
   const w = 40;
-  // playtest1 (owner-reported bug 2026-10-01): two margin rows below the south houses, so their front doors face open ground.
-  const h = TOWN_H;
+  const h = 28;
   const tiles = new Uint8Array(w * h);
   tiles.fill(T.grass);
   const set = (x: number, y: number, t: number) => {
@@ -7368,17 +7164,10 @@ function buildTown() {
     set(20, y, T.cobble);
     set(21, y, T.cobble);
   }
-  // playtest1: every door is on its building's south face, where the house sprite draws it; the rest of the block is wall.
-  for (let x = 20; x <= 21; x++) for (let y = 27; y < h - 1; y++) set(x, y, T.cobble);
-  for (const [x, y] of TOWN_GATES) {
-    set(x, y, T.cobble);
-    if (x === 0) set(1, y, T.cobble);
-    if (x === w - 1) set(w - 2, y, T.cobble);
-  }
-  shell(2, 2, 8, 5, 5, 6);
-  stoop(5, 7);
-  shell(12, 2, 6, 5, 14, 6);
-  stoop(14, 7);
+  shell(2, 2, 8, 5, 9, 5);
+  stoop(10, 5);
+  shell(12, 2, 6, 5, 17, 5);
+  stoop(18, 5);
   shell(24, 2, 7, 5, 30, 6);
   stoop(30, 7);
   shell(33, 2, 5, 5, 34, 6);
@@ -7386,18 +7175,16 @@ function buildTown() {
   shell(12, 8, 6, 4, 14, 11);
   shell(24, 8, 6, 4, 26, 11);
   shell(3, 8, 6, 4, 5, 11);
-  shell(11, 22, 6, 5, 13, 26);
+  shell(11, 22, 6, 5, 13, 22);
   shell(2, 15, 8, 5, 5, 19);
   shell(24, 15, 7, 5, 27, 19);
-  shell(32, 15, 6, 5, 34, 19);
-  shell(2, 22, 7, 5, 5, 26);
-  shell(24, 22, 7, 5, 27, 26);
-  shell(33, 22, 5, 5, 34, 26);
+  shell(32, 15, 6, 5, 34, 15);
+  shell(2, 22, 7, 5, 5, 22);
+  shell(24, 22, 7, 5, 27, 22);
+  shell(33, 22, 5, 5, 34, 22);
   shell(17, 17, 3, 4, 18, 20);
-  shell(17, 23, 3, 4, 18, 26);
-  stoop(34, 20);
-  // The south lane in front of the south houses' doors.
-  for (let x = 2; x < 38; x++) if (tiles[27 * w + x] === T.grass) set(x, 27, T.dirt);
+  shell(17, 23, 3, 4, 18, 23);
+  stoop(18, 22);
   for (let y = 16; y <= 19; y++) for (let x = 12; x <= 16; x++) set(x, y, T.dirt);
   set(12, 17, T.grave);
   set(15, 17, T.grave);

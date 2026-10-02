@@ -486,12 +486,14 @@ function drawTile(
       const g = Math.abs(x * 3 + y * 5) % 7;
       usedLand = seasonCell(ctx, "town-grass", "/art/cozy/grass.png", g, gx, gy);
     } else if (tile === T.cobble || tile === T.road) {
-      // playtest1 (owner-reported 2026-10-01, old ground textures): the pixel writer's town cobble, not the land pack.
-      usedLand = sheetCell(ctx, PT1_GROUND.cobble, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy);
+      const picks: Array<[number, number]> = [[7, 8], [8, 8], [7, 10], [8, 10]];
+      const p = picks[(x + y * 2) % picks.length]!;
+      usedLand = landCell(ctx, "terrain", p[0], p[1], gx, gy);
     } else if (tile === T.dirt) {
-      usedLand = sheetCell(ctx, PT1_GROUND.dirt, Math.abs(x * 5 + y * 3) % 4, 0, gx, gy);
+      const d = Math.abs(x * 5 + y * 3) % 3;
+      usedLand = sheetCell(ctx, "/art/cozy/dirt.png", d, 0, gx, gy);
     } else if (tile === T.water) {
-      usedLand = sheetCell(ctx, "/art/writer/water.png", Math.abs(Math.floor(frame / 10) + x) % 4, 0, gx, gy);
+      usedLand = landCell(ctx, "terrain", 4, 11, gx, gy);
     }
   }
   if (theme === "over" && (tile === T.grass || tile === T.exit)) {
@@ -595,9 +597,7 @@ function drawTile(
       if ((x * 2 + y) % 7 === 0) px(ctx, gx + 11, gy + 8, 2, 2, "#8a7048");
     }
   }
-  if (tile === T.road && theme === "over" && sheetCell(ctx, PT1_GROUND.road, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
-    // playtest1: the writer's cart road (the old code-drawn road below is only the not-yet-loaded fallback).
-  } else if (tile === T.road && theme === "over") {
+  if (tile === T.road && theme === "over") {
     const dirt = n > 0.5 ? "#c4a574" : "#b09060";
     const dirt2 = "#8a6844";
     px(ctx, gx, gy, TILE, TILE, dirt);
@@ -621,11 +621,8 @@ function drawTile(
     if (right === T.grass || right === T.dirt) px(ctx, gx + 14, gy, 2, TILE, "#5a4834");
   }
   if (tile === T.floor && townish(theme)) {
-    // playtest1: the writer's floorboards; the old seam and random marks are only the not-yet-loaded fallback.
-    if (!sheetCell(ctx, PT1_GROUND.floor, Math.abs(x + y * 3) % 4, 0, gx, gy)) {
-      px(ctx, gx + 0, gy + 15, TILE, 1, "#3a2818");
-      px(ctx, gx + 4, gy + 4, 2, 6, "#4a3424");
-    }
+    px(ctx, gx + 0, gy + 15, TILE, 1, "#3a2818");
+    px(ctx, gx + 4, gy + 4, 2, 6, "#4a3424");
     if ((x === 3 || x === 4) && y === 4) {
       px(ctx, gx + (x === 3 ? 2 : 0), gy + 5, x === 3 ? 14 : 12, 8, "#6a3048");
       px(ctx, gx + (x === 3 ? 2 : 0), gy + 4, x === 3 ? 14 : 8, 3, "#e8dcc8");
@@ -706,8 +703,8 @@ function drawTile(
       px(ctx, gx + 3, gy + 6, 4, 4, "#8a6840");
       px(ctx, gx + 9, gy + 6, 4, 4, "#8a6840");
     }
+    if ((x * 3 + y) % 5 === 0) px(ctx, gx + 8, gy + 6, 2, 1, "#8a6848");
   }
-  if (tile === T.pool && theme === "town" && sheetCell(ctx, PT1_GROUND.pool, Math.abs(Math.floor(frame / 10)) % 4, 0, gx, gy)) return;
   if (tile === T.pool && theme === "town") {
     px(ctx, gx, gy, TILE, TILE, "#6a6058");
     px(ctx, gx + 2, gy + 2, 12, 12, "#1a3848");
@@ -876,14 +873,6 @@ const FLOOD_SHEET = "/art/writer/flood.png";
 /** Map writer phase 2: biome border fringe masks (pixel writer). 0-3 bands n e s w, 4-7 their second
  * variant, 8-11 corners ne se sw nw. Only the alpha is used: the neighbour biome's own ground shows through. */
 const BORDER_SHEET = "/art/writer/border-dither.png";
-/** playtest1: every sheet a vale fringe can need, so they are all asked for up front (see fringeReady). */
-/** playtest1 (owner-reported 2026-10-01, old ground textures): the pixel writer's town and room grounds. */
-export const PT1_GROUND = { cobble: "/art/writer/town-cobble.png", dirt: "/art/writer/town-dirt.png", road: "/art/writer/vale-road.png", floor: "/art/writer/room-floor.png", pool: "/art/writer/town-pool.png" } as const;
-/** playtest1 (spells did not show): the spell writer's strips load up front, so a first cast never waits on one. */
-const SPELL_GEN = ["lightning", "beam-fire", "beam-holy", "beam-ice", "beam-lightning", "beam-shadow", "beam-venom", "orb", "nova", "ring", "fire-rain", "ice-rain"].map((n) => `/art/spells/gen/${n}.png`);
-/** playtest1: the town's edge fence (h run, v run, gate post). Pixel writer. */
-export const PT1_FENCE = "/art/writer/town-fence.png";
-const FRINGE_SHEETS = ["/art/writer/vale.png", ...["snow", "sand", "ash", "swamp"].map((b) => `/art/writer/${b}.png`)];
 /** Sleeping mimic (owner-approved 2026-09-30): 0 lid lifted a pixel, 1 with a tooth glint. Pixel writer, laid over the chest. */
 const MIMIC_SLEEP = "/art/writer/mimic-sleep.png";
 /** A freed captive knocked down on the escort: one 32x16 cell per RESCUES entry. Sprite writer. */
@@ -926,10 +915,7 @@ if (typeof Image !== "undefined") {
     landSheet[url] = im;
   }
   // gfx1: the wall kits, the lamp sheet and the portal gates load up front too, so a wall never pops from flat to deep.
-  // playtest1 (owner-reported 2026-10-01, rain slowdown): the fringe biome sheets load up front. fringeReady() waits
-  // on all four; when no snow, sand, ash or swamp tile had been drawn yet the sheet was never asked for, so the vale
-  // rebuilt every fringed tile (a new canvas each) on every frame: ~2,500 canvases a second, the vale's frame drop.
-  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`), ...FRINGE_SHEETS, ...Object.values(PT1_GROUND), PT1_FENCE, ...SPELL_GEN]) {
+  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`)]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -1100,46 +1086,12 @@ function outfit(role: string, coat: string): { cloth: string; trim: string; hat:
   return { cloth: coat, trim: shade(coat, -30), hat: shade(coat, -20), skin };
 }
 
-export const WALK_CYCLE = [2, 3, 4, 3];
-/** playtest1: the writer's swim, slide, fish and climb frames (tools/sprite-writer MOVES), per role in FOLK order. */
-export const MOVES_SHEET = "/art/sprites/moves.png";
-export const MOVES = ["swim0", "swim1", "slide", "fish0", "fish1", "climb0", "climb1"] as const;
-/** people.png role order (tools/sprite-writer FOLK). */
-export const FOLK = ["warrior", "wizard", "assassin", "vampire", "priest", "witch", "shade", "mystic", "guard", "hunter", "undertaker", "zeppelin", "inn", "shop", "guild", "bank", "casino", "patron", "smith", "tailor", "fisher", "merchant", "alchemist", "portal", "sellsword", "cutpurse", "hedgemage"];
-/** allies.png order: the first eight roles, then the three companion looks. */
-export const ALLY_LOOKS = [...FOLK.slice(0, 8), "sellsword", "cutpurse", "hedgemage"];
-/** The four hero classes. Their looks belong to the player alone. */
-export const HERO_LOOKS = ["warrior", "wizard", "assassin", "vampire"];
-/**
- * playtest1 (owner-reported 2026-10-01): an NPC, a townsperson or a companion never wears a hero class's look. An old
- * save's companion (look "wizard" and the like) and any stray look are drawn in the matching townsfolk look instead.
- */
-export const FOLK_FOR_HERO: Record<string, string> = { warrior: "sellsword", assassin: "cutpurse", wizard: "hedgemage", vampire: "patron" };
-function strHash(t: string) {
-  let h = 2166136261;
-  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
-  return h >>> 0;
-}
-export function lookFor(role: string, cast: "npc" | "hero" | "ally"): string {
-  return cast !== "hero" && FOLK_FOR_HERO[role] ? FOLK_FOR_HERO[role] : role;
-}
-/** The moves.png column for a special pose, or -1. */
-export function moveCol(role: string, pose: string, frame: number): number {
-  const who = FOLK.indexOf(role);
-  if (who < 0) return -1;
-  const two = Math.floor(Math.max(0, frame) / 3) % 2;
-  const m = pose === "wade" ? two : pose === "slide" ? 2 : pose === "fish" ? 3 + two : pose === "climb" ? 5 + (Math.floor(Math.max(0, frame) / 2) % 2) : -1;
-  return m < 0 ? -1 : who * MOVES.length + m;
-}
-
 /** Eleven frames: stand, idle, three walks, swing wind-up strike recover, cast gather release scatter. */
-export function poseCol(pose: string, frame: number, phase = 1): number {
+function poseCol(pose: string, frame: number, phase = 1): number {
   const step = Math.max(0, Math.min(2, phase));
   if (pose === "swing") return 5 + step;
   if (pose === "cast") return 8 + step;
-  // playtest1 (owner-reported 2026-10-01, the hero floated): one walk frame per tick of g.frame (8 a second), in the
-  // order contact, pass, contact, pass, so a stride is half a second. Before it was one frame per 0.6 s.
-  if (pose === "walk") return WALK_CYCLE[Math.floor(Math.max(0, frame)) % 4];
+  if (pose === "walk") return 2 + (Math.floor(frame / 5) % 3);
   return Math.floor(frame / 28) % 2;
 }
 
@@ -1158,16 +1110,11 @@ function person(
   facing: number,
   frame: number,
   scale = 1,
-  pose: "stand" | "walk" | "wade" | "slide" | "swing" | "cast" | "fish" | "climb" = "stand",
+  pose: "stand" | "walk" | "wade" | "slide" | "swing" | "cast" | "fish" = "stand",
   cast: "npc" | "hero" | "ally" = "npc",
   phase = 1,
   seed = "",
 ) {
-  role = lookFor(role, cast);
-  // playtest1 (owner-reported 2026-10-01, no legacy painter anywhere): a role with no sheet look (a rescued captive,
-  // a festival goer, a plain "folk") wears one of the sixteen townsfolk sheet looks, picked from its id, never the
-  // old painted person below.
-  if (!FOLK.includes(role)) role = FOLK[8 + (strHash(seed || role) % 16)]!;
   const step = pose === "walk" ? Math.floor(frame / 6) % 2 : 0;
   const o = outfit(role, coat);
   const flip = facing === 3;
@@ -1177,21 +1124,11 @@ function person(
   if (flip) ctx.scale(-1, 1);
   ctx.scale(scale, scale);
   ctx.translate(-8, -22);
-  const folk = FOLK;
-  const allyNames = ALLY_LOOKS;
+  const folk = ["warrior", "wizard", "assassin", "vampire", "priest", "witch", "shade", "mystic", "guard", "hunter", "undertaker", "zeppelin", "inn", "shop", "guild", "bank", "casino", "patron", "smith", "tailor", "fisher", "merchant", "alchemist", "portal"];
+  const allyNames = folk.slice(0, 8);
   const useAlly = cast === "ally" && allyNames.indexOf(role) >= 0;
   const who = useAlly ? allyNames.indexOf(role) : folk.indexOf(role);
-  const special = pose === "wade" || pose === "slide" || pose === "fish" || pose === "climb";
-  if (special && who >= 0) {
-    // playtest1: swim, slide, fish and climb are writer frames (moves.png). The fishing line's bobber is drawn here.
-    sheetCell(ctx, MOVES_SHEET, moveCol(role, pose, frame), 0, 0, -10, 1, 2, 16);
-    if (pose === "fish") {
-      const bob = Math.floor(frame / 4) % 2;
-      px(ctx, 15, 14 + bob, 2, 2, "#f4e27a");
-    }
-    ctx.restore();
-    return;
-  }
+  const special = pose === "wade" || pose === "slide" || pose === "fish";
   if (!special && who >= 0) {
     // A town NPC wears one of its role's crowd looks, picked from its id. Heroes and allies keep the main cell.
     const crowd = cast === "npc" && seed ? crowdCol(role, crowdLook(seed), poseCol(pose, frame, phase)) : -1;
@@ -1201,10 +1138,10 @@ function person(
     }
     const col = who * 11 + poseCol(pose, frame, phase);
     const file = useAlly ? "/art/sprites/allies.png" : "/art/sprites/people.png";
-    sheetCell(ctx, file, col, 0, 0, -10, 1, 2, 16);
-    // playtest1: a sheet role never falls back to the old painted person, even while its sheet loads.
-    ctx.restore();
-    return;
+    if (sheetCell(ctx, file, col, 0, 0, -10, 1, 2, 16)) {
+      ctx.restore();
+      return;
+    }
   }
   px(ctx, 3, 1, 10, 8, INK);
   px(ctx, 1, 8, 14, 10, INK);
@@ -1715,12 +1652,11 @@ function paintTownFootprint(ctx: CanvasRenderingContext2D, tile: Tile, x: number
   const gy = y * TILE;
   if (tile === T.door) {
     px(ctx, gx, gy, TILE, TILE, ground(T.dirt, "town", n));
-    sheetCell(ctx, PT1_GROUND.dirt, Math.abs(x * 5 + y * 3) % 4, 0, gx, gy);
+    sheetCell(ctx, "/art/cozy/dirt.png", Math.abs(x * 5 + y * 3) % 3, 0, gx, gy);
     return;
   }
   px(ctx, gx, gy, TILE, TILE, ground(T.grass, "town", n));
-  // playtest1: the season's town grass (palette-locked), the same as the open town ground beside it.
-  seasonCell(ctx, "town-grass", "/art/cozy/grass.png", Math.abs(x * 3 + y * 5) % 7, gx, gy);
+  sheetCell(ctx, "/art/cozy/grass.png", Math.abs(x * 3 + y * 5) % 7, 0, gx, gy);
 }
 
 /** Yard fence around the footprint, same posts and rails as the town fences, open at the door. */
@@ -1809,7 +1745,6 @@ function valeGround(g: Game): BlendResult | null {
   if (!skinFor || skinFor.tiles !== g.tiles) {
     skinFor = { tiles: g.tiles, skin: valeSkin(g.tiles, g.w, g.h) };
     fringeCache.clear();
-    fringePending.clear();
   }
   return skinFor.skin;
 }
@@ -1820,8 +1755,6 @@ const fringeCache = new Map<string, HTMLCanvasElement>();
 const tileCanvas = () => Object.assign(document.createElement("canvas"), { width: TILE, height: TILE });
 const sheetReady = (url: string) => !!landSheet[url]?.complete && (landSheet[url]?.naturalWidth ?? 0) > 0;
 const fringeReady = () => sheetReady(BORDER_SHEET) && (sheetReady(seasonSheet(seasonNow, "vale")) || sheetReady("/art/writer/vale.png")) && ["snow", "sand", "ash", "swamp"].every((b) => sheetReady(`/art/writer/${b}.png`));
-/** playtest1: a fringe still waiting on a sheet reuses its one canvas instead of making a new one each frame. */
-const fringePending = new Map<string, HTMLCanvasElement>();
 
 /** Paint the neighbour biome's own ground through one fringe mask cell into acc. No new colours: both are locked art. */
 function paintFringe(acc: CanvasRenderingContext2D, ground: Tile, cell: number, x: number, y: number, n: number, theme: string, frame: number) {
@@ -1852,10 +1785,9 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
   const key = `${i}:${seasonNow}`;
   let done = fringeCache.get(key);
   if (!done) {
-    done = fringePending.get(key) ?? tileCanvas();
+    done = tileCanvas();
     const acc = done.getContext("2d");
     if (!acc) return;
-    acc.clearRect(0, 0, TILE, TILE);
     const v = (x * 7 + y * 3) % 2 ? 4 : 0;
     const side: [number, number, number, number][] = [
       [EDGE.n, 0, 0, -1],
@@ -1872,10 +1804,7 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
     ];
     for (const [bit, cell, dx, dy] of nook) if (c & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
     // Only keep it once every sheet is in, so a half-loaded first frame is never frozen.
-    if (fringeReady()) {
-      fringeCache.set(key, done);
-      fringePending.delete(key);
-    } else fringePending.set(key, done);
+    if (fringeReady()) fringeCache.set(key, done);
   }
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(done, 0, 0, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
@@ -2304,26 +2233,8 @@ export function spellStrip(kind: string, color: string): string {
   return "nova";
 }
 /** Where a spell's light sits: a bolt's mid-beam, a ring's travelling orb, a burst's centre. */
-/** playtest1: how far a spell is through its life, 0 to 1 (an old 0.32 s spell with no max reads as mid-flight). */
-export function spellProgress(s: { life: number; max?: number }): number {
-  if (!s.max) return 0.5;
-  return Math.max(0, Math.min(1, 1 - s.life / s.max));
-}
-/** playtest1: the share of a travelling spell's life spent in flight; the rest is the impact flash. */
-export const SPELL_FLIGHT = 0.55;
-/** playtest1: where a spell's light is: its head in flight, its target at impact. */
-export function spellHead(s: { x: number; y: number; tx: number; ty: number; kind: string }, t: number) {
-  const travel = s.kind === "bolt" || s.kind === "ring" || s.kind === "mend";
-  const k = travel ? Math.min(1, t / SPELL_FLIGHT) : 1;
-  return { x: s.x + (s.tx - s.x) * k, y: s.y + (s.ty - s.y) * k, hit: !travel || t >= SPELL_FLIGHT };
-}
-export function spellLight(s: { x: number; y: number; tx: number; ty: number; kind: string; color: string; life?: number; max?: number }, frame: number): Lamp {
+export function spellLight(s: { x: number; y: number; tx: number; ty: number; kind: string; color: string }, frame: number): Lamp {
   const c = LIGHTS[SPELL_EMITS[spellStrip(s.kind, s.color)] ?? "candle"];
-  if (s.max && s.life != null) {
-    // playtest1: the light rides the spell's head, then blooms at the impact.
-    const h = spellHead(s, spellProgress({ life: s.life, max: s.max }));
-    return { x: h.x, y: h.y, r: h.hit ? LIGHT.burst : LIGHT.bolt, c, seed: 0, flick: false };
-  }
   if (s.kind === "ring" || s.kind === "mend") {
     const t = (Math.abs(Math.floor(frame)) % 6) / 5;
     return { x: s.x + (s.tx - s.x) * t, y: s.y + (s.ty - s.y) * t, r: LIGHT.bolt, c, seed: 0, flick: false };
@@ -2421,13 +2332,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       }
       const built = tile === T.wall || tile === T.door || tile === T.floor || tile === T.water || tile === T.pool || tile === T.ice || tile === T.stairD || tile === T.stairU;
       if (!built && night && !lit && g.mapId !== "inside" && g.mapId !== "town") dimGround(ctx, x * TILE, y * TILE, "#060810");
-      // playtest1 (owner-reported 2026-10-01, town edge): a writer fence rings the town; the road gates stay open.
-      if (g.mapId === "town" && tile === T.exit) {
-        const side = x === 0 || x === g.w - 1;
-        const gateNext = side ? above === T.cobble || below === T.cobble : left === T.cobble || right === T.cobble;
-        const cell = gateNext ? 2 : side ? 1 : 0;
-        props.push({ y: y * TILE + 14, fn: () => void sheetCell(ctx, PT1_FENCE, cell, 0, x * TILE, y * TILE, 1, 1) });
-      }
       if (g.theme === "camp" && tile === T.dirt && (above === T.grass || below === T.grass || left === T.tree || right === T.tree) && (x + y) % 2 === 0) {
         props.push({
           y: y * TILE + 14,
@@ -2588,8 +2492,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const role = g.cls;
       const face = g.facing === "n" ? 2 : g.facing === "w" ? 3 : g.facing === "e" ? 1 : 0;
       const acting = g.mode === "fish" ? "fish" : g.actFor > 0 ? g.actPose : "";
-      const onLadder = g.climbUntil > g.worldMs;
-      const pose = acting === "swing" || acting === "cast" || acting === "fish" ? acting : g.wading ? "wade" : g.sliding ? "slide" : onLadder ? "climb" : g.moving ? "walk" : "stand";
+      const pose = acting === "swing" || acting === "cast" || acting === "fish" ? acting : g.wading ? "wade" : g.sliding ? "slide" : g.moving ? "walk" : "stand";
       if (pose !== "wade" && pose !== "slide" && pose !== "fish") blobShadow(ctx, g, g.px, g.py - 2);
       person(ctx, g.px, g.py, role, "#888888", face, g.frame, 1, pose, "hero", actPhase(g.actFor));
     },
@@ -2604,6 +2507,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     });
     for (const a of g.ashes) paintMark(ctx, a.x, a.y, RUNS.ashRadius, "#8a6844");
   }
+  for (const s of g.spells) paintSpell(ctx, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame);
   if (g.darkUntil > g.worldMs) {
     for (let i = 0; i < 40; i++) px(ctx, g.px - 70 + (i * 17) % 140, g.py - 50 + (i * 13) % 90, 2, 2, "#0c0a08");
   }
@@ -2655,8 +2559,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   }
   props.sort((a, b) => a.y - b.y);
   for (const d of props) d.fn();
-  // playtest1 (owner-reported 2026-10-01, spells did not show): spells are drawn over every actor, not under them.
-  for (const s of g.spells) paintSpell(ctx, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
   if (night && g.mapId !== "dungeon" && g.mapId !== "inside") {
     px(ctx, Math.round(g.px) - 2, Math.round(g.py) - 14, 2, 2, "#f0d080");
     px(ctx, Math.round(g.px) + 1, Math.round(g.py) - 13, 1, 1, "#fff0c0");
@@ -2678,7 +2580,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         });
         for (const a of g.ashes) paintMark(c, a.x, a.y, RUNS.ashRadius, "#ffffff");
       }
-      for (const s of g.spells) paintSpell(c, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
+      for (const s of g.spells) paintSpell(c, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame);
     });
     const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
     paintLight(ctx, g, camX, camY, viewW / zoom, viewH / zoom, actors, glow);
@@ -2866,9 +2768,7 @@ function paintSpell(
   kind: "bolt" | "ring" | "nova" | "mend" | "cone",
   color: string,
   frame = 0,
-  t = -1,
 ) {
-  if (t >= 0 && paintSpellPhased(ctx, x, y, tx, ty, kind, color, frame, t)) return;
   const cx = Math.round(tx);
   const cy = Math.round(ty);
   const element = spellElement(color);
@@ -2932,65 +2832,6 @@ function paintSpell(
   for (let i = 0; i <= steps; i++) {
     px(ctx, x0 + Math.round(((cx - x0) * i) / steps), y0 + Math.round(((cy - y0) * i) / steps), 2, 2, i % 2 ? "#fff8e0" : color);
   }
-}
-
-/**
- * playtest1 (owner-reported 2026-10-01, spells did not show): a spell in two beats. In flight (the first 55%) a bolt's
- * beam runs from the hand to its moving head and an orb flies; then the impact: the strip's burst at the target, a
- * hot core and eight sparks thrown out in the spell's colour. A nova or a cone blooms where it lands from the start.
- * The spell writer's strips (public/art/spells/gen) carry every frame; the sparks are the locked colours passed in.
- */
-function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, tx: number, ty: number, kind: "bolt" | "ring" | "nova" | "mend" | "cone", color: string, frame: number, t: number): boolean {
-  const element = spellElement(color);
-  const head = spellHead({ x, y, tx, ty, kind }, t);
-  const hx = Math.round(head.x);
-  const hy = Math.round(head.y);
-  let drew = false;
-  if (!head.hit) {
-    const k = Math.min(1, t / SPELL_FLIGHT);
-    if (kind === "bolt") {
-      const from = Math.max(0, k - 0.5);
-      const sx = x + (tx - x) * from;
-      const sy = y + (ty - y) * from;
-      const strip = element === "lightning" ? "lightning.png" : `${element === "ice" ? "beam-ice" : element === "fire" ? "beam-fire" : element === "shadow" ? "beam-shadow" : element === "venom" ? "beam-venom" : "beam-holy"}.png`;
-      drew = Math.hypot(hx - sx, hy - sy) < 1 ? spellFrame(ctx, strip, frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") : stampSpell(ctx, strip, frame, sx, sy, hx, hy, element === "lightning" ? 10 : 8);
-      drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") || drew;
-    } else drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen");
-    px(ctx, hx - 1, hy - 1, 3, 3, "#fff8e0");
-    // playtest1: drawn either way (the hot core shows while a strip loads); never the old DevWizard strips.
-    return drew || true;
-  }
-  const travel = kind === "bolt" || kind === "ring" || kind === "mend";
-  const k = travel ? Math.min(1, (t - SPELL_FLIGHT) / (1 - SPELL_FLIGHT)) : t;
-  const cx = Math.round(tx);
-  const cy = Math.round(ty);
-  if (kind === "cone" || (kind === "nova" && (element === "fire" || element === "ice"))) drew = stampCluster(ctx, element === "ice" ? "ice-rain.png" : "fire-rain.png", frame, cx, cy);
-  const burst = kind === "ring" || kind === "mend" ? "ring.png" : "nova.png";
-  // the burst strip at twice its size (whole pixels, nearest neighbour), so the hit reads on a phone
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(2, 2);
-  drew = spellFrame(ctx, burst, Math.min(5, Math.floor(k * 6)), 6, -8, -8, 16, 16, "/art/spells/gen") || drew;
-  ctx.restore();
-  // the flash: a hot core and a ring in the spell's colour, then eight sparks flying out, each with a short trail
-  if (k < 0.3) {
-    px(ctx, cx - 3, cy - 3, 7, 7, "#fff8e0");
-    const r = 5 + Math.round(k * 12);
-    px(ctx, cx - r, cy - 1, 2, 2, color);
-    px(ctx, cx + r - 1, cy - 1, 2, 2, color);
-    px(ctx, cx - 1, cy - r, 2, 2, color);
-    px(ctx, cx - 1, cy + r - 1, 2, 2, color);
-  }
-  const reach = (kind === "nova" ? 10 : 6) + Math.round(k * (kind === "nova" ? 26 : 16));
-  for (let i = 0; i < 8; i++) {
-    if (k > 0.75 && i % 2) continue;
-    const a = (i * Math.PI) / 4 + Math.PI / 8;
-    const sx = cx + Math.round(Math.cos(a) * reach);
-    const sy = cy + Math.round(Math.sin(a) * reach);
-    px(ctx, sx, sy, 2, 2, i % 2 ? "#fff8e0" : color);
-    px(ctx, cx + Math.round(Math.cos(a) * (reach - 3)), cy + Math.round(Math.sin(a) * (reach - 3)), 1, 1, color);
-  }
-  return drew || true;
 }
 
 /** A piece of loot. The shape is the slot. The sparkle is the rank. */
@@ -3115,26 +2956,15 @@ function drawWeather(ctx: CanvasRenderingContext2D, g: Game, viewW: number, view
   const color = heavy ? "#f4fbff" : "#e7f4ff";
   const len = heavy ? 8 : 5;
   const speed = heavy ? 0.7 : 0.38;
-  // playtest1 (owner-reported 2026-10-01, rain slowdown): every drop moves by the same step, so the sheet of rain is
-  // drawn once into a wrapping layer (the same drops, the same streaks) and slid by that step: four blits a frame
-  // in place of up to 1,760 one-pixel rects.
-  const W = Math.max(1, Math.ceil(viewW));
-  const H = Math.max(1, Math.ceil(viewH));
-  const layer = rainSheet(heavy, count, len, color, W, H);
-  if (layer) {
-    const ox = Math.floor((time * 0.04) % W);
-    const oy = Math.floor((time * speed) % H);
-    for (const [dx, dy] of [[ox, oy], [ox - W, oy], [ox, oy - H], [ox - W, oy - H]] as const) ctx.drawImage(layer, dx, dy);
-  } else
-    for (let i = 0; i < count; i++) {
-      const x0 = Math.floor((hash(i, 3) * viewW + time * 0.04) % viewW);
-      const y0 = Math.floor((hash(i, 8) * viewH + time * speed) % viewH);
-      for (let k = 0; k < len; k++) {
-        const x = x0 + k;
-        const y = y0 + k * 2;
-        if (x >= 0 && x < viewW && y >= 0 && y < viewH) px(ctx, x, y, 1, 1, color);
-      }
+  for (let i = 0; i < count; i++) {
+    const x0 = Math.floor((hash(i, 3) * viewW + time * 0.04) % viewW);
+    const y0 = Math.floor((hash(i, 8) * viewH + time * speed) % viewH);
+    for (let k = 0; k < len; k++) {
+      const x = x0 + k;
+      const y = y0 + k * 2;
+      if (x >= 0 && x < viewW && y >= 0 && y < viewH) px(ctx, x, y, 1, 1, color);
     }
+  }
   if (kind === "storm" && g.boltFlash()) {
     const seed = Math.floor(time / 900);
     let x = Math.floor(hash(seed, 2) * (viewW * 0.6) + viewW * 0.2);
@@ -3150,28 +2980,6 @@ function drawWeather(ctx: CanvasRenderingContext2D, g: Game, viewW: number, view
     }
     if (!battle) px(ctx, 0, 0, viewW, 3, "#e7f4ff");
   }
-}
-
-/** playtest1: the rain layer, one per look and view size; the drops sit where frame 0 of the old loop put them. */
-let rainCache: { key: string; c: HTMLCanvasElement } | null = null;
-function rainSheet(heavy: boolean, count: number, len: number, color: string, W: number, H: number): HTMLCanvasElement | null {
-  if (typeof document === "undefined") return null;
-  const key = `${heavy}:${count}:${len}:${color}:${W}x${H}`;
-  if (rainCache?.key === key) return rainCache.c;
-  const c = rainCache?.c ?? document.createElement("canvas");
-  c.width = W;
-  c.height = H;
-  const x = c.getContext("2d");
-  if (!x) return null;
-  x.clearRect(0, 0, W, H);
-  x.fillStyle = color;
-  for (let i = 0; i < count; i++) {
-    const x0 = Math.floor(hash(i, 3) * W);
-    const y0 = Math.floor(hash(i, 8) * H);
-    for (let k = 0; k < len; k++) x.fillRect((x0 + k) % W, (y0 + k * 2) % H, 1, 1);
-  }
-  rainCache = { key, c };
-  return c;
 }
 
 function caveBone(g: Game, i: number, tile: number) {

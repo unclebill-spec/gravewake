@@ -1,7 +1,7 @@
 {
   "name": "Gravewake",
   "short_name": "Gravewake",
-  "description": "A twilight turn-based RPG of graves, cinder, and winter roads.",
+  "description": "A real-time gothic Halloween action RPG of graves, cinder and winter roads.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

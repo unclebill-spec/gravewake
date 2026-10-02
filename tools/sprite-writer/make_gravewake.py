@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from PIL import Image
 
 from palette_locked import LOCKED
-from sprite_writer import POSES, creature, festival_boss, human, lying, strip
+from sprite_writer import MOVES, POSES, creature, festival_boss, human, human_move, lying, strip
 
 OUT = Path(__file__).resolve().parents[2] / "public" / "art" / "sprites"
 
@@ -31,8 +31,10 @@ FOLK = [
     "guard", "hunter", "undertaker", "zeppelin",
     "inn", "shop", "guild", "bank", "casino", "patron",
     "smith", "tailor", "fisher", "merchant", "alchemist", "portal",
+    # playtest1: the companion kits' own looks (they wore hero classes before). Appended, so every index holds.
+    "sellsword", "cutpurse", "hedgemage",
 ]
-ALLIES = FOLK[:8]
+ALLIES = FOLK[:8] + FOLK[24:27]
 HEROES = FOLK[:4]
 FAMILIES = [
     "zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow",
@@ -41,7 +43,7 @@ FAMILIES = [
 RANKS = ["mob", "boss", "mini", "rare"]
 SASH = "#3a78a8"
 # Town roles get seeded crowd looks in folk-variants.png. Look 0 stays in people.png.
-CROWD = FOLK[8:]
+CROWD = FOLK[8:24] + FOLK[24:27]
 CROWD_VARIANTS = 4
 # OWNER-APPROVED EXCEPTION 2026-09-30: the mimic, a 13th family and the one solo rare. Its own strip,
 # rank rare only (it only ever wakes as a rare), so foes.png and ORDER.txt stay byte-identical.
@@ -118,6 +120,8 @@ def main() -> None:
         for v in range(1, CROWD_VARIANTS + 1)
         for sprite in pack(lambda pose, role=role, v=v: human(role, pose, variant=v))
     ]
+    # playtest1: moves.png, the swim, slide, fish and climb poses, MOVES frames per role in FOLK order.
+    moves = [human_move(role, move) for role in FOLK for move in MOVES]
     mimic = pack(lambda pose: creature(MIMIC, pose, "rare"))
     for pose, sprite in zip(POSES, mimic):
         rows = [y for y in range(32) if any(sprite.p[y][x] for x in range(16))]
@@ -137,6 +141,7 @@ def main() -> None:
         "foes.png": (strip(foes), len(foes)),
         "folk-variants.png": (strip(crowd), len(crowd)),
         "mimic.png": (strip(mimic), len(mimic)),
+        "moves.png": (strip(moves), len(moves)),
         **{name: (strip(row), len(row)) for name, row in fest.items()},
     }
     down = strip([lying(human(body, "stand", variant=crowd_look(seed))) for _, body, seed in ESCORTS])
@@ -163,7 +168,9 @@ def main() -> None:
         + f"\nfolk-variants.png: crowd looks 1..{CROWD_VARIANTS} for each town role, in this order, "
         "eleven frames per look (look 0 is the people.png cell):\n"
         + " ".join(CROWD)
-        + "\nDrawn by tools/sprite-writer.\n"
+        + "\nallies.png also holds the three companion looks after the eight: sellsword cutpurse hedgemage.\n"
+        "moves.png: " + " ".join(MOVES) + " for each role, in the people.png role order.\n"
+        "Drawn by tools/sprite-writer.\n"
     )
     print(f"people {len(people)} allies {len(allies)} foes {len(foes)} crowd {len(crowd)}")
 
