@@ -938,3 +938,11 @@ bosses draw at 1x in a cold-fire ring. Water, pond, pool, ice and the snow/ash/s
 on the vale are 48x48 (stairwell, crypt mouth, barrow arch) with blue cold-fire braziers; the town's Opened
 Grave is 32x32. Fringes use the soft drift masks plus biome crumbs. Idle breathes on a 4 s beat per body.
 Looks only: g.tiles, collision, sim, saves untouched. Inventory and C2 list: specs/ART_AUDIT.md.
+
+OWNER-REQUESTED ART AUDIT C2  [OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2]
+Town houses (64x96, three looks by lot) and the cabin (80x96) are the writer's town art (town_writer.py,
+public/art/writer/town-*), same footprints and cut, with _em glow masks drawn in the night glow pass (windows,
+chimney ember, door lamp). The town lawn is the writer's town-grass.png, drawn per season. Spells draw only from
+/art/spells/gen. Biomes get a dark rim line (wild-border-rim.png) where they meet the vale. Floor stairs take the
+dungeon's theme (wild-stairs-themes.png). Trap plates draw only inside a dungeon (fixes the grey square on the ice).
+Looks only: g.tiles, collision, sim, saves untouched.

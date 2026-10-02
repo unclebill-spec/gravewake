@@ -28,8 +28,8 @@ in this batch's first part, C2 = deferred, ok = no change needed.
 | 5 | Townsfolk (people.png, allies.png, crowd looks) | town, vale roads | writer (sprite) | 16x32 | 11 poses | robed walkers' tall hats touch row 0 (the body still bobs) | ok |
 | 6 | Vale road (writer/vale-road.png) | the vale | writer | 16x16 x4 | static | ok | ok |
 | 7 | Town cobble and dirt (writer/town-cobble.png, town-dirt.png) | town | writer | 16x16 x4 | static | ok | ok |
-| 8 | Town grass (cozy/grass.png + season tints) | town | third-party (cozy) | 16x16 x7, flatter than the vale's | static | OLD | C2 |
-| 9 | Town buildings (land/house*.png; cozy/cabin.png for even-width lots) | town | third-party (Land of Pixels, cozy) | 64x96 / 80x96, a different shading hand | static | OLD (cabin named by Bill) | C2 |
+| 8 | Town grass (cozy/grass.png + season tints) | town | third-party (cozy) | 16x16 x7, flatter than the vale's | static | OLD | C2: done, writer town-grass.png |
+| 9 | Town buildings (land/house*.png; cozy/cabin.png for even-width lots) | town | third-party (Land of Pixels, cozy) | 64x96 / 80x96, a different shading hand | static | OLD (cabin named by Bill) | C2: done, writer town-house-*.png / town-cabin.png |
 | 10 | Biome grounds: snow, cinder ash, waste sand, swamp (was writer/{snow,ash,sand,swamp}.png) | a third of the vale | was early writer | was 16x16 flat strips with 2-3 marks; the ash read as flat grey rectangles | static | LOW (grey patches under dead trees) | C1: 128x128 wrapping wild-{snow,ash,sand,swamp}.png |
 | 11 | Biome fringe (writer/border-dither.png) | every biome edge on the vale | writer | 2-4 px saw edge | static | LOW (the "jagged hedge band" at the snow) | C1: wild-border.png (rounded drifts and corners) plus wild-flecks.png (crumbs fading across the tile) |
 | 12 | Water (was writer/water.png per tile, inset borders) | vale ponds, camp, the town pond | writer, hand-restored with an unlocked #1c4060 | 16x16 boxes | 4 frames, about 0.8 fps | LOW (boxy grid); off-palette | C1: wild-water.png 128x128 x4 frames (2 fps) + shore rims; water.png is the writer's own output again |
@@ -50,7 +50,7 @@ in this batch's first part, C2 = deferred, ok = no change needed.
 | 27 | Dungeon walls, floors, decals, pits, feats (writer, gfx1-3) | dungeons | writer | 16x32 wall cells | lamps 4 frames | ok | ok |
 | 28 | Rooms (writer room-*, playtest1b) | interiors | writer | full | sconces flicker | ok | ok |
 | 29 | Spells: orb and nova (spells/gen) | combat | writer | 16x16 x6 | 6 frames | ok | ok |
-| 30 | Spells: Fireball, Light Bolt, Ice Lance, Darkness Bolt, Magic Sparks, Wind Bolt, Splash (spells/*.png, DevWizard CC0) | combat | third-party | 16x16 strips (Splash 32) | 6 frames at 4 fps | OLD (a different hand from the writer's spells) | C2 |
+| 30 | Spells: Fireball, Light Bolt, Ice Lance, Darkness Bolt, Magic Sparks, Wind Bolt, Splash (spells/*.png, DevWizard CC0) | combat | third-party | 16x16 strips (Splash 32) | 6 frames at 4 fps | OLD (a different hand from the writer's spells) | C2: done, spells/gen only |
 | 31 | Portals (writer portal-rift/teleport/realm) | vale, dungeons | writer | 32x48 | spin | portals are [D] | not in C |
 | 32 | Minimap, HUD, font (writer font-small, UI) | always | writer / CSS | n/a | n/a | ok | ok |
 | 33 | Legacy battle view (`g.mode === "battle"`, hero 3x, ally 2.4x, foes 2/3/4x) | unreachable in play | code | scaled | n/a | SCALE (but never shown) | left as is, noted |
@@ -105,13 +105,28 @@ ranks, mimic, Krampus, Pumpkin Lord).
 - Measured but left alone: large pixel changes between walk frames on detailed people (swinging arms and robes;
   normal for a 4-frame walk at 16x32), and the bat's flap.
 
-## C2 (deferred)
+## C2 (done 2026-10-02, playtest1d) [OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2]
 
-- Town buildings: land/house*.png and cozy/cabin.png, redrawn by the writer at the same footprints.
-- Town grass: cozy/grass.png, redrawn by the writer with the season tints.
-- Third-party spell strips (spells/*.png), redrawn as writer strips like spells/gen.
-- The biome border's tile-step outline (a sub-tile border would need the map writer's blend, a bigger change).
-- The grey arrow square on the ice from Bill's snow shot (not reproduced).
-- Cave stair theming per dungeon (floor stairs are one stone look for now).
+What changed (writer: tools/pixel-writer/town_writer.py via make_gravewake.playtest1d_c2(); constants src/game/wild.ts):
+- Town buildings: town-house-{stone,warm,slate}.png (64x96, picked by lot x % 3) and town-cabin.png (80x96) replace
+  land/house*.png and cozy/cabin.png at the same footprints and the same cut, so the scale matches the C1 trees and
+  headstones. Each has an _em glow mask (lit window panes, chimney ember, door lamp only) that the night glow pass
+  draws over the gloom, so windows glow at night and dusk.
+- Town grass: town-grass.png (16x16 x7) replaces cozy/grass.png: a soft flat lawn with clover, tufts and small flowers;
+  the season sheets draw each season's town lawn from the writer (autumn adds fallen leaves), not by tinting the cozy tile.
+- Spells: every DevWizard strip name is out of the draw; spellFrame reads /art/spells/gen (the spell writer's strips)
+  for every spell and every fallback.
+- Biome outline: wild-border-rim.png, a dark one-pixel line along the drift masks (snow, sand, ash, swamp), drawn after
+  the fringes where a biome meets the vale.
+- The grey square on the ice: reproduced. It was a pressure plate from the last dungeon floor (g.feats is not reset on
+  leaving a dungeon, so its index landed on the vale). The plate now only draws inside a dungeon. Drawing only: the sim
+  already fired traps only in a dungeon.
+- Cave stairs: wild-stairs-themes.png gives floor stairs the dungeon's own look (stairwell, crypt, barrow, as the mouth).
+- Bill's "lizard": no lizard, salamander or newt foe exists (the newts are fishing bait). The rat, which read as one, was
+  redrawn in C1; the cat critter reads as a cat and stays.
+
+What stays:
+- The old land/, cozy/ and spells/*.png (DevWizard) files stay on disk unreferenced, with their credits.
 - The season tint sheets for the old tree packs (writer/season-*-trees.png, season-*-town-trees.png) are no longer
   drawn. They stay on disk because the season check group still reads them.
+- The sim's stale trap index after a dungeon stays (gameplay is guarded; the draw is now too).

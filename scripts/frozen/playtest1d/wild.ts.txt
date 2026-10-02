@@ -48,15 +48,6 @@ export const OPENED_GRAVE = "/art/writer/wild-opened-grave.png";
 export const OPENED_GRAVE_EM = "/art/writer/wild-opened-grave_em.png";
 /** 16x16 floor stairs (0 down into the dark, 1 up into the light), in place of the old drawn ladder. */
 export const STAIRS = "/art/writer/wild-stairs.png";
-// playtest1d (owner-requested 2026-10-02, batch C2): floor stairs dressed for their dungeon (STAIR_KINDS order in
-// town_writer, down then up), the biome rim lines over the soft fringe, and the town's houses, cabin and lawn.
-export const STAIRS_THEMED = "/art/writer/wild-stairs-themes.png";
-export const WILD_BORDER_RIM = "/art/writer/wild-border-rim.png";
-export const TOWN_HOUSES = ["/art/writer/town-house-stone.png", "/art/writer/town-house-warm.png", "/art/writer/town-house-slate.png"] as const;
-export const TOWN_CABIN = "/art/writer/town-cabin.png";
-export const TOWN_GRASS = "/art/writer/town-grass.png";
-/** A town building's glow mask (its window light and door lamp). */
-export const townEm = (file: string) => file.replace(/\.png$/, "_em.png");
 /** Wrapping 128x128 sheets laid by world position, so water, ice and the biome grounds show no tile grid. */
 export const TEX = 128;
 export const WATER = "/art/writer/wild-water.png";
@@ -117,13 +108,6 @@ export const WILD_SHEETS: string[] = [
   BOSS_AURA_EM,
   WILD_BORDER,
   WILD_FLECKS,
-  STAIRS_THEMED,
-  WILD_BORDER_RIM,
-  ...TOWN_HOUSES,
-  ...TOWN_HOUSES.map(townEm),
-  TOWN_CABIN,
-  townEm(TOWN_CABIN),
-  TOWN_GRASS,
 ];
 
 /** Which mouth a dungeon wears on the vale: a mason's stairwell for the manors, forts, chapels and the abbey; a crypt
@@ -143,11 +127,6 @@ const MOUTH: Record<string, EntranceKind> = {
   blackroot: "barrow",
   cave: "barrow",
 };
-/** playtest1d: the stair cell for a floor's theme: the same mason / crypt / barrow dress as the dungeon's mouth. */
-export function stairCell(theme: string, down: boolean): number {
-  const k = MOUTH[theme] ?? "barrow";
-  return (k === "stairwell" ? 0 : k === "crypt" ? 2 : 4) + (down ? 0 : 1);
-}
 export function entranceKind(dungeonId: string): EntranceKind {
   const d = DUNGEONS.find((x) => x.id === dungeonId);
   if (!d) return "barrow";

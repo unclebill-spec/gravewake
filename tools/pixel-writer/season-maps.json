@@ -6,12 +6,7 @@
   "#c4a15a": "#c4a15a"
  },
  "autumn-town-grass": {
-  "#5f521a": "#6a4818",
-  "#817b1a": "#6a5830",
-  "#a4a51e": "#8a6840",
-  "#b65f21": "#c45a18",
-  "#db9421": "#e0a040",
-  "#ffbc30": "#e0a040"
+  "drawn": "town_writer.town_grass"
  },
  "autumn-town-trees": {
   "#2a3636": "#2a3a32",
@@ -62,12 +57,7 @@
   "#c4a15a": "#8fd18a"
  },
  "spring-town-grass": {
-  "#5f521a": "#6a4818",
-  "#817b1a": "#3c8636",
-  "#a4a51e": "#6aaa48",
-  "#b65f21": "#6aaa48",
-  "#db9421": "#6aaa48",
-  "#ffbc30": "#8fd18a"
+  "drawn": "town_writer.town_grass"
  },
  "spring-town-trees": {
   "#2a3636": "#2a3a32",
@@ -118,12 +108,7 @@
   "#c4a15a": "#a89470"
  },
  "summer-town-grass": {
-  "#5f521a": "#5a4834",
-  "#817b1a": "#6a5a40",
-  "#a4a51e": "#8a7860",
-  "#b65f21": "#a08860",
-  "#db9421": "#b6a47c",
-  "#ffbc30": "#cbb892"
+  "drawn": "town_writer.town_grass"
  },
  "summer-town-trees": {
   "#2a3636": "#2a2a2e",
@@ -174,12 +159,7 @@
   "#c4a15a": "#b0b6bc"
  },
  "winter-town-grass": {
-  "#5f521a": "#6a7888",
-  "#817b1a": "#7a90b0",
-  "#a4a51e": "#8aa4b0",
-  "#b65f21": "#9aa8c0",
-  "#db9421": "#9ec4d4",
-  "#ffbc30": "#b7d2e0"
+  "drawn": "town_writer.town_grass"
  },
  "winter-town-trees": {
   "#2a3636": "#6a6e78",

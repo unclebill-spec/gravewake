@@ -315,14 +315,23 @@ def season_sheets() -> list:
     sources = {
         "vale": (OUT / "vale.png", "ground"),
         "camp-grass": (OUT / "camp-grass.png", "ground"),
-        "town-grass": (art / "cozy" / "grass.png", "ground"),
+        # playtest1d (owner-requested 2026-10-02, batch C2 "cozier town grass"): the writer's lawn, not the cozy pack's
+        "town-grass": (OUT / "town-grass.png", "ground"),
         "trees": (art / "brileta" / "trees.png", "tree"),
         "town-trees": (art / "held" / "trees.png", "tree"),
     }
+    town_grass_strip().save(OUT / "town-grass.png")
     made = []
     maps = {}
     for season in ("autumn", "winter", "spring", "summer"):
         for name, (src, kind) in sources.items():
+            if name == "town-grass":
+                # playtest1d: the town lawn is drawn per season by town_writer (a remap turned it to mud in autumn)
+                im = town_grass_strip(season)
+                im.save(OUT / f"season-{season}-{name}.png")
+                maps[f"{season}-{name}"] = {"drawn": "town_writer.town_grass"}
+                made.append(im)
+                continue
             im, used = season_remap(Image.open(src), season, kind, LOCKED)
             im.save(OUT / f"season-{season}-{name}.png")
             maps[f"{season}-{name}"] = used
@@ -423,6 +432,8 @@ def main() -> None:
     print(f"playtest1b B2 sheets {len(b2)}, palette v3 locked")
     c1 = playtest1c_c1()
     print(f"playtest1c C1 sheets {len(c1)}, palette v3 locked")
+    c2 = playtest1d_c2()
+    print(f"playtest1d C2 sheets {len(c2)}, palette v3 locked")
     print(f"wrote {OUT}")
 
 
@@ -593,6 +604,53 @@ def playtest1c_c1() -> dict:
         sheet.alpha_composite(made[f"wild-{kind}.png"].crop((0, 0, 64, 64)), (x, 240))
         x += 66
     sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1c.png")
+    return made
+
+
+def town_grass_strip(season: str = "spring") -> Image.Image:
+    """playtest1d: the town lawn, seven 16x16 cells (town_writer.town_grass). town-grass.png (the not-yet-loaded
+    fallback) is the spring lawn; season_sheets draws each season's own."""
+    import town_writer as t
+
+    return cells([t.town_grass(i, season) for i in range(7)])
+
+
+def playtest1d_c2() -> dict:
+    """playtest1d C2 (owner-requested 2026-10-02, batch C2 of the art audit): the town houses and the cabin with lit
+    windows (and their glow masks), the town lawn, themed floor stairs and the biome rim lines (town_writer).
+    Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1d_c2()"  (from this folder).
+    The rim lines read wild-border.png, so playtest1c_c1() runs first in main()."""
+    import town_writer as t
+
+    made = {}
+    for kind in t.HOUSE_KINDS:
+        art, em = t.house(kind)
+        made[f"town-house-{kind}.png"] = art.image()
+        made[f"town-house-{kind}_em.png"] = em.image()
+    art, em = t.cabin()
+    made["town-cabin.png"] = art.image()
+    made["town-cabin_em.png"] = em.image()
+    made["town-grass.png"] = town_grass_strip()
+    # STAIR_KINDS order, down then up: stairwell 0 1, crypt 2 3, barrow 4 5
+    made["wild-stairs-themes.png"] = cells([t.stairs(k, way) for k in t.STAIR_KINDS for way in ("down", "up")])
+    border = Image.open(OUT / "wild-border.png").convert("RGBA")
+    masks = [[[border.getpixel((k * 16 + x, y))[3] > 0 for x in range(16)] for y in range(16)] for k in range(border.width // 16)]
+    rim = Image.new("RGBA", (border.width, 16 * len(t.RIM_BIOMES)), (0, 0, 0, 0))
+    for j, b in enumerate(t.RIM_BIOMES):
+        rim.alpha_composite(cells([t.rim_line(m, b) for m in masks]), (0, 16 * j))
+    made["wild-border-rim.png"] = rim
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    sheet = Image.new("RGBA", (380, 120), (12, 10, 8, 255))
+    x = 2
+    for kind in t.HOUSE_KINDS:
+        sheet.alpha_composite(made[f"town-house-{kind}.png"], (x, 2))
+        x += 66
+    sheet.alpha_composite(made["town-cabin.png"], (x, 2))
+    sheet.alpha_composite(made["town-grass.png"], (2, 100))
+    sheet.alpha_composite(made["wild-stairs-themes.png"], (120, 100))
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1d.png")
     return made
 
 

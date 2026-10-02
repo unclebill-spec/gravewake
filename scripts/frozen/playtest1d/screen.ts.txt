@@ -375,13 +375,11 @@ export const PRELOAD = [
   "/art/sprites/moves.png",
   "/art/writer/vale.png",
   "/art/writer/lamp.png",
-  // playtest1d: the writer's town lawn and houses replace the cozy pack's grass and cabin and the land pack's houses.
-  "/art/writer/town-grass.png",
+  "/art/cozy/grass.png",
   // playtest1: the writer's town grounds replace /art/cozy/dirt.png and the land pack's cobble and water.
   "/art/writer/town-cobble.png",
   "/art/writer/town-dirt.png",
-  "/art/writer/town-house-stone.png",
-  "/art/writer/town-cabin.png",
+  "/art/cozy/cabin.png",
   // playtest1c: the creature tilemap, the held trees and rocks and the old water strip are gone from the game; the
   // wild writer's trees, rocks, water and town water stand in their place.
   "/art/writer/wild-trees-autumn.png",

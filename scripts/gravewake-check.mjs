@@ -3459,7 +3459,7 @@ if (on("season")) {
   }
   {
     const names = ["vale", "camp-grass", "town-grass", "trees", "town-trees"];
-    const src = { vale: "public/art/writer/vale.png", "camp-grass": "public/art/writer/camp-grass.png", "town-grass": "public/art/cozy/grass.png", trees: "public/art/brileta/trees.png", "town-trees": "public/art/held/trees.png" };
+    const src = { vale: "public/art/writer/vale.png", "camp-grass": "public/art/writer/camp-grass.png", "town-grass": "public/art/writer/town-grass.png", trees: "public/art/brileta/trees.png", "town-trees": "public/art/held/trees.png" };
     const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
     const bad = [];
     let sheets = 0;
@@ -7200,7 +7200,9 @@ if (on("playtest1b")) {
     for (let i = 0; i < g.tiles.length; i++) if (g.tiles[i] === T.door) stoops.push(`${i % g.w},${Math.floor(i / g.w) + 1}`);
     const blocking = fences.filter((f) => stoops.includes(`${f.x},${f.y}`));
     check("playtest1b", `homes have their picket yards back: ${fences.length} writer fence pieces ring the cottages and tradeless houses one tile out, only on town grass, never on a door's stoop, and looks only (g.tiles is untouched) (owner-reported: fences around homes gone)`, fences.length > 30 && onGrass && blocking.length === 0 && /sheetCell\(ctx, PT1_FENCE, f\.cell/.test(draw), `${fences.length} ${onGrass} ${blocking.length}`);
-    check("playtest1b", "every town building is house scale: the 32x46 shack is drawn nowhere, so the Drowned Hook's narrow lot gets a full house (owner-reported: some houses drawn half size)", !draw.includes("/art/land/shack") && /const file = cabin \? "\/art\/cozy\/cabin\.png" : `\/art\/land\/house\$\{suffix\}\.png`;/.test(draw));
+    // playtest1d: batch C2 swaps the land-pack houses for the writer's (group playtest1d); the pick is checked on playtest1c's draw.
+    const drawPT1D = readFileSync("scripts/frozen/playtest1d/draw.ts.txt", "utf8");
+    check("playtest1b", "every town building is house scale: the 32x46 shack is drawn nowhere, so the Drowned Hook's narrow lot gets a full house (owner-reported: some houses drawn half size)", !draw.includes("/art/land/shack") && /const file = cabin \? "\/art\/cozy\/cabin\.png" : `\/art\/land\/house\$\{suffix\}\.png`;/.test(drawPT1D));
     const pump = py(`import json\nfrom PIL import Image\nim = Image.open('public/art/land/decoration.png').convert('RGBA')\na = im.split()[3]\nprint(json.dumps([a.crop((80, 64, 112, 96)).getbbox(), a.crop((112, 80, 128, 96)).getbbox(), a.crop((96, 80, 128, 112)).getbbox()]))`);
     const inside = (b, w, h) => Array.isArray(b) && b[0] > 0 && b[1] > 0 && b[2] < w && b[3] <= h;
     // playtest1c: the town pumpkins are the wild writer's now (decoration.png is gone from the draw); this records playtest1b's draw.
@@ -7379,16 +7381,181 @@ tops=[cy(sc[i]) for i in (2,3,4)]\nprint(json.dumps({'sc':d(sc[0],sc[1]),'pl':d(
     check("playtest1c", "rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md record batch C under its dated owner tag", rules.includes(TAG) && agents.includes(TAG));
   }
 
-  // Last: the live files are byte for byte what playtest1c ships (any later edit must re-pin here, on purpose).
+  // Last: the files are byte for byte what playtest1c shipped. playtest1d (batch C2) froze them in scripts/frozen/playtest1d
+  // when it began editing draw, wild and screen; group playtest1d pins the live files.
   {
     const LIVE = {"sim.ts": "04d3325b77505c886beba0d81bfac5d5", "draw.ts": "b410f3906fe06825a3072b1ab8382007", "wild.ts": "a8889b3113e30dbaae083e86cbb5d162", "Gravewake.tsx": "bdf6866b62280f7c2c3cf1651061bf2b", "looks.ts": "8282846aac6f1ea0e98f69b78e002c32", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "72789c354456a22b876aaa8bd9755eca"};
+    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`scripts/frozen/playtest1d/${f}.txt`) !== h).map(([f]) => f);
+    check("playtest1c", "the game files as playtest1c shipped them (sim, draw, wild, shell, looks, content, crowd, screen; frozen in scripts/frozen/playtest1d once batch C2 began) are byte for byte its pins", moved.length === 0, moved.join(", "));
+  }
+}
+
+if (on("playtest1d")) {
+  // [OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2] batch C's second part (specs/ART_AUDIT.md, C2 list):
+  // the town's houses and cabin, a cozier town lawn, the last third-party spell strips, a rim where biomes meet, the
+  // square on the ice in Bill's snow shot, the dungeon stairs dressed per dungeon, and Bill's "lizard" note.
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1d.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as W from "${root}/src/game/wild.ts";\nexport { DAY_MS, DUNGEONS, FAMILIES } from "${root}/src/game/content.ts";\nexport { PRELOAD } from "${root}/src/game/screen.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1d.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "pt1d.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  // A stand-in canvas and image: every sheet "loads" at once, and the test records which ones get drawn.
+  const had = { Image: globalThis.Image, document: globalThis.document };
+  let drawn = [];
+  globalThis.Image = class { constructor() { this.complete = true; this.naturalWidth = 16; this.naturalHeight = 16; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const noop = () => {};
+  const ctx = new Proxy({}, { get: (o, k) => (k === "drawImage" ? (im) => drawn.push(im && im._s) : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k in o ? o[k] : noop), set: (o, k, v) => ((o[k] = v), true) });
+  globalThis.document = { createElement: () => ({ getContext: () => ctx, width: 16, height: 16 }) };
+  const X = await import(pathToFileURL(join(dir, "pt1d.mjs")).href);
+  const W = X.W;
+  const frame = (g) => { drawn = []; X.drawWorld(ctx, g, 960, 640, g.zoom); return drawn.filter(Boolean); };
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const wild = readFileSync("src/game/wild.ts", "utf8");
+  const writer = readFileSync("tools/pixel-writer/town_writer.py", "utf8");
+  const maker = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
+  const py = (code) => {
+    try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 24 })); }
+    catch (e) { return { error: String(e.stderr || e.message).slice(-300) }; }
+  };
+  const FROZEN = (f) => `scripts/frozen/playtest1d/${f}.txt`;
+
+  // 0. Drawing only: sim, content (so g.tiles and every map), crowd, looks and the shell are playtest1c's byte for byte.
+  {
+    const same = ["sim.ts", "content.ts", "crowd.ts", "looks.ts", "Gravewake.tsx"].filter((f) => md5f(`src/game/${f}`) !== md5f(FROZEN(f)));
+    const moved = ["draw.ts", "wild.ts", "screen.ts"].filter((f) => md5f(`src/game/${f}`) !== md5f(FROZEN(f)));
+    check("playtest1d", "batch C2 is drawing only: sim, content (g.tiles and every map), crowd, looks and the shell are byte for byte playtest1c's (frozen in scripts/frozen/playtest1d); only draw, wild (art names) and screen (the preload list) move", same.length === 0 && moved.length === 3, `${same} | ${moved}`);
+    check("playtest1d", "wild.ts is still art only: one import (content's dungeon list), and the sim never names it", /^import \{ DUNGEONS \} from "\.\/content";$/m.test(wild) && (wild.match(/^import /gm) ?? []).length === 1 && !readFileSync("src/game/sim.ts", "utf8").includes("./wild"));
+  }
+
+  // 1. The writer makes every C2 sheet: playtest1d_c2() run fresh into a scratch folder matches what ships, byte for byte;
+  // and each season's town lawn is town_writer's own drawing.
+  {
+    const r = py(`import json,sys,tempfile,pathlib,shutil\nsys.path.insert(0,'tools/pixel-writer')\nsys.dont_write_bytecode=True\nfrom PIL import Image\nimport make_gravewake as m\nt=pathlib.Path(tempfile.mkdtemp())\nshutil.copy('public/art/writer/wild-border.png',t/'wild-border.png')\nm.OUT=t\nmade=m.playtest1d_c2()\nbad=[n for n in made if Image.open(t/n).convert('RGBA').tobytes()!=Image.open('public/art/writer/'+n).convert('RGBA').tobytes()]\nlawn=[s for s in ('autumn','winter','spring','summer') if m.town_grass_strip(s).convert('RGBA').tobytes()!=Image.open('public/art/writer/season-'+s+'-town-grass.png').convert('RGBA').tobytes()]\nprint(json.dumps({'n':len(made),'names':sorted(made),'bad':bad,'lawn':lawn}))`);
+    check("playtest1d", "the pixel writer makes every C2 sheet: playtest1d_c2() run fresh into a scratch folder (houses, cabin and their glow masks, the lawn, the themed stairs, the rim lines) matches the shipped files byte for byte", !r.error && r.n === 11 && r.bad.length === 0, r.error ?? `${r.n} ${r.bad}`);
+    check("playtest1d", "each season's town lawn is town_writer's own drawing (not a colour remap of the cozy pack's grass): the four season sheets match town_grass_strip(season)", !r.error && r.lawn.length === 0 && /if name == "town-grass":\n\s+# playtest1d[^\n]*\n\s+im = town_grass_strip\(season\)/.test(maker) && /"town-grass": \(OUT \/ "town-grass\.png", "ground"\)/.test(maker), r.error ?? r.lawn.join());
+  }
+
+  // 2. The sheets: palette v3, hard alpha, the sizes the draw cuts; the houses at house scale, the glow masks only glow.
+  {
+    const r = py(`import json,sys\nsys.path.insert(0,'tools/sprite-writer')\nsys.dont_write_bytecode=True\nfrom PIL import Image\nfrom palette_locked import LOCKED_V3\nW='public/art/writer/'\nout={}\nfor n in ['town-house-stone','town-house-warm','town-house-slate','town-cabin','town-grass','wild-stairs-themes','wild-border-rim']:\n  im=Image.open(W+n+'.png').convert('RGBA'); px=list(im.getdata())\n  soft=sum(1 for p in px if p[3] not in (0,255)); off=sum(1 for p in px if p[3] and '#%02x%02x%02x'%p[:3] not in LOCKED_V3)\n  bb=im.getbbox(); o={'size':list(im.size),'soft':soft,'off':off,'box':[bb[2]-bb[0],bb[3]-bb[1]] if bb else None,'bottom':bb[3] if bb else None}\n  if n.startswith('town-house') or n=='town-cabin':\n    em=Image.open(W+n+'_em.png').convert('RGBA'); e=list(em.getdata())\n    o['em']=sum(1 for p in e if p[3]); o['emOff']=sum(1 for p,q in zip(e,px) if p[3] and (p!=q or '#%02x%02x%02x'%p[:3] not in ('#e0a040','#f4e27a','#fff8e0','#e07a2f','#4ab8ff','#9ae4ff','#e7f4ff','#3a6ad0')))\n  out[n]=o\nprint(json.dumps(out))`);
+    const sizes = { "town-house-stone": [64, 96], "town-house-warm": [64, 96], "town-house-slate": [64, 96], "town-cabin": [80, 96], "town-grass": [112, 16], "wild-stairs-themes": [96, 16], "wild-border-rim": [256, 64] };
+    const bad = r.error ? [r.error] : Object.entries(sizes).filter(([n, s]) => !r[n] || r[n].size.join() !== s.join() || r[n].soft || r[n].off).map(([n]) => n);
+    check("playtest1d", "the C2 sheets are palette v3 with hard alpha, at the sizes the draw cuts them (houses 64x96, cabin 80x96, lawn 7x16, stairs 6x16, rims 16x16 by four biomes)", bad.length === 0, bad.join());
+    const houses = ["town-house-stone", "town-house-warm", "town-house-slate"];
+    const scale = !r.error && houses.every((n) => r[n].box[0] >= 56 && r[n].box[0] <= 64 && r[n].box[1] >= 88 && r[n].bottom === 96) && r["town-cabin"].box[0] >= 68 && r["town-cabin"].box[1] >= 80 && r["town-cabin"].bottom === 96;
+    check("playtest1d", "the houses keep the land pack's full house scale (about 60x92 on their lot, standing on its south edge) and the cabin its 72x85, so no building is drawn half size", scale, r.error ?? houses.concat("town-cabin").map((n) => `${n} ${r[n].box}`).join("; "));
+    check("playtest1d", "gloom and glow: every house and the cabin has a glow mask of lit window panes, the chimney ember and the door lamp (and nothing else), on the sprite's own pixels", !r.error && houses.concat("town-cabin").every((n) => r[n].em >= 100 && r[n].emOff === 0), r.error ?? houses.concat("town-cabin").map((n) => `${n} ${r[n].em}/${r[n].emOff}`).join("; "));
+  }
+
+  // 3. The town draws the writer's buildings and lawn; at night the windows go to full light.
+  {
+    const g = new X.Game();
+    g.start("wizard", "int", "Q");
+    g.enterTown();
+    g.roamers = [];
+    g.worldMs = 5 * 60 * 1000;
+    const day = frame(g);
+    g.worldMs = X.DAY_MS + 2 * 60 * 1000;
+    const night = frame(g);
+    const files = [...W.TOWN_HOUSES, W.TOWN_CABIN];
+    const seen = files.filter((f) => day.includes(f) || night.includes(f));
+    const old = [...day, ...night].filter((u) => /\/art\/(land\/house|cozy\/)/.test(u));
+    check("playtest1d", `the town's buildings are the writer's (stone, timber and boarded houses and the log cabin, picked as before by lot): ${seen.length} of 4 drawn, none from the land or cozy packs`, files.every((f) => existsSync(`public${f}`)) && /const file = cabin \? TOWN_CABIN : TOWN_HOUSES\[x0 % 3\];/.test(draw) && seen.length >= 3 && old.length === 0, `${seen} | ${old.slice(0, 3)}`);
+    const glow = night.filter((u) => /town-(house-\w+|cabin)_em\.png$/.test(u));
+    check("playtest1d", `after dusk the house windows and door lamps draw their glow mask at full light (${glow.length} masks on the night frame, after the light layer)`, glow.length >= 2 && /if \(lit\) glow\.push\(\(c\) => paintTownBuilding\(c, g, b, true\)\);/.test(draw));
+    const lawn = [...day, ...night].filter((u) => /town-grass\.png$/.test(u));
+    check("playtest1d", "the town lawn is the writer's (the season's own sheet, the writer's spring lawn as the not-yet-loaded fallback); the cozy pack's grass is drawn nowhere", lawn.length > 0 && lawn.every((u) => u.startsWith("/art/writer/")) && (draw.match(/seasonCell\(ctx, "town-grass", TOWN_GRASS,/g) ?? []).length === 2 && !/\/art\/cozy\//.test(draw), lawn.slice(0, 2).join());
+  }
+
+  // 4. Bill's grey square on the ice: the last dungeon floor's plate painted on the vale.
+  {
+    const g = new X.Game();
+    g.start("wizard", "int", "Q");
+    g.enterWorld(11 * 16 + 8, 9 * 16 + 8);
+    const k = 6 * g.w + 11;
+    g.enterDungeon(X.DUNGEONS[0].id);
+    g["applyFeats"]({ hidden: [], traps: [{ x: k % g.w, y: Math.floor(k / g.w), kind: "plate", phase: 0 }] });
+    g.px = (k % g.w) * 16 + 8; g.py = Math.floor(k / g.w) * 16 + 24; g.roamers = [];
+    if (g.fog) g.fog.fill(1);
+    const below = frame(g).filter((u) => u.endsWith("/trap.png")).length;
+    g.enterWorld(11 * 16 + 8, 9 * 16 + 8);
+    g.roamers = [];
+    const stale = g.trapAt(k) >= 0;
+    const vale = frame(g).filter((u) => u.endsWith("/trap.png")).length;
+    check("playtest1d", `the grey square with a mark on the ice (Bill's snow shot) was a pressure plate from the last dungeon floor: g.feats outlives the floor, so its trap index painted on the vale. Plates now draw below ground only (the plate still draws on its floor: ${below}; the stale index is still there on the vale: ${stale}; plates drawn on the vale: ${vale})`, below > 0 && stale && vale === 0 && /const trap = g\.mapId === "dungeon" \? g\.trapAt\(i\) : -1;/.test(draw));
+  }
+
+  // 5. The floor stairs wear their dungeon's dress.
+  {
+    const cells = Object.fromEntries(["harrow", "chapel", "ossuary", "drowned", "warren", "blackroot", "cave"].map((t) => [t, [W.stairCell(t, true), W.stairCell(t, false)]]));
+    const want = { harrow: [0, 1], chapel: [0, 1], ossuary: [2, 3], drowned: [2, 3], warren: [4, 5], blackroot: [4, 5], cave: [4, 5] };
+    const g = new X.Game();
+    g.start("wizard", "int", "Q");
+    g.enterDungeon("ossuary");
+    let at = -1;
+    for (let i = 0; i < g.tiles.length && at < 0; i++) if (g.tiles[i] === 12 || g.tiles[i] === 13) at = i;
+    if (g.fog) g.fog.fill(1);
+    g.px = (at % g.w) * 16 + 8; g.py = Math.floor(at / g.w) * 16 + 40; g.roamers = [];
+    const themed = frame(g).filter((u) => u === W.STAIRS_THEMED).length;
+    check("playtest1d", `a floor stair is dressed for its dungeon, the same as its mouth on the vale: mason's steps (manors, chapels), a crypt's violet flags (ossuary, drowned parish), a barrow's cut earth (warrens, roots, holes); ${themed} themed stair cells on an ossuary floor`, JSON.stringify(cells) === JSON.stringify(want) && themed > 0 && /cave && sheetCell\(ctx, STAIRS_THEMED, stairCell\(theme, tile === T\.stairD\), 0, gx, gy\)/.test(draw), JSON.stringify(cells));
+  }
+
+  // 6. The rim where biomes meet follows the drift, in the neighbour's dark.
+  {
+    const r = py(`import json,sys\nsys.path.insert(0,'tools/pixel-writer')\nsys.dont_write_bytecode=True\nfrom PIL import Image\nrim=Image.open('public/art/writer/wild-border-rim.png').convert('RGBA')\nb=Image.open('public/art/writer/wild-border.png').convert('RGBA')\nbad=0;n=0;cols=set()\nfor j in range(4):\n  for x in range(256):\n    for y in range(16):\n      p=rim.getpixel((x,y+16*j))\n      if p[3]:\n        n+=1; cols.add((j,'#%02x%02x%02x'%p[:3]))\n        if not b.getpixel((x,y))[3]: bad+=1\nprint(json.dumps({'n':n,'bad':bad,'cols':sorted(cols)}))`);
+    check("playtest1d", "the biome rim lines sit on the drift masks' own inner edge (never outside the mask), one dark per neighbour biome (snow, waste, cinder, swamp), so the meeting line follows the drift's curve and not the tile step", !r.error && r.n > 400 && r.bad === 0 && r.cols.length === 4 && new Set(r.cols.map((c) => c[1])).size === 4, r.error ?? JSON.stringify(r).slice(0, 200));
+    check("playtest1d", "the draw lays the rim over each fringe (sides, nooks, rounded corners) from the neighbour's row, and a fringe is only kept once the rim sheet is in", (draw.match(/\brim\((cell \+ v|cell), dx, dy\)/g) ?? []).length === 3 && /if \(nb > 0\) sheetCell\(acc, WILD_BORDER_RIM, cell, nb - 1, 0, 0\);/.test(draw) && /sheetReady\(WILD_BORDER_RIM\)/.test(draw));
+  }
+
+  // 7. No third-party spell strip is drawn; every spell frame is the spell writer's.
+  {
+    const src = ["draw.ts", "screen.ts", "wild.ts", "looks.ts", "Gravewake.tsx"].map((f) => readFileSync(`src/game/${f}`, "utf8")).join("\n");
+    const names = ["Fireball", "Light Bolt", "Ice Lance", "Darkness Bolt", "Magic Sparks", "Wind Bolt", "Splash"];
+    const left = names.filter((n) => src.includes(`${n}.png`));
+    const used = [...draw.matchAll(/spellFrame\(ctx, "([a-z-]+\.png)"/g)].map((m) => m[1]);
+    const missing = used.filter((f) => !existsSync(`public/art/spells/gen/${f}`));
+    check("playtest1d", `the last third-party spell strips (DevWizard's ${names.length}) are drawn nowhere: the fallbacks and the painted hero's swing and cast use the spell writer's strips (${new Set(used).size} strips, all in spells/gen)`, left.length === 0 && missing.length === 0 && used.length >= 6 && /folder = SPELL_DIR,/.test(draw) && /const SPELL_DIR = "\/art\/spells\/gen";/.test(draw), `${left} | ${missing}`);
+  }
+
+  // 8. Bill's "lizard foe" note: there is no lizard, salamander or newt foe; the rat (the old bar that read as one) is redrawn.
+  {
+    const fam = X.FAMILIES.map((f) => `${f.id} ${f.name ?? ""}`.toLowerCase());
+    const drawn = (readFileSync("tools/sprite-writer/make_gravewake.py", "utf8").match(/FAMILIES = \[([^\]]*)\]/) ?? ["", ""])[1].match(/"(\w+)"/g) ?? [];
+    const reptiles = [...fam, ...drawn].filter((s) => /lizard|salamander|newt|gecko|skink|drake|wyrm|serpent|snake/.test(s));
+    const sw = readFileSync("tools/sprite-writer/sprite_writer.py", "utf8");
+    check("playtest1d", `Bill's "lizard foe" is covered: no lizard, salamander or newt foe exists (${X.FAMILIES.length} content families, ${drawn.length} drawn sprite families; the newts are fishing bait), and the rat critter and foe that read as one has its own build`, reptiles.length === 0 && drawn.length >= 17 && drawn.includes('"rat"') && /"rat": _rat,/.test(sw), reptiles.join());
+  }
+
+  // 9. The loading cover waits for the writer's town art; the old packs are not asked for.
+  {
+    const gone = X.PRELOAD.filter((u) => /\/art\/(cozy|land)\//.test(u));
+    const want = ["/art/writer/town-grass.png", "/art/writer/town-house-stone.png", "/art/writer/town-cabin.png"];
+    check("playtest1d", "the loading cover waits for the writer's town lawn, a house and the cabin instead of the cozy pack's grass and cabin; every preload file exists, and every C2 sheet is asked for up front", gone.length === 0 && want.every((u) => X.PRELOAD.includes(u)) && X.PRELOAD.every((u) => existsSync(`public${u}`)) && [W.STAIRS_THEMED, W.WILD_BORDER_RIM, ...W.TOWN_HOUSES, W.TOWN_CABIN, W.TOWN_GRASS].every((u) => W.WILD_SHEETS.includes(u) && existsSync(`public${u}`)), gone.join());
+  }
+
+  // 10. The audit and the notes.
+  {
+    const audit = readFileSync("specs/ART_AUDIT.md", "utf8");
+    const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("playtest1d", "specs/ART_AUDIT.md records C2 (what changed, what stays) under its dated tag, and rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md carry the batch C2 note", audit.includes(TAG) && /## C2 \(done/.test(audit) && rules.includes(TAG) && agents.includes(TAG) && writer.includes("playtest1d"));
+  }
+  globalThis.Image = had.Image;
+  globalThis.document = had.document;
+
+  // Last: the live files are byte for byte what playtest1d ships (any later edit must re-pin here, on purpose).
+  {
+    const LIVE = {"sim.ts": "04d3325b77505c886beba0d81bfac5d5", "draw.ts": "63ac4c27a789a596773da09b34330ffb", "wild.ts": "3556b437c111253f89c1d2425b7df206", "Gravewake.tsx": "bdf6866b62280f7c2c3cf1651061bf2b", "looks.ts": "8282846aac6f1ea0e98f69b78e002c32", "content.ts": "363ab7b0efeac538717636f7478838b0", "crowd.ts": "8ef0ee7ce079f38921dee19cfd4c953c", "screen.ts": "cc0750c767699b1d3936a9b04cc62c2d"};
     const moved = Object.entries(LIVE).filter(([f, h]) => md5f(`src/game/${f}`) !== h).map(([f]) => f);
-    check("playtest1c", "the live game files are byte for byte playtest1c's (sim, draw, wild, shell, looks, content, crowd, screen)", moved.length === 0, moved.join(", "));
+    check("playtest1d", "the live game files are byte for byte playtest1d's (sim, draw, wild, shell, looks, content, crowd, screen)", moved.length === 0 && Object.keys(LIVE).length === 8, moved.join(", "));
   }
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b, playtest1c");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b, playtest1c, playtest1d");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

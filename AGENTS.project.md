@@ -268,3 +268,8 @@ OWNER-REPORTED BUGS
 - Bosses draw at 1x (scaleFor) in a cold-fire ring; the rat is redrawn (sprite writer). Idle: IDLE_BEAT (4 s, 1.5 s shift) with idleSeed per body; scarecrow hop arc and idle, Pumpkin Lord idle fixed. Drawing only: sim, content, saves and g.tiles untouched.
 - Checks: group playtest1c (live pin last; re-pin with qa/playtest1c/repin.py). Batch B's files are frozen in scripts/frozen/playtest1c/ and the playtest1b pins, the season tree-sheet check and the town-pumpkin source-box check read them. wild.ts is in LATER_MODULES. fade2's boss dither box is now the 1x box.
 - C2 (deferred): town houses and cabin, cozy town grass, third-party spell strips, the tile-step biome outline, the ice arrow square.
+
+## playtest1d (batch C2, art audit) — [OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2]
+- Writer tools/pixel-writer/town_writer.py via make_gravewake.playtest1d_c2(): town-house-{stone,warm,slate}, town-cabin (+ _em glow masks), town-grass, wild-stairs-themes, wild-border-rim. Constants in src/game/wild.ts (TOWN_HOUSES, TOWN_CABIN, TOWN_GRASS, STAIRS_THEMED, stairCell, WILD_BORDER_RIM).
+- draw.ts: houses by x0 % 3, lit windows via paintTownBuilding(..., em) in the glow pass; town lawn from TOWN_GRASS; rim line after the fringes; themed floor stairs; trap plates only when mapId is "dungeon"; spells only from /art/spells/gen. season_sheets draws the town lawn per season.
+- Checks: group playtest1d (live pin last; re-pin with qa/playtest1d/repin.py). C1's game files are frozen in scripts/frozen/playtest1d/ and the playtest1c live pin and playtest1b house-scale check read them.

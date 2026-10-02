@@ -1,0 +1,2041 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { CLASSES, type ClassId, type StatPath } from "./content";
+import { AudioBus } from "./audio";
+import { drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
+import { ACTS, Game, type Act } from "./sim";
+import { CAMP_ICON, PORTRAITS } from "./looks"; // playtest1b
+import {
+  ASPECTS,
+  ASPECT_LABEL,
+  CAPS,
+  PAD,
+  PAD_NAV_DEAD,
+  PRELOAD,
+  PRESETS,
+  PRESET_IDS,
+  READY_TIMEOUT_MS,
+  STICK_CAP,
+  canFullscreen,
+  computeView,
+  enterFullscreen,
+  fullscreenElement,
+  inStickZone,
+  isIos,
+  isStandalone,
+  loadScreen,
+  navPick,
+  readPad,
+  readStick,
+  saveScreen,
+  toggleFullscreen,
+  type Dir,
+  type ScreenSettings,
+  type View,
+} from "./screen";
+import { InstallButton } from "../pwa/InstallButton"; // install1
+import { useIosTipRequest } from "../pwa/install"; // install1
+
+/**
+ * The shell around the simulation. The canvas draws the world.
+ * This component draws the menus and forwards keys, the stick, and the mouse.
+ */
+export function Gravewake() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const miniRef = useRef<HTMLCanvasElement>(null);
+  const gameRef = useRef<Game | null>(null);
+  const audioRef = useRef<AudioBus | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const [tick, setTick] = useState(0);
+  const [cls, setCls] = useState<ClassId>("warrior");
+  const [path, setPath] = useState<StatPath>("str");
+  const [name, setName] = useState("Wanderer");
+  const [stake, setStake] = useState(5);
+  const [bankN, setBankN] = useState(10);
+  const stick = useRef({ id: -1, ox: 0, oy: 0 });
+  const [miniAt, setMiniAt] = useState({ x: 8, y: 132 });
+  const [pip, setPip] = useState(false);
+  const miniTap = useRef(0);
+  const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
+  const pinchD = useRef<number | null>(null);
+  const lookRef = useRef<View | null>(null);
+  const [pauseTab, setPauseTab] = useState<"pack" | "guide" | "pad" | "display">("pack");
+  // screen1: display settings (saved), the frame in force, the loading cover, the sideways prompt, the pad layer.
+  const mainRef = useRef<HTMLElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const knobRef = useRef<HTMLDivElement>(null);
+  const [screenSet, setScreenSet] = useState<ScreenSettings>({ preset: "auto", aspect: "fit", cap: 2, tipShown: false });
+  const screenRef = useRef<ScreenSettings>(screenSet);
+  const viewRef = useRef<View | null>(null);
+  const [ready, setReady] = useState(false);
+  const readyAt = useRef(Infinity);
+  const freshIds = useRef(new Set<number>());
+  const [portrait, setPortrait] = useState(false);
+  const [coarse, setCoarse] = useState(false);
+  const [portraitOk, setPortraitOk] = useState(false);
+  const [tip, setTip] = useState(false);
+  const [fs, setFs] = useState(false);
+  // playtest1 (owner-reported 2026-10-01, the Android edge swipe lost progress): the game paused itself because the
+  // page went away or fullscreen ended (resumeTap), or the back gesture asked to leave (leaveAsk).
+  const [resumeTap, setResumeTap] = useState(false);
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  useIosTipRequest(() => setTip(true)); // install1: the Install button on iPhone opens screen1's tip
+  const [padOn, setPadOn] = useState(false);
+  const [titleDisplay, setTitleDisplay] = useState(false);
+  const [fsAvail, setFsAvail] = useState(true);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const campRef = useRef<HTMLButtonElement>(null);
+  const miniUser = useRef(false);
+  const stickTap = useRef<{ t: number; x: number; y: number; moved: boolean; canvas: boolean } | null>(null);
+  /** retro1: the pointer walking from Retro's black bars (-1: none). */
+  const barAim = useRef(-1);
+
+  /**
+   * Own the game and the mixer for the life of the page. The test hook is for the smoke pass.
+   */
+  useEffect(() => {
+    const audio = new AudioBus();
+    audioRef.current = audio;
+    const game = new Game();
+    game.audio = audio;
+    gameRef.current = game;
+    window.__controlsTest = {
+      getX: () => game.px,
+      getY: () => game.py,
+      getYaw: () => (game.facing === "w" ? Math.PI : game.facing === "e" ? 0 : game.facing === "n" ? -Math.PI / 2 : Math.PI / 2),
+      getSpeed: () => (game.held.size || game.stickX || game.stickY ? 1 : 0),
+      setKeys: (codes: string[]) => {
+        game.held = new Set(codes);
+      },
+      setPos: (x: number, y: number) => {
+        game.px = x;
+        game.py = y;
+      },
+      use: () => game.interact(),
+      setTime: (ms: number) => {
+        game.worldMs = ms;
+      },
+    };
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    let raf = 0;
+    let last = performance.now();
+    let alive = true;
+    // screen1: the saved display settings, applied from the first frame.
+    const saved = loadScreen();
+    screenRef.current = saved;
+    setScreenSet(saved);
+    const coarseQ = window.matchMedia?.("(pointer: coarse)");
+    let coarseNow = !!coarseQ?.matches;
+    const unlockAt: number[] = [];
+    /** Audio starts only on a fresh press after the cover lifts (never on a touch held from before). */
+    const unlockFresh = (t: number) => {
+      if (t < readyAt.current) return;
+      unlockAt.push(t);
+      audio.unlock();
+    };
+    let uiNow = 1;
+    const frame = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      game.update(dt);
+      if (now >= readyAt.current) padLayer(now);
+      const rect = (canvas.parentElement ?? canvas).getBoundingClientRect();
+      const dprRaw = window.devicePixelRatio || 1;
+      const s = screenRef.current;
+      // The world view uses the chosen preset. The fight and the map keep the Auto frame (their layout is in canvas pixels).
+      const look = computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: game.zoom, s, coarse: coarseNow });
+      const scene = game.mode === "battle" || game.mode === "map";
+      const v = scene ? computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: game.zoom, s: { ...s, preset: "auto" }, coarse: false }) : look;
+      viewRef.current = v;
+      lookRef.current = look;
+      const w = v.bufW;
+      const h = v.bufH;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const st = canvas.style;
+      const box = [`${v.css.x}px`, `${v.css.y}px`, `${v.css.w}px`, `${v.css.h}px`];
+      if (st.left !== box[0]) st.left = box[0];
+      if (st.top !== box[1]) st.top = box[1];
+      if (st.width !== box[2]) st.width = box[2];
+      if (st.height !== box[3]) st.height = box[3];
+      if (look.ui !== uiNow) {
+        uiNow = look.ui;
+        document.documentElement.style.fontSize = uiNow === 1 ? "" : `${16 * uiNow}px`;
+      }
+      canvas.style.imageRendering = "pixelated";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = "#140e12";
+      ctx.fillRect(0, 0, w, h);
+      if (game.mode !== "title") {
+        if (game.mode === "battle") drawBattle(ctx, game, w, h);
+        else if (game.mode === "map") drawMap(ctx, game, w, h);
+        else drawWorld(ctx, game, w, h, v.k);
+      }
+      const mini = miniRef.current;
+      if (mini && game.mode !== "title" && game.mode !== "map") {
+        if (mini.width !== 96) mini.width = 96;
+        if (mini.height !== 96) mini.height = 96;
+        const mctx = mini.getContext("2d");
+        if (mctx) drawMinimap(mctx, game, 96);
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    /**
+     * screen1: the pad on menus. The sim already reads the pad in play, a fight and fishing (stick, d-pad, A use,
+     * X area, Y far, LB drink, Start pause, Back map). Here: the title and every menu take the d-pad or the stick to
+     * move the focus, A to press, B to back out; in play, B or RB is the Main swing (A stays use, as the sim has it).
+     */
+    const padPrev: boolean[] = [];
+    let padSeen = false;
+    let navDir: Dir | null = null;
+    let navNext = 0;
+    let focusEl: HTMLElement | null = null;
+    const NAV_MODES = new Set(["title", "talk", "shop", "casino", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map"]);
+    const lastOf = (sel: string) => {
+      const all = document.querySelectorAll<HTMLElement>(sel);
+      return all.length ? all[all.length - 1] : null;
+    };
+    const items = (root: HTMLElement) =>
+      [...root.querySelectorAll<HTMLElement>('button:not(:disabled), input[type="range"], input[type="checkbox"]')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+    const setFocus = (el: HTMLElement | null) => {
+      if (focusEl && focusEl !== el) delete focusEl.dataset.padfocus;
+      focusEl = el;
+      if (!el) return;
+      el.dataset.padfocus = "1";
+      el.focus({ preventScroll: true });
+      el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    };
+    const nudge = (el: HTMLInputElement, dir: number) => {
+      const lo = Number(el.min || 0);
+      const hi = Number(el.max || 100);
+      const step = Math.max(Number(el.step) || 1, Math.round((hi - lo) / 20));
+      const n = Math.max(lo, Math.min(hi, Number(el.value) + dir * step));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(el, String(n));
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const padLayer = (now: number) => {
+      const pad = readPad(navigator.getGamepads?.());
+      if (!!pad !== padSeen) {
+        padSeen = !!pad;
+        setPadOn(padSeen);
+      }
+      if (!pad) {
+        padPrev.length = 0;
+        navDir = null;
+        return;
+      }
+      const p = pad.pressed;
+      const edge = (b: number) => !!p[b] && !padPrev[b];
+      const keep = () => {
+        padPrev.length = 0;
+        padPrev.push(...p);
+      };
+      if (game.captureAct) return keep();
+      if (focusEl && !focusEl.isConnected) focusEl = null;
+      const modal = lastOf("[data-padmodal]");
+      const root = modal ?? (NAV_MODES.has(game.mode) ? lastOf("[data-padnav]") : null);
+      if (!root) {
+        if (focusEl) setFocus(null);
+        navDir = null;
+        const bound = new Set(Object.values(game.padBind));
+        if (game.mode === "play" && ((edge(PAD.B) && !bound.has(PAD.B)) || (edge(PAD.RB) && !bound.has(PAD.RB)))) {
+          game.slash();
+          setTick((n) => n + 1);
+        }
+        return keep();
+      }
+      const list = items(root);
+      if (focusEl && !list.includes(focusEl)) setFocus(null);
+      const dir: Dir | null =
+        p[PAD.Up] || pad.ly < -PAD_NAV_DEAD ? "up" : p[PAD.Down] || pad.ly > PAD_NAV_DEAD ? "down" : p[PAD.Left] || pad.lx < -PAD_NAV_DEAD ? "left" : p[PAD.Right] || pad.lx > PAD_NAV_DEAD ? "right" : null;
+      let go = false;
+      if (dir && dir !== navDir) {
+        go = true;
+        navNext = now + 350;
+      } else if (dir && now >= navNext) {
+        go = true;
+        navNext = now + 140;
+      }
+      navDir = dir;
+      if (go && dir && list.length) {
+        if (!focusEl) setFocus(root.querySelector<HTMLElement>("[data-padfirst]") ?? list[0]);
+        else if (focusEl instanceof HTMLInputElement && focusEl.type === "range" && (dir === "left" || dir === "right")) nudge(focusEl, dir === "left" ? -1 : 1);
+        else {
+          const at = list.indexOf(focusEl);
+          setFocus(list[navPick(list.map((el) => {
+            const r = el.getBoundingClientRect();
+            return { x: r.left, y: r.top, w: r.width, h: r.height };
+          }), at, dir)] ?? null);
+        }
+      }
+      if (edge(PAD.A) && list.length) {
+        if (!focusEl) setFocus(root.querySelector<HTMLElement>("[data-padfirst]") ?? list[0]);
+        else if (!(focusEl instanceof HTMLInputElement && focusEl.type === "range")) focusEl.click();
+        setTick((n) => n + 1);
+      }
+      if (edge(PAD.B)) {
+        root.querySelector<HTMLElement>("[data-padback]")?.click();
+        setTick((n) => n + 1);
+      }
+      keep();
+    };
+    raf = requestAnimationFrame(frame);
+    const id = window.setInterval(() => setTick((n) => n + 1), 200);
+    const down = (e: KeyboardEvent) => {
+      // screen1: the loading cover swallows keys too; audio waits for a fresh press after it lifts.
+      if (performance.now() < readyAt.current) {
+        e.preventDefault();
+        return;
+      }
+      if (!e.repeat) unlockFresh(e.timeStamp || performance.now());
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (game.captureAct) {
+        e.preventDefault();
+        game.bindKey(game.captureAct, e.code);
+        setTick((n) => n + 1);
+        return;
+      }
+      // screen1: F is fullscreen. Smite holds F by default, so in play, a fight or fishing it takes Shift+F; elsewhere F alone.
+      if (e.code === "KeyF" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) {
+        const busy = Object.values(game.keyBind).includes("KeyF") && (game.mode === "play" || game.mode === "battle" || game.mode === "fish");
+        if (e.shiftKey || !busy) {
+          e.preventDefault();
+          void toggleFullscreen();
+          return;
+        }
+      }
+      // playtest1 (owner-reported 2026-10-01): "Leave camp?" takes Y or Enter for yes, N, Escape or Backspace for no.
+      // (Arrows and Tab still move between its two buttons, and Enter or Space press the focused one.)
+      if (game.askLeave) {
+        const focused = document.activeElement instanceof HTMLElement && document.activeElement.closest("[data-testid='leave-camp']");
+        if (e.code === "KeyY" || (e.code === "Enter" && !focused)) game.answerLeave(true);
+        else if (e.code === "KeyN" || e.code === "Escape" || e.code === "Backspace") game.answerLeave(false);
+        else return;
+        e.preventDefault();
+        setTick((n) => n + 1);
+        return;
+      }
+      game.held.add(e.code);
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
+      const bind = game.keyBind;
+      if (game.mode === "fish") {
+        if (e.code === bind.use || e.code === "Space") {
+          e.preventDefault();
+          game.reel();
+        }
+        if (e.code === bind.pause || e.code === "Escape") game.togglePause();
+        setTick((n) => n + 1);
+        return;
+      }
+      if (game.mode === "battle") {
+        if (e.code === bind.pause || e.code === "Escape" || e.code === "KeyI" || e.code === "KeyC") {
+          game.togglePause();
+          setTick((n) => n + 1);
+          return;
+        }
+        if (game.battle?.turn === "ally") {
+          const opts = game.allyOptions();
+          if (e.code === bind.use || e.code === "Space") game.command("strike");
+          if (e.code === bind.area) game.command("guard");
+          if (e.code === "Digit1") game.command(opts[0] ?? "");
+          if (e.code === "Digit2") game.command(opts[1] ?? "");
+          if (e.code === "Digit3") game.command(opts[2] ?? "");
+          if (e.code === "Digit4") game.command(opts[3] ?? "");
+          setTick((n) => n + 1);
+          return;
+        }
+        if (e.code === bind.use || e.code === "Space") game.command("strike");
+        if (e.code === bind.area) game.command("cleave");
+        if (e.code === bind.far) game.command("ranged");
+        if (e.code === "Digit1") game.command(game.specials[0] ?? "");
+        if (e.code === "Digit2") game.command(game.specials[1] ?? "");
+        if (e.code === "Digit3") game.command(game.specials[2] ?? "");
+        if (e.code === "Digit4") game.command(game.specials[3] ?? "");
+        if (e.code === bind.drink) game.command("potion");
+        setTick((n) => n + 1);
+        return;
+      }
+      if (e.code === bind.use || e.code === "Space") {
+        e.preventDefault();
+        game.slash();
+      }
+      if (e.code === bind.area) game.whirl();
+      if (e.code === bind.far) game.smite();
+      if (e.code === bind.drink) game.usePotion();
+      if (e.code === "Digit1") game.castKnown(game.specials[0] ?? "");
+      if (e.code === "Digit2") game.castKnown(game.specials[1] ?? "");
+      if (e.code === "Digit3") game.castKnown(game.specials[2] ?? "");
+      if (e.code === "Digit4") game.castKnown(game.specials[3] ?? "");
+      const pauseKey = e.code === bind.pause || e.code === "Escape";
+      const packKey = (e.code === "KeyI" || e.code === "KeyC") && !pauseKey;
+      if (pauseKey) {
+        if (game.mode === "map") game.mode = "play";
+        else game.togglePause();
+      } else if (packKey && game.mode !== "title" && game.mode !== "map") game.togglePause();
+      if (e.code === bind.map && game.mode === "play") game.mode = "map";
+      else if (e.code === bind.map && game.mode === "map") game.mode = "play";
+      setTick((n) => n + 1);
+    };
+    const up = (e: KeyboardEvent) => game.held.delete(e.code);
+    // playtest1 (owner-reported 2026-10-01, the Android edge swipe lost progress). Every way a phone page goes
+    // away writes the autosave (its own key; the three slots are untouched) and, mid-play, pauses with a "Tap to
+    // resume" cover: tab hidden, page hidden or closed, window blur, fullscreen ending. A 45 s autosave runs too.
+    const playing = () => game.mode !== "title" && game.mode !== "dead";
+    const away = (pause: boolean) => {
+      if (!playing()) return;
+      game.held.clear();
+      game.autosave(true);
+      if (!pause) return;
+      if (game.mode !== "pause" && game.mode !== "map" && game.mode !== "level") game.togglePause();
+      setResumeTap(true);
+      setTick((n) => n + 1);
+    };
+    const blur = () => {
+      game.held.clear();
+      if (playing()) game.autosave(true);
+    };
+    const vis = () => {
+      if (document.visibilityState === "visible") void audio.ctx?.resume();
+      else away(true);
+    };
+    const pageHide = () => away(false);
+    const unload = (e: BeforeUnloadEvent) => {
+      if (!playing()) return;
+      game.autosave(true);
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const autoId = window.setInterval(() => {
+      if (playing() && document.visibilityState === "visible") game.autosave(false);
+    }, 45000);
+    // The back gesture (Android edge swipe, the browser Back) pops a trap entry first: it asks "Leave game?".
+    let trapped = false;
+    const trap = () => {
+      if (trapped || !playing()) return;
+      trapped = true;
+      try {
+        history.pushState({ ...(history.state ?? {}), gravewakeTrap: 1 }, "", location.href);
+      } catch {
+        trapped = false;
+      }
+    };
+    const pop = () => {
+      if (!trapped) return;
+      trapped = false;
+      if (!playing()) return;
+      away(true);
+      trap();
+      setLeaveAsk(true);
+    };
+    window.__leaveTrap = { arm: trap, armed: () => trapped, drop: () => { trapped = false; } };
+    const wheel = (e: WheelEvent) => {
+      if (game.mode === "title") return;
+      e.preventDefault();
+      // retro1: Retro's view is fixed at 320×240, so the wheel leaves the other presets' zoom alone.
+      if (screenRef.current.preset === "retro") return;
+      game.bumpZoom(e.deltaY > 0 ? -1 : 1);
+    };
+    // screen1: no page slide or zoom under a thumb; lists marked data-scroll may still scroll.
+    const touchMove = (e: TouchEvent) => {
+      const t = e.target as Element | null;
+      if (e.touches.length > 1 || !t?.closest?.("[data-scroll]")) e.preventDefault();
+    };
+    const gesture = (e: Event) => e.preventDefault();
+    const menu = (e: Event) => {
+      if (!(e.target instanceof HTMLInputElement)) e.preventDefault();
+    };
+    // A fresh press (it began after the cover lifted) starts audio; so does its release (iOS wants a touchend).
+    const pDown = (e: PointerEvent) => {
+      if (e.timeStamp < readyAt.current) return;
+      freshIds.current.add(e.pointerId);
+      unlockFresh(e.timeStamp);
+    };
+    const pUp = (e: PointerEvent) => {
+      if (!freshIds.current.delete(e.pointerId)) return;
+      unlockFresh(e.timeStamp);
+    };
+    const sense = () => {
+      coarseNow = !!coarseQ?.matches;
+      setCoarse(coarseNow);
+      setPortrait(window.innerHeight > window.innerWidth);
+      setFsAvail(canFullscreen() || !isStandalone());
+    };
+    let wasFs = !!fullscreenElement();
+    const fsChange = () => {
+      const now = !!fullscreenElement();
+      setFs(now);
+      // playtest1: leaving fullscreen mid-play (an edge swipe on Android does this first) pauses and saves.
+      if (wasFs && !now) away(true);
+      wasFs = now;
+    };
+    sense();
+    try {
+      setPortraitOk(sessionStorage.getItem("gravewake-portrait-ok") === "1");
+    } catch {
+      /* private mode */
+    }
+    document.addEventListener("touchmove", touchMove, { passive: false });
+    document.addEventListener("gesturestart", gesture);
+    document.addEventListener("contextmenu", menu);
+    window.addEventListener("pointerdown", pDown, true);
+    window.addEventListener("pointerup", pUp, true);
+    window.addEventListener("resize", sense);
+    window.addEventListener("orientationchange", sense);
+    document.addEventListener("fullscreenchange", fsChange);
+    document.addEventListener("webkitfullscreenchange", fsChange);
+    // The cover lifts once the core sheets are in (or after a bounded wait), never before the shell is live.
+    const loadOne = (src: string) =>
+      new Promise<void>((done) => {
+        const im = new Image();
+        im.onload = () => done();
+        im.onerror = () => done();
+        im.src = src;
+      });
+    void Promise.race([Promise.all(PRELOAD.map(loadOne)), new Promise<void>((done) => window.setTimeout(done, READY_TIMEOUT_MS))]).then(() => {
+      if (!alive) return;
+      readyAt.current = performance.now();
+      setReady(true);
+      // playtest1: a page that went away mid-play comes back exactly there, paused under "Tap to resume".
+      const auto = game.mode === "title" ? game.readAuto() : null;
+      if (auto?.live && game.resumeAuto()) {
+        game.togglePause();
+        setResumeTap(true);
+        setTick((n) => n + 1);
+      }
+      if (isIos() && !isStandalone() && !screenRef.current.tipShown) setTip(true);
+    });
+    window.__screenTest = {
+      view: () => viewRef.current,
+      look: () => lookRef.current,
+      settings: () => ({ ...screenRef.current }),
+      ready: () => performance.now() >= readyAt.current,
+      readyAt: () => readyAt.current,
+      unlocks: () => unlockAt.slice(),
+      audio: () => (audio.ctx ? audio.ctx.state : "none"),
+      stick: () => ({ x: game.stickX, y: game.stickY, running: game.running }),
+      mode: () => game.mode,
+      focus: () => (focusEl ? (focusEl.textContent ?? "").trim() : ""),
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    document.addEventListener("visibilitychange", vis);
+    window.addEventListener("pagehide", pageHide);
+    window.addEventListener("beforeunload", unload);
+    window.addEventListener("popstate", pop);
+    canvas.addEventListener("wheel", wheel, { passive: false });
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      document.removeEventListener("touchmove", touchMove);
+      document.removeEventListener("gesturestart", gesture);
+      document.removeEventListener("contextmenu", menu);
+      window.removeEventListener("pointerdown", pDown, true);
+      window.removeEventListener("pointerup", pUp, true);
+      window.removeEventListener("resize", sense);
+      window.removeEventListener("orientationchange", sense);
+      document.removeEventListener("fullscreenchange", fsChange);
+      document.removeEventListener("webkitfullscreenchange", fsChange);
+      document.documentElement.style.fontSize = "";
+      delete window.__screenTest;
+      window.clearInterval(id);
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+      document.removeEventListener("visibilitychange", vis);
+      window.removeEventListener("pagehide", pageHide);
+      window.removeEventListener("beforeunload", unload);
+      window.removeEventListener("popstate", pop);
+      window.clearInterval(autoId);
+      delete window.__leaveTrap;
+      canvas.removeEventListener("wheel", wheel);
+      delete window.__controlsTest;
+    };
+  }, []);
+
+  /**
+   * screen1: the minimap starts clear of the HUD card (it used to sit over its Pause button): under the card when
+   * there is room above the tent, else beside it. Once dragged, it stays where the player put it (kept on screen).
+   */
+  useEffect(() => {
+    if (miniUser.current) return;
+    const card = cardRef.current;
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const campTop = campRef.current?.getBoundingClientRect().top ?? window.innerHeight - 200;
+    const next = r.bottom + 8 + 96 <= campTop - 8 ? { x: Math.round(r.left), y: Math.round(r.bottom + 8) } : { x: Math.round(r.right + 8), y: Math.round(r.top) };
+    if (Math.abs(next.x - miniAt.x) > 1 || Math.abs(next.y - miniAt.y) > 1) setMiniAt(next);
+  }, [tick, miniAt.x, miniAt.y]);
+
+  const game = gameRef.current;
+  void tick;
+  // screen1: a press only reaches here after the loading cover lifts, so it is a fresh one.
+  const unlock = () => {
+    if (performance.now() >= readyAt.current) audioRef.current?.unlock();
+  };
+  const bump = () => setTick((n) => n + 1);
+
+  /** Apply a display setting at once and keep it. */
+  const setScreen = (patch: Partial<ScreenSettings>) => {
+    const next = { ...screenRef.current, ...patch };
+    screenRef.current = next;
+    saveScreen(next);
+    setScreenSet(next);
+  };
+  const fullscreen = () => {
+    unlock();
+    if (canFullscreen()) void toggleFullscreen();
+    else setTip(true);
+  };
+  const look = lookRef.current;
+  const padFirst = padOn || !!look?.tv;
+  const showPortrait = coarse && portrait && !portraitOk;
+  /** A pointerup counts only after its own fresh pointerdown on the same button (none held from the cover). */
+  const pressedFor = (el: HTMLElement) => {
+    const at = el.dataset.down;
+    delete el.dataset.down;
+    return at ? performance.now() - Number(at) : -1;
+  };
+
+  // The floating stick: it starts under the finger (on the ring, or anywhere in the left third), tracked by its id.
+  const stickStart = (e: React.PointerEvent<HTMLElement>, fromCanvas: boolean) => {
+    unlock();
+    stick.current = { id: e.pointerId, ox: e.clientX, oy: e.clientY };
+    stickTap.current = { t: performance.now(), x: e.clientX, y: e.clientY, moved: false, canvas: fromCanvas };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const ring = ringRef.current;
+    if (ring) {
+      ring.style.transform = "";
+      const r = ring.getBoundingClientRect();
+      ring.style.transform = `translate(${e.clientX - (r.left + r.width / 2)}px, ${e.clientY - (r.top + r.height / 2)}px)`;
+    }
+    if (knobRef.current) knobRef.current.style.transform = "";
+  };
+  const stickMove = (e: React.PointerEvent<HTMLElement>) => {
+    const g = gameRef.current;
+    if (!g || stick.current.id !== e.pointerId) return false;
+    const dx = e.clientX - stick.current.ox;
+    const dy = e.clientY - stick.current.oy;
+    const r = readStick(dx, dy);
+    if (stickTap.current && Math.hypot(dx, dy) >= STICK_CAP * 0.08) stickTap.current.moved = true;
+    g.stickX = r.x;
+    g.stickY = r.y;
+    g.running = r.running;
+    const m = Math.hypot(dx, dy) || 1;
+    const c = Math.min(1, m / STICK_CAP) * STICK_CAP;
+    if (knobRef.current) knobRef.current.style.transform = `translate(${(dx / m) * c}px, ${(dy / m) * c}px)`;
+    return true;
+  };
+  const stickEnd = (e: React.PointerEvent<HTMLElement>) => {
+    const g = gameRef.current;
+    if (!g || stick.current.id !== e.pointerId) return false;
+    stick.current.id = -1;
+    g.stickX = 0;
+    g.stickY = 0;
+    g.running = false;
+    if (ringRef.current) ringRef.current.style.transform = "";
+    if (knobRef.current) knobRef.current.style.transform = "";
+    // A quick tap in the left third (no drag) still walks there, as a tap on the ground always has.
+    const tap = stickTap.current;
+    stickTap.current = null;
+    if (tap && tap.canvas && !tap.moved && performance.now() - tap.t < 250 && e.type === "pointerup") aimAt(e.clientX, e.clientY);
+    return true;
+  };
+
+  const begin = () => {
+    unlock();
+    gameRef.current?.start(cls, path, name);
+    bump();
+  };
+
+  // playtest1: once play starts, the back gesture hits the "Leave game?" trap before it can leave the page.
+  const inPlay = !!game && game.mode !== "title";
+  useEffect(() => {
+    if (inPlay) window.__leaveTrap?.arm();
+  }, [inPlay]);
+  const pausedNow = game?.mode === "pause";
+  useEffect(() => {
+    if (!pausedNow) setResumeTap(false);
+  }, [pausedNow]);
+
+  /** playtest1: the cover's tap. Back to fullscreen where the phone allows it (the tap is the gesture it needs). */
+  const resumeFromTap = () => {
+    const g = gameRef.current;
+    unlock();
+    if (coarse && canFullscreen() && !fullscreenElement()) void enterFullscreen();
+    if (g?.mode === "pause") g.togglePause();
+    setResumeTap(false);
+    bump();
+  };
+
+  const aim = (e: React.PointerEvent<HTMLCanvasElement>) => aimAt(e.clientX, e.clientY);
+  /** screen1: the point under the finger, through the frame in force (k canvas pixels per game pixel, the box offset). */
+  function aimAt(clientX: number, clientY: number) {
+    const g = gameRef.current;
+    const canvas = canvasRef.current;
+    if (!g || !canvas || g.mode !== "play") return;
+    const rect = canvas.getBoundingClientRect();
+    const sx = ((clientX - rect.left) / rect.width) * canvas.width;
+    const sy = ((clientY - rect.top) / rect.height) * canvas.height;
+    const zoom = viewRef.current?.k ?? g.zoom;
+    const camX = Math.round(g.px - canvas.width / (2 * zoom));
+    const camY = Math.round(g.py - canvas.height / (2 * zoom));
+    g.setGoal(camX + sx / zoom, camY + sy / zoom);
+  }
+
+  /** Title, HUD, and the panel for whichever mode the simulation is in. */
+  return (
+    <main ref={mainRef} className="relative h-full w-full touch-none overflow-hidden bg-black text-fg">
+      {screenSet.preset === "retro" ? (
+        // retro1: Retro's 4:3 picture sits in black bars, and a thumb rests on them: in play the left third starts the
+        // floating stick there too, and a tap or drag on a bar walks toward that point, as on the picture.
+        <div
+          data-testid="retro-bars"
+          className="absolute inset-0 touch-none"
+          onPointerDown={(e) => {
+            unlock();
+            const g0 = gameRef.current;
+            if (e.pointerType === "touch" && g0?.mode === "play" && stick.current.id < 0 && inStickZone(e.clientX, window.innerWidth)) {
+              stickStart(e, true);
+              return;
+            }
+            barAim.current = e.pointerId;
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            aimAt(e.clientX, e.clientY);
+          }}
+          onPointerMove={(e) => {
+            if (stickMove(e)) return;
+            if (barAim.current === e.pointerId) aimAt(e.clientX, e.clientY);
+          }}
+          onPointerUp={(e) => {
+            if (stickEnd(e)) return;
+            if (barAim.current === e.pointerId) barAim.current = -1;
+          }}
+          onPointerCancel={(e) => {
+            if (stickEnd(e)) return;
+            if (barAim.current === e.pointerId) barAim.current = -1;
+          }}
+        />
+      ) : null}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full touch-none"
+        style={{ imageRendering: "pixelated" }}
+        data-testid="game-canvas"
+        onPointerDown={(e) => {
+          unlock();
+          const g0 = gameRef.current;
+          if (e.pointerType === "touch" && g0?.mode === "play" && stick.current.id < 0 && inStickZone(e.clientX, window.innerWidth)) {
+            stickStart(e, true);
+            return;
+          }
+          pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);
+          const g = gameRef.current;
+          if (pointers.current.size === 2) {
+            const pts = [...pointers.current.values()];
+            pinchD.current = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            if (g) g.goal = null;
+            return;
+          }
+          pinchD.current = null;
+          if (pointers.current.size === 1) aim(e);
+        }}
+        onPointerMove={(e) => {
+          if (stickMove(e)) return;
+          if (!pointers.current.has(e.pointerId)) return;
+          pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pointers.current.size === 2) {
+            // retro1: a pinch does not zoom Retro's fixed 320×240 view (nor, unseen, the other presets').
+            if (screenRef.current.preset === "retro") return;
+            const pts = [...pointers.current.values()];
+            const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            const prev = pinchD.current ?? d;
+            if (d - prev > 22) {
+              gameRef.current?.bumpZoom(1);
+              pinchD.current = d;
+            } else if (prev - d > 22) {
+              gameRef.current?.bumpZoom(-1);
+              pinchD.current = d;
+            }
+            return;
+          }
+          if (pointers.current.size === 1) aim(e);
+        }}
+        onPointerUp={(e) => {
+          if (stickEnd(e)) return;
+          pointers.current.delete(e.pointerId);
+          pinchD.current = null;
+        }}
+        onPointerCancel={(e) => {
+          if (stickEnd(e)) return;
+          pointers.current.delete(e.pointerId);
+          pinchD.current = null;
+        }}
+      />
+      {game?.mode === "title" || !game ? (
+        <section
+          data-padnav
+          data-scroll
+          data-testid="title"
+          className="gw-title absolute inset-0 z-20 flex flex-col items-center overflow-auto bg-bg px-4 py-6"
+          style={{ paddingLeft: "calc(1rem + var(--sal))", paddingRight: "calc(1rem + var(--sar))" }}
+        >
+          {/* screen1: centred with auto margins, so a tall title scrolls from its top instead of clipping it. */}
+          <div className="gw-title-in my-auto flex w-full flex-col items-center gap-3">
+          <div className="flex w-full max-w-lg justify-end gap-2">
+            <button type="button" data-testid="title-display" className="rounded border border-border px-3 py-2 text-sm" onClick={() => setTitleDisplay((v) => !v)}>
+              {titleDisplay ? "Hide display" : "Display"}
+            </button>
+            <button type="button" data-testid="title-fullscreen" className="rounded border border-border px-3 py-2 text-sm" onClick={fullscreen}>
+              {fs ? "Exit fullscreen" : "Fullscreen"}
+            </button>
+            <InstallButton where="title" />
+          </div>
+          {titleDisplay ? (
+            <div className="w-full max-w-lg rounded border border-border bg-surface p-3">
+              <ScreenOptions s={screenSet} view={look} fs={fs} onSet={setScreen} onFullscreen={fullscreen} onClose={() => setTitleDisplay(false)} />
+            </div>
+          ) : null}
+          <p className="text-xs tracking-[0.28em] text-muted uppercase">Twilight vale</p>
+          <h1 className="font-display text-5xl text-primary">Gravewake</h1>
+          <p className="max-w-md text-center text-sm text-muted">
+            Choose a face. Three slots keep a life. Tap the ground to walk. Pinch to look closer. A pad can drive the same buttons.
+          </p>
+          {padFirst ? (
+            <p className="max-w-md text-center text-sm text-primary" data-testid="pad-prompt">
+              Controller: the d-pad or stick moves the focus, <PadGlyph b="A" /> chooses, <PadGlyph b="B" /> backs out.
+            </p>
+          ) : null}
+          <label className="flex w-full max-w-lg flex-col gap-1 text-sm">
+            Name
+            <input value={name} onChange={(e) => setName(e.target.value)} className="rounded border border-border bg-surface px-3 py-2 text-fg" />
+          </label>
+          {/* playtest1b (owner-requested 2026-10-02): the sprite writer's busts, each in its class's glow (gloom and glow),
+              four across on a wide screen, two on a narrow one; the chosen card lights in that glow. */}
+          <div className="grid w-full max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4" data-testid="class-cards">
+            {(Object.keys(CLASSES) as ClassId[]).map((id) => (
+              <button
+                key={id}
+                type="button"
+                data-testid={`class-${id}`}
+                aria-pressed={cls === id}
+                onClick={() => setCls(id)}
+                className={`flex flex-col items-center gap-1 rounded border bg-[#0c0a08] px-2 pt-2 pb-2 text-center transition-shadow ${cls === id ? "" : "border-border opacity-80"}`}
+                style={cls === id ? { borderColor: CLASS_GLOW[id], boxShadow: `0 0 0 1px ${CLASS_GLOW[id]}, 0 0 14px ${CLASS_GLOW[id]}` } : undefined}
+              >
+                <Portrait role={id} />
+                <span className="block font-display text-lg leading-tight" style={cls === id ? { color: CLASS_GLOW[id] } : undefined}>{CLASSES[id].label}</span>
+                <span className="text-[11px] leading-snug text-muted">{CLASSES[id].blurb}</span>
+              </button>
+            ))}
+          </div>
+          {cls === "vampire" ? (
+            <div className="flex flex-wrap gap-2">
+              {(["str", "dex", "int"] as StatPath[]).map((p) => (
+                <button key={p} type="button" onClick={() => setPath(p)} className={`rounded border px-3 py-2 ${path === p ? "border-primary" : "border-border"}`}>
+                  {p === "str" ? "Strength" : p === "dex" ? "Dexterity" : "Intelligence"}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {game?.readAuto() ? (
+            <button
+              type="button"
+              data-testid="continue"
+              onClick={() => {
+                unlock();
+                gameRef.current?.resumeAuto();
+                bump();
+              }}
+              className="rounded border border-primary px-6 py-2 font-display text-lg"
+            >
+              Continue · <span className="text-sm text-muted">{game.autoBrief()}</span>
+            </button>
+          ) : null}
+          <button type="button" data-padfirst onClick={begin} className="rounded bg-primary px-6 py-3 font-display text-lg text-bg">
+            Wake in town
+          </button>
+          <div className="grid w-full max-w-lg grid-cols-3 gap-2">
+            {[0, 1, 2].map((slot) => (
+              <button
+                key={slot}
+                type="button"
+                disabled={!game?.hasSave(slot)}
+                onClick={() => {
+                  unlock();
+                  gameRef.current?.loadSlot(slot);
+                  bump();
+                }}
+                className="rounded border border-border px-2 py-2 text-left text-xs disabled:opacity-40"
+              >
+                <span className="block font-display text-sm">Slot {slot + 1}</span>
+                <span className="text-muted">{game?.saveBrief(slot) ?? "Empty"}</span>
+              </button>
+            ))}
+          </div>
+          </div>
+        </section>
+      ) : null}
+
+      {game && game.mode !== "title" ? (
+        <>
+          <header
+            className="pointer-events-none absolute top-0 right-0 left-0 z-10 flex items-start justify-between gap-2 p-2"
+            style={{ paddingTop: "calc(0.5rem + var(--sat))", paddingLeft: "calc(0.5rem + var(--sal))", paddingRight: "calc(0.5rem + var(--sar))" }}
+          >
+            <div
+              ref={cardRef}
+              data-testid="hud-card"
+              className="gw-card pointer-events-auto max-w-[14rem] rounded border border-border bg-surface/90 px-3 py-2 text-xs"
+              style={{ opacity: game.iframe > 0 && Math.floor(game.frame * 10) % 2 === 0 ? 0.45 : 1 }}
+            >
+              <div className="gw-info">
+              <div className="gw-name font-display text-base text-fg">{game.name}</div>
+              <div className="text-muted">
+                Lv {game.level} {CLASSES[game.cls].label}
+              </div>
+              <div className="mt-1 h-2 w-full bg-bg">
+                <div
+                  className="h-2"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, (game.hp / game.maxHp) * 100))}%`,
+                    backgroundImage: "repeating-linear-gradient(90deg, #8f2d2d 0 3px, #c45a4a 3px 4px)",
+                  }}
+                />
+              </div>
+              {game.cls === "vampire" ? (
+                <div className="mt-1 h-2 w-full bg-bg">
+                  <div className="h-2 bg-danger" style={{ width: `${Math.max(0, Math.min(100, (game.blood / 20) * 100))}%` }} />
+                </div>
+              ) : (
+                <>
+                  <div className="mt-1 h-2 w-full bg-bg">
+                    <div className="h-2 bg-primary" style={{ width: `${Math.max(0, Math.min(100, (game.energy / Math.max(1, game.maxEnergy)) * 100))}%` }} />
+                  </div>
+                  <div className="mt-1 h-2 w-full bg-bg">
+                    <div className="h-2" style={{ width: `${Math.max(0, Math.min(100, (game.stam / 40) * 100))}%`, background: "#c4a574" }} />
+                  </div>
+                </>
+              )}
+              {game.companion ? (
+                <div className="mt-1 text-muted">
+                  {game.companion.name} {game.companion.hp > 0 ? `${game.companion.hp}/${game.companionMax()}` : "down"} · bond {game.bondOf().bond}
+                </div>
+              ) : null}
+              <div className="mt-1 text-muted">
+                {game.purse()} · {game.clockLabel()}
+              </div>
+              {game.curseLine() ? <div className="text-primary" data-testid="curse-line">{game.curseLine()}</div> : null}
+              {game.eventLine() ? <div className="text-primary" data-testid="event-line">{game.eventLine()}</div> : null}
+              {game.escortName() ? <div className="text-muted" data-testid="escort-line">{game.escortName()} follows you</div> : null}
+              {game.wading ? <div className="text-primary">Swimming · half speed</div> : null}
+              {game.sliding ? <div className="text-primary">Ice underfoot</div> : null}
+              {game.fishPoints > 0 ? <div className="text-muted">Fish points {game.fishPoints}</div> : null}
+              {/* playtest1b (owner-reported 2026-10-02 01:03 ET): "Lantern Night" is the festival, not the hour; say so. */}
+              <div className="text-muted" data-testid="festival-line">{game.seasonName()} festival</div>
+              <div className="text-muted" data-testid="season-line">{game.seasonLine()}</div>
+              <div className="mt-1 flex gap-1 text-[10px]">
+                <span className="rounded border border-border px-1" data-testid="phase-chip" title="Clock phase">{game.phase === "night" ? "Night" : game.theme === "town" ? "Day · town twilight" : "Day"}</span>
+                <span className="rounded border border-border px-1">WX {game.weatherLabel()}</span>
+              </div>
+              </div>
+              <button
+                type="button"
+                data-testid="hud-pause"
+                className="gw-pause mt-2 h-8 w-full rounded border border-primary bg-bg text-xs"
+                onPointerDown={(e) => {
+                  unlock();
+                  (e.currentTarget as HTMLButtonElement).dataset.down = String(performance.now());
+                }}
+                onPointerUp={(e) => {
+                  const held = pressedFor(e.currentTarget as HTMLButtonElement);
+                  if (held < 350) return;
+                  game.togglePause();
+                  bump();
+                }}
+              >
+                {game.mode === "pause" ? "Resume" : "Pause"}
+                {padFirst ? <PadGlyph b={padLabel(game.padBind.pause)} /> : null}
+              </button>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+            <div className="flex items-start gap-2">
+              <div className="gw-log pointer-events-auto max-w-[13rem] rounded border border-border bg-surface/90 px-3 py-2 text-xs text-muted">
+                <div>{game.combatLog ? game.logLine : ""}</div>
+                <div className="mt-1">{game.questLine()}</div>
+              </div>
+              {fsAvail ? (
+                <button
+                  type="button"
+                  data-testid="hud-fullscreen"
+                  aria-label={fs ? "Exit fullscreen" : "Fullscreen"}
+                  title={fs ? "Exit fullscreen (F)" : "Fullscreen (F)"}
+                  className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded border border-border bg-surface/90"
+                  onClick={fullscreen}
+                >
+                  <FsIcon out={fs} />
+                </button>
+              ) : null}
+            </div>
+            <div className="gw-equip pointer-events-auto flex max-w-[16rem] flex-row flex-wrap justify-end gap-1" data-testid="hud-equip">
+            {Object.values(game.equip)
+              .filter((it) => it?.active)
+              .slice(0, 4)
+              .map((it) => (
+                <button
+                  key={it!.uid}
+                  type="button"
+                  className="h-8 w-16 rounded border border-border bg-surface text-[10px]"
+                  onPointerDown={() => {
+                    unlock();
+                    game.castRail(it!.active ?? "");
+                    bump();
+                  }}
+                >
+                  {it!.active}
+                </button>
+              ))}
+            </div>
+            </div>
+          </header>
+
+          {game.mode !== "map" ? (
+            <canvas
+              ref={miniRef}
+              data-testid="minimap"
+              width={96}
+              height={96}
+              className={`absolute z-10 touch-none bg-bg ${pip ? "h-6 w-6" : "h-24 w-24"}`}
+              style={{ boxShadow: "0 0 8px rgba(74, 184, 255, 0.35)", left: Math.max(0, Math.min(miniAt.x, (typeof window !== "undefined" ? window.innerWidth : 1e4) - (pip ? 24 : 96))), top: Math.max(0, Math.min(miniAt.y, (typeof window !== "undefined" ? window.innerHeight : 1e4) - (pip ? 24 : 96))), imageRendering: "pixelated" }}
+              onPointerDown={(e) => {
+                const now = performance.now();
+                if (now - miniTap.current < 280) setPip((v) => !v);
+                miniTap.current = now;
+                drag.current = { id: e.pointerId, dx: e.clientX - miniAt.x, dy: e.clientY - miniAt.y };
+                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (!drag.current || drag.current.id !== e.pointerId) return;
+                miniUser.current = true;
+                setMiniAt({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy });
+              }}
+              onPointerUp={() => {
+                drag.current = null;
+              }}
+            />
+          ) : null}
+
+
+          {game.fallen > 0 ? (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 px-6 text-center">
+              <p className="font-display text-2xl text-fg">You drop. The ash is patient.</p>
+            </div>
+          ) : null}
+
+          <button
+            ref={campRef}
+            type="button"
+            data-testid="hud-camp"
+            aria-label={game.mapId === "camp" ? "Break camp" : "Pitch camp"}
+            aria-disabled={!game.canCamp()}
+            data-can={game.canCamp() ? "1" : "0"}
+            className={`gw-camp absolute bottom-36 left-3 z-10 flex h-12 w-12 flex-col items-center justify-center border border-border bg-surface ${game.canCamp() ? "" : "opacity-40"}`}
+            style={{ imageRendering: "pixelated", left: "calc(0.75rem + var(--sal))", bottom: "calc(9rem + var(--sab))" }}
+            onPointerDown={() => {
+              unlock();
+              game.camp();
+              bump();
+            }}
+          >
+            {/* playtest1b (owner-requested 2026-10-02): the pixel writer's tent and cold-fire campfire, the flame on two
+                frames; in camp the struck tent. Labelled, and dimmed wherever camp() would refuse. */}
+            <span
+              aria-hidden
+              data-testid="hud-camp-icon"
+              className={game.mapId === "camp" ? "block h-8 w-8" : "gw-camp-fire block h-8 w-8"}
+              style={{ backgroundImage: `url(${CAMP_ICON})`, backgroundSize: "96px 32px", backgroundPosition: game.mapId === "camp" ? "-64px 0" : "0 0", imageRendering: "pixelated" }}
+            />
+            <span className="text-[9px] leading-none text-fg" data-testid="hud-camp-label">{game.mapId === "camp" ? "Break" : "Camp"}</span>
+          </button>
+
+          <div className="absolute right-3 bottom-3 z-10 flex flex-col items-end gap-2" style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))" }}>
+            <div className="flex max-w-[220px] flex-wrap justify-end gap-1">
+              {game.specials.slice(0, 4).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="h-10 max-w-16 rounded border border-border bg-surface px-1 text-[10px] leading-tight"
+                  onPointerDown={() => {
+                    unlock();
+                    game.castKnown(s);
+                    bump();
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="h-12 w-14 rounded border border-border bg-surface text-xs"
+                onPointerDown={() => {
+                  unlock();
+                  game.whirl();
+                  bump();
+                }}
+              >
+                Whirl
+                {padFirst ? <PadGlyph b={padLabel(game.padBind.area)} /> : null}
+              </button>
+              <button
+                type="button"
+                className="h-12 w-14 rounded border border-border bg-surface text-xs"
+                onPointerDown={() => {
+                  unlock();
+                  game.smite();
+                  bump();
+                }}
+              >
+                Smite
+                {padFirst ? <PadGlyph b={padLabel(game.padBind.far)} /> : null}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="gw-main h-16 w-16 rounded-full border border-primary bg-surface text-sm"
+              onPointerDown={(e) => {
+                unlock();
+                (e.currentTarget as HTMLButtonElement).dataset.down = String(performance.now());
+              }}
+              onPointerUp={(e) => {
+                const held = pressedFor(e.currentTarget as HTMLButtonElement);
+                if (held < 0) return;
+                if (held >= 350) game.interact();
+                else game.slash();
+                bump();
+              }}
+            >
+              Main
+              {padFirst ? <PadGlyph b={[PAD.B, PAD.RB].filter((b) => !Object.values(game.padBind).includes(b)).map(padLabel).join("/") || "—"} /> : null}
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                aria-disabled={game.potionsCorked()}
+                data-testid="pot-hp"
+                className={`h-10 w-14 rounded-full border border-border bg-surface text-[10px] ${game.potionsCorked() ? "opacity-40" : ""}`}
+                onPointerDown={(e) => {
+                  (e.currentTarget as HTMLButtonElement).dataset.down = String(performance.now());
+                }}
+                onPointerUp={(e) => {
+                  const held = pressedFor(e.currentTarget as HTMLButtonElement);
+                  if (held >= 250) {
+                    game.usePotion();
+                    bump();
+                  }
+                }}
+              >
+                {game.potionsCorked() ? "Corked" : `HP ${game.potHp}`}
+                {padFirst ? <PadGlyph b={padLabel(game.padBind.drink)} /> : null}
+              </button>
+              <button
+                type="button"
+                aria-disabled={game.potionsCorked()}
+                className={`h-10 w-14 rounded-full border border-border bg-surface text-[10px] ${game.potionsCorked() ? "opacity-40" : "opacity-60"}`}
+                onPointerDown={(e) => {
+                  (e.currentTarget as HTMLButtonElement).dataset.down = String(performance.now());
+                }}
+                onPointerUp={(e) => {
+                  const held = pressedFor(e.currentTarget as HTMLButtonElement);
+                  if (held < 250) return;
+                  if (game.cls === "vampire") return;
+                  game.usePotion();
+                  bump();
+                }}
+              >
+                {game.cls === "vampire" ? "Blood" : `MP ${game.potMana}`}
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={ringRef}
+            data-testid="stick"
+            className="gw-stick absolute bottom-4 left-3 z-10 flex h-28 w-28 touch-none items-center justify-center rounded-full border border-border bg-surface/70"
+            style={{ left: "calc(0.75rem + var(--sal))", bottom: "calc(1rem + var(--sab))" }}
+            onPointerDown={(e) => stickStart(e, false)}
+            onPointerMove={(e) => {
+              stickMove(e);
+            }}
+            onPointerUp={(e) => {
+              stickEnd(e);
+            }}
+            onPointerCancel={(e) => {
+              stickEnd(e);
+            }}
+          >
+            <div ref={knobRef} className="pointer-events-none h-10 w-10 rounded-full border border-border bg-bg/60" />
+          </div>
+
+          {game.mode === "talk" && game.talk ? (
+            <Panel>
+              <h2 className="font-display text-xl">{game.talk.who}</h2>
+              <p className="text-sm">{game.talk.text}</p>
+              {game.talk.role === "companion" && game.companion ? <p className="text-xs text-muted" data-testid="bond-meter">{game.bondLine()}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.acceptService(); bump(); }}>
+                  Continue
+                </button>
+                {game.choices().map((c) => (
+                  <button key={c.id} type="button" className="rounded border border-primary px-3 py-2" onClick={() => { game.choose(c.id); bump(); }}>
+                    {c.label}
+                  </button>
+                ))}
+                {game.cls === "vampire" && game.talk.role === "folk" ? (
+                  <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.feed(); bump(); }}>
+                    Feed
+                  </button>
+                ) : null}
+                {game.talk.role === "guard" ? (
+                  <button type="button" className="rounded border border-danger px-3 py-2" onClick={() => { game.attackGuard(); bump(); }}>
+                    Draw steel
+                  </button>
+                ) : null}
+                <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; game.talk = null; bump(); }}>
+                  Leave
+                </button>
+              </div>
+            </Panel>
+          ) : null}
+
+          {game.mode === "shop" ? (
+            <Panel>
+              <h2 className="font-display text-xl">
+                {game.shopRole.startsWith("stall:") ? game.stallName() : game.shopRole === "guild" ? "Guild" : game.shopRole === "mystic" ? "Moon and Star" : game.shopRole === "alchemist" ? "The Cauldron" : game.shopRole === "fisher" ? "The Drowned Hook" : "Counter"}
+              </h2>
+              {game.shopRole === "guild" ? (
+                <div className="flex flex-col gap-2">
+                  {CLASSES[game.cls].specials.map((s) => (
+                    <button key={s} type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.learn(s); bump(); }}>
+                      {s}
+                      {game.specials.includes(s) ? ` · rank ${(game.ranks[s] ?? 0) + 1}` : ""}
+                    </button>
+                  ))}
+                  {game.bestiary.length >= 20 ? (
+                    <button type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.turnInPage(); bump(); }}>
+                      Turn in the page · 40s
+                    </button>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {(["str", "dex", "int", "sta", "agi", "fort"] as const).map((s) => (
+                      <button key={s} type="button" className="rounded border border-border px-2 py-2 text-xs" onClick={() => { game.trainStat(s); bump(); }}>
+                        {s.toUpperCase()} {game[s]} · 20s
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.respec(); bump(); }}>
+                    Undo arts · 25s
+                  </button>
+                </div>
+              ) : game.shopRole === "fisher" ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-muted">Fish points {game.fishPoints}. Silver buys the pole and the bait. The catch buys the rest.</p>
+                  {game.stock.map((it) => (
+                    <button key={it.uid} type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.buy(it); bump(); }}>
+                      {it.name}
+                      {it.kind === "bait" ? ` · ×${it.stack ?? 1}` : ""} · {game.priceOf(it)}s
+                    </button>
+                  ))}
+                  <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.tradeFish(); bump(); }}>
+                    Trade the catch
+                  </button>
+                  <button type="button" className="rounded border border-primary px-3 py-2 text-left text-sm" onClick={() => { game.buyFishReward("boots"); bump(); }}>
+                    Bog-step boots · walk the water · 40
+                  </button>
+                  <button type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.buyFishReward("charm"); bump(); }}>
+                    Gill charm · 24
+                  </button>
+                  <button type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.buyFishReward("ring"); bump(); }}>
+                    Hooked ring · 18
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {game.stock.map((it) => (
+                    <button key={it.uid} type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.buy(it); bump(); }}>
+                      {it.name} · {rankWord(it.rank)} · {game.priceOf(it)}s
+                    </button>
+                  ))}
+                  <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.sellJunk(); bump(); }}>
+                    Sell all junk
+                  </button>
+                </div>
+              )}
+              <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
+                Close
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "casino" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Roulette</h2>
+              <p className="text-sm text-muted">Red or black pays 1:1. Green pays 14:1. Points {game.points}. Stake {Math.min(stake, Math.max(0, game.coin))}s.</p>
+              <input type="range" min={1} max={Math.max(1, game.coin)} value={Math.min(stake, Math.max(1, game.coin))} onChange={(e) => setStake(Number(e.target.value))} />
+              <div className="flex gap-2">
+                {(["red", "black", "green"] as const).map((c) => (
+                  <button key={c} type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.bet(c, Math.min(stake, game.coin)); bump(); }}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.spendPoints(); bump(); }}>
+                Points shelf · 20
+              </button>
+              {game.decorOffers().length ? (
+                <div className="flex flex-col gap-1" data-testid="home-shelf">
+                  <p className="text-xs text-muted">Home shelf · carried to your croft{game.ownedHome ? "" : " (needs the croft deed)"}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {game.decorOffers().map((o) => (
+                      <button key={o.id} type="button" data-testid={`decor-${o.id.replace(":", "-")}`} className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.buyDecor(o.id); bump(); }}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
+                Stand
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "bank" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Bank</h2>
+              <p className="text-sm text-muted">No fee at this counter. Purse {game.coin}s · drawer {game.bank}s.</p>
+              <input type="range" min={1} max={Math.max(1, game.coin + game.bank)} value={bankN} onChange={(e) => setBankN(Number(e.target.value))} />
+              <div className="flex gap-2">
+                <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.deposit(bankN); bump(); }}>
+                  Deposit
+                </button>
+                <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.withdraw(bankN); bump(); }}>
+                  Withdraw
+                </button>
+              </div>
+              <button type="button" className="rounded border border-primary px-3 py-2 text-sm" onClick={() => { game.buyHome(); bump(); }}>
+                {game.ownedHome ? "Croft deed held" : "Buy the south croft · 80s"}
+              </button>
+              <p className="text-xs text-muted">Pack into the drawer. Junk, bait, and fish stack. Gear keeps its own slot.</p>
+              <ul className="max-h-28 overflow-auto text-sm">
+                {game.inv.map((it) => (
+                  <li key={it.uid} className="flex items-center justify-between gap-2 border-b border-border py-1">
+                    <span>{it.name}{it.stack ? ` x${it.stack}` : ""}</span>
+                    <button type="button" className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.stash(it); bump(); }}>
+                      Stash
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <ul className="max-h-28 overflow-auto text-sm">
+                {game.vault.map((it) => (
+                  <li key={it.uid} className="flex items-center justify-between gap-2 border-b border-border py-1">
+                    <span>{it.name}{it.stack ? ` x${it.stack}` : ""}</span>
+                    <button type="button" className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.takeVault(it.uid); bump(); }}>
+                      Take
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
+                Leave
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "zeppelin" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Zeppelin</h2>
+              <p className="text-sm text-muted">Town to a deep dungeon you have already entered. Not the grave. Not the hearth.</p>
+              {game.listZeppelin().length === 0 ? <p className="text-sm">The tower has nowhere to go yet.</p> : null}
+              {game.listZeppelin().map((d) => (
+                <button key={d.id} type="button" className="rounded border border-border px-3 py-2 text-left text-sm" onClick={() => { game.zeppelinTo(d.id); bump(); }}>
+                  {d.name}
+                </button>
+              ))}
+              <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
+                Stay
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "battle" && game.battle ? (
+            <Panel>
+              {game.combatLog ? game.battle.log.slice(0, 2).map((line, i) => <p key={i} className="text-sm text-muted">{line}</p>) : null}
+              {game.battle.turn === "act" ? (
+                <p className="text-sm">The turn plays out.</p>
+              ) : game.battle.turn === "ally" && game.companion ? (
+                <div className="flex flex-wrap gap-2">
+                  <p className="w-full text-sm">{game.companion.name}'s turn. They keep their own arts.</p>
+                  <button type="button" className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.command("strike"); bump(); }}>
+                    Strike
+                  </button>
+                  <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("cleave"); bump(); }}>
+                    Cleave
+                  </button>
+                  <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("ranged"); bump(); }}>
+                    Ranged
+                  </button>
+                  {game.allyOptions().map((s) => (
+                    <button key={s} type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command(s); bump(); }}>
+                      {s}
+                    </button>
+                  ))}
+                  <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("guard"); bump(); }}>
+                    Guard
+                  </button>
+                </div>
+              ) : (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.command("strike"); bump(); }}>
+                  Strike
+                </button>
+                <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("cleave"); bump(); }}>
+                  Cleave
+                </button>
+                <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("ranged"); bump(); }}>
+                  Ranged
+                </button>
+                {game.specials.map((s) => (
+                  <button key={s} type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command(s); bump(); }}>
+                    {s}
+                  </button>
+                ))}
+                {game.equip.off?.active ? (
+                  <button type="button" className="rounded border border-primary px-3 py-2" onClick={() => { game.command(game.equip.off?.active ?? ""); bump(); }}>
+                    {game.equip.off.active}
+                  </button>
+                ) : null}
+                {game.battle.phylactery === "whole" ? (
+                  <button type="button" className="rounded border border-primary px-3 py-2" onClick={() => { game.command("Phylactery"); bump(); }}>
+                    Break phylactery
+                  </button>
+                ) : null}
+                {game.battle.goblin ? (
+                  <>
+                    <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("drive"); bump(); }}>
+                      Drive off
+                    </button>
+                    <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("rummage"); bump(); }}>
+                      Let it rummage
+                    </button>
+                  </>
+                ) : null}
+                <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("potion"); bump(); }}>
+                  Draught
+                </button>
+                <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.command("flee"); bump(); }}>
+                  Flee
+                </button>
+              </div>
+              )}
+            </Panel>
+          ) : null}
+
+          {game.mode === "fish" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Cast</h2>
+              <p className="text-sm">{game.fishLine}</p>
+              <div className="relative h-4 w-full bg-bg">
+                <div className="absolute top-0 h-4 bg-primary/50" style={{ left: `${game.fishZone}%`, width: "22%" }} />
+                <div className="absolute top-0 h-4 w-1 bg-fg" style={{ left: `${game.fishMark}%` }} />
+              </div>
+              <button type="button" className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.reel(); bump(); }}>
+                Reel
+              </button>
+              <button type="button" className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
+                Cut the line
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "pause" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Pause</h2>
+              <div className="flex gap-2">
+                {(["pack", "guide", "pad", "display"] as const).map((tab) => (
+                  <button key={tab} type="button" data-testid={`tab-${tab}`} className={`rounded border px-2 py-1 text-xs ${pauseTab === tab ? "border-primary" : "border-border"}`} onClick={() => setPauseTab(tab)}>
+                    {tab === "pack" ? "Pack" : tab === "guide" ? "Guide" : tab === "pad" ? "Controller" : "Display"}
+                  </button>
+                ))}
+              </div>
+              {pauseTab === "display" ? (
+                <ScreenOptions s={screenSet} view={look} fs={fs} onSet={setScreen} onFullscreen={fullscreen} />
+              ) : pauseTab === "guide" ? (
+                <div className="text-sm text-muted">
+                  <p>{keyLabel(game.keyBind.up)}{keyLabel(game.keyBind.left)}{keyLabel(game.keyBind.down)}{keyLabel(game.keyBind.right)} or the arrows walk. The stick does the same. Tap the ground, or drag a finger, and you follow.</p>
+                  <p>Pinch in to step back. Spread two fingers to step closer. The wheel does that on a computer.</p>
+                  <p>{keyLabel(game.keyBind.use)} uses a door, a chest, or a person. {keyLabel(game.keyBind.area)} is a wide swing. {keyLabel(game.keyBind.far)} is a far shot. {keyLabel(game.keyBind.drink)} drinks.</p>
+                  <p>{keyLabel(game.keyBind.pause)} pauses, and so does the Pause button. A fight or a cast waits and comes back. {keyLabel(game.keyBind.map)} opens the map. A paired pad uses the same actions. Remap them under Controller.</p>
+                  <p>Town stays twilight. A lit door is a threshold: step through it and the room is its own place, and the door behind you leads back out. The clock still has a day and a night, each fifteen minutes. A vampire is served only at night.</p>
+                  <p>Weather turns on its own: still air, light rain, hard rain, a thunderstorm, then snow. Each holds for a few minutes. Stone roofs keep it off you. Thunder is a low rumble, not a crack.</p>
+                  <p>Roads are quieter than the brush. Do not cross the east bridge at level 1. The tent button, above the stick, pitches camp only in the wild. The south mark breaks it.</p>
+                  <p>Three save slots wait on the title. One companion walks with you. The living hire from level 10. A vampire bites at night instead.</p>
+                  <p>Open water is a swim at half speed. Ice slides. Bog-step boots walk the water. The Drowned Hook, on the south street, sells a pole and creepy bait. Use beside water, then reel. Trade the catch there for points.</p>
+                </div>
+              ) : pauseTab === "pad" ? (
+                <div className="text-sm">
+                  <p className="text-muted">{game.padName ? `Pad: ${game.padName}` : "No pad yet. Pair a Bluetooth controller, then press a button."}</p>
+                  <p className="text-xs text-muted">Standard layout: stick and d-pad move, A uses, X is area, Y is far, LB drinks, Start pauses, Back opens the map. B or RB swings (Main) when no action holds them. On the title and in menus the d-pad moves the focus, A chooses, B backs out. Tap a row, then press a key or a pad button.</p>
+                  <div className="flex flex-col gap-1">
+                    {ACTS.map((act) => (
+                      <button
+                        key={act}
+                        type="button"
+                        className={`rounded border px-2 py-1 text-left text-xs ${game.captureAct === act ? "border-primary" : "border-border"}`}
+                        onClick={() => {
+                          game.captureAct = act;
+                          bump();
+                        }}
+                      >
+                        {act} · {keyLabel(game.keyBind[act])} · {padLabel(game.padBind[act])}
+                        {game.captureAct === act ? " · press a key or button" : ""}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+              <p className="text-sm text-muted">
+                {game.purse()} · pack {game.inv.length}/20 · STR {game.str} DEX {game.dex} INT {game.int} STA {game.sta} AGI {game.agi} FOR {game.fort}
+              </p>
+              <p className="text-xs text-muted">ATK {game.atk} · AC {game.ac} · known {game.bestiary.length} kinds</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p className="text-muted">{game.name}</p>
+                  {(["head", "chest", "legs", "feet", "main", "off", "ring", "neck"] as const).map((slot) => {
+                    const it = game.equip[slot];
+                    const held = slot === "off" && game.equip.main?.hands === 2;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        disabled={!it || held}
+                        className="mt-1 block w-full rounded border border-border px-2 py-1 text-left disabled:opacity-60"
+                        onClick={() => {
+                          game.unequipItem(slot);
+                          bump();
+                        }}
+                      >
+                        {slot}: {held ? "both hands" : it ? it.name : "empty"}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div>
+                  <p className="text-muted">{game.companion ? game.companion.name : "No companion"}</p>
+                  {game.companion
+                    ? (["head", "chest", "legs", "feet", "main", "off", "ring", "neck"] as const).map((slot) => {
+                        const it = game.companion?.equip[slot];
+                        const held = slot === "off" && game.companion?.equip.main?.hands === 2;
+                        return (
+                          <button
+                            key={slot}
+                            type="button"
+                            disabled={!it || held}
+                            className="mt-1 block w-full rounded border border-border px-2 py-1 text-left disabled:opacity-60"
+                            onClick={() => {
+                              game.unequipCompanion(slot);
+                              bump();
+                            }}
+                          >
+                            {slot}: {held ? "both hands" : it ? it.name : "empty"}
+                          </button>
+                        );
+                      })
+                    : null}
+                </div>
+              </div>
+              <ul className="max-h-36 overflow-auto text-sm">
+                {game.inv.map((it) => (
+                  <li key={it.uid} className="flex items-center justify-between gap-2 border-b border-border py-1">
+                    <span>
+                      {it.name} · {it.kind} {rankWord(it.rank)}
+                      {it.atk ? ` atk ${it.atk}` : ""}
+                      {it.ac ? ` ac ${it.ac}` : ""}
+                      {it.gem ? ` · ${it.gem}` : ""}
+                      {it.set ? ` · ${it.set}` : ""}
+                      {it.stack ? ` x${it.stack}` : ""}
+                    </span>
+                    <span className="flex gap-1">
+                      {it.slot ? (
+                        <>
+                          <button type="button" className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.equipItem(it); bump(); }}>
+                            Wear
+                          </button>
+                          {(it.special === "Socket" || it.rank >= 4) && (it.kind === "weapon" || it.kind === "armor" || it.kind === "jewel") ? (
+                            <button type="button" className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.socketGem(it); bump(); }}>
+                              Socket
+                            </button>
+                          ) : null}
+                          {game.companion ? (
+                            <button type="button" className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.equipCompanion(it); bump(); }}>
+                              Give
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {it.kind !== "potion" ? (
+                        <button type="button" className="rounded border border-border px-2 py-1 text-xs" onClick={() => { game.sell(it); bump(); }}>
+                          Sell
+                        </button>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {game.companion ? (
+                <div className="text-sm">
+                  <p className="text-muted">
+                    {game.companion.name} · {game.companion.hp}/{game.companionMax()} · {game.allyOptions().join(", ") || "no art yet"}
+                  </p>
+                  <button type="button" className="mt-1 rounded border border-border px-3 py-2 text-sm" onClick={() => { game.releaseCompanion(); bump(); }}>
+                    {game.cls === "vampire" ? "They are bound" : "Release companion"}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted">No companion. Level 10 opens the church, the cauldron, and the moon shop. A vampire bites instead.</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {[0, 1, 2].map((s) => (
+                  <button key={s} type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.saveSlot(s); bump(); }}>
+                    Save {s + 1}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={!game.canCamp()} className="rounded border border-border px-3 py-2 text-sm disabled:opacity-40" onClick={() => { game.camp(); bump(); }}>
+                  Pitch camp
+                </button>
+                <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.openPortal(); bump(); }}>
+                  Town portal
+                </button>
+                <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.sellJunk(); bump(); }}>
+                  Sell junk
+                </button>
+              </div>
+              <label className="text-sm text-muted">
+                Music
+                <input type="range" min={0} max={100} defaultValue={70} onChange={(e) => audioRef.current?.setMusic(Number(e.target.value) / 100)} />
+              </label>
+              <label className="text-sm text-muted">
+                Effects
+                <input type="range" min={0} max={100} defaultValue={80} onChange={(e) => audioRef.current?.setSfx(Number(e.target.value) / 100)} />
+              </label>
+              <label className="text-sm text-muted">
+                Screen shake
+                <input type="range" min={0} max={100} defaultValue={65} onChange={(e) => { game.shakeMul = Number(e.target.value) / 100; }} />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-muted">
+                <input type="checkbox" checked={game.combatLog} onChange={(e) => { game.combatLog = e.target.checked; bump(); }} />
+                Combat log
+              </label>
+                </>
+              )}
+              <button type="button" data-padback className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.togglePause(); bump(); }}>
+                Return
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "map" ? (
+            <div data-padnav className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2" style={{ bottom: "calc(1rem + var(--sab))" }}>
+              <button type="button" data-padback data-padfirst className="rounded bg-primary px-4 py-2 text-bg" onClick={() => { game.mode = "play"; bump(); }}>
+                Close map
+              </button>
+            </div>
+          ) : null}
+
+          {game.mode === "level" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Level {game.level}</h2>
+              <p className="text-sm">Choose an art to learn, or sharpen one you know.</p>
+              {game.levelOptions().map((s) => (
+                <button key={s.name} type="button" className="rounded border border-border px-3 py-2 text-left" onClick={() => { game.learn(s.name); bump(); }}>
+                  {s.sharpen ? `Sharpen ${s.name}` : `Learn ${s.name}`}
+                </button>
+              ))}
+              <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.dismissLevel(); bump(); }}>
+                Later
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "crypt" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Crypt</h2>
+              <p className="text-sm">{game.logLine}</p>
+              <p className="text-xs text-muted">They rest. You do not. Meditation can still draw a thief. A stake is final.</p>
+              <button type="button" className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.meditate(); bump(); }}>
+                Meditate
+              </button>
+              {game.companion ? (
+                <button type="button" className="rounded border border-danger px-3 py-2" onClick={() => { game.stakeCompanion(); bump(); }}>
+                  Stake {game.companion.name}
+                </button>
+              ) : null}
+            </Panel>
+          ) : null}
+
+          {game.askLeave ? (
+            <div data-padmodal data-testid="leave-camp" role="dialog" aria-modal="true" aria-labelledby="leave-camp-title" className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
+              <div className="flex w-full max-w-xs flex-col gap-3 rounded border border-primary bg-surface p-4 text-center">
+                <h2 id="leave-camp-title" className="font-display text-2xl">Leave camp?</h2>
+                <p className="text-sm text-muted">The fire goes out behind you. The road is where you left it.</p>
+                <div className="flex gap-3">
+                  <button type="button" data-testid="leave-yes" className="min-h-12 flex-1 rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.answerLeave(true); bump(); }}>
+                    Yes
+                  </button>
+                  <button type="button" data-testid="leave-no" data-padfirst data-padback autoFocus className="min-h-12 flex-1 rounded border border-border px-3 py-2" onClick={() => { game.answerLeave(false); bump(); }}>
+                    No
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {game.mode === "dead" ? (
+            <Panel>
+              <h2 className="font-display text-xl">Fallen</h2>
+              <p className="text-sm">{game.logLine}</p>
+              <button type="button" className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.revive(); bump(); }}>
+                Rise
+              </button>
+            </Panel>
+          ) : null}
+        </>
+      ) : null}
+
+      {leaveAsk && game && game.mode !== "title" ? (
+        <div data-padmodal data-testid="leave-game" role="dialog" aria-modal="true" className="absolute inset-0 z-[55] flex items-center justify-center bg-black/70 p-4">
+          <div className="flex w-full max-w-xs flex-col gap-3 rounded border border-primary bg-surface p-4 text-center">
+            <h2 className="font-display text-2xl">Leave game?</h2>
+            <p className="text-sm text-muted">Your night is saved. Continue picks it up from the title.</p>
+            <div className="flex gap-3">
+              <button type="button" data-testid="leave-game-stay" data-padfirst data-padback autoFocus className="min-h-12 flex-1 rounded bg-primary px-3 py-2 text-bg" onClick={() => { setLeaveAsk(false); resumeFromTap(); }}>
+                Stay
+              </button>
+              <button
+                type="button"
+                data-testid="leave-game-go"
+                className="min-h-12 flex-1 rounded border border-border px-3 py-2"
+                onClick={() => {
+                  gameRef.current?.autosave(true);
+                  setLeaveAsk(false);
+                  window.__leaveTrap?.drop();
+                  history.go(-2);
+                }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {resumeTap && !leaveAsk && game && game.mode === "pause" ? (
+        <button
+          type="button"
+          data-padmodal
+          data-padfirst
+          data-testid="tap-resume"
+          className="absolute inset-0 z-[52] flex flex-col items-center justify-center gap-2 bg-black/70 text-center"
+          onClick={resumeFromTap}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") return;
+            resumeFromTap();
+          }}
+          autoFocus
+        >
+          <span className="font-display text-3xl text-fg">Tap to resume</span>
+          <span className="text-sm text-muted">{coarse && canFullscreen() ? "(fullscreen)" : "Saved. The night waits."}</span>
+        </button>
+      ) : null}
+
+      {tip ? (
+        <div data-padmodal data-testid="a2hs-tip" className="absolute inset-x-0 bottom-0 z-40 flex justify-center p-3" style={{ paddingBottom: "calc(0.75rem + var(--sab))" }}>
+          <div className="flex max-w-md flex-col gap-2 rounded border border-primary bg-surface p-3 text-sm">
+            <p className="font-display text-lg">Play full screen on iPhone</p>
+            <p className="text-muted">Safari cannot hide its bars for a page. Tap Share, then Add to Home Screen. Gravewake then opens full screen, sideways, from its own icon.</p>
+            <button
+              type="button"
+              data-padback
+              data-padfirst
+              className="rounded bg-primary px-3 py-2 text-bg"
+              onClick={() => {
+                setTip(false);
+                setScreen({ tipShown: true });
+              }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showPortrait && ready ? (
+        <div data-padmodal data-testid="portrait" className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg px-6 text-center">
+          <svg viewBox="0 0 16 16" className="h-16 w-16" aria-hidden="true" style={{ imageRendering: "pixelated" }}>
+            <rect x="5" y="2" width="6" height="11" fill="#4a3340" />
+            <rect x="6" y="3" width="4" height="8" fill="#140e12" />
+            <rect x="7" y="12" width="2" height="1" fill="#a89480" />
+            <rect x="12" y="6" width="2" height="1" fill="#e07a2f" />
+            <rect x="13" y="7" width="1" height="2" fill="#e07a2f" />
+            <rect x="11" y="9" width="3" height="1" fill="#e07a2f" />
+          </svg>
+          <p className="font-display text-2xl text-fg">Turn your phone sideways</p>
+          <p className="max-w-xs text-sm text-muted">Gravewake is laid out for a phone on its side: the stick under your left thumb, the swings under your right.</p>
+          <button
+            type="button"
+            data-padfirst
+            data-padback
+            className="rounded border border-border px-4 py-3"
+            onClick={() => {
+              setPortraitOk(true);
+              try {
+                sessionStorage.setItem("gravewake-portrait-ok", "1");
+              } catch {
+                /* private mode */
+              }
+            }}
+          >
+            Play anyway
+          </button>
+        </div>
+      ) : null}
+
+      {!ready ? (
+        <div
+          data-testid="loading"
+          className="absolute inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-bg text-center"
+          style={{ touchAction: "none" }}
+          onPointerDownCapture={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClickCapture={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <p className="text-xs tracking-[0.28em] text-muted uppercase">Twilight vale</p>
+          <p className="font-display text-3xl text-primary">Gravewake</p>
+          <p className="text-sm text-muted">Waking the dead…</p>
+        </div>
+      ) : null}
+    </main>
+  );
+}
+
+/** screen1: the display options, the same on the title and under Pause › Display. They apply at once and are kept. */
+function ScreenOptions({ s, view, fs, onSet, onFullscreen, onClose }: { s: ScreenSettings; view: View | null; fs: boolean; onSet: (p: Partial<ScreenSettings>) => void; onFullscreen: () => void; onClose?: () => void }) {
+  return (
+    <div className="flex flex-col gap-2 text-sm" data-testid="screen-options">
+      <p className="text-xs text-muted">Display</p>
+      <div className="flex flex-wrap gap-1">
+        {PRESET_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            data-testid={`preset-${id}`}
+            aria-pressed={s.preset === id}
+            className={`rounded border px-2 py-1 text-xs ${s.preset === id ? "border-primary bg-bg" : "border-border"}`}
+            onClick={() => onSet({ preset: id, ...(PRESETS[id].aspect ? { aspect: PRESETS[id].aspect } : {}) })}
+          >
+            {PRESETS[id].label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted">Aspect</p>
+      <div className="flex flex-wrap gap-1">
+        {ASPECTS.map((a) => (
+          <button key={a} type="button" data-testid={`aspect-${a.replace(":", "x")}`} aria-pressed={s.aspect === a} className={`rounded border px-2 py-1 text-xs ${s.aspect === a ? "border-primary bg-bg" : "border-border"}`} onClick={() => onSet({ aspect: a })}>
+            {ASPECT_LABEL[a]}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted">Max pixel ratio</p>
+      <div className="flex flex-wrap gap-1">
+        {CAPS.map((c) => (
+          <button key={c} type="button" data-testid={`cap-${String(c).replace(".", "_")}`} aria-pressed={s.cap === c} className={`rounded border px-2 py-1 text-xs ${s.cap === c ? "border-primary bg-bg" : "border-border"}`} onClick={() => onSet({ cap: c })}>
+            {c}×{c === 2 ? " (sharpest)" : c === 1 ? " (lightest)" : ""}
+          </button>
+        ))}
+      </div>
+      {s.preset === "retro" ? (
+        <p className="text-xs text-muted" data-testid="retro-note">
+          Retro 320x240 keeps its own 4:3 frame at a whole scale; aspect and pixel ratio apply to the other presets.
+        </p>
+      ) : null}
+      {view && view.eff === "retro" ? (
+        <p className="text-xs text-muted" data-testid="screen-info">
+          Retro 320x240 · frame {view.bufW}×{view.bufH} · 1 px per game pixel · view {view.worldW}×{view.worldH} game px ({view.worldW / 16}×{view.worldH / 16} tiles) · ×{view.devPerBuf} on screen
+        </p>
+      ) : view ? (
+        <p className="text-xs text-muted" data-testid="screen-info">
+          {PRESETS[view.eff].label}
+          {s.preset === "auto" && view.eff !== "auto" ? " (Auto on a touch screen)" : ""} · frame {view.bufW}×{view.bufH} · {view.k} px per game pixel · view {Math.round(view.worldW)}×{Math.round(view.worldH)} game px, as the zoom sets it
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" data-testid="options-fullscreen" className="rounded border border-primary px-3 py-2" onClick={onFullscreen}>
+          {fs ? "Exit fullscreen" : "Fullscreen"}
+        </button>
+        {onClose ? (
+          <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={onClose}>
+            Done
+          </button>
+        ) : null}
+      </div>
+      <InstallButton where="options" />
+    </div>
+  );
+}
+
+/** A pad button name, shown on TV presets or once a pad is in hand. */
+function PadGlyph({ b }: { b: string }) {
+  return <span className="ml-1 inline-block rounded-sm border border-current px-0.5 align-middle text-[9px] leading-tight opacity-80">{b}</span>;
+}
+
+/** The fullscreen corner icon, on the 16 px grid. */
+function FsIcon({ out }: { out: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" className="h-5 w-5" aria-hidden="true" style={{ imageRendering: "pixelated" }}>
+      {out ? (
+        <>
+          <rect x="5" y="1" width="2" height="6" fill="#f0e2c8" />
+          <rect x="1" y="5" width="6" height="2" fill="#f0e2c8" />
+          <rect x="9" y="1" width="2" height="6" fill="#f0e2c8" />
+          <rect x="9" y="5" width="6" height="2" fill="#f0e2c8" />
+          <rect x="5" y="9" width="2" height="6" fill="#f0e2c8" />
+          <rect x="1" y="9" width="6" height="2" fill="#f0e2c8" />
+          <rect x="9" y="9" width="2" height="6" fill="#f0e2c8" />
+          <rect x="9" y="9" width="6" height="2" fill="#f0e2c8" />
+        </>
+      ) : (
+        <>
+          <rect x="1" y="1" width="5" height="2" fill="#f0e2c8" />
+          <rect x="1" y="1" width="2" height="5" fill="#f0e2c8" />
+          <rect x="10" y="1" width="5" height="2" fill="#f0e2c8" />
+          <rect x="13" y="1" width="2" height="5" fill="#f0e2c8" />
+          <rect x="1" y="13" width="5" height="2" fill="#f0e2c8" />
+          <rect x="1" y="10" width="2" height="5" fill="#f0e2c8" />
+          <rect x="10" y="13" width="5" height="2" fill="#f0e2c8" />
+          <rect x="13" y="10" width="2" height="5" fill="#f0e2c8" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** playtest1b: each class's signature glow on the select screen (the neon tubes of palette v3). */
+const CLASS_GLOW: Record<ClassId, string> = { warrior: "#4ab8ff", wizard: "#b07aff", assassin: "#9ae4ff", vampire: "#ff3a50" };
+const PORTRAIT_ORDER = ["warrior", "wizard", "assassin", "vampire"];
+
+/**
+ * Bust for one class on the select screen. playtest1b: the sprite writer's 48 x 64 portrait (portraits.png, shown at
+ * a whole 2x); a class without one keeps the old canvas bust.
+ */
+function Portrait({ role }: { role: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const cell = PORTRAIT_ORDER.indexOf(role);
+  useEffect(() => {
+    if (cell >= 0) return;
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx) return;
+    drawPortrait(ctx, role);
+  }, [role, cell]);
+  if (cell >= 0) {
+    return (
+      <span
+        role="img"
+        aria-label={`${role} portrait`}
+        data-testid={`portrait-${role}`}
+        className="block h-32 w-24 shrink-0"
+        style={{ backgroundImage: `url(${PORTRAITS})`, backgroundSize: "384px 128px", backgroundPosition: `-${cell * 96}px 0`, imageRendering: "pixelated" }}
+      />
+    );
+  }
+  return <canvas ref={ref} width={64} height={80} className="h-20 w-16 shrink-0" />;
+}
+
+/** KeyboardEvent.code turned into a short label for the remap list. */
+function keyLabel(code: string) {
+  if (code.startsWith("Key")) return code.slice(3);
+  if (code.startsWith("Digit")) return code.slice(5);
+  if (code === "Escape") return "Esc";
+  if (code === "Space") return "Space";
+  if (code.startsWith("Arrow")) return code.slice(5);
+  return code;
+}
+
+function padLabel(n: number) {
+  return ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Back", "Start", "L3", "R3", "Up", "Down", "Left", "Right"][n] ?? String(n);
+}
+
+function rankWord(rank: number) {
+  return ["", "green", "blue", "purple", "gold", "red"][rank] ?? String(rank);
+}
+
+/** The dark card used by talk, shops, and the pause menu. */
+function Panel({ children }: { children: ReactNode }) {
+  return (
+    <section
+      data-padnav
+      data-scroll
+      data-testid="panel"
+      className="gw-panel absolute top-24 right-3 left-3 z-20 flex max-h-[48%] flex-col gap-2 overflow-auto rounded border border-border bg-surface/95 p-3 md:left-auto md:w-[28rem]"
+      style={{ right: "calc(0.75rem + var(--sar))" }}
+    >
+      {children}
+    </section>
+  );
+}
+
+declare global {
+  interface Window {
+    /** playtest1: the back-gesture trap (arm once play starts; armed while its history entry is on top). */
+    __leaveTrap?: { arm: () => void; armed: () => boolean; drop: () => void };
+    __controlsTest?: {
+      getX: () => number;
+      getY: () => number;
+      getYaw: () => number;
+      getSpeed: () => number;
+      setKeys: (codes: string[]) => void;
+      setPos?: (x: number, y: number) => void;
+      setTime?: (ms: number) => void;
+      use?: () => void;
+    };
+    __screenTest?: {
+      view: () => View | null;
+      look: () => View | null;
+      settings: () => ScreenSettings;
+      ready: () => boolean;
+      readyAt: () => number;
+      unlocks: () => number[];
+      audio: () => string;
+      stick: () => { x: number; y: number; running: boolean };
+      mode: () => string;
+      focus: () => string;
+    };
+  }
+}

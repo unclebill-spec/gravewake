@@ -2,6 +2,15 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1d, art audit part 2 (drawing only)
+- Three new town house styles (stone, timber, boarded) and a log cabin at full size; windows and door lamps glow at night.
+- Softer per-season town grass with clover, tufts, flowers and autumn leaves (replaces the recolored cozy-pack tile).
+- Last third-party spell strips retired; all spell art from the spell writer.
+- Dark outline along soft biome edges (snow, sand, ash, swamp).
+- Fix: dungeon pressure plates no longer drawn on the vale (the grey square on the ice).
+- Dungeon stairs themed to match their entrance.
+- check:game 690; fail-proofs 809/809.
+
 ## 2026-10-02: playtest1c, art audit part 1 (drawing only)
 - specs/ART_AUDIT.md: ranked inventory of 34 art items; C2 list.
 - New palette-locked wild art: seasonal trees, dead wood, rocks, graves; snow/ash/sand/swamp ground with soft drifted edges.

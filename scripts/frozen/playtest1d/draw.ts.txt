@@ -14,7 +14,6 @@ import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_write
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
-import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
 /**
@@ -125,9 +124,7 @@ function texCell(ctx: CanvasRenderingContext2D, url: string, frame: number, x: n
 const texFrame = (kind: keyof typeof TEX_FRAMES, frame: number) => Math.floor(Math.max(0, frame) / TEX_TICKS[kind]) % TEX_FRAMES[kind];
 
 
-/** One frame of a spell writer strip (16px frames). playtest1d (owner-requested 2026-10-02, batch C2): the last
- * third-party strips (DevWizard's Pixel Art Spells) are gone from the draw; every spell frame is the spell writer's. */
-const SPELL_DIR = "/art/spells/gen";
+/** Pixel Art Spells by DevWizard, CC0. Each strip is 16px frames, except Splash which is 32. */
 function spellFrame(
   ctx: CanvasRenderingContext2D,
   file: string,
@@ -137,7 +134,7 @@ function spellFrame(
   dy: number,
   fw = 16,
   fh = 16,
-  folder = SPELL_DIR,
+  folder = "/art/spells",
 ): boolean {
   const url = `${folder}/${file}`;
   if (typeof Image === "undefined") return false;
@@ -461,7 +458,7 @@ function drawTile(
   if (townish(theme)) {
     if (tile === T.grass || tile === T.exit) {
       const g = Math.abs(x * 3 + y * 5) % 7;
-      usedLand = seasonCell(ctx, "town-grass", TOWN_GRASS, g, gx, gy);
+      usedLand = seasonCell(ctx, "town-grass", "/art/cozy/grass.png", g, gx, gy);
     } else if (tile === T.cobble || tile === T.road) {
       // playtest1 (owner-reported 2026-10-01, old ground textures): the pixel writer's town cobble, not the land pack.
       usedLand = sheetCell(ctx, PT1_GROUND.cobble, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy);
@@ -765,9 +762,7 @@ function drawTile(
   }
   // playtest1c (owner-reported 2026-10-02, "tiny ladder" entrances): a stone stair down into the dark, or up into the
   // light, in place of the drawn ladder. On the vale and in town the dungeon's mouth is drawn over it (paintEntrance).
-  // playtest1d (batch C2): below ground the stair wears its dungeon's dress (mason, crypt or barrow; wild.stairCell).
-  const stairDrawn = (tile === T.stairD || tile === T.stairU) && ((cave && sheetCell(ctx, STAIRS_THEMED, stairCell(theme, tile === T.stairD), 0, gx, gy)) || sheetCell(ctx, STAIRS, tile === T.stairD ? 0 : 1, 0, gx, gy));
-  if (stairDrawn) {
+  if ((tile === T.stairD || tile === T.stairU) && sheetCell(ctx, STAIRS, tile === T.stairD ? 0 : 1, 0, gx, gy)) {
     // drawn
   } else if (tile === T.stairD || tile === T.stairU) {
     px(ctx, gx + 2, gy + 1, 2, 14, "#4a3424");
@@ -1347,11 +1342,11 @@ function person(
   }
   if (pose === "swing") {
     px(ctx, 13, 8, 6, 2, "#c4b48a");
-    spellFrame(ctx, "fire.png", frame / 2, 6, 12, 2);
+    spellFrame(ctx, "Fireball.png", frame / 2, 6, 12, 2);
   }
   if (pose === "cast") {
     px(ctx, 13, 4, 2, 6, o.skin);
-    spellFrame(ctx, "holy.png", frame / 2, 6, 12, -2);
+    spellFrame(ctx, "Light Bolt.png", frame / 2, 6, 12, -2);
   }
   if (pose === "fish") {
     px(ctx, 13, 7, 6, 1, "#6a5030");
@@ -1713,9 +1708,9 @@ function townBuildings(g: Game): TownBuilding[] {
     // playtest1b (owner-reported 2026-10-02 01:04 ET, "some houses drawn half size"): narrow footprints used to get the
     // 32x46 shack, half a house's 61x91, so the Drowned Hook stood at half scale. Every building is house scale now.
     const cabin = bw >= 5 && x0 % 2 === 0;
-    // playtest1d (owner-requested 2026-10-02, batch C2): the writer's houses (stone, timber, boarded) and log cabin, at
-    // the land pack's footprints and scale, with lit windows; same picks as before (x0 % 3, even five-wide lots).
-    const file = cabin ? TOWN_CABIN : TOWN_HOUSES[x0 % 3];
+    const which = x0 % 3;
+    const suffix = which === 1 ? "-warm" : which === 2 ? "-slate" : "";
+    const file = cabin ? "/art/cozy/cabin.png" : `/art/land/house${suffix}.png`;
     out.push({ x: x0, y: y0, w: bw, h: y1 - y0 + 1, doorX, doorY, file });
   }
   buildingCache.set(g.tiles, out);
@@ -1762,7 +1757,7 @@ function paintTownFootprint(ctx: CanvasRenderingContext2D, tile: Tile, x: number
   }
   px(ctx, gx, gy, TILE, TILE, ground(T.grass, "town", n));
   // playtest1: the season's town grass (palette-locked), the same as the open town ground beside it.
-  seasonCell(ctx, "town-grass", TOWN_GRASS, Math.abs(x * 3 + y * 5) % 7, gx, gy);
+  seasonCell(ctx, "town-grass", "/art/cozy/grass.png", Math.abs(x * 3 + y * 5) % 7, gx, gy);
 }
 
 /** Yard fence around the footprint, same posts and rails as the town fences, open at the door. */
@@ -1849,8 +1844,8 @@ export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
 /** playtest1b B2: the same seeded flicker beat as the shop signs (a lantern dips now and then). */
 const signFrameOf = (frame: number, seed: number) => (Math.floor(frame / 3) + seed * 7) % 11 === 0;
 
-function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuilding, em = false) {
-  if (!em) paintYardFence(ctx, b);
+function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuilding) {
+  paintYardFence(ctx, b);
   if (typeof Image === "undefined") return;
   let im = landSheet[b.file];
   if (!im) {
@@ -1887,11 +1882,8 @@ function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuildi
   }
   const cut = Math.max(0, roofLimit - dy);
   if (cut >= im.naturalHeight) return;
-  // playtest1d: at night the window light and the door lamp go to full light (the house's glow mask, same cut)
-  const src = em ? landSheet[townEm(b.file)] : im;
-  if (!src || !src.complete || src.naturalWidth === 0) return;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(src, 0, cut, im.naturalWidth, im.naturalHeight - cut, dx, dy + cut, im.naturalWidth, im.naturalHeight - cut);
+  ctx.drawImage(im, 0, cut, im.naturalWidth, im.naturalHeight - cut, dx, dy + cut, im.naturalWidth, im.naturalHeight - cut);
 }
 
 /**
@@ -1921,7 +1913,7 @@ const sheetReady = (url: string) => !!landSheet[url]?.complete && (landSheet[url
 // playtest1c (owner-reported 2026-10-02, "the jagged hedge band"): fringes go through the wild writer's soft drift masks
 // (same twelve-cell layout); border-dither.png stays the not-yet-loaded fallback.
 const fringeMask = () => (sheetReady(WILD_BORDER) ? landSheet[WILD_BORDER] : landSheet[BORDER_SHEET]);
-const fringeReady = () => sheetReady(WILD_BORDER) && sheetReady(WILD_FLECKS) && sheetReady(WILD_BORDER_RIM) && sheetReady(BORDER_SHEET) && (sheetReady(seasonSheet(seasonNow, "vale")) || sheetReady("/art/writer/vale.png")) && ["snow", "sand", "ash", "swamp"].every((b) => sheetReady(WILD_GROUND[b]));
+const fringeReady = () => sheetReady(WILD_BORDER) && sheetReady(WILD_FLECKS) && sheetReady(BORDER_SHEET) && (sheetReady(seasonSheet(seasonNow, "vale")) || sheetReady("/art/writer/vale.png")) && ["snow", "sand", "ash", "swamp"].every((b) => sheetReady(WILD_GROUND[b]));
 /** playtest1: a fringe still waiting on a sheet reuses its one canvas instead of making a new one each frame. */
 const fringePending = new Map<string, HTMLCanvasElement>();
 
@@ -1966,13 +1958,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
       [EDGE.w, 3, -1, 0],
     ];
     for (const [bit, cell, dx, dy] of side) if (e & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell + v, x, y, n, g.theme, g.frame);
-    // playtest1d (owner-requested 2026-10-02, batch C2 "an outline where biomes meet"): the drift's own inner edge in the
-    // neighbour's dark (wild-border-rim, one row per biome), so the meeting line follows the drift, not the tile step.
-    const rim = (cell: number, dx: number, dy: number) => {
-      const nb = skin.biome[i + dy * g.w + dx];
-      if (nb > 0) sheetCell(acc, WILD_BORDER_RIM, cell, nb - 1, 0, 0);
-    };
-    for (const [bit, cell, dx, dy] of side) if (e & bit) rim(cell + v, dx, dy);
     // playtest1c: the neighbour's crumbs thin out across the tile (frost by the snow, grit by the waste, soot, mud).
     for (const [bit, cell, dx, dy] of side) {
       const nb = skin.biome[i + dy * g.w + dx];
@@ -1985,7 +1970,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
       [CORNER.nw, 11, -1, -1],
     ];
     for (const [bit, cell, dx, dy] of nook) if (c & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
-    for (const [bit, cell, dx, dy] of nook) if (c & bit) rim(cell, dx, dy);
     // playtest1c: where two sides take the same neighbour's ground, round the square corner they leave (wild-border 12-15).
     if (sheetReady(WILD_BORDER)) {
       const convex: [number, number, number, number][] = [
@@ -1995,7 +1979,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
         [EDGE.n | EDGE.w, 15, 0, -1],
       ];
       for (const [bits, cell, dx, dy] of convex) if ((e & bits) === bits) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
-      for (const [bits, cell, dx, dy] of convex) if ((e & bits) === bits) rim(cell, dx, dy);
     }
     // Only keep it once every sheet is in, so a half-loaded first frame is never frozen.
     if (fringeReady()) {
@@ -2612,9 +2595,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       if (g.floodAt(x, y)) sheetCell(ctx, FLOOD_SHEET, (x * 3 + y * 5 + (g.frame >> 5)) % 4, 0, x * TILE, y * TILE);
       if (secretTile(tile)) paintSecret(ctx, g, tile, x, y);
-      // playtest1d (owner-reported 2026-10-02, "a grey square with an arrow on the ice"): g.feats outlives the last dungeon
-      // floor (the sim only fires plates below ground), so its trap index used to paint a phantom plate on the vale.
-      const trap = g.mapId === "dungeon" ? g.trapAt(i) : -1;
+      const trap = g.trapAt(i);
       if (trap >= 0) paintTrap(ctx, g, trap, x, y);
       const cap = g.mapId === "dungeon" ? g.feats?.captive : undefined;
       if (cap && cap.x === x && cap.y === y) sheetCell(ctx, CAPTIVE_SHEET, g.escort?.state === "bound" ? 0 : 1, 0, x * TILE, y * TILE);
@@ -2735,7 +2716,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   if (g.theme === "town") {
     for (const b of townBuildings(g)) {
       props.push({ y: (b.y + b.h) * TILE - 1, fn: () => paintTownBuilding(ctx, g, b) });
-      if (lit) glow.push((c) => paintTownBuilding(c, g, b, true));
     }
     // playtest1b (owner-reported 2026-10-02 01:04 ET, "fences around homes gone"): each home's yard has its writer
     // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
@@ -3207,11 +3187,15 @@ function paintSpell(
   }
   if (drew) return;
   const cool = color.startsWith("#3") || color.startsWith("#4") || color.startsWith("#5") || color.startsWith("#6") || color.startsWith("#7") || color.startsWith("#8") || color.startsWith("#9");
-  if (kind === "mend" && spellFrame(ctx, "holy.png", frame / 2, 6, cx - 8, cy - 16)) return;
-  if (kind === "nova" && spellFrame(ctx, "ring.png", frame / 3, 6, cx - 8, cy - 8)) return;
-  if (kind === "ring" && spellFrame(ctx, "orb.png", frame / 2, 6, cx - 8, cy - 8)) return;
-  if (kind === "cone" && spellFrame(ctx, "cone.png", frame / 2, 6, cx - 8, cy - 8)) return;
-  if (kind === "bolt" && spellFrame(ctx, cool ? "ice.png" : "fire.png", frame / 2, 6, cx - 8, cy - 8)) return;
+  if (kind === "mend" && spellFrame(ctx, "Light Bolt.png", frame / 2, 6, cx - 8, cy - 16)) return;
+  if (kind === "nova" && spellFrame(ctx, "Splash.png", frame / 3, 6, cx - 16, cy - 16, 32, 32)) return;
+  if (kind === "ring" && spellFrame(ctx, "Magic Sparks.png", frame / 2, 6, cx - 8, cy - 8)) return;
+  if (kind === "cone" && spellFrame(ctx, "Wind Bolt.png", frame / 2, 6, cx - 8, cy - 8)) return;
+  if (kind === "bolt") {
+    const file = cool ? "Ice Lance.png" : "Fireball.png";
+    const frames = cool ? 4 : 6;
+    if (spellFrame(ctx, file, frame / 2, frames, cx - 8, cy - 8)) return;
+  }
   if (kind === "mend") {
     px(ctx, cx, cy - 10, 1, 1, color);
     px(ctx, cx + 2, cy - 14, 1, 1, color);
