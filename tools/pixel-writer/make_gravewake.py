@@ -434,6 +434,8 @@ def main() -> None:
     print(f"playtest1c C1 sheets {len(c1)}, palette v3 locked")
     c2 = playtest1d_c2()
     print(f"playtest1d C2 sheets {len(c2)}, palette v3 locked")
+    d2 = playtest1f_d2()
+    print(f"playtest1f D2 sheets {len(d2)}, palette v3 locked")
     print(f"wrote {OUT}")
 
 
@@ -651,6 +653,33 @@ def playtest1d_c2() -> dict:
     sheet.alpha_composite(made["town-grass.png"], (2, 100))
     sheet.alpha_composite(made["wild-stairs-themes.png"], (120, 100))
     sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1d.png")
+    return made
+
+
+def playtest1f_d2() -> dict:
+    """playtest1f D2 (owner-requested 2026-10-02 09:42 ET, [OWNER-APPROVED 2026-10-02: playtest1f portals]): the
+    wayrifts (standing portals on the vale: 8 swirl frames and the sealed look, their glow masks, the map marker) and
+    the swamp's path cells (rift_writer). Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1f_d2()"
+    (from this folder)."""
+    import rift_writer as r
+
+    made = {}
+    pairs = [r.wayrift(f) for f in range(r.FRAMES + 1)]
+    made["wayrift.png"] = cells([p[0] for p in pairs])
+    made["wayrift_em.png"] = cells([p[1] for p in pairs])
+    made["wayrift-icon.png"] = cells([r.wayrift_icon(True), r.wayrift_icon(False)])
+    # masks 0-15 (1 N, 2 E, 4 S, 8 W), then the sunken-plank straights: 16 north-south, 17 east-west
+    paths = [r.swamp_path(m) for m in range(16)] + [r.swamp_path(5, 1), r.swamp_path(10, 1)]
+    made["swamp-path.png"] = cells([p[0] for p in paths])
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    sheet = Image.new("RGBA", (440, 160), (12, 10, 8, 255))
+    sheet.alpha_composite(made["wayrift.png"], (2, 2))
+    sheet.alpha_composite(made["wayrift-icon.png"], (2, 70))
+    sheet.alpha_composite(made["swamp-path.png"], (30, 70))
+    sheet.alpha_composite(made["wayrift_em.png"].crop((0, 0, 96, 64)), (2, 92))
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1f.png")
     return made
 
 

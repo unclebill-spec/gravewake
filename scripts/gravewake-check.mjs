@@ -101,6 +101,10 @@ const PT1_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.t
 // groups read the 1d copies through pt1dFile. Group playtest1e pins the frozen copies and the live files.
 const PT1E_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/content.ts", "src/game/Gravewake.tsx", "src/game/bounty.ts", "src/game/festivals.ts"];
 const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.split("/").pop()}.txt` : PT1E_FROZEN.includes(f) ? `scripts/frozen/playtest1e/${f.split("/").pop()}.txt` : f);
+// playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: batch D2 edits sim.ts and draw.ts; their playtest1e copies
+// (as pushed at ee433e3) are frozen in scripts/frozen/playtest1f, and group playtest1e's live pin reads them.
+const PT1F_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
+const pt1eView = (f) => (PT1F_FROZEN.includes(f) ? `scripts/frozen/playtest1f/${f.split("/").pop()}.txt` : f);
 const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
 // install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
@@ -155,7 +159,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts"]); // playtest1c adds wild.ts (its art constants)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -4921,7 +4925,7 @@ if (on("mapwriter2")) {
   // playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: the vale was relaid at twice the size by the map
   // writer's phase 3, so the grid, zone, reach and lair pins below are the playtest1e grid's (qa/playtest1e/pins.json);
   // what they prove is unchanged: one fixed grid, every place on it reachable, the skin looks only.
-  check("mapwriter2", "the vale's tile grid is one fixed grid (playtest1e: 128x120, FNV 90207da9; it was 64x60, FNV 84f128a8): every tree, rock, pump, road, door, stair, the lake, the ice, and the reserved boss, merchant, and rift spots", w === 128 && h === 120 && fnv(tiles) === "90207da9" && fnv(vale().tiles) === "90207da9", fnv(tiles));
+  check("mapwriter2", "the vale's tile grid is one fixed grid (playtest1f: 128x120 with the wayrifts' clearings, FNV b516448f; playtest1e's was 90207da9; it was 64x60, FNV 84f128a8): every tree, rock, pump, road, door, stair, the lake, the ice, and the reserved boss, merchant, and rift spots", w === 128 && h === 120 && fnv(tiles) === "b516448f" && fnv(vale().tiles) === "b516448f", fnv(tiles));
   const zones = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) zones.push(zoneLevel(x, y, 20));
   check("mapwriter2", "zone levels are the rectangle rule (playtest1e: at twice the size): every vale tile's zoneLevel at hero level 20 hashes to the pin (FNV e712a8dd; was ca551b7e)", fnv(zones) === "e712a8dd", fnv(zones));
@@ -4958,8 +4962,8 @@ if (on("mapwriter2")) {
     for (const [kind, list] of [["naughty", n.naughtyTonight()], ["court", n.courtTonight()], ["sideshow", n.sideshowTonight()], ["bloom", n.bloomsTonight()]]) for (const c of list) if (c && Number.isFinite(c.x)) { festNights.push(c.y * w + c.x); festKinds.add(kind); }
   }
   const lost = [...spots, ...festNights].filter((i) => !seen[i]);
-  check("mapwriter2", `reachability (the game's solidAt for the hero, props blocked): from the town gate the same ${reached.length} tiles are reachable (playtest1e pin 13711, FNV e93d21cb; before the bigger vale 3688, f09dd9ac), and every road, door, stair, rift mouth, merchant and watch post, boss spot, festival lair, and 120 nights of Krampus, court, sideshow, and bloom spots is among them`, reached.length === 13711 && fnv(reached) === "e93d21cb" && !lost.length && festKinds.size === 4 && lairs.length > 20, `${reached.length} ${fnv(reached)} lost ${lost.slice(0, 5).join(",")} spots ${spots.length} fest ${festNights.length} ${[...festKinds]}`);
-  check("mapwriter2", "festival lairs are one fixed list (they are picked from the grid; playtest1e 11031 lairs, FNV 68478901; before the bigger vale 2055, 5844b4ec)", lairs.length === 11031 && fnv(lairs) === "68478901", `${lairs.length} ${fnv(lairs)}`);
+  check("mapwriter2", `reachability (the game's solidAt for the hero, props blocked): from the town gate the same ${reached.length} tiles are reachable (playtest1f pin 13674, FNV 64f5b1da: the wayrifts' standing stones are solid and their clearings open; playtest1e's 13711, e93d21cb; before the bigger vale 3688, f09dd9ac), and every road, door, stair, rift mouth, merchant and watch post, boss spot, festival lair, and 120 nights of Krampus, court, sideshow, and bloom spots is among them`, reached.length === 13674 && fnv(reached) === "64f5b1da" && !lost.length && festKinds.size === 4 && lairs.length > 20, `${reached.length} ${fnv(reached)} lost ${lost.slice(0, 5).join(",")} spots ${spots.length} fest ${festNights.length} ${[...festKinds]}`);
+  check("mapwriter2", "festival lairs are one fixed list (they are picked from the grid; playtest1f 10762 lairs, FNV 1704534f, none within 4 tiles of a wayrift; playtest1e 11031, 68478901; before the bigger vale 2055, 5844b4ec)", lairs.length === 10762 && fnv(lairs) === "1704534f", `${lairs.length} ${fnv(lairs)}`);
   // Real walks across five borders: snow/vale on the road and off it, waste/vale on the road, swamp/vale on the road, cinder/vale off it.
   const crossings = [];
   const walk = (x, y, key, until, label) => {
@@ -5044,7 +5048,7 @@ if (on("mapwriter2")) {
     const keys = Object.keys(slot ?? {});
     const b = fresh();
     b.loadSlot(0);
-    check("mapwriter2", "saves: a save on a border tile has the same 56 keys (plus playtest1e's worldV), none for the skin, and loads back onto the same spot in the same grid", keys.filter((k) => k !== "worldV").length === 56 && !keys.some((k) => /skin|blend|biome|fringe/i.test(k)) && b.mapId === "world" && Math.floor(b.px / TILE) === WS * 20 && Math.floor(b.py / TILE) === WS * 16 && fnv(b.tiles) === "90207da9", `${keys.length} keys, ${b.mapId} ${Math.floor(b.px / TILE)},${Math.floor(b.py / TILE)}`);
+    check("mapwriter2", "saves: a save on a border tile has the same 56 keys (plus playtest1e's worldV), none for the skin, and loads back onto the same spot in the same grid", keys.filter((k) => k !== "worldV").length === 56 && !keys.some((k) => /skin|blend|biome|fringe/i.test(k)) && b.mapId === "world" && Math.floor(b.px / TILE) === WS * 20 && Math.floor(b.py / TILE) === WS * 16 && fnv(b.tiles) === "b516448f", `${keys.length} keys, ${b.mapId} ${Math.floor(b.px / TILE)},${Math.floor(b.py / TILE)}`);
   }
   // Art: the fringe masks.
   {
@@ -6304,7 +6308,7 @@ if (on("fade1")) {
     const A = night(1337, false), A2 = night(1337, false), B = night(1337, true);
     const spawns = A.log.filter((e) => /^r\d/.test(e[0]));
     const hashA = md5s(A.trace);
-    check("fade1", `fixed seed (1337, 120 s of vale night, hero walking): ${spawns.length} night spawns; the trace (every foe's id, x, y, kind, level, world ms, frame and tick of first sight, and the end state) is byte-identical run to run and to its pinned trace (playtest1e re-pinned it on the bigger vale: 7191d8a3…; retro1's was e4bdd690…)`, spawns.length >= 15 && A.trace === A2.trace && hashA === "7191d8a3a64730f13de0a1de3ca61b60", `${hashA} ${spawns.length} ${A.trace === A2.trace}`);
+    check("fade1", `fixed seed (1337, 120 s of vale night, hero walking): ${spawns.length} night spawns; the trace (every foe's id, x, y, kind, level, world ms, frame and tick of first sight, and the end state) is byte-identical run to run and to its pinned trace (playtest1f re-pinned it with the wayrifts on the vale: 4e89a86b…; playtest1e's on the bigger vale 7191d8a3…; retro1's was e4bdd690…)`, spawns.length >= 15 && A.trace === A2.trace && hashA === "4e89a86b3a2b398f474918bced2b9283", `${hashA} ${spawns.length} ${A.trace === A2.trace}`);
     check("fade1", `drawing the fade changes nothing: with drawWorld run on ${B.seen.frames} frames in Auto (960x640 at the C10 zoom) and Retro (320x240 at 1x), the spawn positions and times, the end state (every roamer, the hero, HP, world clock, Math.random use) and the save are byte-identical to the undrawn run, and so is every frame's foes after the draw (playtest1e)`, B.trace === A.trace && B.frames === A.frames && B.state === A.state && B.save === A.save && !!A.save && B.seen.frames > 200, `${md5s(B.trace)} ${B.state === A.state} ${B.save === A.save}`);
     check("fade1", `and the fade really drew: every night spawn was seen mid-fade (${B.seen.faded.size} of ${spawns.length}), the dither clipped in Auto on ${B.seen.auto} frames and in Retro on ${B.seen.retro}, ${B.seen.puffs} mist puffs went into the pool, and no fading foe lit before half-fade`, B.seen.faded.size === spawns.length && B.seen.auto > 0 && B.seen.retro > 0 && B.seen.puffs > 0 && B.seen.puffs <= spawns.length && B.seen.lightsOff === 0 && B.seen.clips > 0);
   }
@@ -6407,7 +6411,9 @@ if (on("fade2")) {
   {
     // playtest1e: re-pinned on the twice-size vale (fade1's were harvest 666bbaf9/1c816d68, krampus ce5ceb80/aca95fb8,
     // bloom b5326b68/45dcdfc7, ashen dafbe36a/e623712d); drawn and undrawn runs must still agree byte for byte below.
-    const GOLD = { harvest: ["ad4dc81acf875d1cc5278074044eb774", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["1865dfdbe389d6b005dbb4d9f1249871", "aca95fb82718ec368d0d17492dfa772e"], bloom: ["de58f099ac04d0b647b80f9434ee5947", "596914b01b7ae7e8e4405af7fb803265"], ashen: ["7ae29800a300386abd160739176b7266", "3253af283ef3ca316a24402a05567718"] };
+    // playtest1f re-pinned (the wayrifts' clearings and their lair gap move tonight's lairs); playtest1e's logs were
+    // ad4dc81a… 1865dfdb… de58f099… 7ae29800…, ends 1c816d68… aca95fb8… 596914b0… 3253af28…
+    const GOLD = { harvest: ["7110f4056d74d30486c4727580f673fc", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["2a6c6350026d89d97f89d0005876d40c", "aca95fb82718ec368d0d17492dfa772e"], bloom: ["22b38e1989c73ab6e21b4accff61f304", "93f5773647b3a6e29c9789f2fbafcc5f"], ashen: ["a141f9d205f9a1ea46fda7939672e752", "d4ce705477525ce7a9ba7a86c380a2cf"] };
     const night = (fid, drawn) => seeded(2026, () => {
       const g = new X.Game();
       g.start("warrior", "str", "A");
@@ -6464,7 +6470,7 @@ if (on("fade2")) {
       const endA = A.end.replace(/}$/, `,"calls":${A.calls}}`);
       const logH = md5s(JSON.stringify(A.log)), endH = md5s(endA);
       const tagsOk = A.tags.length > 0 && A.tags.every((t) => t.at === t.now && (t.fest || t.helper));
-      check("fade2", `fixed seed, ${fid} (night of day ${A.day}, 90 s, the hero walks in and fights): ${A.log.length} foes seen, ${A.tags.length} tagged; every spawn (id, place, kind, level, HP, world ms, frame, tick) and the end state (every roamer, the hero, XP, silver, the opened keys, Math.random use) are the pinned trace byte for byte (playtest1e re-pinned on the bigger vale) with the tag taken out`, logH === GOLD[fid][0] && endH === GOLD[fid][1] && tagsOk, `${logH} ${endH} ${JSON.stringify(A.tags.slice(0, 2))}`);
+      check("fade2", `fixed seed, ${fid} (night of day ${A.day}, 90 s, the hero walks in and fights): ${A.log.length} foes seen, ${A.tags.length} tagged; every spawn (id, place, kind, level, HP, world ms, frame, tick) and the end state (every roamer, the hero, XP, silver, the opened keys, Math.random use) are the pinned trace byte for byte (playtest1e re-pinned on the bigger vale, playtest1f with the wayrifts) with the tag taken out`, logH === GOLD[fid][0] && endH === GOLD[fid][1] && tagsOk, `${logH} ${endH} ${JSON.stringify(A.tags.slice(0, 2))}`);
       check("fade2", `visual only, ${fid}: drawn in Auto and Retro on ${B.seen.frames} frames, the same night gives the same spawns, end state, raw roamers (tags included), Math.random use and save (the save has no tag); ${B.seen.fading.size} festival foes seen mid-fade`, JSON.stringify(B.log) === JSON.stringify(A.log) && B.end === A.end && B.raw === A.raw && B.save === A.save && B.calls === A.calls && !/spawnAt/.test(A.save), `${JSON.stringify(B.log) === JSON.stringify(A.log)} ${B.end === A.end} ${B.raw === A.raw} ${B.save === A.save} ${B.calls === A.calls} fading ${[...B.seen.fading].join(",")} tags ${A.tags.map((t) => `${t.id}@${t.at - A.tags[0].at}`).join(",")}`);
     }
   }
@@ -6582,7 +6588,7 @@ if (on("fade2")) {
     const old = JSON.parse(fixture)[0];
     // playtest1e: the save gains worldV, and the old vale position is migrated onto the twice-size vale (state re-pinned).
     const sameKeys = JSON.stringify(Object.keys(again).filter((k) => k !== "worldV").sort()) === JSON.stringify(Object.keys(old).sort()) && again.worldV === 2;
-    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game loads every time (state after 5 s matches the pin byte for byte, tag aside; playtest1e moved the hero onto the bigger vale), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "f0233b75d39bc40719e8171e6c650332" && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
+    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game loads every time (state after 5 s matches the pin byte for byte, tag aside; playtest1e moved the hero onto the bigger vale; playtest1f re-pinned with the wayrifts, was f0233b75…), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "6dbb6b987f4ce4a16f3177754922495a" && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
   }
 }
 
@@ -7254,7 +7260,7 @@ if (on("playtest1b")) {
     const world = md5b(g.tiles); // playtest1e: the owner-approved twice-size vale (it was f513d4b0 on 64x60)
     g.enterCamp();
     const camp = md5b(g.tiles);
-    check("playtest1b", "placement is untouched: the town and the camp grids hash exactly as on playtest1's sim, and the vale as on playtest1e's twice-size grid (every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "3d4b038dfd1b2e538ce821b1763c1849" && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
+    check("playtest1b", "placement is untouched: the town and the camp grids hash exactly as on playtest1's sim, and the vale as on playtest1f's grid (playtest1e's twice-size grid with the wayrifts' clearings; every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "0117539b673bd63ee9073c90c3a15625" && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
   }
 
   // 9. The notes.
@@ -7816,13 +7822,353 @@ if (on("playtest1e")) {
   // Last: the live files are byte for byte what playtest1e ships (any later edit must re-pin here, on purpose: qa/playtest1e/repin.py).
   {
     const LIVE = {"src/game/sim.ts": "c909777a3b3ad62894296b6d3b1aeef7", "src/game/draw.ts": "f44c0e93ff39252740c959aabc9884ef", "src/game/content.ts": "d8ee5cbd237c2896fefbad760d0cad86", "src/game/Gravewake.tsx": "8260af8345576dbc081da2fd064731d9", "src/game/bounty.ts": "c7d2ddceadee04efd5bd502ef8b56dd4", "src/game/festivals.ts": "d0e2b1052602741715c0279089762d8c", "tools/map-writer/map_writer.ts": "b231f85001aee13f7fe5b1bb9a6ba67c", "tools/map-writer/gravewake_vale.ts": "910518acdefa35eed839fe9323bcaf89", "tools/map-writer/gravewake_world.ts": "3e1c2a70dce85efe73f460b664c84946"};
-    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
-    check("playtest1e", "the live game files are byte for byte playtest1e's (sim, draw, content, shell, bounty, festivals, the map writer and its vale and world adapters)", moved.length === 0 && Object.keys(LIVE).length === 9, moved.join(", "));
+    // playtest1f: sim.ts and draw.ts are read from their frozen playtest1e copies (scripts/frozen/playtest1f)
+    const moved = Object.entries(LIVE).filter(([f, h]) => md5f(pt1eView(f)) !== h).map(([f]) => f);
+    check("playtest1e", "the live game files are byte for byte playtest1e's (sim, draw, content, shell, bounty, festivals, the map writer and its vale and world adapters; sim and draw as frozen when playtest1f moved them)", moved.length === 0 && Object.keys(LIVE).length === 9, moved.join(", "));
+  }
+}
+
+if (on("playtest1f")) {
+  // [OWNER-APPROVED 2026-10-02: playtest1f portals] batch D2: wayrifts (visible animated portals in the Gravewake palette)
+  // linking the town gate to the seasonal festival zones, the Ashen Rift and two special places, on the corner map and
+  // the full map, with a swirl on travel and a light at night; and the swamp's trails drawn as a swamp path.
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-02: playtest1f portals]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5b = (b) => createHash("md5").update(b).digest("hex");
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1f.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as WR from "${root}/src/game/wayrifts.ts";\nexport { WORLD, WORLD_DOOR, worldBiome, T, DUNGEONS, RIFTS } from "${root}/src/game/content.ts";\nexport { GATE } from "${root}/src/game/bounty.ts";\nexport { FESTIVALS } from "${root}/src/game/seasons.ts";\nexport { HARVEST, KRAMPUSNACHT, DROWNED_BLOOM } from "${root}/src/game/festivals.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1f.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1f.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  // playtest1e's sim as pushed (scripts/frozen/playtest1f/sim.ts.txt), bundled beside it, for the before/after grid
+  const fsim = readFileSync("scripts/frozen/playtest1f/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
+  writeFileSync(join(dir, "sim1e.ts"), fsim);
+  execFileSync("npx", ["esbuild", join(dir, "sim1e.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1e.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document };
+  let allDraws = [];
+  let allFills = [];
+  globalThis.Image = class { constructor() { this.complete = true; this.naturalWidth = 16; this.naturalHeight = 16; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const noop = () => {};
+  const mock = () => {
+    const o = {
+      alphaSet: 0,
+      drawImage(im, ...a) { const [sx, sy, sw, sh, dx, dy] = a.length >= 8 ? a : [0, 0, 0, 0, a[0], a[1]]; allDraws.push({ u: im && im._s, sx, sy, sw, sh, dx, dy }); },
+      fillRect(x, y, w, h) { allFills.push([x, y, w, h, o.fillStyle]); },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop: noop }) : noop), set: (t, k, v) => { if (k === "globalAlpha" && v !== 1) t.alphaSet++; t[k] = v; return true; } });
+  };
+  globalThis.document = { createElement: () => ({ getContext: () => mock(), width: 16, height: 16 }) };
+  const X = await import(pathToFileURL(join(dir, "pt1f.mjs")).href);
+  const P = await import(pathToFileURL(join(dir, "sim1e.mjs")).href);
+  const W = X.WR;
+  const TT = X.T;
+  const sim = readFileSync("src/game/sim.ts", "utf8");
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const wr = readFileSync("src/game/wayrifts.ts", "utf8");
+  const mk = (ms = 5 * 60 * 1000) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 93 * TILE + 8); g.worldMs = ms; g.roamers = []; g.mode = "play"; return g; };
+  const CYCLE = 30 * 60 * 1000, NIGHT = 20 * 60 * 1000;
+  const at = (g, x, y) => { g.px = x * TILE + 8; g.py = y * TILE + 8; g.roamers = []; g.goal = null; g.riftHold = ""; g.wayHold = ""; };
+  const run = (g, secs, each) => { for (let i = 0; i < secs * 60; i++) { if (each && each(i) === false) break; g.roamers = []; g.update(1 / 60); } };
+  const R = W.WAYRIFTS;
+  const g = mk();
+  const { w, h, tiles } = g;
+
+  // 1. The rifts: 11, four at the town gate, a festival rift for each season, the rift and two special places.
+  {
+    const hubs = R.filter((r) => r.hub);
+    const fest = R.filter((r) => r.season);
+    const ids = new Set(R.map((r) => r.id));
+    const linked = R.every((r) => (r.festival ? true : !!W.wayriftById(r.to ?? ""))) && R.filter((r) => !r.hub).every((r) => W.wayriftById(r.to).hub) && hubs.filter((r) => !r.festival).every((r) => W.wayriftById(r.to).to === r.id);
+    check("playtest1f", `the wayrifts: ${R.length} (4 at the town gate, one festival rift a season, the Ashen Rift, the Shifting Barrow, the Waste Pocket), unique ids, every link pairs a far rift with its hub`, R.length === 11 && ids.size === 11 && hubs.length === 4 && hubs.every((r) => Math.hypot(r.x + 1 - X.GATE.x, r.y + 2 - X.GATE.y) <= 9) && fest.length === 4 && new Set(fest.map((r) => r.season)).size === 4 && hubs.filter((r) => r.festival).length === 1 && linked, `${hubs.length} hubs ${fest.length} fest`);
+    const near = (r, x, y, d) => Math.hypot(r.x + 1 - x, r.y + 2 - y) <= d;
+    const rift = X.RIFTS[0], barrow = X.DUNGEONS.find((d) => d.id === "barrow"), waste = X.DUNGEONS.find((d) => d.id === "pocketwaste");
+    const B = (id) => R.find((r) => r.id === id);
+    const placed = near(B("rift"), rift.tx, rift.ty, 6) && near(B("barrow"), barrow.tx, barrow.ty, 9) && near(B("waste"), waste.tx, waste.ty, 7) && near(B("fest-harvest"), X.HARVEST.lord.x, X.HARVEST.lord.y, 7) && near(B("fest-krampus"), X.KRAMPUSNACHT.spot.x, X.KRAMPUSNACHT.spot.y, 6) && X.worldBiome(B("fest-ashen").x, B("fest-ashen").y) === "ash" && (() => { const f = X.DROWNED_BLOOM.flood, b = B("fest-bloom"); return b.x >= f.x0 && b.x + 2 <= f.x1 && b.y >= f.y0 && b.y + 2 <= f.y1; })();
+    check("playtest1f", "each far rift stands at its place: by the Ashen Rift's mouth, the Shifting Barrow, the Waste Pocket, the Pumpkin Lord's patch, Krampus's hollow, on the Drowned Bloom's flood bank and in the Cinder ash", placed);
+    const BOSS = [[32, 84], [28, 72], [120, 44], [116, 60], [96, 104], [64, 12], [24, 42], [76, 64], [54, 60]];
+    const far = Math.min(...R.map((r) => Math.min(...BOSS.map(([x, y]) => Math.hypot(r.x + 1 - x, r.y + 2 - y)))));
+    check("playtest1f", `no rift lands you by a world boss: every front is ${far.toFixed(1)}+ tiles from every world boss spot (10 or more)`, far >= 10);
+  }
+
+  // 2. On the grid: 3x2 footprints on open ground, stones solid, the mouth open, every front reachable; only the
+  //    clearings differ from playtest1e's grid.
+  {
+    const fp = (r) => { const o = []; for (let y = r.y; y < r.y + 2; y++) for (let x = r.x; x < r.x + 3; x++) o.push([x, y]); return o; };
+    const ground = new Set([TT.grass, TT.snow, TT.sand, TT.ash, TT.swamp]);
+    const okTiles = R.every((r) => [...fp(r), [r.x + 1, r.y + 2]].every(([x, y]) => ground.has(tiles[y * w + x])));
+    const inside = R.every((r) => r.x >= 2 && r.y >= 4 && r.x + 3 <= w - 2 && r.y + 3 <= h - 2);
+    const apart = R.every((a, i) => R.every((b, j) => i === j || a.x + 3 + 1 <= b.x || b.x + 3 + 1 <= a.x || a.y + 3 <= b.y - 2 || b.y + 3 <= a.y - 2));
+    check("playtest1f", "every footprint (3x2 tiles; the art 48x64, 3x4 tiles) sits inside the vale's edge band on open biome ground, front included, and no two rifts' art overlap", okTiles && inside && apart);
+    const solidOk = R.every((r) => fp(r).every(([x, y]) => g.solidAt(x * TILE + 8, y * TILE + 8, true) === !(x === r.x + 1 && y === r.y + 1)) && !g.solidAt((r.x + 1) * TILE + 8, (r.y + 2) * TILE + 8, true));
+    const old = new P.Game(); old.start("warrior", "str", "Q"); old.enterWorld(64 * TILE + 8, 93 * TILE + 8);
+    const solidOld = R.every((r) => fp(r).every(([x, y]) => !old.solidAt(x * TILE + 8, y * TILE + 8, true)));
+    check("playtest1f", "the standing stones are solid for everyone (the hero, foes, folk) and the mouth and front are open; on playtest1e's sim the same tiles were open ground", solidOk && solidOld);
+    const diff = [];
+    for (let i = 0; i < tiles.length; i++) if (tiles[i] !== old.tiles[i]) diff.push(i);
+    const inClear = (i) => { const x = i % w, y = (i / w) | 0; return R.some((r) => x >= r.x - 1 && x <= r.x + 3 && y >= r.y - 2 && y <= r.y + 2); };
+    const props = new Set([TT.tree, TT.rock, TT.pump]);
+    const cleared = diff.every((i) => inClear(i) && props.has(old.tiles[i]) && ground.has(tiles[i]));
+    check("playtest1f", `the grid is playtest1e's but for the rifts' clearings: ${diff.length} tiles change, each a tree, rock or pump in a rift's footprint, front or art rows, now its biome's ground; no road, trail, door, stair or cache moved`, diff.length > 0 && diff.length <= 40 && cleared && W.stampWayrifts.length === 6, `${diff.length} changed`);
+    const prop = new Set([TT.tree, TT.rock, TT.pump, TT.grave]);
+    const pass = (x, y) => !g.solidAt(x * TILE + 8, y * TILE + 8, true) && !prop.has(tiles[y * w + x]);
+    const seen = new Uint8Array(w * h);
+    const q = [X.GATE.y * w + X.GATE.x];
+    seen[q[0]] = 1;
+    while (q.length) { const i = q.pop(); const x = i % w, y = (i / w) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue; const j = ny * w + nx; if (!seen[j] && pass(nx, ny)) { seen[j] = 1; q.push(j); } } }
+    const lost = R.filter((r) => !seen[(r.y + 2) * w + r.x + 1] || !seen[(r.y + 1) * w + r.x + 1]).map((r) => r.id);
+    check("playtest1f", "on foot from the town gate (the game's collision, props blocked) every rift's front and mouth is reached", lost.length === 0, lost.join(","));
+    const lairs = g.lairs().lairs.map((i) => (typeof i === "number" ? { x: i % w, y: (i / w) | 0 } : i));
+    const nearL = Math.min(...lairs.map((l) => Math.min(...R.map((r) => Math.hypot(l.x - (r.x + 1), l.y - (r.y + 1))))));
+    check("playtest1f", `no foe lair on or by a rift: ${lairs.length} lairs, the nearest ${nearL.toFixed(1)} tiles from a mouth (4 or more)`, lairs.length > 100 && nearL >= 4, `${nearL}`);
+    // the fail-safe: a front walled in by trees gets a trail cut to the net, a front already joined cuts nothing
+    const t2 = tiles.slice();
+    const r0 = R.find((r) => r.id === "barrow");
+    // a ring of forest five deep round the rift's clearing (roads and trails in it planted over too)
+    for (let y = r0.y - 7; y <= r0.y + 7; y++) for (let x = r0.x - 6; x <= r0.x + 8; x++) if (!W.wayriftAt(x, y)) t2[y * w + x] = TT.tree;
+    const codes = { road: TT.road, trail: TT.dirt, tree: TT.tree, rock: TT.rock, pump: TT.pump, water: TT.water, ice: TT.ice };
+    const cut = W.stampWayrifts(t2, w, h, codes, () => TT.grass, (t) => !prop.has(t) && t !== TT.water && t !== TT.ice);
+    const again = tiles.slice();
+    const cut0 = W.stampWayrifts(again, w, h, codes, () => TT.grass, (t) => !prop.has(t) && t !== TT.water && t !== TT.ice);
+    const f0 = W.wayFront(r0);
+    const seen2 = new Uint8Array(w * h);
+    const q2 = [f0.y * w + f0.x];
+    seen2[q2[0]] = 1;
+    let joined = false;
+    while (q2.length) { const i = q2.pop(); if (t2[i] === TT.road || t2[i] === TT.dirt) { joined = true; break; } const x = i % w, y = (i / w) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; const j = ny * w + nx; if (!seen2[j] && !W.wayriftAt(nx, ny) && !prop.has(t2[j]) && t2[j] !== TT.water && t2[j] !== TT.ice) { seen2[j] = 1; q2.push(j); } } }
+    check("playtest1f", `fail-safe: a rift whose front is walled in by forest gets a trail cut to the nearest road or trail (${cut} tiles here) and its front joins the net again; stamping the laid vale again cuts nothing and changes nothing`, cut >= 4 && joined && cut0 === 0 && md5b(again) === md5b(tiles), `${cut} ${joined} ${cut0}`);
+  }
+
+  // 3. Travel with each input scheme: keyboard, pad stick, tap. A swirl, then the far rift's front; nothing saved.
+  {
+    const hub = R.find((r) => r.id === "hub-rift"), far = R.find((r) => r.id === "rift");
+    const journey = (how) => {
+      const g1 = mk(NIGHT);
+      at(g1, hub.x + 1, hub.y + (how === "tap" ? 4 : 2));
+      let started = -1, moved = -1, ended = -1, frozen = true;
+      let px0 = 0;
+      run(g1, 4, (i) => {
+        if (how === "keys") g1.held.add("KeyW");
+        if (how === "pad") { g1.stickX = 0; g1.stickY = -1; }
+        if (how === "tap" && i === 0) g1.setGoal(hub.x * TILE + 4, (hub.y - 2) * TILE + 4);
+        if (g1.travel && started < 0) { started = i; px0 = g1.px; }
+        if (g1.travel && !g1.travel.moved && g1.px !== px0) frozen = false;
+        if (g1.travel?.moved && moved < 0) moved = i;
+        if (started >= 0 && !g1.travel && ended < 0) { ended = i; return false; }
+      });
+      g1.held.clear(); g1.stickY = 0;
+      const f = W.wayFront(far);
+      return { started, moved, ended, frozen, onFront: Math.floor(g1.px / TILE) === f.x && Math.floor(g1.py / TILE) === f.y, log: g1.logLine, mode: g1.mode, g: g1 };
+    };
+    const K = journey("keys"), Pd = journey("pad"), Tp = journey("tap");
+    const good = (j) => j.started >= 0 && j.moved - j.started >= 30 && j.moved - j.started <= 36 && j.ended - j.moved >= 30 && j.ended - j.moved <= 36 && j.onFront && j.frozen && j.mode === "play" && /Ashen Rift/.test(j.log);
+    check("playtest1f", `keyboard: walking north into the hub's Ashen Rift mouth starts the swirl (${K.moved - K.started} frames closing, ${K.ended - K.moved} opening at 60 fps: 0.55 s each), the hero is held still inside it, and stands at the far rift's front after`, good(K), JSON.stringify({ ...K, g: 0 }));
+    check("playtest1f", "pad: the same journey on the left stick", good(Pd), JSON.stringify({ ...Pd, g: 0 }));
+    check("playtest1f", "tap: from two tiles south, a tap on the top corner of the rift's art walks you into its mouth (a straight line to the tap would stop on the stones) and the same journey follows", good(Tp), JSON.stringify({ ...Tp, g: 0 }));
+    // back again: the arrival rift does not throw you straight back; step off, walk in, and you are at the hub
+    const g2 = K.g;
+    run(g2, 0.6, () => { g2.held.add("KeyW"); });
+    const held = !g2.travel && g2.wayHold === far.id;
+    g2.held.clear();
+    run(g2, 0.6, () => { g2.held.add("KeyS"); });
+    g2.held.clear();
+    let back = false;
+    run(g2, 3, () => { g2.held.add("KeyW"); if (g2.travel) back = true; if (back && !g2.travel) return false; });
+    g2.held.clear();
+    const hf = W.wayFront(hub);
+    check("playtest1f", "arriving, holding up walks into the far rift's mouth but it waits until you step off; walking in again takes you back to the hub's front", held && back && Math.floor(g2.px / TILE) === hf.x && Math.floor(g2.py / TILE) === hf.y, `${held} ${back} ${Math.floor(g2.px / TILE)},${Math.floor(g2.py / TILE)}`);
+  }
+
+  // 4. The festival rifts follow the seasons.
+  {
+    const fest = R.find((r) => r.festival);
+    const out = {};
+    for (const [season, day] of [["autumn", 0], ["winter", 6], ["spring", 12], ["summer", 18]]) {
+      const g1 = mk(day * CYCLE + 60000);
+      const to = W.wayLink(fest, g1.season());
+      const sealed = R.filter((r) => r.season && !W.wayAwake(r, g1.season())).length;
+      out[season] = [g1.season(), to?.id, to?.season, sealed];
+    }
+    const ok = Object.entries(out).every(([s, [now, , ts, sealed]]) => now === s && ts === s && sealed === 3);
+    check("playtest1f", `the festival hub leads to this season's festival rift (${Object.values(out).map((v) => v[1]).join(", ")}); the other three festival rifts are sealed`, ok, JSON.stringify(out));
+    const g1 = mk(60000);
+    const kr = R.find((r) => r.id === "fest-krampus");
+    at(g1, kr.x + 1, kr.y + 2);
+    let tried = 0;
+    run(g1, 1.5, () => { g1.held.add("KeyW"); if (g1.travel) tried++; });
+    g1.held.clear();
+    const line = g1.logLine;
+    const m = W.wayMouth(kr);
+    check("playtest1f", "a sealed rift in autumn: walking into Krampusnacht's mouth takes you nowhere and says when it wakes, once (held until you step off)", tried === 0 && /sealed/.test(line) && /Krampusnacht/.test(line) && /winter/.test(line) && Math.floor(g1.px / TILE) === m.x && Math.floor(g1.py / TILE) === m.y && g1.riftHold === `${m.x},${m.y}`, `${tried} ${line}`);
+  }
+
+  // 5. Saves: no new key, a journey is never written, a load never lands mid-swirl or inside the stones.
+  {
+    const g1 = mk(NIGHT);
+    at(g1, 64, 93);
+    g1.saveSlot(0);
+    const read = () => JSON.parse(store.get("gravewake-saves-v1") ?? "[]")[0] ?? {};
+    const k0 = Object.keys(read()).sort();
+    const old = new P.Game(); old.start("warrior", "str", "Q"); old.enterWorld(64 * TILE + 8, 93 * TILE + 8); old.worldMs = NIGHT; old.mode = "play"; old.saveSlot(0);
+    const k1e = Object.keys(read()).sort();
+    const hub = R.find((r) => r.id === "hub-barrow");
+    at(g1, hub.x + 1, hub.y + 2);
+    run(g1, 0.3, () => { g1.held.add("KeyW"); });
+    g1.held.clear();
+    const mid = !!g1.travel;
+    g1.saveSlot(0);
+    const s = read();
+    // load it into the same game, still mid-swirl: the swirl and the hold are gone
+    g1.wayHold = "hub-rift";
+    g1.loadSlot(0);
+    const g2 = g1;
+    check("playtest1f", `saves: the same ${k0.length} keys as playtest1e's (none for a journey or a hold); a save made mid-swirl, loaded into a game mid-swirl, loads with no swirl and no hold, in play`, JSON.stringify(k0) === JSON.stringify(k1e) && mid && JSON.stringify(Object.keys(s).sort()) === JSON.stringify(k0) && !/travel|wayHold|wayrift/i.test(JSON.stringify(s)) && g2.travel === null && g2.wayHold === "" && g2.mode === "play" && g2.mapId === "world", `${k0.length} ${k1e.length} ${mid}`);
+    // a playtest1e save standing where a rift's stones now stand (by the gate) loads onto open ground beside them
+    const st = R.find((r) => r.id === "hub-fest");
+    old.px = st.x * TILE + 8; old.py = st.y * TILE + 8; old.saveSlot(0);
+    const g3 = mk();
+    g3.loadSlot(0);
+    const tx = Math.floor(g3.px / TILE), ty = Math.floor(g3.py / TILE);
+    let moved = false;
+    run(g3, 1, () => { g3.held.add("KeyD"); });
+    g3.held.clear();
+    moved = Math.floor(g3.px / TILE) !== tx;
+    const bad = [];
+    for (const r of R) for (const [sx, sy] of [[0, 0], [1, 0], [2, 0], [0, 1], [2, 1]]) for (const how of ["unstick", "landMigrated"]) {
+      const gg = mk(); gg.px = (r.x + sx) * TILE + 8; gg.py = (r.y + sy) * TILE + 8; gg[how]();
+      const ax = Math.floor(gg.px / TILE), ay = Math.floor(gg.py / TILE);
+      if (W.wayriftAt(ax, ay)) bad.push(`${how} ${r.id} ${sx},${sy}->${ax},${ay}`);
+    }
+    // and walled in by forest (on a copy of the grid), where the mouth is the nearest open tile: still never the mouth
+    for (const how of ["unstick", "landMigrated"]) {
+      const gg = mk(); const r = R.find((q) => q.id === "barrow");
+      gg.tiles = gg.tiles.slice();
+      for (let y = r.y - 4; y <= r.y + 5; y++) for (let x = r.x - 4; x <= r.x + 6; x++) if (!W.wayriftAt(x, y) && !(x === r.x + 1 && y === r.y + 2)) gg.tiles[y * gg.w + x] = TT.tree;
+      for (let x = r.x - 1; x <= r.x + 3; x++) gg.tiles[(r.y - 1) * gg.w + x] = TT.water; // a pool behind the stones
+      gg.px = (r.x + 1) * TILE + 8; gg.py = r.y * TILE + 8; gg[how]();
+      const ax = Math.floor(gg.px / TILE), ay = Math.floor(gg.py / TILE);
+      if (W.wayriftAt(ax, ay)) bad.push(`walled ${how} -> ${ax},${ay}`);
+    }
+    check("playtest1f", "from every standing stone of every rift (55), both ways the sim frees a stuck hero (unstick, and the migrated-save landing) step off onto open ground, never into a mouth or another stone, even walled in by forest with a pool behind, the mouth the nearest open tile", bad.length === 0, bad.slice(0, 4).join("; "));
+    check("playtest1f", "a playtest1e save standing on a tile that is a standing stone now loads beside it, never in a mouth, and walks off freely; no swirl starts", !W.waySolid(tx, ty) && !W.wayMouthAt(tx, ty) && Math.hypot(tx - st.x, ty - st.y) <= 3 && moved && g3.travel === null, `${tx},${ty} ${moved}`);
+  }
+
+  // 6. The draw: art, glow, light, labels, the corner map and the full map, the swamp path, the swirl.
+  {
+    const g1 = mk(NIGHT);
+    at(g1, 64, 93);
+    g1.frame = 5.4;
+    allDraws = []; allFills = [];
+    X.drawWorld(mock(), g1, 960, 640, g1.zoom);
+    const rift = allDraws.filter((d) => d.u === W.WAYRIFT_SHEET);
+    const em = allDraws.filter((d) => d.u === W.WAYRIFT_EM);
+    const cells = rift.map((d) => d.sx / 48);
+    check("playtest1f", `the hub's rifts draw from the rift writer's sheet (48x64 cells, the swirl frame of the moment; ${rift.length} on screen) and their fire and runes from its glow mask at night`, rift.length >= 3 && rift.every((d) => d.sw === 48 && d.sh === 64 && d.sx % 48 === 0) && cells.every((c) => c === 5) && em.length === rift.length, `${rift.length} ${em.length} ${cells}`);
+    const lamps = X.sceneLights(g1, g1.px - 480, g1.py - 320, 960, 640).filter((l) => l.r === W.WAYRIFT.light);
+    const gd = mk(5 * 60 * 1000); at(gd, 64, 93);
+    const dayLamps = X.sceneAmbient(gd);
+    const gateL = lamps.filter((l) => R.filter((r) => r.hub).some((r) => Math.hypot(l.x - ((r.x + 1) * TILE + 8), l.y - ((r.y + 1) * TILE + 8)) <= 2 * TILE + 1));
+    const hubLit = R.filter((r) => r.hub).every((r) => gateL.some((l) => Math.hypot(l.x - ((r.x + 1) * TILE + 8), l.y - ((r.y + 1) * TILE + 8)) <= 2 * TILE + 1));
+    const farL = W.wayLights("autumn", TILE).filter((l) => !gateL.some((q) => q.x === l.x && q.y === l.y));
+    const farOk = farL.length === R.filter((r) => !r.hub && W.wayAwake(r, "autumn")).length && R.filter((r) => !r.hub && W.wayAwake(r, "autumn")).every((r) => farL.some((l) => l.x === (r.x + 1) * TILE + 8 && l.y === (r.y + 1) * TILE + 8));
+    check("playtest1f", `at night the rifts light the vale cold blue (${W.WAYRIFT.light} px): the gate's four share ${gateL.length} lights (one a pair, midway, 2 tiles from each mouth: the frame rate stays at playtest1e's), each awake far rift has its own at its mouth (${farL.length} this autumn); by day the light layer is off as before`, gateL.length === 2 && hubLit && farOk && lamps.every((l) => l.c[2] === 1 && l.c[0] < 0.5) && dayLamps === null, `${gateL.length} ${hubLit} ${farL.length}`);
+    const kr = R.find((r) => r.id === "fest-krampus");
+    const gk = mk(NIGHT); at(gk, kr.x + 1, kr.y + 3);
+    allDraws = [];
+    X.drawWorld(mock(), gk, 960, 640, gk.zoom);
+    const sealedArt = allDraws.filter((d) => d.u === W.WAYRIFT_SHEET);
+    const sealedEm = allDraws.filter((d) => d.u === W.WAYRIFT_EM && d.dx === kr.x * TILE);
+    const sealedLamp = X.sceneLights(gk, gk.px - 480, gk.py - 320, 960, 640).some((l) => l.x === (kr.x + 1) * TILE + 8 && l.r === W.WAYRIFT.light);
+    check("playtest1f", "a sealed festival rift draws its sealed cell (8), with no glow and no light; awake in its own season", sealedArt.some((d) => d.sx === 8 * 48 && d.dx === kr.x * TILE) && sealedEm.length === 0 && !sealedLamp && W.wayAwake(kr, "winter"));
+    // the corner map and the full map
+    allDraws = [];
+    X.drawMinimap(mock(), g1, 96);
+    const mini = allDraws.filter((d) => d.u === W.WAYRIFT_ICON);
+    allDraws = [];
+    X.drawMap(mock(), g1, 960, 540);
+    const full = allDraws.filter((d) => d.u === W.WAYRIFT_ICON);
+    check("playtest1f", `the corner map marks the rifts in its window (${mini.length} at the gate) and the full map marks all ${full.length}, sealed ones in the dim cell`, mini.length === 4 && full.length === 11 && full.filter((d) => d.sx === 9).length === 3 && full.every((d) => d.sw === 9 && d.sh === 11));
+    // the swamp path
+    const gs = mk(); at(gs, 70, 59);
+    allDraws = [];
+    X.drawWorld(mock(), gs, 960, 640, gs.zoom);
+    const paths = allDraws.filter((d) => d.u === W.SWAMP_PATH);
+    const view = { x0: Math.floor((gs.px - 480 / gs.zoom) / TILE) - 1, x1: Math.ceil((gs.px + 480 / gs.zoom) / TILE) + 1, y0: Math.floor((gs.py - 320 / gs.zoom) / TILE) - 1, y1: Math.ceil((gs.py + 320 / gs.zoom) / TILE) + 3 };
+    let want = 0;
+    for (let y = Math.max(0, view.y0); y < Math.min(h, view.y1); y++) for (let x = Math.max(0, view.x0); x < Math.min(w, view.x1); x++) if (tiles[y * w + x] === TT.dirt && X.worldBiome(x, y) === "swamp") want++;
+    // the cell by its own rule here: N 1, E 2, S 4, W 8 for a path neighbour (trail, road, stair, cache, door); one
+    // straight in five (by place) the sunken plank
+    const LINK = new Set([TT.dirt, TT.road, TT.stairD, TT.chest, TT.door]);
+    const lk = (x, y) => x >= 0 && y >= 0 && x < w && y < h && LINK.has(tiles[y * w + x]);
+    const cellOf = (x, y) => { const m = (lk(x, y - 1) ? 1 : 0) | (lk(x + 1, y) ? 2 : 0) | (lk(x, y + 1) ? 4 : 0) | (lk(x - 1, y) ? 8 : 0); return (m === 5 || m === 10) && (x * 7 + y * 3) % 5 === 0 ? (m === 5 ? 16 : 17) : m; };
+    const masksOk = paths.every((d) => { const x = d.dx / TILE, y = d.dy / TILE; return d.sx / 16 === cellOf(x, y) && d.sw === 16 && d.sh === 16; }) && paths.every((d) => allDraws.findIndex((e) => e === d) > allDraws.findIndex((e) => e.dx === d.dx && e.dy === d.dy && e.u !== W.SWAMP_PATH));
+    check("playtest1f", `swamp trails draw the swamp path (${paths.length} tiles here, each cell picked by its path neighbours, a sunken-plank straight now and then) over the swamp ground, not a flat brown square`, paths.length >= 10 && Math.abs(paths.length - want) <= 6 && masksOk && paths.some((d) => d.sx / 16 === 5 || d.sx / 16 === 10), `${paths.length} want ~${want}`);
+    const offSwamp = paths.every((d) => X.worldBiome(d.dx / TILE, d.dy / TILE) === "swamp");
+    const gv = mk(); at(gv, 24, 66);
+    let valeTrail = 0;
+    for (let y = 58; y < 75; y++) for (let x = 10; x < 40; x++) if (tiles[y * w + x] === TT.dirt && X.worldBiome(x, y) !== "swamp") valeTrail++;
+    allDraws = [];
+    X.drawWorld(mock(), gv, 960, 640, gv.zoom);
+    check("playtest1f", `trails off the swamp draw as before (${valeTrail} vale trail tiles round the Ashen Rift, no swamp path); the swamp path only ever lands on swamp ground`, valeTrail >= 5 && allDraws.filter((d) => d.u === W.SWAMP_PATH).length === 0 && offSwamp);
+    // the swirl: no alpha, every colour locked, ink over the whole view at its darkest
+    const gt = mk(NIGHT);
+    const hub = R.find((r) => r.id === "hub-rift");
+    at(gt, hub.x + 1, hub.y + 2);
+    run(gt, 0.5, () => { gt.held.add("KeyW"); if (gt.travel) return false; });
+    gt.held.clear();
+    gt.travel.t = 0.3;
+    const m = mock();
+    allFills = [];
+    X.drawWorld(m, gt, 960, 640, gt.zoom);
+    const swirl = allFills.filter((f) => ["#07060a", "#9ae4ff", "#4ab8ff", "#b07aff", "#7a5ad0", "#4a2a78"].includes(f[4]));
+    gt.travel.t = 0.55;
+    allFills = [];
+    X.drawWorld(mock(), gt, 960, 640, gt.zoom);
+    const rows = allFills.filter((f) => f[4] === "#07060a" && f[2] >= Math.floor(960 / gt.zoom)).length;
+    const lockedV3 = JSON.parse(execFileSync("python3", ["-c", "import json, sys\nsys.path.insert(0, 'tools/sprite-writer')\nfrom palette_locked import LOCKED_V3\nprint(json.dumps(sorted(LOCKED_V3)))"], { encoding: "utf8", env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" } }));
+    const gq = mk(NIGHT); at(gq, hub.x + 1, hub.y + 2);
+    allFills = [];
+    X.drawWorld(mock(), gq, 960, 640, gq.zoom);
+    const plain = new Set(allFills.map((f) => f[4]));
+    gt.travel.t = 0.3;
+    allFills = [];
+    X.drawWorld(mock(), gt, 960, 640, gt.zoom);
+    const added = [...new Set(allFills.map((f) => f[4]))].filter((c) => !plain.has(c));
+    const offLock = added.filter((c) => !lockedV3.includes(String(c).toLowerCase()));
+    gt.travel.t = 0.55;
+    const fn = draw.slice(draw.indexOf("function paintTravel("), draw.indexOf("\n}\n", draw.indexOf("function paintTravel(")));
+    check("playtest1f", `the swirl: an ink iris closes on the hero with a dithered rim and three violet and cold-blue arms (${swirl.length} fills mid-swirl), the whole view is ink at its darkest (${rows} rows), no alpha anywhere`, swirl.length > 200 && rows >= Math.floor(640 / gt.zoom) && m.alphaSet === 0 && !/globalAlpha|rgba\(/.test(fn) && lockedV3.length > 100 && added.length >= 3 && offLock.length === 0, `${swirl.length} ${rows} off ${offLock.join(" ")}`);
+  }
+
+  // 7. The art: the rift writer's sheets, palette v3, hard alpha, reproducible from the writer.
+  {
+    const py = (code) => { try { return JSON.parse(execFileSync("python3", ["-c", code], { cwd: "tools/pixel-writer", encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" } })); } catch (e) { return { error: String(e.stderr || e.message).trim().split("\n").pop() }; } };
+    const files = ["wayrift.png", "wayrift_em.png", "wayrift-icon.png", "swamp-path.png"];
+    const res = py(`import json, sys\nsys.path.insert(0, '../sprite-writer')\nfrom palette_locked import LOCKED_V3\nfrom PIL import Image\nimport rift_writer as r\nfrom pixel_writer import cells\nout = {}\nfor f in ${JSON.stringify(files)}:\n    im = Image.open('../../public/art/writer/' + f).convert('RGBA')\n    bad = sum(1 for (R, G, B, A) in im.getdata() if A not in (0, 255) or (A and '#%02x%02x%02x' % (R, G, B) not in LOCKED_V3))\n    out[f] = [im.width, im.height, bad, im.tobytes().hex()[:0]]\npairs = [r.wayrift(f) for f in range(9)]\nmade = {'wayrift.png': cells([p[0] for p in pairs]), 'wayrift_em.png': cells([p[1] for p in pairs]), 'wayrift-icon.png': cells([r.wayrift_icon(True), r.wayrift_icon(False)]), 'swamp-path.png': cells([p[0] for p in [r.swamp_path(m) for m in range(16)] + [r.swamp_path(5, 1), r.swamp_path(10, 1)]])}\nsame = {f: made[f].tobytes() == Image.open('../../public/art/writer/' + f).convert('RGBA').tobytes() for f in made}\nem_sub = all(a[3] == 0 or a == b for a, b in zip(made['wayrift_em.png'].getdata(), made['wayrift.png'].getdata()))\ncolors = set(c for (R, G, B, A) in made['wayrift.png'].getdata() if A for c in ['#%02x%02x%02x' % (R, G, B)])\nprint(json.dumps({'out': out, 'same': same, 'em': em_sub, 'neon': sorted(c for c in colors if c in ('#4ab8ff', '#9ae4ff', '#b07aff', '#ff3a50'))}))`);
+    const o = res.out ?? {};
+    const sizes = o["wayrift.png"]?.[0] === 432 && o["wayrift.png"]?.[1] === 64 && o["wayrift_em.png"]?.[0] === 432 && o["wayrift-icon.png"]?.[0] === 18 && o["wayrift-icon.png"]?.[1] === 11 && o["swamp-path.png"]?.[0] === 288 && o["swamp-path.png"]?.[1] === 16;
+    check("playtest1f", `the art is the rift writer's (tools/pixel-writer/rift_writer.py, run from make_gravewake.playtest1f_d2): wayrift 9 cells of 48x64 (8 swirl frames and the sealed one) and its glow mask, the 9x11 map marker, 18 swamp path cells; palette v3 only, hard alpha; a re-run gives the same bytes`, sizes && files.every((f) => o[f]?.[2] === 0) && Object.values(res.same ?? {}).every(Boolean) && Object.keys(res.same ?? {}).length === 4, JSON.stringify(res).slice(0, 300));
+    check("playtest1f", `the rift burns in Bill's three glows: neon-blue cold fire, violet and red (${(res.neon ?? []).join(" ")} all used), and its glow mask is only its own pixels`, (res.neon ?? []).length === 4 && res.em === true);
+    check("playtest1f", "every rift sheet is asked for up front (WAYRIFT_SHEETS, after the wild sheets) and exists", W.WAYRIFT_SHEETS.length === 4 && W.WAYRIFT_SHEETS.every((u) => existsSync(`public${u}`)) && /for \(const url of WAYRIFT_SHEETS\) \{/.test(draw) && /def playtest1f_d2\(\)/.test(readFileSync("tools/pixel-writer/make_gravewake.py", "utf8")));
+  }
+
+  // 8. Laws: the dated owner notes, the frozen playtest1e copies, the live pin.
+  {
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("playtest1f", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in wayrifts.ts, sim.ts, draw.ts and the rift writer`, law.includes(`${TAG}`) && agents.includes(`${TAG}`) && wr.includes(TAG) && sim.includes(TAG) && draw.includes(TAG) && readFileSync("tools/pixel-writer/rift_writer.py", "utf8").includes(TAG));
+    const FROZEN = { "sim.ts": "c909777a3b3ad62894296b6d3b1aeef7", "draw.ts": "f44c0e93ff39252740c959aabc9884ef" };
+    check("playtest1f", "the frozen references (scripts/frozen/playtest1f) are playtest1e's sim and draw byte for byte (as pushed at ee433e3), and group playtest1e's live pin reads them", Object.entries(FROZEN).every(([f, hh]) => md5f(`scripts/frozen/playtest1f/${f}.txt`) === hh) && /md5f\(pt1eView\(f\)\)/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
+    globalThis.Image = had.Image;
+    globalThis.document = had.document;
+    const LIVE = {"src/game/sim.ts": "ed21983bb7fdba0c1a983fbe7dbeab30", "src/game/draw.ts": "2d1deb7e9bfe797a01d42ca41e433360", "src/game/wayrifts.ts": "18c5b520de41612be6a31be18f5acbd2", "src/game/content.ts": "d8ee5cbd237c2896fefbad760d0cad86", "src/game/Gravewake.tsx": "8260af8345576dbc081da2fd064731d9", "src/game/bounty.ts": "c7d2ddceadee04efd5bd502ef8b56dd4", "src/game/festivals.ts": "d0e2b1052602741715c0279089762d8c", "tools/map-writer/map_writer.ts": "b231f85001aee13f7fe5b1bb9a6ba67c", "tools/map-writer/gravewake_vale.ts": "910518acdefa35eed839fe9323bcaf89", "tools/map-writer/gravewake_world.ts": "3e1c2a70dce85efe73f460b664c84946"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1f", "the live game files are byte for byte playtest1f's (sim, draw, wayrifts, content, shell, bounty, festivals, the map writer and its vale and world adapters)", moved.length === 0 && Object.keys(LIVE).length === 10, moved.join(", "));
   }
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

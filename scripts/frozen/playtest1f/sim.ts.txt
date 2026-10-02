@@ -73,7 +73,6 @@ import { DECOR, decorKey, readTrophy, trophyKey } from "./decor";
 import { FESTIVALS, LIVE_FESTIVALS, SEASON, dayInSeason, festivalHook, seasonAt, seasonPick, seasonWeather, type SeasonId } from "./seasons";
 import { ASHEN_FAIR, DROWNED_BLOOM, HARVEST, KRAMPUSNACHT, bloomSpots, carveScore, courtList, danceOrder, harvestJudge, inFlood, naughtyList, sideshowList, type Naughty } from "./festivals";
 import { BOND, BOND_LINES, bondKey, bondStamp, bondTier, readBond, type BondPassive } from "./bond";
-import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival, wayFront, wayLink, wayMouth, wayMouthAt, waySolid, wayriftById, type Wayrift } from "./wayrifts";
 
 export { FAMILIES, scaleMonster, zoneLevel };
 import type { AudioBus } from "./audio";
@@ -576,11 +575,6 @@ export class Game {
   riftCycle = 0;
   /** A rift mouth you were set down on: it does not take you again until you step off it. */
   riftHold = "";
-  /** playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: a wayrift journey under way (the swirl closes for
-   * WAYRIFT.out s, you move to the far rift's front, it opens for WAYRIFT.back s). Never saved: it is over in a second. */
-  travel: { t: number; from: string; to: string; moved: boolean } | null = null;
-  /** The rift you just stepped out of: it will not take you back until your feet are off its mouth and front. */
-  wayHold = "";
   private swirlCool = 0;
   private bossRoomNoted = "";
   /** Map writer: the generated floor you stand on (rooms, boss spot), or null on a hand-made floor. Read by checks and the headless run. */
@@ -1452,7 +1446,6 @@ export class Game {
           if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
           const t = this.tiles[ty * this.w + tx];
           if (t === T.door || t === T.water || t === T.pool || t === T.stairD || t === T.stairU) continue;
-          if (this.mapId === "world" && wayMouthAt(tx, ty)) continue; // playtest1f: never set down in a wayrift's mouth
           const keep = [this.px, this.py];
           this.px = tx * TILE + 8;
           this.py = ty * TILE + 8;
@@ -1482,7 +1475,6 @@ export class Game {
           if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
           const t = this.tiles[ty * this.w + tx];
           if (t === T.door || t === T.stairD || t === T.stairU) continue;
-          if (this.mapId === "world" && wayMouthAt(tx, ty)) continue; // playtest1f: never set down in a wayrift's mouth
           this.px = tx * TILE + 8;
           this.py = ty * TILE + 8;
           if (open()) return;
@@ -1506,8 +1498,6 @@ export class Game {
     this.npcs = built.npcs;
     this.px = x;
     this.py = y;
-    // playtest1f: a spot from before the wayrifts (a save, a camp's return spot) may sit in one's standing stones now
-    this.unstick();
     this.placeBosses();
     this.critters = [{ x: x + 30, y: y + 16, kind: "rat", vx: 10 }];
     this.seenBiome = "";
@@ -1645,7 +1635,6 @@ export class Game {
         ...Object.keys(world.entrances).map((k) => ({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) })),
         ...RIFTS.map((r) => ({ x: r.tx, y: r.ty })),
         ...world.npcs.map((n) => ({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE) })),
-        ...WAYRIFTS.map((w) => wayMouth(w)), // playtest1f: no lair on or by a wayrift's stones
       ];
       this.lairCache = { tiles: world.tiles, w: world.w, lairs: lairTiles(world.tiles, world.w, world.h, avoid) };
     }
@@ -2924,11 +2913,6 @@ export class Game {
       this.tickLinger(dt);
       return;
     }
-    if (this.travel) {
-      // playtest1f: inside a wayrift's swirl nothing moves (no input from any scheme, no foe steps up)
-      this.tickTravel(dt);
-      return;
-    }
     this.regen(dt);
     this.move(dt);
     this.tickDrops(dt);
@@ -3114,15 +3098,6 @@ export class Game {
 
   setGoal(x: number, y: number) {
     if (this.mode !== "play") return;
-    // playtest1f: a tap on a wayrift's art walks you into its mouth (the stones would stop a straight line to the tap)
-    const way = this.mapId === "world" ? wayArtAt(x, y, TILE) : undefined;
-    if (way) {
-      const m = wayMouth(way);
-      const f = wayFront(way);
-      const below = this.py >= f.y * TILE;
-      x = m.x * TILE + 8;
-      y = (below ? m.y : f.y) * TILE + 8;
-    }
     this.goal = { x, y };
     this.goalStuck = 0;
   }
@@ -3210,8 +3185,6 @@ export class Game {
     if (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h) return true;
     const t = this.tiles[ty * this.w + tx];
     if (t === T.wall || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t)) return true;
-    // playtest1f: a wayrift's standing stones (its footprint but the mouth) stop everyone
-    if (this.mapId === "world" && waySolid(tx, ty)) return true;
     // Item 10: bought furniture stands in the croft and stops everyone, like any furnishing.
     if (this.mapId === "inside" && this.inside === "croft" && this.decorAt(tx, ty)) return true;
     /** The hero may enter. Townsfolk, critters, and roamers may not. */
@@ -3315,17 +3288,6 @@ export class Game {
     const gate = this.mapId === "world" && here === T.door;
     const mouth = this.mapId === "world" ? this.entrances[`${tx},${ty}`] : "";
     const rift = this.mapId === "world" && !this.riftHold ? RIFTS.find((r) => r.tx === tx && r.ty === ty) : undefined;
-    if (this.wayHold) {
-      const held = wayriftById(this.wayHold);
-      const m = held && wayMouth(held);
-      if (!m || this.mapId !== "world" || tx !== m.x || (ty !== m.y && ty !== m.y + 1)) this.wayHold = "";
-    }
-    const way = this.mapId === "world" && !this.riftHold && !this.travel ? wayMouthAt(tx, ty) : undefined;
-    if (way && way.id === this.wayHold) return;
-    if (way) {
-      this.startTravel(way);
-      return;
-    }
     if (rift && !hearth && !grave && !pit && !gate && !mouth) {
       this.enterDungeon(rift.id);
       this.doorCool = 0.45;
@@ -4487,57 +4449,6 @@ export class Game {
   private riftSaveSpot() {
     const p = this.riftReturn;
     return this.mapId === "dungeon" && p && p.mapId === "world" && dungeonById(this.dungeon)?.rift ? p : null;
-  }
-
-  /**
-   * playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: step into a wayrift's mouth. A sealed festival rift
-   * says when it wakes (once, until you step off its mouth); an awake one swirls you to its twin's front.
-   */
-  private startTravel(w: Wayrift) {
-    const m = wayMouth(w);
-    this.riftHold = `${m.x},${m.y}`;
-    const season = this.season();
-    const to = wayLink(w, season);
-    if (!to) {
-      this.logLine = `The ${w.name} is sealed. It wakes for ${wayFestival(w, season).name}, in ${w.season}.`;
-      return;
-    }
-    this.travel = { t: 0, from: w.id, to: to.id, moved: false };
-    this.goal = null;
-    this.audio?.spell();
-    this.fx.portal(m.x * TILE + 8, m.y * TILE - 6);
-    this.logLine = w.festival ? `The rift pulls toward ${wayFestival(w, season).name}.` : "The rift pulls you in.";
-  }
-
-  /** The swirl: close, move to the far rift's front (facing out of it), open. Ends on its own; never saved. */
-  private tickTravel(dt: number) {
-    const tr = this.travel;
-    if (!tr) return;
-    tr.t += dt;
-    const to = wayriftById(tr.to);
-    if (!to || this.mapId !== "world") {
-      this.travel = null;
-      return;
-    }
-    if (!tr.moved && tr.t >= WAYRIFT.out) {
-      tr.moved = true;
-      const f = wayFront(to);
-      this.px = f.x * TILE + 8;
-      this.py = f.y * TILE + 8;
-      this.facing = "s";
-      this.wayHold = to.id;
-      this.unstick();
-      const c = this.companion;
-      if (c) {
-        c.x = this.px + 14;
-        c.y = this.py + 4;
-        if (this.solidAt(c.x, c.y) || this.blockedProp(c.x, c.y)) this.freeBody(c);
-      }
-      this.critters = [{ x: this.px + 30, y: this.py + 16, kind: "rat", vx: 10 }];
-      this.fx.portal(this.px, this.py - 20);
-      this.logLine = `You step out by ${WAYRIFT_PLACE[to.id] ?? "the far rift"}.`;
-    }
-    if (tr.t >= WAYRIFT.out + WAYRIFT.back) this.travel = null;
   }
 
   /** The rift mouths on the overworld. Read by draw.ts. */
@@ -7250,8 +7161,6 @@ export class Game {
     this.gen = null;
     this.battle = null;
     this.talk = null;
-    this.travel = null; // playtest1f: a journey is never saved, and a load never lands mid-swirl
-    this.wayHold = "";
     this.hp = Math.min(raw.hp, this.maxHp);
     this.energy = this.cls === "vampire" ? 0 : Math.min(raw.energy, this.maxEnergy);
     if (raw.mapId === "world") {
@@ -7668,8 +7577,6 @@ function buildWorld() {
   return { w: m.w, h: m.h, tiles: m.tiles.slice(), entrances: { ...m.entrances }, npcs: m.npcs.map((n) => ({ ...n })), landmarks: m.landmarks, caches: m.caches };
 }
 
-/** Tiles a wayrift's front may not walk through to reach the road net (the body rule: solidAt and blockedProp). */
-const WAY_BLOCK = new Set<number>([T.tree, T.rock, T.pump, T.grave, T.wall, T.water, T.pool, T.ice, T.shelf, T.cauldron, T.moon]);
 function layWorld() {
   const sites: { x: number; y: number }[] = [];
   for (const d of DUNGEONS) if (!d.town) sites.push({ x: d.tx, y: d.ty });
@@ -7708,9 +7615,6 @@ function layWorld() {
   // the edge forest stays dense (spreadProps spaces props three apart); the roads run out through it
   edgeBand(tiles, w, h, 2, T.tree, (t) => t === T.road);
   for (const n of npcs) clearAround(tiles, w, h, n.x, n.y);
-  // playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: the wayrifts stand on cleared ground, each front joined
-  // to the road net (wayrifts.ts stampWayrifts: it cuts a trail only where the writer left none).
-  stampWayrifts(tiles, w, h, { road: T.road, trail: T.dirt, tree: T.tree, rock: T.rock, pump: T.pump, water: T.water, ice: T.ice }, (x, y) => WORLD_DRESS[worldBiome(x, y)].ground, (t) => !WAY_BLOCK.has(t));
   return { w, h, tiles, entrances, npcs, landmarks: laid.landmarks.map((l) => ({ x: l.x, y: l.y, kind: l.kind })), caches: laid.caches };
 }
 

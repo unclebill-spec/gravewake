@@ -1,0 +1,349 @@
+"""Rift writer (playtest1f, batch D2, 2026-10-02): the wayrifts, standing portals on the vale, and the swamp's path.
+
+[OWNER-APPROVED 2026-10-02: playtest1f portals] Bill asked for visible, animated portals in the Gravewake palette:
+neon blue cold fire, violet and red glow (style refs in style/rift_refs: tall oval vortices, standing gates, a cold
+blue ring of fire). These are drawn fresh, pixel by pixel, on the pixel writer's Canvas: one colour per pixel, hard
+alpha, every colour from palette v3 (LOCKED_V3; a wanted shade is snapped to its nearest locked step, never mixed).
+
+    wayrift(frame)          48x64, a 3x2-tile footprint (the bottom 32 rows) with the rift standing 2 tiles above it:
+                            a slate dais, two rune menhirs, a tall oval vortex (violet arms round a red-glowing heart,
+                            a blue inner lip) wrapped in neon-blue cold fire. Frames 0-7 turn the swirl a third of a
+                            turn (three arms, so the loop is seamless) and lick the flames; frame 8 is a sealed
+                            (dormant) rift: the vortex dark and still, no fire, the runes cold.
+    wayrift_icon(lit)       9x11 map marker (corner map and full map): a cold-fire ring round a violet eye.
+    swamp_path(mask, alt)   16x16 swamp trail cells (owner-reported 2026-10-02: swamp trails drew as flat dark-brown
+                            squares): mossy mud with ragged, blended edges, the swamp ground showing through outside it
+                            (transparent), and a plank boardwalk on straight runs. mask: 1 N, 2 E, 4 S, 8 W (the
+                            neighbours that are path too). alt 1 is a straight run with a sunken plank.
+Every art cell returns (art, em): em holds only the pixels that glow (the game draws it after the light layer).
+"""
+
+from __future__ import annotations
+
+import math
+
+from wild_writer import Canvas, INK, NEON, snap  # noqa: F401  (the palette-locked Canvas)
+
+BLUE = NEON["blue"]      # #16304a #2a3a6a #3a6ad0 #4ab8ff #9ae4ff #e7f4ff
+VIOLET = NEON["violet"]  # #241848 #4a2a78 #7a5ad0 #b07aff #c9a0e8 #f4fbff
+RED = NEON["red"]        # #2a1018 #6a2030 #c43838 #ff3a50 #ffd0d0 #fff8ee
+SLATE = ("#140c10", "#1a1a1c", "#2a2a2e", "#3a4048", "#4a4e54", "#6a6e78", "#8a8e94")
+ABYSS = "#140c28"
+FRAMES = 8
+W, H = 48, 64
+OVAL = (23.5, 29.5, 12.5, 23.5)  # cx, cy, rx, ry
+DORMANT = FRAMES
+
+
+def _hash(x: int, y: int, s: int = 0) -> float:
+    n = (x * 374761393 + y * 668265263 + s * 2147483647) & 0xFFFFFFFF
+    n = ((n ^ (n >> 13)) * 1274126177) & 0xFFFFFFFF
+    return ((n ^ (n >> 16)) & 0xFFFF) / 65535.0
+
+
+def _dais(c: Canvas, lit: bool, frame: int, em: Canvas) -> None:
+    cx, cy, rx, ry = 23.5, 56.0, 22.5, 6.6
+    for y in range(48, 64):
+        for x in range(W):
+            d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
+            if d > 1.0:
+                continue
+            col = SLATE[2]
+            if d > 0.82:
+                col = SLATE[0] if y >= cy else SLATE[1]
+            elif y < cy - 3.5:
+                col = SLATE[4] if _hash(x, y) > 0.35 else SLATE[3]
+            elif _hash(x // 5, y // 3, 7) > 0.7:
+                col = SLATE[3]
+            # flag seams: a few radial joints
+            ang = math.atan2((y - cy) / ry, (x - cx) / rx)
+            if d < 0.8 and abs(((ang * 6 / math.pi) % 1.0) - 0.5) < 0.05:
+                col = SLATE[1]
+            c.set(x, y, col)
+    # the carved channel round the rift's foot, its runes chasing round (violet) when the rift is awake
+    irx, iry = 15.0, 4.2
+    steps = 64
+    for k in range(steps):
+        a = 2 * math.pi * k / steps
+        x = int(round(cx + irx * math.cos(a)))
+        y = int(round(cy + 0.4 + iry * math.sin(a)))
+        if not lit:
+            c.set(x, y, VIOLET[0] if k % 4 else "#2a2030")
+            continue
+        seg = (k + frame * 2) % 16
+        if seg < 2:
+            c.set(x, y, VIOLET[4])
+            em.set(x, y, VIOLET[4])
+        elif seg < 5 or k % 8 == 0:
+            c.set(x, y, VIOLET[3])
+            em.set(x, y, VIOLET[3])
+        else:
+            c.set(x, y, VIOLET[1])
+
+
+def _pillar(c: Canvas, em: Canvas, x0: int, lit: bool, frame: int, side: int) -> None:
+    """A tapered rune menhir, 8 wide, top at row 9, foot on the dais."""
+    top, foot = 9, 58
+    for y in range(top, foot + 1):
+        t = (y - top) / (foot - top)
+        half = 3.0 + 1.2 * t
+        if y < top + 3:
+            half -= (top + 3 - y) * 0.9
+        lx = int(round(x0 + 4 - half))
+        rx = int(round(x0 + 3 + half))
+        for x in range(lx, rx + 1):
+            col = SLATE[3]
+            if x == lx or x == rx or y == top:
+                col = SLATE[0]
+            elif x == lx + 1:
+                col = SLATE[5] if y < top + 20 else SLATE[4]
+            elif x == rx - 1:
+                col = SLATE[2]
+            elif _hash(x, y, 3) > 0.8:
+                col = SLATE[4]
+            c.set(x, y, col)
+    # chips off the edges
+    for y in (17, 31, 44):
+        c.set(x0 + (0 if side < 0 else 7), y, None)
+    # runes: four carved marks down the face; a light runs up them (one bright, its neighbours lit)
+    glyphs = [((1, 0), (1, 1), (1, 2), (0, 1), (2, 1)), ((0, 0), (2, 0), (1, 1), (1, 2)), ((0, 0), (1, 0), (2, 0), (1, 1), (0, 2), (2, 2)), ((1, 0), (0, 1), (2, 1), (1, 2))]
+    for j, gl in enumerate(glyphs):
+        gy = 16 + j * 9
+        hot = lit and (FRAMES - 1 - frame) // 2 == j
+        warm = lit and not hot
+        for (dx, dy) in gl:
+            x, y = x0 + 3 + dx - 1, gy + dy
+            if hot:
+                col = VIOLET[4] if (dx, dy) == (1, 1) else VIOLET[3]
+            elif warm:
+                col = VIOLET[2]
+            else:
+                col = "#2a2030"
+            c.set(x, y, col)
+            if lit:
+                em.set(x, y, col)
+    # a red ember seam at the foot (the rift's heat): two pixels that breathe
+    if lit:
+        for k, (dx, dy) in enumerate(((2, 54), (5, 55), (3, 56))):
+            col = RED[3] if (frame + k + side) % 3 else RED[2]
+            c.set(x0 + dx, dy, col)
+            em.set(x0 + dx, dy, col)
+
+
+def _oval(c: Canvas, em: Canvas, frame: int, lit: bool) -> None:
+    cx, cy, rx, ry = OVAL
+    phase = 2 * math.pi * frame / (FRAMES * 3)
+    for y in range(H):
+        for x in range(W):
+            nx, ny = (x - cx) / rx, (y - cy) / ry
+            r = math.hypot(nx, ny)
+            if r > 1.0:
+                continue
+            a = math.atan2(ny, nx)
+            if not lit:
+                # sealed: a dark still veil with a faint frozen swirl and a cold thin lip
+                v = math.sin(3 * a + 7.0 * r)
+                col = ABYSS if v < 0.55 else VIOLET[0]
+                if r > 0.93:
+                    col = BLUE[1]
+                elif r > 0.86:
+                    col = "#1a1428"
+                c.set(x, y, col)
+                continue
+            # three spiral arms, turning a third of a turn over the eight frames
+            v = math.sin(3 * (a - phase) + 8.0 * r)
+            if r < 0.12:
+                col = ABYSS
+            elif r < 0.2:
+                col = RED[2] if v > -0.2 else RED[1]
+            elif r < 0.34:
+                col = RED[3] if v > 0.55 else RED[2] if v > -0.1 else VIOLET[1]
+            elif r < 0.84:
+                col = VIOLET[3] if v > 0.62 else VIOLET[2] if v > 0.1 else VIOLET[1] if v > -0.55 else VIOLET[0]
+                if v > 0.9 and r < 0.6:
+                    col = VIOLET[4]
+            elif r < 0.93:
+                col = BLUE[3] if v > 0.0 else BLUE[2]
+            else:
+                col = BLUE[4]
+            c.set(x, y, col)
+            if col in (RED[3], RED[2], VIOLET[3], VIOLET[4], BLUE[3], BLUE[4]):
+                em.set(x, y, col)
+    # the heart: a red spark that blinks round the dark eye
+    if lit:
+        k = frame % 4
+        hx, hy = int(cx + (1, 0, -1, 0)[k]), int(cy + (0, 1, 0, -1)[k])
+        c.set(hx, hy, RED[4])
+        em.set(hx, hy, RED[4])
+
+
+def _flames(c: Canvas, em: Canvas, frame: int) -> None:
+    """Neon-blue cold fire round the rim: tongues that lick up and outward, longer over the top, with violet tips."""
+    cx, cy, rx, ry = OVAL
+    phase = 2 * math.pi * frame / FRAMES
+    for y in range(H):
+        for x in range(W):
+            nx, ny = (x - cx) / rx, (y - cy) / ry
+            r = math.hypot(nx, ny)
+            if r <= 1.0 or r > 1.5:
+                continue
+            a = math.atan2(ny, nx)
+            d = (r - 1.0) * (rx * ry) / math.hypot(ry * math.cos(a), rx * math.sin(a))  # roughly px out from the rim
+            up = max(0.0, -math.sin(a))  # 1 over the top, 0 at the sides and below
+            lick = max(0.0, math.sin(7 * a + phase)) ** 2 + 0.6 * max(0.0, math.sin(11 * a - 2 * phase + 1.3)) ** 2
+            L = 0.8 + 2.2 * lick + 2.6 * up * lick
+            if y > cy + ry * 0.75:
+                L = min(L, 1.2)  # the foot sits on the dais: no fire under it
+            if d >= L:
+                continue
+            f = d / max(L, 0.01)
+            col = BLUE[4] if f < 0.3 else BLUE[3] if f < 0.65 else (VIOLET[3] if up > 0.5 and lick > 0.7 else BLUE[2])
+            if c.get(x, y) is None or c.get(x, y) not in SLATE:
+                c.set(x, y, col)
+                em.set(x, y, col)
+    # sparks: blue and red motes rising off the crown, two frames a step
+    for j in range(5):
+        a = -math.pi / 2 + (j - 2) * 0.55
+        bx = cx + (rx + 2) * math.cos(a)
+        by = cy + (ry + 2) * math.sin(a)
+        rise = (frame + j * 3) % FRAMES
+        x, y = int(round(bx + ((j % 2) * 2 - 1) * (rise // 3))), int(round(by - rise))
+        if 0 <= y < H and c.get(x, y) is None:
+            col = RED[3] if j % 2 else BLUE[4]
+            if rise < 6:
+                c.set(x, y, col)
+                em.set(x, y, col)
+
+
+def wayrift(frame: int) -> tuple[Canvas, Canvas]:
+    c = Canvas(W, H)
+    em = Canvas(W, H)
+    lit = frame != DORMANT
+    f = frame % FRAMES
+    _dais(c, lit, f, em)
+    if lit:
+        _flames(c, em, f)
+    _oval(c, em, f, lit)
+    if not lit:
+        # a cold lip of frost-blue round the sealed rift, nothing burning
+        cx, cy, rx, ry = OVAL
+        for k in range(96):
+            a = 2 * math.pi * k / 96
+            x = int(round(cx + (rx + 0.6) * math.cos(a)))
+            y = int(round(cy + (ry + 0.6) * math.sin(a)))
+            if c.get(x, y) is None:
+                c.set(x, y, BLUE[0] if k % 3 else BLUE[1])
+    _pillar(c, em, 1, lit, f, -1)
+    _pillar(c, em, 39, lit, f, 1)
+    # the glow mask holds only the art's own pixels: where a stone or the lip was drawn over a flame, its glow goes
+    for y in range(H):
+        for x in range(W):
+            e = em.get(x, y)
+            if e is not None and e != c.get(x, y):
+                em.p[y][x] = None
+    return c, em
+
+
+def wayrift_icon(lit: bool) -> Canvas:
+    """9x11 map marker: an ink-edged oval of cold fire round a violet eye (a red heart when awake)."""
+    c = Canvas(9, 11)
+    cx, cy, rx, ry = 4.0, 5.0, 3.6, 4.7
+    for y in range(11):
+        for x in range(9):
+            r = math.hypot((x - cx) / rx, (y - cy) / ry)
+            if r > 1.25:
+                continue
+            if r > 1.0:
+                col = INK
+            elif r > 0.7:
+                col = (BLUE[4] if (x + y) % 2 else BLUE[3]) if lit else BLUE[1]
+            elif r > 0.3:
+                col = VIOLET[3] if lit else VIOLET[1]
+            else:
+                col = RED[3] if lit else ABYSS
+            c.set(x, y, col)
+    return c
+
+
+# The swamp path. Mud ramp (dark to wet sheen), moss, the boardwalk's planks.
+MUD = ("#1a1612", "#2a221c", "#3a3228", "#4a3828", "#5a4834")
+MOSS = ("#1e3a28", "#2f6a44", "#4a8a48", "#6aaa48")
+PLANK = ("#2a1c14", "#4a3424", "#6a5038", "#8a6848", "#a07850")
+HALF = 5.0  # the band's half width at a tile border (so neighbours meet exactly: x or y 3..12)
+
+
+def _seg_dist(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
+    vx, vy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy or 1)))
+    return math.hypot(px - (ax + t * vx), py - (ay + t * vy))
+
+
+def swamp_path(mask: int, alt: int = 0) -> tuple[Canvas, Canvas]:
+    c = Canvas(16, 16)
+    em = Canvas(16, 16)
+    cx = cy = 7.5
+    ends = [(7.5, -0.5) if mask & 1 else None, (15.5, 7.5) if mask & 2 else None, (7.5, 15.5) if mask & 4 else None, (-0.5, 7.5) if mask & 8 else None]
+    segs = [e for e in ends if e]
+    seed = 31 * mask + 7 * alt
+    inside = [[False] * 16 for _ in range(16)]
+    dist = [[9.0] * 16 for _ in range(16)]
+    for y in range(16):
+        for x in range(16):
+            d = min([_seg_dist(x, y, cx, cy, ex, ey) for (ex, ey) in segs] or [math.hypot(x - cx, y - cy)])
+            # ragged edge: wobble only away from the borders, so a band meets its neighbour's band exactly
+            border = min(x, y, 15 - x, 15 - y)
+            wob = (_hash(x, y, seed) - 0.5) * 2.2 * min(1.0, border / 3.0)
+            hw = (HALF if segs else 4.2) + wob + (0.8 if len(segs) >= 3 else 0.0)
+            dist[y][x] = hw - d
+            inside[y][x] = d <= hw
+    for y in range(16):
+        for x in range(16):
+            e = dist[y][x]
+            if e < -1.2:
+                continue
+            h = _hash(x, y, seed + 1)
+            if e < 0:
+                # the blend: a broken fringe of moss and mud crumbs over the swamp ground
+                if h > 0.55:
+                    c.set(x, y, MOSS[1] if h > 0.8 else MUD[1])
+                continue
+            if e < 1.0:
+                col = MOSS[1] if h > 0.6 else MOSS[0] if h > 0.3 else MUD[1]
+            else:
+                col = MUD[2] if h > 0.45 else MUD[3]
+                if h > 0.9:
+                    col = MUD[4]  # a wet glint
+                elif h < 0.08:
+                    col = MOSS[2]
+            c.set(x, y, col)
+    straight = mask in (5, 10)
+    if straight:
+        ns = mask == 5
+        for k in range(16):
+            # planks across the run, 3 px wide with a 1 px gap of mud between: period 4, seamless along the run
+            if k % 4 == 3:
+                continue
+            if alt and k in (8, 9, 10):
+                continue  # one plank sunk into the mud
+            for j in range(3, 13):
+                x, y = (j, k) if ns else (k, j)
+                edge = j in (3, 12)
+                col = PLANK[1] if edge else PLANK[3] if k % 4 == 0 else PLANK[2]
+                if (j == 4 or j == 11) and k % 4 == 1:
+                    col = PLANK[0]  # the nails
+                if _hash(x, y, seed + 5) > 0.88 and not edge:
+                    col = MOSS[1]
+                c.set(x, y, col)
+    elif mask and len(segs) >= 2:
+        # a junction or a bend: a broken plank half sunk, and a moss tussock
+        for j in range(5, 10):
+            c.set(j, 9, PLANK[2] if j % 2 else PLANK[1])
+        c.set(4, 6, MOSS[2])
+        c.set(5, 6, MOSS[3])
+        c.set(5, 5, MOSS[2])
+    else:
+        # a dead end or a lone puddle: a dark pool with a sheen
+        for (x, y) in ((6, 7), (7, 7), (8, 7), (7, 8), (8, 8), (6, 8)):
+            c.set(x, y, MUD[0])
+        c.set(7, 7, "#2a4060")
+    return c, em

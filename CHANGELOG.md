@@ -2,6 +2,14 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1f, wayrift portals and swamp paths (OWNER-APPROVED)
+- 11 animated wayrift portals on the vale (violet swirl, red heart, neon-blue cold fire on a rune dais, 3x2 tiles). Four at the town gate lead to the Ashen Rift, the Shifting Barrow, the Waste Pocket and the current season's festival; festival portals for other seasons are sealed until their season.
+- Travel by walking, tapping or pushing the stick into a portal's mouth: an ink iris closes and opens at the far end, and the far portal waits until you step off.
+- Portals glow at night (gate pairs share one light), and show on the corner and full maps.
+- Swamp trails drawn as mossy mud and boardwalk with blended edges.
+- Old saves load; a hero standing where a portal now stands is moved off it.
+- check:game 749; fail-proofs 907/907 (plus 64/64 after the light fix).
+
 ## 2026-10-02: playtest1e, bigger world and no black edges (OWNER-APPROVED)
 - Vale grows from 64x60 to 128x120: every biome has 4x its old area. Town stays 40x30.
 - Map writer phase 3 lays the vale from a fixed seed: old roads at twice the size, winding trails to every dungeon, rift, boss, cart and watch post, 24 landmarks and 14 caches, and a forest band around the edge. Every place is reachable.

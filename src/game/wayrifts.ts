@@ -1,0 +1,227 @@
+/**
+ * Wayrifts: standing portals on the vale ([OWNER-APPROVED 2026-10-02: playtest1f portals], owner-requested
+ * 2026-10-02 09:42 ET, batch D2). Visible, animated rifts in the Gravewake palette (tools/pixel-writer/rift_writer.py:
+ * neon-blue cold fire round a violet swirl with a red-glowing heart) that link the town's gate to the seasonal festival
+ * zones, the Ashen Rift and two other special places on the 128x120 vale.
+ *
+ * Each wayrift has a 3x2-tile footprint (x..x+2, y..y+1; the art is 48x64, standing two tiles above it). The two side
+ * columns and the top row are standing stone (solid); the bottom-middle tile is the mouth: walk north into it and the
+ * rift takes you, through a swirl and a fade, to the front of its twin. The tile below the mouth is the front, where a
+ * traveller lands. The sim keeps no new save key: a journey is over in a second and a save holds only where you stand.
+ *
+ * The hub row stands by the town gate (64,90), two each side of the road, so every player walks past them on the way
+ * out. The festival hub rift leads to this season's festival zone; the other three festival zones' rifts are sealed
+ * (dim, no fire) until their own season. Pure data and picks here; the sim (sim.ts) and the draw (draw.ts) read it.
+ */
+import { FESTIVALS, type SeasonId } from "./seasons";
+
+export type Wayrift = {
+  id: string;
+  name: string;
+  /** Footprint top-left tile (3 wide, 2 tall). */
+  x: number;
+  y: number;
+  /** A hub rift stands at the town gate; a far rift stands at its place. */
+  hub: boolean;
+  /** The rift it leads to; a festival hub leads to this season's festival rift instead. */
+  to?: string;
+  /** A festival rift: awake only in its own season. */
+  season?: SeasonId;
+  /** The festival hub (its twin changes with the season). */
+  festival?: boolean;
+};
+
+export const WAYRIFT = {
+  /** Seconds the swirl takes to close over you, then to open at the far rift. */
+  out: 0.55,
+  back: 0.55,
+  /** Night light (cold blue) at an awake rift, px radius (a lit pool of about 3.5 tiles on the ground before it, at
+   * its mouth); the sealed ones give none. */
+  light: 96,
+  /** Swirl frames in the sheet (cell 8 is the sealed look). */
+  frames: 8,
+  /** The map-writer pass that keeps each footprint clear: rows above the footprint (the art) and a side margin. */
+  clearUp: 2,
+  clearSide: 1,
+} as const;
+
+export const WAYRIFTS: readonly Wayrift[] = [
+  // the hub row, south of the town gate: west of the road, then east
+  { id: "hub-rift", name: "Wayrift to the Ashen Rift", x: 56, y: 91, hub: true, to: "rift" },
+  { id: "hub-fest", name: "Festival wayrift", x: 60, y: 91, hub: true, festival: true },
+  { id: "hub-barrow", name: "Wayrift to the Shifting Barrow", x: 66, y: 91, hub: true, to: "barrow" },
+  { id: "hub-waste", name: "Wayrift to the Waste Pocket", x: 70, y: 91, hub: true, to: "waste" },
+  // the festival zones (one awake a season)
+  { id: "fest-harvest", name: "Harvest Moon wayrift", x: 46, y: 104, hub: false, to: "hub-fest", season: "autumn" },
+  { id: "fest-krampus", name: "Krampusnacht wayrift", x: 27, y: 19, hub: false, to: "hub-fest", season: "winter" },
+  { id: "fest-bloom", name: "Drowned Bloom wayrift", x: 72, y: 42, hub: false, to: "hub-fest", season: "spring" },
+  { id: "fest-ashen", name: "Ashen Fair wayrift", x: 28, y: 100, hub: false, to: "hub-fest", season: "summer" },
+  // the rift and the other special places
+  { id: "rift", name: "Ashen Rift wayrift", x: 23, y: 60, hub: false, to: "hub-rift" },
+  { id: "barrow", name: "Shifting Barrow wayrift", x: 95, y: 59, hub: false, to: "hub-barrow" },
+  { id: "waste", name: "Waste Pocket wayrift", x: 95, y: 42, hub: false, to: "hub-waste" },
+];
+
+/** Where each far rift's place is called in a line ("You step out by ..."). */
+export const WAYRIFT_PLACE: Record<string, string> = {
+  "fest-harvest": "the Pumpkin Lord's patch",
+  "fest-krampus": "the Winter hollow",
+  "fest-bloom": "the Drowned Court's banks",
+  "fest-ashen": "the Cinder sideshow",
+  rift: "the Ashen Rift",
+  barrow: "the Shifting Barrow",
+  waste: "the Waste Pocket",
+  "hub-rift": "the town gate",
+  "hub-fest": "the town gate",
+  "hub-barrow": "the town gate",
+  "hub-waste": "the town gate",
+};
+
+/** The rift writer's sheets (tools/pixel-writer/rift_writer.py): 48x64 cells, 0-7 the swirl, 8 the sealed look. */
+export const WAYRIFT_SHEET = "/art/writer/wayrift.png";
+export const WAYRIFT_EM = "/art/writer/wayrift_em.png";
+/** The 9x11 map marker: 0 awake, 1 sealed. */
+export const WAYRIFT_ICON = "/art/writer/wayrift-icon.png";
+/** The swamp's path cells, 16x16: 0-15 by the NESW mask (1 N, 2 E, 4 S, 8 W), 16/17 the sunken-plank straights. */
+export const SWAMP_PATH = "/art/writer/swamp-path.png";
+export const WAYRIFT_SHEETS = [WAYRIFT_SHEET, WAYRIFT_EM, WAYRIFT_ICON, SWAMP_PATH];
+
+/** The name over a rift when you stand near it. */
+export function wayLabel(w: Wayrift, season: SeasonId): string {
+  if (w.festival) return `Wayrift: ${FESTIVALS[season].name}`;
+  if (w.season && w.season !== season) return `${FESTIVALS[w.season].name} rift (sealed)`;
+  if (!w.hub) return "Wayrift: the town gate";
+  return w.name.replace("Wayrift to the ", "Wayrift: ");
+}
+
+export const wayriftById = (id: string) => WAYRIFTS.find((w) => w.id === id);
+/** The mouth tile (walk into it) and the front tile (where you land). */
+export const wayMouth = (w: Wayrift) => ({ x: w.x + 1, y: w.y + 1 });
+export const wayFront = (w: Wayrift) => ({ x: w.x + 1, y: w.y + 2 });
+
+/** Is this rift awake in this season? Hubs and the rift's own places always are; a festival rift only in its season. */
+export function wayAwake(w: Wayrift, season: SeasonId): boolean {
+  return !w.season || w.season === season;
+}
+
+/** The rift this one leads to now, or null (sealed). The festival hub leads to this season's festival rift. */
+export function wayLink(w: Wayrift, season: SeasonId): Wayrift | null {
+  if (!wayAwake(w, season)) return null;
+  if (w.festival) return WAYRIFTS.find((f) => f.season === season) ?? null;
+  return (w.to && wayriftById(w.to)) || null;
+}
+
+/** The festival named for a festival rift or the hub (this season's). */
+export function wayFestival(w: Wayrift, season: SeasonId) {
+  return FESTIVALS[w.season ?? season];
+}
+
+/**
+ * The night lights (cold blue, WAYRIFT.light px): one at each awake far rift's mouth. The gate's four hub rifts share
+ * one per pair, midway between the two mouths (4 tiles apart, so the one pool lights both), so the gate costs two
+ * lights, not four, and the frame rate there stays at playtest1e's.
+ */
+export function wayLights(season: SeasonId, tile = 16): { x: number; y: number; seed: number }[] {
+  const out: { x: number; y: number; seed: number }[] = [];
+  const hubs = WAYRIFTS.filter((w) => w.hub);
+  for (let i = 0; i + 1 < hubs.length; i += 2) {
+    const a = wayMouth(hubs[i]);
+    const b = wayMouth(hubs[i + 1]);
+    out.push({ x: ((a.x + b.x) / 2) * tile + tile / 2, y: a.y * tile + tile / 2, seed: a.x & 3 });
+  }
+  for (const w of WAYRIFTS) {
+    if (w.hub || !wayAwake(w, season)) continue;
+    const m = wayMouth(w);
+    out.push({ x: m.x * tile + tile / 2, y: m.y * tile + tile / 2, seed: m.x & 3 });
+  }
+  return out;
+}
+
+/** The rift whose footprint holds this tile, or undefined. */
+export function wayriftAt(tx: number, ty: number): Wayrift | undefined {
+  return WAYRIFTS.find((w) => tx >= w.x && tx < w.x + 3 && ty >= w.y && ty < w.y + 2);
+}
+
+/** Standing stone: every footprint tile but the mouth. */
+export function waySolid(tx: number, ty: number): boolean {
+  const w = wayriftAt(tx, ty);
+  return !!w && !(tx === w.x + 1 && ty === w.y + 1);
+}
+
+/** The rift whose mouth is this tile, or undefined. */
+export function wayMouthAt(tx: number, ty: number): Wayrift | undefined {
+  const w = wayriftAt(tx, ty);
+  return w && tx === w.x + 1 && ty === w.y + 1 ? w : undefined;
+}
+
+/** The rift whose art (48x64, standing two tiles over its footprint) covers this world pixel: a tap there means the mouth. */
+export function wayArtAt(px: number, py: number, tile = 16): Wayrift | undefined {
+  return WAYRIFTS.find((w) => px >= w.x * tile && px < (w.x + 3) * tile && py >= (w.y - 2) * tile && py < (w.y + 2) * tile);
+}
+
+/**
+ * Lay the rifts on the vale's grid (sim.ts layWorld, after the map writer): the footprint, its front and the rows the
+ * art stands over are cleared of trees, rocks and pumps to the biome's ground (roads, trails, doors, stairs and caches
+ * stay), and if the front cannot reach the road net a short trail is cut to the nearest road or trail tile.
+ * ground(x, y) is the biome's open ground; open(t) says a tile is walkable. Returns how many trail tiles it cut.
+ */
+export function stampWayrifts(tiles: Uint8Array, w: number, h: number, codes: { road: number; trail: number; tree: number; rock: number; pump: number; water: number; ice: number }, ground: (x: number, y: number) => number, open: (t: number) => boolean): number {
+  const clearable = (t: number) => t === codes.tree || t === codes.rock || t === codes.pump;
+  for (const r of WAYRIFTS) {
+    for (let y = r.y - WAYRIFT.clearUp; y <= r.y + 2; y++) {
+      for (let x = r.x - WAYRIFT.clearSide; x <= r.x + 2 + WAYRIFT.clearSide; x++) {
+        if (x < 0 || y < 0 || x >= w || y >= h) continue;
+        const i = y * w + x;
+        const inside = x >= r.x && x < r.x + 3 && y >= r.y && y <= r.y + 2;
+        if (clearable(tiles[i]) || (inside && (tiles[i] === codes.water || tiles[i] === codes.ice))) tiles[i] = ground(x, y);
+      }
+    }
+  }
+  let cut = 0;
+  for (const r of WAYRIFTS) {
+    const f = wayFront(r);
+    // a 0-1 search from the front (open ground costs nothing, a tree or rock to fell costs one; never through a
+    // footprint) to the nearest road or trail tile, so a front already joined to the net cuts nothing
+    const cost = new Int32Array(w * h).fill(1 << 30);
+    const prev = new Int32Array(w * h).fill(-1);
+    const start = f.y * w + f.x;
+    cost[start] = 0;
+    // bucket queue by cost (each bucket first in, first out): the same bytes every run
+    const buckets: number[][] = [[start]];
+    let hit = -1;
+    for (let c = 0; c < buckets.length && hit < 0; c++) {
+      const b = buckets[c];
+      for (let k = 0; k < b.length; k++) {
+        const i = b[k];
+        if (cost[i] !== c) continue;
+        const t = tiles[i];
+        if (t === codes.road || t === codes.trail) {
+          hit = i;
+          break;
+        }
+        const x = i % w;
+        const y = (i - x) / w;
+        for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 2 || ny < 2 || nx >= w - 2 || ny >= h - 2 || wayriftAt(nx, ny)) continue;
+          const j = ny * w + nx;
+          const nt = tiles[j];
+          if (!open(nt) && !clearable(nt)) continue;
+          const nc = c + (clearable(nt) ? 1 : 0);
+          if (nc >= cost[j]) continue;
+          cost[j] = nc;
+          prev[j] = i;
+          (buckets[nc] ??= []).push(j);
+        }
+      }
+    }
+    for (let i = hit; i >= 0 && i !== start; i = prev[i]) {
+      if (clearable(tiles[i])) {
+        tiles[i] = codes.trail;
+        cut++;
+      }
+    }
+  }
+  return cut;
+}

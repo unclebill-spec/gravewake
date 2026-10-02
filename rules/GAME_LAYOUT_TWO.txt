@@ -962,3 +962,22 @@ outdoors (vale, camp, town) is drawn as the edge ground plus dense trees, below 
 seen). Saves: a save without worldV (every save before playtest1e) has its vale position, camp spot, world portal
 and world drops doubled on load (migrateWorldSave); a tree or rock under the new spot pushes the hero off as
 always. New saves write worldV: 2.
+
+OWNER-APPROVED WAYRIFTS AND SWAMP PATH (D2)  [OWNER-APPROVED 2026-10-02: playtest1f portals]
+Bill: visible animated portals to the seasonal festival zones, the rifts and other special places, on the corner
+map and the full map, with a swirl on travel and a light at night; and a proper swamp path. Eleven wayrifts
+(src/game/wayrifts.ts): a 3x2 footprint of two solid standing stones on a dais with the open mouth between them
+(art 48x64, the rift writer's, palette v3: violet arms, red heart, neon-blue cold fire). Four stand by the town gate
+(y 91: the Ashen Rift x56, the festival rift x60, the Shifting Barrow x66, the Waste Pocket x70); far rifts by the
+Ashen Rift (23,60), the Shifting Barrow (95,59), the Waste Pocket (95,42) and one a season at each festival: Harvest
+Moon by the Pumpkin Lord's patch (46,104), Krampusnacht in the Winter hollow (27,19), the Drowned Bloom on the flood
+bank (72,42), the Ashen Fair in the Cinder (28,100). The gate's festival rift leads to this season's; the other three
+festival rifts are sealed (they say when they wake). Walk (or tap, or push the stick) into a mouth: an ink iris
+closes on the hero (0.55 s), you step out at the far rift's front, it opens (0.55 s); play, foes and input wait
+meanwhile. The arrival rift waits until you step off. Every front is 10+ tiles from a world boss. At night each
+awake far rift lights its mouth cold blue; the gate's four share one light per pair (the frame rate stays at 1e's). Laying the vale
+clears trees, rocks and pumps from each footprint, front and art rows (18 tiles change) and would cut a trail to the
+net if a front were walled in (it cuts none). Saves: no new key; a journey is never saved; a save standing on a
+stone is moved off on load. Swamp trails draw the swamp path (mossy mud with ragged edges and boardwalk planks on
+straight runs, picked by neighbour mask) over the swamp ground in place of the flat brown square. Looks only for
+the path: g.tiles still holds a trail there.

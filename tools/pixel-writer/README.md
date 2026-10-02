@@ -33,3 +33,14 @@ Do not point this at a photograph. If a tile looks like noise, the generator is 
 - `feat-glyphs.png`: 5×5 cells for moon, eye, and cross, each in three states (carved, dim, lit).
 
 The script stops if any of these pixels is soft or is not in `tools/sprite-writer/palette_locked.py`.
+
+## Wayrifts and the swamp path (playtest1f)
+
+[OWNER-APPROVED 2026-10-02: playtest1f portals] `rift_writer.py` draws the wayrifts and the swamp path in palette v3
+(wild_writer's Canvas, the NEON ramps). `make_gravewake.playtest1f_d2()` writes them to `public/art/writer`:
+
+- `wayrift.png` / `wayrift_em.png`: nine 48×64 cells (frames 0 to 7 swirl, 8 is the sealed rift) and their glow masks. Slate dais with a violet rune channel, two rune stones, an oval vortex with violet arms, a red heart, a blue lip and neon-blue cold fire.
+- `wayrift-icon.png`: two 9×11 map markers (lit, sealed).
+- `swamp-path.png`: eighteen 16×16 cells of mossy mud with ragged transparent edges, cells 0 to 15 by neighbour mask (1 N, 2 E, 4 S, 8 W, boardwalk planks on straight runs), 16 and 17 a sunken plank on the N-S and E-W runs.
+
+Run on its own: `python3 -c "import make_gravewake as m; m.playtest1f_d2()"` from this folder.
