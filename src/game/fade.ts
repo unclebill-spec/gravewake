@@ -11,6 +11,13 @@
  * fixed to the world grid, so it does not crawl as the camera moves, and it scales with the frame like every
  * other world pixel in every preset (Retro draws it at 1 canvas px per game px).
  *
+ * fade2 (OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag). Festival foes
+ * fade the same way: a festival boss and a named festival pack (Harvest Moon, Krampusnacht, Drowned Bloom, Ashen Fair)
+ * as they walk onto the vale, the helpers and pack minions that join their fight, and anything they summon. The sim
+ * writes one number on those foes only, spawnAt (the world ms they appeared at); it is never saved and play never
+ * reads it. Bounties, rift foes and dungeon foes carry no tag and draw as before. A festival foe that is already
+ * there when a scene starts (a load, walking onto the vale, waking) draws solid: only one that appears later fades.
+ *
  * The ground-mist puff is six dust chips from the existing particle pool (interact channel, cap 16), ash
  * colours already in its palette, emitted once per foe from the draw side, and only when the foe is on screen
  * and not on unexplored ground (FX rule: offscreen or fogged = don't spawn). The sim never reads the pool.
@@ -25,6 +32,8 @@ export const FADE = {
   /** Mist chips in the puff, and how late in the fade a first sight still puffs. */
   puff: 6,
   puffBefore: 0.5,
+  /** fade2: a tagged foe that appeared within this many world ms of its scene starting was already there. */
+  sceneGrace: 250,
   /** The dither box around the foe's feet, in world px (a mob sprite plus its shadow and hit flash). */
   box: { left: 16, right: 16, up: 40, down: 8 },
 } as const;
@@ -40,13 +49,46 @@ export function spawnStamp(id: string): number | null {
   return Number.isFinite(at) ? at : null;
 }
 
-/** 0 at spawn to 1 when fully drawn. Any foe that is not a fresh night roamer is 1 (drawn as before). */
-export function fadeOf(id: string, worldMs: number): number {
+/** A foe as the fade reads it: its id and, on a festival foe (fade2), the sim's spawn-time tag. */
+export type Fading = { id: string; spawnAt?: number };
+
+/**
+ * 0 at spawn to 1 when fully drawn. A night roamer reads the stamp in its id (fade1); a festival foe reads its
+ * spawnAt tag (fade2), and only if it appeared after its scene began (`since`, from sceneStart). Any other foe is 1.
+ */
+export function fadeOf(foe: string | Fading, worldMs: number, since = -Infinity): number {
+  const id = typeof foe === "string" ? foe : foe.id;
+  const tag = typeof foe === "string" ? undefined : foe.spawnAt;
+  if (typeof tag === "number" && Number.isFinite(tag)) {
+    if (!(tag - since > FADE.sceneGrace)) return 1;
+    const age = worldMs - tag;
+    if (!(age >= 0) || age >= FADE.ms) return 1;
+    return age / FADE.ms;
+  }
   const at = spawnStamp(id);
   if (at === null) return 1;
   const age = worldMs - at;
   if (!(age >= 0) || age >= FADE.ms) return 1;
   return age / FADE.ms;
+}
+
+/** What makes a scene: the map, the dungeon and the floor. */
+export type SceneOf = { mapId: string; dungeon?: string; floor?: number; worldMs: number };
+const scene = { key: "", last: NaN, start: -Infinity };
+
+/**
+ * fade2: the world ms the scene on screen began at. A new map, dungeon or floor starts one, and so does any jump in
+ * the world clock (a load, a sleep, a time skip: backwards, or more than a second forward). Drawing only.
+ */
+export function sceneStart(g: SceneOf): number {
+  const key = `${g.mapId}|${g.dungeon ?? ""}|${g.floor ?? ""}`;
+  const jump = !(g.worldMs >= scene.last) || g.worldMs - scene.last > 1000;
+  if (key !== scene.key || jump) {
+    scene.key = key;
+    scene.start = g.worldMs;
+  }
+  scene.last = g.worldMs;
+  return scene.start;
 }
 
 /** How many of the 16 Bayer cells show: 0 (none) to 16 (all). */
@@ -64,17 +106,18 @@ export function shows(x: number, y: number, level: number): boolean {
  * Draw `draw` through the dither for fade t, around the foe standing at (x, y). At t >= 1 it is a plain call.
  * The clip is whole world-pixel rects (fewer of the shown or the hidden cells, even-odd for the hidden).
  */
-export function dissolve(c: CanvasRenderingContext2D, t: number, x: number, y: number, draw: (c: CanvasRenderingContext2D) => void) {
+export function dissolve(c: CanvasRenderingContext2D, t: number, x: number, y: number, draw: (c: CanvasRenderingContext2D) => void, k = 1) {
   const level = fadeLevel(t);
   if (level >= 16) {
     draw(c);
     return;
   }
   if (level <= 0) return;
-  const x0 = Math.round(x) - FADE.box.left;
-  const y0 = Math.round(y) - FADE.box.up;
-  const x1 = Math.round(x) + FADE.box.right;
-  const y1 = Math.round(y) + FADE.box.down;
+  // fade2: k scales the box with the sprite (a festival boss is drawn at 2x).
+  const x0 = Math.round(x) - FADE.box.left * k;
+  const y0 = Math.round(y) - FADE.box.up * k;
+  const x1 = Math.round(x) + FADE.box.right * k;
+  const y1 = Math.round(y) + FADE.box.down * k;
   const hide = level > 8;
   c.save();
   c.beginPath();
@@ -97,14 +140,14 @@ export type FadeStep = { fn: () => void; actor?: (c: CanvasRenderingContext2D) =
  * Put a fading foe's draw step (body, shadow, hit flash), its actor-light silhouette and its glow-mask entries
  * (glow[from..]) through the dissolve. The closures themselves are unchanged; only where they may paint is.
  */
-export function fadeStep(ctx: CanvasRenderingContext2D, step: FadeStep, glow: ((c: CanvasRenderingContext2D) => void)[], from: number, t: number, x: number, y: number) {
+export function fadeStep(ctx: CanvasRenderingContext2D, step: FadeStep, glow: ((c: CanvasRenderingContext2D) => void)[], from: number, t: number, x: number, y: number, k = 1) {
   const fn = step.fn;
-  step.fn = () => dissolve(ctx, t, x, y, () => fn());
+  step.fn = () => dissolve(ctx, t, x, y, () => fn(), k);
   const actor = step.actor;
-  if (actor) step.actor = (c) => dissolve(c, t, x, y, actor);
+  if (actor) step.actor = (c) => dissolve(c, t, x, y, actor, k);
   for (let i = from; i < glow.length; i++) {
     const paint = glow[i];
-    glow[i] = (c) => dissolve(c, t, x, y, paint);
+    glow[i] = (c) => dissolve(c, t, x, y, paint, k);
   }
 }
 

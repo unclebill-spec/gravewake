@@ -192,6 +192,12 @@ PARTICLES
   puff from the pool (interact channel, ash colours, once, on screen and unfogged only). Looks only: the foe is
   live from its first tick; spawn rule, distance, timing, AI, aggro, HP, damage, collision and the sim tick are
   unchanged, and nothing is saved. src/game/fade.ts; `scripts/gravewake-check.mjs` (group `fade1`) enforces this.
+- [OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag] Festival foes fade in the same way: the Harvest Moon and
+  Krampusnacht bosses and the named packs of Krampusnacht, Drowned Bloom and Ashen Fair as they appear on the vale,
+  the helpers and pack minions that join their fight, and anything they summon. sim.ts only writes spawnAt (the
+  world ms the foe appeared at) on those foes; play never reads it and it is never saved. A festival foe already
+  there when a scene starts (a load, entering the vale) draws solid. A 2x boss dithers through a 2x box.
+  Bounties, rift and dungeon foes do not fade. `scripts/gravewake-check.mjs` (group `fade2`) enforces this.
 
 SHADERS
 - Unlit particle path. Vertex color = lifetime + tint. One atlas sample (two max).

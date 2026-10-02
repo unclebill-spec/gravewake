@@ -24,7 +24,8 @@
  * 9. If a check fails, the change is not done. Do not loosen the check to hide it.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync as readTop } from "node:fs";
+import { createHash as hashTop } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -48,6 +49,42 @@ globalThis.localStorage = {
 const SCREEN1_HUD = "8b3ba0e16e6b643d539cb0961b67b32c";
 // retro1 (2026-10-01 18:48 ET, owner-approved true 320x240 Retro view): the shell after the Retro batch.
 const RETRO1_HUD = "35ec89e9444560c7b22a12df60021524";
+// fade2 (2026-10-01 21:20 ET, owner-approved festival foe fade-in, minimal sim.ts spawn-time tag): sim.ts's and
+// draw.ts's only edits. unfade2Sim / unfade2Draw take exactly these out again, so the older groups still prove the
+// rest byte-identical to what they pinned (simPin is sim.ts's md5 with fade2 taken out).
+const FADE2_SIM = [
+  "  /** fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): world ms a festival foe appeared at. Drawing only; never saved, never read by play. */\n  spawnAt?: number;\n",
+  "      this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; @T\n",
+  "      this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; @T\n",
+  "      if (r.festival || r.naughty) this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; @T\n",
+  "      if (i > 0 && (foes[0].festival || foes[0].naughty)) this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; @T\n",
+].map((c) => c.replace("@T", "// fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts"));
+function unfade2Sim(src) {
+  let t = src;
+  for (const cut of FADE2_SIM) {
+    const i = t.indexOf(cut);
+    if (i < 0) return `${src}\n// fade2 edit missing`;
+    t = t.slice(0, i) + t.slice(i + cut.length);
+  }
+  return t;
+}
+const FADE2_DRAW = [
+  ['import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";\n', 'import { FADE, fadeOf, fadeStep, mistPuff } from "./fade";\n', 1],
+  ["fadeOf(r, g.worldMs, sceneStart(g))", "fadeOf(r.id, g.worldMs)", 3],
+  ["      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y, sc);", "      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y);", 1],
+  ["  seasonNow = g.season();\n  sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not\n", "  seasonNow = g.season();\n", 1],
+];
+function unfade2Draw(src) {
+  // Already fade1's text (no fade2 form at all): nothing to take out.
+  if (FADE2_DRAW.every(([now]) => !src.includes(now))) return src;
+  let t = src;
+  for (const [now, was, n] of FADE2_DRAW) {
+    if (t.split(now).length - 1 !== n) return `${src}\n// fade2 edit missing`;
+    t = t.split(now).join(was);
+  }
+  return t;
+}
+const simPin = () => hashTop("md5").update(unfade2Sim(readTop("src/game/sim.ts", "utf8"))).digest("hex");
 // fade1 (2026-10-01 19:59 ET, owner-approved night foe fade-in): draw.ts's only edits. unfade1 takes exactly these
 // out again, so older groups can still prove the rest of draw.ts byte-identical to what they pinned.
 const FADE1_DRAW = [
@@ -58,7 +95,7 @@ const FADE1_DRAW = [
   "    // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.\n    const fade = fadeOf(r.id, g.worldMs);\n    if (fade < 1) {\n      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y);\n      const onView = r.x > camX - 8 && r.x < camX + viewW / zoom + 8 && r.y > camY && r.y < camY + viewH / zoom + 20;\n      if (onView && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) mistPuff(g.fx, r, fade);\n    }\n",
 ];
 function unfade1(src) {
-  let t = src;
+  let t = unfade2Draw(src);
   for (const cut of FADE1_DRAW) {
     const i = t.indexOf(cut);
     if (i < 0) return `${src}\n// fade1 edit missing`;
@@ -5218,7 +5255,7 @@ if (on("gfx1")) {
 
   // Nothing in play changed.
   {
-    check("gfx1", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts and audio.ts are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81");
+    check("gfx1", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts and audio.ts are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81");
     const sw = readFileSync("tools/sprite-writer/sprite_writer.py", "utf8");
     const kr = readPng("public/art/sprites/krampus.png");
     const m = sw.match(/"fur": "(#\w+)"[^}]*"birch": "(#\w+)", "birch_hi": "(#\w+)"/);
@@ -5483,7 +5520,7 @@ if (on("gfx2")) {
   }
 
   // Nothing in play changed.
-  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
+  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
 }
 
 if (on("gfx3")) {
@@ -5657,7 +5694,7 @@ if (on("gfx3")) {
   }
 
   // Nothing in play changed.
-  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", md5("src/game/sim.ts") === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
+  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
 }
 
 if (on("screen1")) {
@@ -5840,7 +5877,7 @@ if (on("screen1")) {
   // 14. Nothing in play changed.
   {
     const PIN = { "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca" };
-    const bad = Object.entries(PIN).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    const bad = Object.entries(PIN).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : md5(f)) !== h).map(([f]) => f);
     check("screen1", "play is untouched: sim.ts (the C10 zoom, movement, collision, combat, shops, saves, the pad map), content, feats, particles, audio, light and every other game module are byte-identical to gfx3", bad.length === 0, bad.join(", "));
   }
   {
@@ -5899,7 +5936,7 @@ if (on("retro1")) {
     const SAME = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/draw.ts": "ade20b08057dc3b318b9a55b1a9a9f32", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
     // fade1: draw.ts is compared with fade1's own edits taken out, and fade.ts is fade1's (both pinned in group fade1).
-    const bad = Object.entries(SAME).filter(([f, h]) => (f === "src/game/draw.ts" ? md5s(unfade1(readFileSync(f, "utf8"))) : md5(f)) !== h).map(([f]) => f);
+    const bad = Object.entries(SAME).filter(([f, h]) => (f === "src/game/draw.ts" ? md5s(unfade1(readFileSync(f, "utf8"))) : f === "src/game/sim.ts" ? simPin() : md5(f)) !== h).map(([f]) => f);
     const extra = files.filter((f) => !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx" && f !== "src/game/fade.ts");
     check("retro1", "play and drawing are untouched: sim.ts (zoom, movement, collision, combat numbers, aggro ranges, spawn rules, saves), draw.ts (camera, culling, fog, light layer, particles, minimap), light.ts (the 24-light budget), content, particles, audio and every other game module are byte-identical to screen1; only screen.ts and the shell changed", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
   }
@@ -6010,14 +6047,15 @@ if (on("fade1")) {
   const TAG = "[OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in]";
   const dir = mk(join(tmpdir(), "gravewake-"));
   const root = process.cwd();
-  writeFileSync(join(dir, "fade1.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as F from "${root}/src/game/fade.ts";\nexport * as P from "${root}/src/game/particles.ts";\nexport { CYCLE_MS, DAY_MS } from "${root}/src/game/content.ts";\n`);
+  writeFileSync(join(dir, "fade1.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as F from "${root}/src/game/fade.ts";\nexport * as P from "${root}/src/game/particles.ts";\nexport { CYCLE_MS, DAY_MS, TILE } from "${root}/src/game/content.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "fade1.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "fade1.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const X = await import(pathToFileURL(join(dir, "fade1.mjs")).href);
   const { F, P } = X;
   const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const md5s = (t) => createHash("md5").update(t).digest("hex");
   const fadeSrc = readFileSync("src/game/fade.ts", "utf8");
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  // fade2 changed three of fade1's calls (they pass the foe and the scene start); fade1's tests read fade1's text.
+  const draw = unfade2Draw(readFileSync("src/game/draw.ts", "utf8"));
   const sim = readFileSync("src/game/sim.ts", "utf8");
 
   // A canvas stand-in: counts calls, and keeps the current path's rects so a clip can be read back as world cells.
@@ -6066,7 +6104,7 @@ if (on("fade1")) {
   {
     const RETRO1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
-    const bad = Object.entries(RETRO1).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    const bad = Object.entries(RETRO1).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : md5(f)) !== h).map(([f]) => f);
     const extra = files.filter((f) => !(f in RETRO1) && f !== "src/game/draw.ts" && f !== "src/game/fade.ts");
     check("fade1", "looks only: sim.ts (the spawn rule, distance and timing, AI, aggro, HP, damage, collision, the sim tick, saves), particles.ts, light.ts, screen.ts (every preset), the shell and every other game module are byte-identical to retro1; only draw.ts and the new fade.ts change", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
     const un = unfade1(draw);
@@ -6255,8 +6293,231 @@ if (on("fade1")) {
   }
 }
 
+if (on("fade2")) {
+  // [OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag] fade2: festival foes
+  // dissolve in like fade1's night roamers. The sim only writes spawnAt on festival spawns; play never reads it.
+  const { readFileSync, writeFileSync, readdirSync, mkdtempSync: mk } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag]";
+  const dir = mk(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "fade2.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as F from "${root}/src/game/fade.ts";\nexport { CYCLE_MS, DAY_MS, TILE } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "fade2.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "fade2.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "fade2.mjs")).href);
+  const { F } = X;
+  const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5s = (t) => createHash("md5").update(t).digest("hex");
+  const sim = readFileSync("src/game/sim.ts", "utf8");
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const fadeSrc = readFileSync("src/game/fade.ts", "utf8");
+  const strip = (r) => { const { spawnAt: _t, ...rest } = r; return rest; };
+  const mockCtx = () => {
+    const st = { clips: 0, cell: [Infinity, Infinity, -Infinity, -Infinity] };
+    const t = { clip() { st.clips++; }, rect(x, y, w, h) { if (w === 1 && h === 1) { const b = st.cell; b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x + 1); b[3] = Math.max(b[3], y + 1); } }, createPattern: () => ({}), createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), getImageData: () => ({ data: new Uint8ClampedArray(4) }), measureText: () => ({ width: 0 }) };
+    return new Proxy(t, { get(o, k) { if (k === "st") return st; if (k in o) return o[k]; return () => {}; }, set(o, k, v) { o[k] = v; return true; } });
+  };
+  const seeded = (seed, fn) => {
+    // Each run starts from an empty localStorage (no binds or saves left by other groups), like the fade1-era harness.
+    const kept = new Map(store);
+    store.clear();
+    let s = seed >>> 0, calls = 0;
+    const realRandom = Math.random, realNow = Date.now;
+    Math.random = () => { calls++; s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    Date.now = () => 1790000000000;
+    try { return { ...fn(), calls }; } finally { Math.random = realRandom; Date.now = realNow; store.clear(); for (const [k, v] of kept) store.set(k, v); }
+  };
+
+  // 1. The note, dated and tagged, in both law files and in the code.
+  {
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("fade2", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt (beside fade1's) and AGENTS.project.md, and tagged in sim.ts and fade.ts`, law.includes(`- ${TAG} Festival foes fade in the same way`) && law.indexOf(TAG) > law.indexOf("night foe fade-in") && law.indexOf(TAG) < law.indexOf("SHADERS") && agents.includes(`  ${TAG} The owner approved the same 0.5 s dither-and-mist fade-in for festival foes only`) && (sim.match(/fade2 \(OWNER-APPROVED 2026-10-01 21:20 ET\)/g) ?? []).length === 5 && fadeSrc.includes("fade2 (OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag)"));
+  }
+
+  // 2. The minimal sim change: one optional field written at the festival spawn sites, read nowhere in play.
+  {
+    const FADE1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
+    const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
+    const bad = Object.entries(FADE1).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    const extra = files.filter((f) => !(f in FADE1) && !["src/game/sim.ts", "src/game/draw.ts", "src/game/fade.ts"].includes(f));
+    check("fade2", "only sim.ts (the tag), draw.ts (three calls, the scene clock line, the box scale) and fade.ts change; content, festivals, particles, light, screen, the shell and every other game module are byte-identical to fade1", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
+    const s1 = unfade2Sim(sim), d1 = unfade2Draw(draw);
+    check("fade2", "sim.ts: take out fade2's five edits (the optional spawnAt field, a tag after the festival boss spawn, the festival pack spawn, a festival foe's summon and a festival fight's helpers) and it is fade1's sim.ts byte for byte; draw.ts likewise is fade1's once its three calls and the import are put back", s1 !== sim && md5s(s1) === "a3ecff0b08113f1b418cb4127e7a4f94" && d1 !== draw && md5s(d1) === "5ccaa4f77fa3a01ab6cf2f28c33bf7c9", `${md5s(s1)} ${md5s(d1)}`);
+    const uses = sim.split("\n").filter((l) => l.includes("spawnAt"));
+    const writes = uses.filter((l) => /^ {6}(if \([^)]*\)+ )?this\.roamers\[this\.roamers\.length - 1\]\.spawnAt = this\.worldMs; \/\/ fade2/.test(l));
+    check("fade2", "play never reads the tag: in sim.ts spawnAt is only declared (optional) and written as this.worldMs on the roamer just pushed, at four spawn sites; no rule, AI, combat, save or load line mentions it, and the sim never imports fade.ts", uses.length === 5 && writes.length === 4 && uses.filter((l) => /^ {2}spawnAt\?: number;$/.test(l)).length === 1 && !/from "\.\/fade"/.test(sim) && !/spawnAt/.test(sim.slice(sim.indexOf("  saveSlot(slot: number) {"), sim.indexOf("  loadSlot(slot: number) {") + 6000)), uses.join(" | "));
+  }
+
+  // 3. Fixed seed, each festival: spawns and the end state are fade1's byte for byte once the tag is taken out.
+  const nights = {};
+  {
+    const GOLD = { harvest: ["666bbaf9b408193c123297dd09e7cab6", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["ce5ceb8029d9dd1a35a447bf9f6dbed3", "aca95fb82718ec368d0d17492dfa772e"], bloom: ["b5326b687d8962ae487c39f679ce1743", "45dcdfc7c0ac3b022c9787af4f562524"], ashen: ["dafbe36ac85ee0f963f62ec11b1e84f3", "e623712df0d376a77a78b3181d19b222"] };
+    const night = (fid, drawn) => seeded(2026, () => {
+      const g = new X.Game();
+      g.start("warrior", "str", "A");
+      g.held.clear();
+      g.level = 30;
+      let day = -1;
+      for (let d = 1; d < 600 && day < 0; d++) { g.worldMs = d * X.CYCLE_MS + X.DAY_MS + 60000; if (g.festivalId() === fid) day = d; }
+      g.hp = g.maxHp;
+      g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+      g.update(1 / 60);
+      const first = g.roamers.find((r) => r.festival === fid && r.boss) ?? g.roamers.find((r) => r.naughty);
+      const spot = g["openNear"](first.x - 64, first.y);
+      g.enterWorld(spot.x, spot.y);
+      const ids = new Set(), log = [], tags = [], seen = { clips: 0, fading: new Set(), puffs: 0, frames: 0 };
+      for (let i = 0; i < 60 * 90; i++) {
+        const aggro = g.roamers.filter((r) => r.aggro);
+        const near = (list) => list.reduce((b, r) => (!b || Math.hypot(r.x - g.px, r.y - g.py) < Math.hypot(b.x - g.px, b.y - g.py) ? r : b), null);
+        const t = near(aggro) ?? near(g.roamers.filter((r) => r.festival || r.naughty));
+        g.held.clear();
+        if (t) {
+          const dx = t.x - g.px, dy = t.y - g.py;
+          if (Math.hypot(dx, dy) > 14) { if (dx > 4) g.held.add("KeyD"); if (dx < -4) g.held.add("KeyA"); if (dy > 4) g.held.add("KeyS"); if (dy < -4) g.held.add("KeyW"); }
+          if (aggro.length && i % 12 === 0 && Math.hypot(dx, dy) < 40) g.slash();
+        }
+        g.update(1 / 60);
+        for (const r of g.roamers) {
+          if (ids.has(r)) continue;
+          ids.add(r);
+          log.push([r.id, r.x, r.y, r.def, r.level, r.festival ?? "", r.naughty ?? "", !!r.add, !!r.helper, !!r.boss, r.hp ?? null, g.worldMs, g.frame, i]);
+          if (r.spawnAt !== undefined) tags.push({ id: r.id, at: r.spawnAt, now: g.worldMs, fest: !!(r.festival || r.naughty), helper: !!r.helper, aggro: !!r.aggro });
+        }
+        if (drawn) {
+          const fading = g.roamers.filter((r) => X.F.fadeOf(r, g.worldMs, X.F.sceneStart(g)) < 1);
+          if (fading.length || i % 120 === 0) {
+            const before = g.fx.count(2);
+            for (const [w, h, k] of [[960, 640, g.zoom], [320, 240, 1]]) { const c = mockCtx(); X.drawWorld(c, g, w, h, k); seen.clips += c.st.clips; }
+            if (g.fx.count(2) > before) seen.puffs++;
+            for (const r of fading) seen.fading.add(r.id);
+            seen.frames++;
+          }
+        }
+      }
+      const end = JSON.stringify({ roamers: g.roamers.map(strip), px: g.px, py: g.py, hp: g.hp, xp: g.xp, coin: g.coin, level: g.level, worldMs: g.worldMs, frame: g.frame, mode: g.mode, mapId: g.mapId, log: g.logLine, opened: [...g.opened].sort() });
+      const raw = JSON.stringify(g.roamers);
+      g.saveSlot(0);
+      const uids = new Map();
+      const save = (localStorage.getItem("gravewake-saves-v1") ?? "").replace(/"uid":"i\d+"/g, (u) => { if (!uids.has(u)) uids.set(u, `"uid":"#${uids.size}"`); return uids.get(u); });
+      return { day, log, tags, end, save, seen, raw };
+    });
+    for (const fid of Object.keys(GOLD)) {
+      const A = night(fid, false), B = night(fid, true);
+      nights[fid] = { A, B };
+      // The trace's end JSON carried Math.random use in fade1's harness; add it the same way.
+      const endA = A.end.replace(/}$/, `,"calls":${A.calls}}`);
+      const logH = md5s(JSON.stringify(A.log)), endH = md5s(endA);
+      const tagsOk = A.tags.length > 0 && A.tags.every((t) => t.at === t.now && (t.fest || t.helper));
+      check("fade2", `fixed seed, ${fid} (night of day ${A.day}, 90 s, the hero walks in and fights): ${A.log.length} foes seen, ${A.tags.length} tagged; every spawn (id, place, kind, level, HP, world ms, frame, tick) and the end state (every roamer, the hero, XP, silver, the opened keys, Math.random use) are fade1's byte for byte with the tag taken out`, logH === GOLD[fid][0] && endH === GOLD[fid][1] && tagsOk, `${logH} ${endH} ${JSON.stringify(A.tags.slice(0, 2))}`);
+      check("fade2", `visual only, ${fid}: drawn in Auto and Retro on ${B.seen.frames} frames, the same night gives the same spawns, end state, raw roamers (tags included), Math.random use and save (the save has no tag); ${B.seen.fading.size} festival foes seen mid-fade`, JSON.stringify(B.log) === JSON.stringify(A.log) && B.end === A.end && B.raw === A.raw && B.save === A.save && B.calls === A.calls && !/spawnAt/.test(A.save), `${JSON.stringify(B.log) === JSON.stringify(A.log)} ${B.end === A.end} ${B.raw === A.raw} ${B.save === A.save} ${B.calls === A.calls} fading ${[...B.seen.fading].join(",")} tags ${A.tags.map((t) => `${t.id}@${t.at - A.tags[0].at}`).join(",")}`);
+    }
+  }
+
+  {
+    const seen = Object.values(nights).map(({ B }) => B.seen);
+    const fading = seen.reduce((n, x) => n + x.fading.size, 0), clips = seen.reduce((n, x) => n + x.clips, 0), puffs = seen.reduce((n, x) => n + x.puffs, 0);
+    const late = Object.values(nights).flatMap(({ A }) => A.tags.filter((t) => t.at - A.tags[0].at > F.FADE.sceneGrace)).length;
+    check("fade2", `and the fade really drew: over the four nights ${fading} festival foes that appeared mid-scene (fight helpers, pack minions) were seen mid-fade with the dither clipping (${clips} clips) and ${puffs} mist puffs; those there as the scene began (the hero walked onto the vale beside them) drew solid`, fading > 0 && late > 0 && clips > 0 && puffs > 0, `${fading} ${late} ${clips} ${puffs}`);
+  }
+
+  // 4. Only festival foes: what is tagged and what is not.
+  {
+    const all = Object.values(nights).flatMap(({ A }) => A.tags);
+    const helpers = all.filter((t) => t.helper && !t.fest).length, bosses = all.filter((t) => t.fest && !t.aggro).length;
+    const g = fresh();
+    g.level = 20;
+    let bountyNight = -1;
+    for (let d = 1; d < 200 && bountyNight < 0; d++) { g.worldMs = d * X.CYCLE_MS + X.DAY_MS + 60000; if (!g.festivalId() && g.bountyPost?.()) bountyNight = d; }
+    g.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+    for (let i = 0; i < 600; i++) g.update(1 / 60);
+    const vale = g.roamers.filter((r) => r.spawnAt !== undefined).map((r) => r.id);
+    const kinds = { night: g.roamers.some((r) => /^r\d/.test(r.id)), bounty: g.roamers.some((r) => r.bounty) };
+    const dungeon = [];
+    for (const d of ["ossuary", "barrow", "riftvale"]) { g.enterDungeon(d); g.update(1 / 60); dungeon.push(...g.roamers.filter((r) => r.spawnAt !== undefined).map((r) => `${d}:${r.id}`)); }
+    // A summon: a festival boss's add is tagged; a plain boss's is not.
+    const s = fresh();
+    s.worldMs = 3 * X.CYCLE_MS + X.DAY_MS + 60000;
+    s.enterWorld(30 * TILE + 8, 50 * TILE + 8);
+    s.roamers = [];
+    const lord = { id: "pumpkinlord", x: s.px + 20, y: s.py, family: "pumpkin", tint: "#e07a2f", def: "pumpkinlord", level: 10, ang: 0, boss: true, festival: "harvest", aggro: true };
+    const plain = { id: "tzar", x: s.px - 20, y: s.py, family: "ghost", tint: "#9a8aa8", def: "tzar", level: 10, ang: 0, boss: true, aggro: true };
+    s.roamers.push(lord, plain);
+    s["summonPack"](lord, 1);
+    const festAdd = s.roamers[s.roamers.length - 1];
+    s["summonPack"](plain, 1);
+    const plainAdd = s.roamers[s.roamers.length - 1];
+    check("fade2", `festival foes only: the bosses and named packs as they appear (${bosses}), the helpers and pack minions of their fights (${helpers}) and a festival boss's summons are tagged; night roamers (fade1's id stamp), bounties, a plain boss's summons, and dungeon and rift foes carry no tag (bounty night ${bountyNight})`, bosses >= 5 && helpers >= 6 && festAdd.add && festAdd.spawnAt === s.worldMs && plainAdd.add && plainAdd.spawnAt === undefined && vale.length === 0 && kinds.night && dungeon.length === 0, `${vale.join(",")} ${dungeon.join(",")} ${JSON.stringify(kinds)}`);
+  }
+
+  // 5. The fade for a tagged foe, and the scene start.
+  {
+    const t0 = 5000000, since = t0 - 60000;
+    const foe = (at) => ({ id: "krampus", spawnAt: at });
+    const ramp = [0, 100, 250, 499, 500, 900].map((d) => F.fadeOf(foe(t0), t0 + d, since));
+    const early = F.fadeOf(foe(since + 200), since + 300, since), edge = F.fadeOf(foe(since + 251), since + 300, since);
+    const odd = [NaN, Infinity, undefined].map((v) => F.fadeOf({ id: "pumpkin", spawnAt: v }, t0, since));
+    const before = F.fadeOf(foe(t0), t0 - 1, since);
+    check("fade2", "a tagged festival foe fades over the same 500 ms (0, 0.2, 0.5, 0.998, then solid); one there within 250 ms of its scene starting draws solid; a bad or missing tag is solid, and so is a clock before the tag (a load); fade1's id stamp still works", JSON.stringify(ramp) === JSON.stringify([0, 0.2, 0.5, 0.998, 1, 1]) && before === 1 && early === 1 && edge === 0.098 && odd.every((v) => v === 1) && F.fadeOf("r1000-0", 1250) === 0.5 && F.fadeOf({ id: "r1000-0" }, 1250) === 0.5, `${JSON.stringify(ramp)} ${early} ${edge}`);
+    const g = { mapId: "world", dungeon: "", floor: 1, worldMs: 1000 };
+    const a = F.sceneStart(g);
+    g.worldMs = 1500; const b = F.sceneStart(g);
+    g.worldMs = 1516; const c = F.sceneStart(g);
+    g.worldMs = 9000; const d = F.sceneStart(g);
+    g.worldMs = 9016; g.mapId = "dungeon"; g.dungeon = "ossuary"; const e = F.sceneStart(g);
+    g.worldMs = 9032; g.floor = 2; const f = F.sceneStart(g);
+    g.worldMs = 8000; const h = F.sceneStart(g);
+    check("fade2", "the scene start (drawing only) moves on a new map, dungeon or floor and on any clock jump (backwards, or more than a second forward: a load, a sleep), and holds while frames run on", b === a && c === a && d === 9000 && e === 9016 && f === 9032 && h === 8000, JSON.stringify([a, b, c, d, e, f, h]));
+  }
+
+  // 5b. The scene clock runs on frames with no foe on screen: a festival boss that appears after a quiet second on
+  // the vale fades (drawWorld itself keeps the clock; nothing outside it is called between frames).
+  {
+    const g = new X.Game();
+    g.start("warrior", "str", "Q");
+    g.held.clear();
+    let day = -1;
+    for (let d = 1; d < 600 && day < 0; d++) { g.worldMs = d * X.CYCLE_MS + X.DAY_MS + 60000; if (g.festivalId() === "harvest") day = d; }
+    g.enterWorld(30 * X.TILE + 8, 50 * X.TILE + 8);
+    g.roamers = [];
+    let cell = null;
+    const frame = () => { const c = mockCtx(); X.drawWorld(c, g, 960, 640, g.zoom); cell = c.st.cell; return c.st.clips; };
+    for (let k = 0; k < 15; k++) { g.worldMs += 100; frame(); }
+    g["spawnFestival"]();
+    const lord = g.roamers.find((r) => r.festival === "harvest" && r.boss);
+    g.px = lord.x - 40; g.py = lord.y;
+    const ramp = [];
+    g.fx.clear();
+    let box = null;
+    for (let k = 0; k < 8; k++) { g.worldMs += k ? 80 : 20; const clips = frame(); ramp.push([Math.round(g.worldMs - lord.spawnAt), clips > 0]); if (k === 3) box = [cell[0] - Math.round(lord.x), cell[1] - Math.round(lord.y), cell[2] - Math.round(lord.x), cell[3] - Math.round(lord.y)]; }
+    const puffs = g.fx.count(2);
+    check("fade2", `the scene clock runs on frames with no foe on screen: after 1.5 s of an empty vale the Pumpkin Lord's own spawn dissolves in with its mist puff, through a dither box scaled to its 2x sprite (${JSON.stringify(box)} around its feet; fade1's 1x box is [-16,-40,16,8]) (at 20 ms it is not drawn yet; ${ramp.map(([a, c]) => `${a}ms:${c ? "dither" : "solid"}`).join(" ")})`, !!lord && lord.spawnAt !== undefined && ramp.slice(1, 6).every(([, c]) => c) && !ramp[6][1] && !ramp[7][1] && puffs === 6 && JSON.stringify(box) === JSON.stringify([-32, -80, 32, 16]), JSON.stringify(ramp));
+  }
+
+  // 6. An old save loads cleanly: the format is unchanged, and what was on the vale draws solid.
+  {
+    const fixture = readFileSync("scripts/fixtures/gravewake-save-fade1.json", "utf8");
+    store.set("gravewake-saves-v1", fixture);
+    const g = new X.Game();
+    let threw = "";
+    try { g.loadSlot(0); } catch (e) { threw = String(e); }
+    const clips = [];
+    for (let i = 0; i < 300; i++) {
+      g.update(1 / 60);
+      if (i < 60) { const c = mockCtx(); X.drawWorld(c, g, 960, 640, g.zoom); clips.push(g.roamers.filter((r) => r.spawnAt !== undefined && X.F.fadeOf(r, g.worldMs, X.F.sceneStart(g)) < 1).length); }
+    }
+    const solid = g.roamers.every((r) => X.F.fadeOf(r, g.worldMs, X.F.sceneStart(g)) === 1);
+    const uids = new Map();
+    const st = JSON.stringify({ roamers: g.roamers.map(strip), px: g.px, py: g.py, hp: g.hp, level: g.level, worldMs: g.worldMs, mapId: g.mapId, mode: g.mode, fest: g.festivalId() }).replace(/"uid":"i\d+"/g, (u) => { if (!uids.has(u)) uids.set(u, `#${uids.size}`); return uids.get(u); });
+    g.saveSlot(0);
+    const again = JSON.parse(localStorage.getItem("gravewake-saves-v1"))[0];
+    const old = JSON.parse(fixture)[0];
+    const sameKeys = JSON.stringify(Object.keys(again).sort()) === JSON.stringify(Object.keys(old).sort());
+    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game as fade1 loads (state after 5 s matches fade1's byte for byte, tag aside), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "ae99dacbc076176bc8f2d341d2204c60" && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

@@ -260,6 +260,8 @@ export type Roamer = {
   atEscort?: boolean;
   link?: number;
   casting?: "" | "mid" | "big" | "spam";
+  /** fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): world ms a festival foe appeared at. Drawing only; never saved, never read by play. */
+  spawnAt?: number;
   /** Swing or cast. Drawn on every family, including bosses. */
   act?: "" | "swing" | "cast";
   actFor?: number;
@@ -1002,12 +1004,14 @@ export class Game {
       const at = id === "harvest" ? HARVEST.lord : KRAMPUSNACHT.spot;
       const spot = this.openNear(at.x * TILE + 8, at.y * TILE + 8);
       this.roamers.push({ id: def.id, x: spot.x, y: spot.y, family: def.family, tint: def.tint, boss: true, def: def.id, level: Math.max(at.lv, zoneLevel(at.x, at.y, this.level)), ang: 0, festival: id, name: def.name });
+      this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; // fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts
     }
     // The named packs: Krampus's naughty list, the Drowned Court, the Ashen Fair sideshow. No boss among them.
     for (const n of this.festivalPacks()) {
       if (this.packCaught(n.id) || this.roamers.some((r) => r.naughty === n.id)) continue;
       const def = monsterById(n.fam);
       this.roamers.push({ id: n.id, x: n.x * TILE + 8, y: n.y * TILE + 8, family: def.family, tint: def.tint, def: def.id, level: zoneLevel(n.x, n.y, this.level), ang: 0, naughty: n.id, name: n.name, affix: n.affix });
+      this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; // fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts
     }
   }
 
@@ -5737,6 +5741,7 @@ export class Game {
         personality: FAMILY_KITS[help.id]?.personality ?? "brawler",
         cool: 0.6,
       });
+      if (r.festival || r.naughty) this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; // fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts
     }
   }
 
@@ -5827,6 +5832,7 @@ export class Game {
         link: f.affix === "linked" ? link : undefined,
         shell: f.affix === "shielded" ? Math.round(f.max * 0.2) : 0,
       });
+      if (i > 0 && (foes[0].festival || foes[0].naughty)) this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; // fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts
     });
     for (let i = 0; i < this.roamers.length; i++) {
       for (let j = 0; j < i; j++) {

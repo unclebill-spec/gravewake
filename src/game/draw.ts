@@ -11,7 +11,7 @@ import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
-import { FADE, fadeOf, fadeStep, mistPuff } from "./fade";
+import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
 
 /**
  * Integer pixel drawing. Tiles are 16px, actors 16×32, zoom is a whole number.
@@ -1952,7 +1952,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (!FLAME_FOES.has(r.def)) continue;
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
-    if (fadeOf(r.id, g.worldMs) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
+    if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
     out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.flameBoss : LIGHT.flameFoe, c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true });
   }
   // gfx3: ghosts glow cold and steady (ghost light, no flicker), bigger on a boss; none on unexplored rock.
@@ -1961,7 +1961,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (r.family !== "ghost" || r.def === "shade") continue;
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
-    if (fadeOf(r.id, g.worldMs) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
+    if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
     out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.ghostBoss : LIGHT.ghost, c: LIGHTS.ghost, seed: 0, flick: false });
   }
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
@@ -2247,6 +2247,7 @@ export const FLAME_FOES: ReadonlySet<string> = new Set(["pumpkin", "lanternking"
 
 export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
   seasonNow = g.season();
+  sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
   const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
   const camX = Math.round(g.px - viewW / (2 * zoom)) + mag;
   const camY = Math.round(g.py - viewH / (2 * zoom));
@@ -2422,9 +2423,9 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       });
     }
     // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.
-    const fade = fadeOf(r.id, g.worldMs);
+    const fade = fadeOf(r, g.worldMs, sceneStart(g));
     if (fade < 1) {
-      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y);
+      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y, sc);
       const onView = r.x > camX - 8 && r.x < camX + viewW / zoom + 8 && r.y > camY && r.y < camY + viewH / zoom + 20;
       if (onView && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) mistPuff(g.fx, r, fade);
     }

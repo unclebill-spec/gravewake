@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-01: fade2, festival foe fade-in
+- Festival foes now use the fade1 fade-in: bosses, named packs, summons and helpers in all four festivals. Krampus and the Pumpkin Lord are drawn at 2×, and the fade scales with them.
+- [OWNER-APPROVED 2026-10-01 21:20 ET] A minimal sim.ts tag, an optional spawnAt field, records when each festival foe appears. Play never reads it and saves don't store it. Spawns, combat and saves are byte-identical for a fixed seed, and fade1 saves still load.
+- Bounty, rift and dungeon foes still don't fade. The owner will decide on those later.
+- check:game 557 → 575. Fail-proofs 595/595.
+
 ## 2026-10-01: fade1, night foe fade-in
 - Night foes now fade in over 0.5 s of game time using a grid-locked 4×4 dither (no new colours), with a small ash mist puff. This change is looks only and was owner-approved at 19:59 ET.
 - Foes are live from their first tick. Spawn rule, timing, AI, combat and saves are unchanged. For a fixed seed, spawns are byte-identical to retro1.
