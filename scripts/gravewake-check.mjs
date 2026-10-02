@@ -85,6 +85,24 @@ function unfade2Draw(src) {
   return t;
 }
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop("src/game/sim.ts", "utf8"))).digest("hex");
+// install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
+// hook, the title button, the Display button). uninstall1Ui takes exactly these out, so older groups still pin the rest.
+const INSTALL1_UI = [
+  ['} from "./screen";\nimport { InstallButton } from "../pwa/InstallButton"; // install1\nimport { useIosTipRequest } from "../pwa/install"; // install1\n', '} from "./screen";\n', 1],
+  ["  useIosTipRequest(() => setTip(true)); // install1: the Install button on iPhone opens screen1's tip\n", "", 1],
+  ['            </button>\n            <InstallButton where="title" />\n          </div>\n', "            </button>\n          </div>\n", 1],
+  ['      </div>\n      <InstallButton where="options" />\n', "      </div>\n", 1],
+];
+function uninstall1Ui(src) {
+  if (INSTALL1_UI.every(([now]) => !src.includes(now))) return src;
+  let t = src;
+  for (const [now, was, n] of INSTALL1_UI) {
+    if (t.split(now).length - 1 !== n) return `${src}\n// install1 edit missing`;
+    t = t.split(now).join(was);
+  }
+  return t;
+}
+const uiPin = () => hashTop("md5").update(uninstall1Ui(readTop("src/game/Gravewake.tsx", "utf8"))).digest("hex");
 // fade1 (2026-10-01 19:59 ET, owner-approved night foe fade-in): draw.ts's only edits. unfade1 takes exactly these
 // out again, so older groups can still prove the rest of draw.ts byte-identical to what they pinned.
 const FADE1_DRAW = [
@@ -5520,7 +5538,7 @@ if (on("gfx2")) {
   }
 
   // Nothing in play changed.
-  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
+  check("gfx2", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(uiPin()));
 }
 
 if (on("gfx3")) {
@@ -5694,7 +5712,7 @@ if (on("gfx3")) {
   }
 
   // Nothing in play changed.
-  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(md5("src/game/Gravewake.tsx")));
+  check("gfx3", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts, audio.ts are byte-identical to before the batch, and Gravewake.tsx is that HUD, the screen1 HUD or the retro1 HUD (screen1 changed presentation and input reading only, retro1 the Retro view only; their own groups check how) (movement, collision, combat numbers, shops, saves, audio, the HUD)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81" && ["12ba2ee592c8e09a8c014e64df3ed0b1", SCREEN1_HUD, RETRO1_HUD].includes(uiPin()));
 }
 
 if (on("screen1")) {
@@ -5813,9 +5831,10 @@ if (on("screen1")) {
   {
     const man = JSON.parse(readFileSync("public/gravewake.webmanifest", "utf8"));
     const png = (f) => { const b = readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
-    const icons = man.icons.map((i) => ({ ...i, path: `public${i.src}` }));
+    // install1: the icon paths and start_url are relative now (any site root), and a maskable 512 joins (checked in install1).
+    const icons = man.icons.filter((i) => i.purpose !== "maskable").map((i) => ({ ...i, path: `public/${i.src.replace(/^\//, "")}` }));
     const iconsOk = icons.every((i) => existsSync(i.path) && png(i.path).join("x") === i.sizes);
-    check("screen1", "iPhone/Android: the game manifest is display fullscreen, orientation landscape, with 180/192/512 icons that exist at their sizes; the apple capable and status-bar metas are set; the platform's /__grok manifest stays linked (after) and served, and the apple-touch-icon stays", man.display === "fullscreen" && man.orientation === "landscape" && man.start_url === "/" && iconsOk && icons.map((i) => i.sizes).join() === "180x180,192x192,512x512"
+    check("screen1", "iPhone/Android: the game manifest is display fullscreen, orientation landscape, with 180/192/512 icons that exist at their sizes; the apple capable and status-bar metas are set; the platform's /__grok manifest stays linked (after) and served, and the apple-touch-icon stays", man.display === "fullscreen" && man.orientation === "landscape" && ["/", "./"].includes(man.start_url) && iconsOk && icons.map((i) => i.sizes).join() === "180x180,192x192,512x512"
       && head.indexOf('href: "/gravewake.webmanifest"') > 0 && head.indexOf('href: "/gravewake.webmanifest"') < head.indexOf('href: "/__grok/manifest.webmanifest"') && /name: "apple-mobile-web-app-capable", content: "yes"/.test(head) && /apple-mobile-web-app-status-bar-style", content: "black-translucent"/.test(head) && /rel: "apple-touch-icon", href: "\/__grok\/icon-180\.png"/.test(head) && existsSync("public/__grok/icon-180.png"), JSON.stringify(icons.map((i) => i.sizes)));
     // The icons come from one 16 px cell scaled whole (every k×k block one colour), via the writer.
     const decode = (f) => {
@@ -5877,7 +5896,7 @@ if (on("screen1")) {
   // 14. Nothing in play changed.
   {
     const PIN = { "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca" };
-    const bad = Object.entries(PIN).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : md5(f)) !== h).map(([f]) => f);
+    const bad = Object.entries(PIN).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
     check("screen1", "play is untouched: sim.ts (the C10 zoom, movement, collision, combat, shops, saves, the pad map), content, feats, particles, audio, light and every other game module are byte-identical to gfx3", bad.length === 0, bad.join(", "));
   }
   {
@@ -5936,7 +5955,7 @@ if (on("retro1")) {
     const SAME = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/draw.ts": "ade20b08057dc3b318b9a55b1a9a9f32", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
     // fade1: draw.ts is compared with fade1's own edits taken out, and fade.ts is fade1's (both pinned in group fade1).
-    const bad = Object.entries(SAME).filter(([f, h]) => (f === "src/game/draw.ts" ? md5s(unfade1(readFileSync(f, "utf8"))) : f === "src/game/sim.ts" ? simPin() : md5(f)) !== h).map(([f]) => f);
+    const bad = Object.entries(SAME).filter(([f, h]) => (f === "src/game/draw.ts" ? md5s(unfade1(readFileSync(f, "utf8"))) : f === "src/game/sim.ts" ? simPin() : f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
     const extra = files.filter((f) => !(f in SAME) && f !== "src/game/screen.ts" && f !== "src/game/Gravewake.tsx" && f !== "src/game/fade.ts");
     check("retro1", "play and drawing are untouched: sim.ts (zoom, movement, collision, combat numbers, aggro ranges, spawn rules, saves), draw.ts (camera, culling, fog, light layer, particles, minimap), light.ts (the 24-light budget), content, particles, audio and every other game module are byte-identical to screen1; only screen.ts and the shell changed", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
   }
@@ -6104,7 +6123,7 @@ if (on("fade1")) {
   {
     const RETRO1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "a3ecff0b08113f1b418cb4127e7a4f94", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
-    const bad = Object.entries(RETRO1).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : md5(f)) !== h).map(([f]) => f);
+    const bad = Object.entries(RETRO1).filter(([f, h]) => (f === "src/game/sim.ts" ? simPin() : f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
     const extra = files.filter((f) => !(f in RETRO1) && f !== "src/game/draw.ts" && f !== "src/game/fade.ts");
     check("fade1", "looks only: sim.ts (the spawn rule, distance and timing, AI, aggro, HP, damage, collision, the sim tick, saves), particles.ts, light.ts, screen.ts (every preset), the shell and every other game module are byte-identical to retro1; only draw.ts and the new fade.ts change", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
     const un = unfade1(draw);
@@ -6338,7 +6357,7 @@ if (on("fade2")) {
   {
     const FADE1 = {"src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524"};
     const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
-    const bad = Object.entries(FADE1).filter(([f, h]) => md5(f) !== h).map(([f]) => f);
+    const bad = Object.entries(FADE1).filter(([f, h]) => (f === "src/game/Gravewake.tsx" ? uiPin() : md5(f)) !== h).map(([f]) => f);
     const extra = files.filter((f) => !(f in FADE1) && !["src/game/sim.ts", "src/game/draw.ts", "src/game/fade.ts"].includes(f));
     check("fade2", "only sim.ts (the tag), draw.ts (three calls, the scene clock line, the box scale) and fade.ts change; content, festivals, particles, light, screen, the shell and every other game module are byte-identical to fade1", bad.length === 0 && extra.length === 0, [...bad, ...extra].join(", "));
     const s1 = unfade2Sim(sim), d1 = unfade2Draw(draw);
@@ -6516,8 +6535,268 @@ if (on("fade2")) {
   }
 }
 
+if (on("install1")) {
+  // [OWNER-APPROVED 2026-10-01 22:14 ET: in-game Install button, web app manifest, offline service worker] install1:
+  // the game installs as an app (Android home screen, PC desktop) from an Install button; it plays offline after.
+  const { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync: mk } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const { inflateSync } = await import("node:zlib");
+  const vm = await import("node:vm");
+  const TAG = "[OWNER-APPROVED 2026-10-01 22:14 ET: in-game Install button, web app manifest, offline service worker]";
+  const md5 = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5s = (t) => createHash("md5").update(t).digest("hex");
+  const dir = mk(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "install1.ts"), `export * from "${root}/src/pwa/install.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "install1.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "install1.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const I = await import(pathToFileURL(join(dir, "install1.mjs")).href);
+  const SW = await import(pathToFileURL(join(root, "scripts/gravewake-sw-plugin.mjs")).href);
+  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+  const btn = readFileSync("src/pwa/InstallButton.tsx", "utf8");
+  const inst = readFileSync("src/pwa/install.ts", "utf8");
+  const plug = readFileSync("scripts/gravewake-sw-plugin.mjs", "utf8");
+  const head = readFileSync("src/routes/__root.tsx", "utf8");
+  const css = readFileSync("src/styles.css", "utf8");
+  const vite = readFileSync("vite.config.ts", "utf8");
+
+  // 1. The note, dated and tagged, in both law files and in the code.
+  {
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    check("install1", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in install.ts, InstallButton.tsx and the service-worker plugin`, law.includes(`- ${TAG}`) && agents.includes(`  ${TAG}`) && [inst, btn, plug].every((t) => t.includes("install1 (OWNER-APPROVED 2026-10-01 22:14 ET)")));
+  }
+
+  // 2. The manifest: complete, relative (any site root, a GitHub Pages subpath too), the palette, three icons.
+  const man = JSON.parse(readFileSync("public/gravewake.webmanifest", "utf8"));
+  {
+    const rel = (u) => typeof u === "string" && !/^[a-z][a-z0-9+.-]*:/i.test(u) && !u.startsWith("/");
+    const roots = ["https://bill.github.io/gravewake/gravewake.webmanifest", "https://gravewake.vercel.app/gravewake.webmanifest", "http://localhost:8081/gravewake.webmanifest"];
+    const inScope = roots.every((m) => { const s = new URL(man.scope, m).href, st = new URL(man.start_url, m).href; return st.startsWith(s) && s === new URL("./", m).href; });
+    const bg = /--color-bg: (#[0-9a-f]{6});/.exec(css)?.[1];
+    const meta = /name: "theme-color", content: "(#[0-9a-f]{6})"/.exec(head)?.[1];
+    const firstLink = head.indexOf('rel: "manifest"') === head.indexOf('{ rel: "manifest", href: "/gravewake.webmanifest" }') + 2;
+    check("install1", `manifest: name and short_name (${man.short_name}, ≤ 12 letters), start_url ${man.start_url} and scope ${man.scope} relative (the start inside the scope at a site root and a subpath), display ${man.display} (override ${(man.display_override ?? []).join("/")}), orientation ${man.orientation}, theme and background ${man.theme_color} = the palette's --color-bg and the theme-color meta; it is the page's first manifest link`,
+      typeof man.name === "string" && man.name === "Gravewake" && typeof man.short_name === "string" && man.short_name.length <= 12 && rel(man.start_url) && rel(man.scope) && inScope && ["fullscreen", "standalone"].includes(man.display) && (man.display_override ?? []).every((d) => ["fullscreen", "standalone", "minimal-ui", "browser"].includes(d)) && man.orientation === "landscape" && man.theme_color === bg && man.background_color === bg && meta === bg && firstLink && !("id" in man && !rel(man.id)));
+    const png = (f) => { const b = readFileSync(f); return b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && b.toString("ascii", 12, 16) === "IHDR" ? `${b.readUInt32BE(16)}x${b.readUInt32BE(20)}` : "not a png"; };
+    const icons = man.icons.map((i) => ({ ...i, file: `public/${i.src}`, real: existsSync(`public/${i.src}`) ? png(`public/${i.src}`) : "missing" }));
+    const has = (size, purpose) => icons.some((i) => i.sizes === size && (i.purpose ?? "any").split(" ").includes(purpose) && i.real === size && i.type === "image/png" && rel(i.src));
+    check("install1", `manifest icons exist at their stated sizes (${icons.map((i) => `${i.src} ${i.real}/${i.purpose ?? "any"}`).join(", ")}): 192 any, 512 any and 512 maskable, relative paths, PNG`, has("192x192", "any") && has("512x512", "any") && has("512x512", "maskable") && icons.every((i) => i.real === i.sizes && rel(i.src)));
+    // The maskable icon: the art sits inside the 80% safe circle; outside it, only the shell background.
+    const decode = (f) => {
+      const b = readFileSync(f);
+      let o = 8, w = 0, h = 0, ct = 0; const idat = [];
+      while (o < b.length) { const len = b.readUInt32BE(o); const kind = b.toString("ascii", o + 4, o + 8); const d = b.subarray(o + 8, o + 8 + len); if (kind === "IHDR") { w = d.readUInt32BE(0); h = d.readUInt32BE(4); ct = d[9]; } if (kind === "IDAT") idat.push(d); o += 12 + len; }
+      const raw = inflateSync(Buffer.concat(idat)); const bpp = ct === 6 ? 4 : 3, stride = w * bpp; const out = Buffer.alloc(h * stride); let prev = Buffer.alloc(stride);
+      for (let y = 0; y < h; y++) { const t = raw[y * (stride + 1)]; const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)); const cur = Buffer.alloc(stride);
+        for (let x = 0; x < stride; x++) { const a = x >= bpp ? cur[x - bpp] : 0, up = prev[x], c = x >= bpp ? prev[x - bpp] : 0; const p = a + up - c; const pr = Math.abs(p - a) <= Math.abs(p - up) && Math.abs(p - a) <= Math.abs(p - c) ? a : Math.abs(p - up) <= Math.abs(p - c) ? up : c;
+          cur[x] = (line[x] + (t === 0 ? 0 : t === 1 ? a : t === 2 ? up : t === 3 ? (a + up) >> 1 : pr)) & 255; }
+        cur.copy(out, y * stride); prev = cur; }
+      return { w, h, rgb: (x, y) => out.subarray(y * stride + x * bpp, y * stride + x * bpp + 3).toString("hex") };
+    };
+    const m = decode("public/art/icons/gravewake-512-maskable.png");
+    const bgHex = (bg ?? "").slice(1);
+    let outside = 0, art = 0, far = 0;
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      const d = Math.hypot(x + 0.5 - m.w / 2, y + 0.5 - m.h / 2), isBg = m.rgb(x, y) === bgHex;
+      if (!isBg) { art++; far = Math.max(far, d); }
+      if (d > 0.4 * m.w && !isBg) outside++;
+    }
+    const tmp = mk(join(tmpdir(), "gw-icons-"));
+    let regen = "";
+    try { regen = execFileSync("python3", ["-B", "-c", `import sys; sys.path.insert(0, 'tools/pixel-writer'); import make_icons, pathlib; make_icons.main(pathlib.Path(${JSON.stringify(tmp)}))`], { encoding: "utf8" }); } catch (e) { regen = String(e.message); }
+    const names = ["gravewake-192.png", "gravewake-512.png", "gravewake-512-maskable.png"];
+    const same = names.every((n) => existsSync(join(tmp, "public/art/icons", n)) && md5(join(tmp, "public/art/icons", n)) === md5(`public/art/icons/${n}`));
+    const blocky = (() => { const k = 20, o = (512 - 16 * k) / 2; for (let y = 0; y < 512; y++) for (let x = 0; x < 512; x++) { const inArt = x >= o && x < o + 16 * k && y >= o && y < o + 16 * k; const ref = inArt ? m.rgb(o + Math.floor((x - o) / k) * k, o + Math.floor((y - o) / k) * k) : bgHex; if (m.rgb(x, y) !== ref) return false; } return true; })();
+    check("install1", `the maskable 512: the writer's 16×16 cell at a whole 20× (every 20 px block one colour) on the shell background; all ${art} art pixels lie inside the 80% safe circle (farthest ${far.toFixed(1)} px of 204.8), none outside; tools/pixel-writer/make_icons.py writes all three icons byte for byte`, art > 0 && outside === 0 && far <= 0.4 * 512 && blocky && same, regen.trim());
+  }
+
+  // 3. The service worker: generated at build time, precaching the built assets and the art, versioned by a hash.
+  const gen = (extra = {}) => {
+    const p = SW.gravewakeSwPlugin();
+    p.configResolved({ publicDir: join(root, "public") });
+    let out = null;
+    const bundle = { "assets/main-AAAA.js": { type: "chunk", code: "console.log(1)" }, "assets/styles-BBBB.css": { type: "asset", source: "body{}" }, ".vite/manifest.json": { type: "asset", source: "{}" }, "assets/main-AAAA.js.map": { type: "asset", source: "{}" }, ...extra };
+    p.generateBundle.call({ emitFile: (f) => { out = f; } }, {}, bundle);
+    return out;
+  };
+  const emitted = gen();
+  const src = emitted?.source ?? "";
+  const list = JSON.parse(/const PRECACHE = (\[.*\]);/.exec(src)?.[1] ?? "[]");
+  const ver = /const VERSION = "([0-9a-f]+)";/.exec(src)?.[1];
+  {
+    const pub = SW.listPublic(join(root, "public"));
+    const wantArt = pub.filter((f) => f.startsWith("art/"));
+    const v2 = /const VERSION = "([0-9a-f]+)";/.exec(gen({ "assets/main-AAAA.js": { type: "chunk", code: "console.log(2)" } }).source)?.[1];
+    const v1b = /const VERSION = "([0-9a-f]+)";/.exec(gen().source)?.[1];
+    check("install1", `sw.js is emitted by the client build and precaches the page, the built assets and every public game file (${list.length} entries: the bundle's JS/CSS, ${wantArt.length} art files, the icons, the manifest); not source maps, the .vite folder, the social cards or the platform's install tutorial; its cache version is a hash of every precached file (${ver}; one changed byte gives ${v2})`,
+      emitted?.fileName === "sw.js" && emitted.type === "asset" && list[0] === "./" && list.includes("assets/main-AAAA.js") && list.includes("assets/styles-BBBB.css") && wantArt.every((f) => list.includes(f)) && ["gravewake.webmanifest", "favicon.svg", "art/icons/gravewake-512-maskable.png", "__grok/icon-180.png"].every((f) => list.includes(f)) && !list.some((f) => /\.map$|^\.vite|^og\.jpg$|^x-banner\.jpg$|^__grok\/install\/|^sw\.js$/.test(f)) && !!ver && v2 !== ver && v1b === ver);
+    check("install1", "the plugin runs in the production build only, for the client environment only, and vite.config.ts keeps the platform's grokPwaPlugin", plug.includes('apply: "build"') && SW.gravewakeSwPlugin().applyToEnvironment({ name: "client" }) === true && SW.gravewakeSwPlugin().applyToEnvironment({ name: "ssr" }) === false && /gravewakeSwPlugin\(\),\n {4}tanstackStart\(\),/.test(vite) && /grokPwaPlugin\(\),/.test(vite));
+    {
+      // pages1: a GitHub Pages subpath build (GRAVEWAKE_BASE=/gravewake/) rebases the game's public-file paths; at "/" nothing changes.
+      const PG = await import(pathToFileURL(join(root, "scripts/gravewake-pages-plugin.mjs")).href);
+      const sample = 'a("/art/sprites/foes.png");b(`/art/writer/feat-${k}.png`);c("/__grok/icon-180.png");d("/favicon.svg");e("/gravewake.webmanifest");f("/api/auth/x");g("/login")';
+      const out = PG.rebase(sample, "/gravewake/");
+      check("pages1", "the Pages build rebases every public-file path (art, __grok, favicon, manifest) under /gravewake/ and leaves server routes alone", out === 'a("/gravewake/art/sprites/foes.png");b(`/gravewake/art/writer/feat-${k}.png`);c("/gravewake/__grok/icon-180.png");d("/gravewake/favicon.svg");e("/gravewake/gravewake.webmanifest");f("/api/auth/x");g("/login")');
+      const pl = PG.gravewakePagesPlugin("/");
+      check("pages1", "at base \"/\" (the normal build) the plugin changes nothing", PG.rebase(sample, "/") === sample && pl.transform(sample, "/x/src/game/draw.ts") === null && PG.gravewakePagesPlugin("/gravewake/").transform(sample, "/x/node_modules/y.js") === null && PG.gravewakePagesPlugin("/gravewake/").transform(sample, "/x/src/game/draw.ts")?.code === out);
+      const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+      check("pages1", "vite.config.ts takes base from GRAVEWAKE_BASE (default \"/\") and runs the plugin; build:pages sets /gravewake/", /base: process\.env\.GRAVEWAKE_BASE \|\| "\/",/.test(vite) && /gravewakePagesPlugin\(\),/.test(vite) && /GRAVEWAKE_BASE=\/gravewake\/ /.test(pkg.scripts["build:pages"] ?? ""));
+    }
+  }
+
+  // 4. The worker's behaviour, run in a sandbox with mocked caches and network (scope: a GitHub Pages subpath).
+  {
+    const SCOPE = "https://bill.github.io/gravewake/";
+    const mkEnv = () => {
+      const handlers = {}, store = new Map(), log = { skip: 0, claim: 0, fetched: [] };
+      const net = { mode: "online", body: (u) => `net:${u}` };
+      const keyOf = (r, ignore) => { const u = new URL(typeof r === "string" ? r : r.url); if (ignore) u.search = ""; return u.href; };
+      const mkCache = () => { const m = new Map(); return {
+        put: async (r, res) => { m.set(keyOf(r), res); },
+        match: async (r, o) => { const k = keyOf(r, o?.ignoreSearch); for (const [kk, v] of m) if ((o?.ignoreSearch ? keyOf(kk, true) : kk) === k) return v.clone(); return undefined; },
+        keys: async () => [...m.keys()], _m: m }; };
+      const caches = { open: async (n) => { if (!store.has(n)) store.set(n, mkCache()); return store.get(n); }, keys: async () => [...store.keys()], delete: async (n) => store.delete(n), match: async (r) => { for (const c of store.values()) { const h = await c.match(r); if (h) return h; } } };
+      const fetch = (req) => { const u = typeof req === "string" ? req : req.url; log.fetched.push([u, typeof req === "string" ? "" : req.cache]); if (net.mode === "offline") return Promise.reject(new TypeError("offline")); if (net.mode === "stall") return new Promise(() => {}); const res = new Response(net.body(u), { status: 200 }); Object.defineProperty(res, "type", { value: new URL(u).origin === "https://bill.github.io" ? "basic" : "opaque" }); return Promise.resolve(res); };
+      const self = { addEventListener: (t, f) => { handlers[t] = f; }, registration: { scope: SCOPE }, location: { origin: "https://bill.github.io" }, skipWaiting: async () => { log.skip++; }, clients: { claim: async () => { log.claim++; } } };
+      const ctx = vm.createContext({ self, caches, fetch, Request, Response, URL, Promise, Error, TypeError, RegExp, JSON, setTimeout: (f, ms) => setTimeout(f, Math.min(ms, 20)), console });
+      vm.runInContext(src, ctx);
+      const fire = async (type, ev) => { let w = null, r = null; handlers[type]({ ...ev, waitUntil: (p) => { w = p; }, respondWith: (p) => { r = p; } }); if (w) await w; return r; };
+      return { handlers, store, log, net, fire, caches };
+    };
+    const E = mkEnv();
+    await E.caches.open("gravewake-0ld0ld");
+    await E.caches.open("another-app-cache");
+    await E.fire("install", {});
+    const cur = E.store.get(`gravewake-${ver}`);
+    const pre = list.every((u) => cur?._m.has(new URL(u, SCOPE).href)) && E.log.fetched.every(([, c]) => c === "reload") && E.log.skip === 1;
+    await E.fire("activate", {});
+    const keys = [...E.store.keys()];
+    const act = !keys.includes("gravewake-0ld0ld") && keys.includes("another-app-cache") && keys.includes(`gravewake-${ver}`) && E.log.claim === 1;
+    check("install1", `install precaches all ${list.length} entries into gravewake-${ver} (fetched with cache: reload, past the HTTP cache) and calls skipWaiting; activate deletes older gravewake-* caches (not other apps'), keeps its own and claims the open pages`, pre && act, JSON.stringify({ pre, keys, claim: E.log.claim }));
+    const nav = (path, mode = "navigate", method = "GET") => ({ request: { url: new URL(path, SCOPE).href, mode, method } });
+    const text = async (p) => (p ? await (await p).text() : null);
+    E.net.body = () => "page v2";
+    const online = await text(E.fire("fetch", nav("./")));
+    const homeNow = await (await cur.match(SCOPE)).text();
+    E.net.mode = "offline";
+    const offline = await text(E.fire("fetch", nav("./?slot=1")));
+    E.net.mode = "stall";
+    const stalled = await text(E.fire("fetch", nav("./")));
+    E.net.mode = "online";
+    E.net.body = () => "fresh art";
+    const before = E.log.fetched.length;
+    const cachedAsset = await text(E.fire("fetch", nav("assets/main-AAAA.js", "cors")));
+    const hitNoNet = E.log.fetched.length === before;
+    await cur._m.delete(new URL("art/sprites/krampus.png", SCOPE).href);
+    const missArt = await text(E.fire("fetch", nav("art/sprites/krampus.png", "no-cors")));
+    const refilled = cur._m.has(new URL("art/sprites/krampus.png", SCOPE).href);
+    const passed = await Promise.all([E.fire("fetch", { request: { url: "https://grok.com/grok-app-builder/extensions.js", mode: "no-cors", method: "GET" } }), E.fire("fetch", nav("api/save", "cors", "POST")), E.fire("fetch", nav("./", "navigate", "POST")), E.fire("fetch", nav("assets/main-AAAA.js", "cors", "POST")), E.fire("fetch", nav("api/thing", "cors")), E.fire("fetch", nav("./?install=1")), E.fire("fetch", nav("__grok/manifest.webmanifest", "cors")), E.fire("fetch", { request: { url: "https://bill.github.io/other-game/", mode: "navigate", method: "GET" } })]);
+    check("install1", `fetch: the page is network-first (online it is the new build, "${online}", and that copy is kept; offline it is the kept page, "${offline}"; a stalled network falls back after 4 s, "${stalled}"); built assets come from the cache without the network; art missing from the cache is fetched once and kept; other sites, non-GET, api/, ?install=1, the platform manifest and pages outside the scope are left to the browser`,
+      online === "page v2" && homeNow === "page v2" && offline === "page v2" && stalled === "page v2" && cachedAsset !== null && hitNoNet && missArt === "fresh art" && refilled && passed.every((p) => p === null), JSON.stringify({ cachedAsset, hitNoNet, missArt, refilled, passed: passed.map((p) => p === null) }));
+  }
+
+  // 5. Registration: production builds only, https or this machine only, from the site base.
+  {
+    const A = I.swAllowed;
+    const table = [["https:", "gravewake.vercel.app", true], ["https:", "bill.github.io", true], ["http:", "localhost", true], ["http:", "127.0.0.1", true], ["http:", "[::1]", true], ["http:", "game.localhost", true], ["http:", "gravewake.example", false], ["http:", "192.168.1.20", false], ["file:", "", false], ["http:", "localhost.evil.com", false]];
+    const tableOk = table.every(([protocol, hostname, want]) => A({ protocol, hostname }) === want);
+    const reg = (o) => {
+      const calls = [];
+      let onload = null;
+      const win = { location: { protocol: o.protocol ?? "https:", hostname: o.host ?? "gravewake.vercel.app" }, navigator: o.noSw ? {} : { serviceWorker: { register: (u, opt) => { calls.push([u, opt]); return Promise.resolve({}); } } }, document: { readyState: o.ready ?? "complete" }, addEventListener: (t, f) => { if (t === "load") onload = f; } };
+      const r = I.registerServiceWorker(win, o.prod ?? true, o.base);
+      if (onload) onload();
+      return { r, calls };
+    };
+    const ok = reg({});
+    const sub = reg({ base: "/gravewake/", ready: "loading" });
+    const cases = [reg({ prod: false }), reg({ protocol: "http:", host: "gravewake.example" }), reg({ noSw: true })];
+    check("install1", `the service worker is registered only in a production build and only on https or localhost/127.0.0.1/[::1]/*.localhost (${table.length} origins); from the site base (sw.js with scope "/", or "/gravewake/sw.js" scope "/gravewake/" on a subpath build) after load, with updateViaCache none; a dev build, a plain-http site or no service worker support registers nothing; installer() wires the build's PROD and BASE_URL`,
+      tableOk && ok.r && JSON.stringify(ok.calls) === JSON.stringify([["/sw.js", { scope: "/", updateViaCache: "none" }]]) && sub.r && JSON.stringify(sub.calls) === JSON.stringify([["/gravewake/sw.js", { scope: "/gravewake/", updateViaCache: "none" }]]) && cases.every((c) => !c.r && c.calls.length === 0) && /registerServiceWorker\(window as unknown as SwWindow, env\?\.PROD === true, env\?\.BASE_URL \?\? "\/"\)/.test(inst) && /const env = import\.meta\.env/.test(inst));
+  }
+
+  // 6. The button logic, with a mocked beforeinstallprompt.
+  {
+    const mkWin = (o = {}) => {
+      const t = new EventTarget();
+      const modes = new Set(o.modes ?? []);
+      t.matchMedia = (q) => ({ matches: modes.has(q), addEventListener: () => {} });
+      t.navigator = { userAgent: o.ua ?? "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36", platform: o.platform ?? "Linux armv8l", maxTouchPoints: o.touch ?? 5, standalone: o.standalone };
+      t.document = { fullscreenElement: o.fsEl ?? null };
+      return t;
+    };
+    const prompt = (outcome, opts = {}) => {
+      const e = new Event("beforeinstallprompt", { cancelable: true });
+      e.calls = 0;
+      e.prompt = async () => { e.calls++; if (opts.throws) throw new Error("not allowed"); };
+      e.userChoice = Promise.resolve({ outcome, platform: "web" });
+      return e;
+    };
+    const w = mkWin();
+    const X = I.createInstaller(w);
+    let notes = 0;
+    X.subscribe(() => notes++);
+    const s0 = X.state();
+    const e1 = prompt("accepted");
+    w.dispatchEvent(e1);
+    const s1 = X.state(), held = e1.defaultPrevented && notes === 1;
+    const [c1, c2] = await Promise.all([X.install(), X.install()]);
+    const s2 = X.state(), once = e1.calls === 1 && c1 === "accepted" && c2 === "unavailable";
+    const again = await X.install();
+    const e2 = prompt("dismissed");
+    w.dispatchEvent(e2);
+    const s3 = X.state();
+    const c3 = await X.install();
+    const s4 = X.state();
+    const e3 = prompt("accepted", { throws: true });
+    w.dispatchEvent(e3);
+    const c4 = await X.install();
+    const s5 = X.state();
+    w.dispatchEvent(prompt("accepted"));
+    w.dispatchEvent(new Event("appinstalled"));
+    const s6 = X.state();
+    check("install1", `button logic with a mocked beforeinstallprompt: before it ${s0}; the event is held (preventDefault, so no mini-infobar) and the state is ${s1}; Install replays it once even on a double tap (${c1}/${c2}) and the app is ${s2}, a second Install is ${again}; a later prompt (after an uninstall) is ${s3}, dismissed it is spent (${c3} → ${s4}); a prompt that throws is spent too (${c4} → ${s5}); appinstalled hides it (${s6})`,
+      s0 === "unsupported" && s1 === "ready" && held && once && s2 === "installed" && again === "unavailable" && s3 === "ready" && c3 === "dismissed" && s4 === "unsupported" && e2.calls === 1 && c4 === "dismissed" && s5 === "unsupported" && s6 === "installed");
+    const st = (o) => I.createInstaller(mkWin(o)).state();
+    const IOS = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1";
+    const envs = {
+      standalone: st({ modes: ["(display-mode: standalone)"] }), appFullscreen: st({ modes: ["(display-mode: fullscreen)"] }), tabFullscreen: st({ modes: ["(display-mode: fullscreen)"], fsEl: {} }),
+      wco: st({ modes: ["(display-mode: window-controls-overlay)"] }), iphone: st({ ua: IOS, platform: "iPhone" }), iphoneHome: st({ ua: IOS, platform: "iPhone", standalone: true }), ipad: st({ ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel", touch: 5 }), firefox: st({ ua: "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0", platform: "Linux x86_64", touch: 0 }),
+    };
+    check("install1", `installed or not: ${Object.entries(envs).map(([k, v]) => `${k} ${v}`).join(", ")} (a tab put full screen is not an install)`,
+      envs.standalone === "installed" && envs.appFullscreen === "installed" && envs.tabFullscreen === "unsupported" && envs.wco === "installed" && envs.iphone === "ios" && envs.iphoneHome === "installed" && envs.ipad === "ios" && envs.firefox === "unsupported");
+    const V = I.installView;
+    const views = Object.fromEntries(["ready", "ios", "unsupported", "installed"].flatMap((s) => ["title", "options"].map((where) => [`${s}/${where}`, V(s, where)])));
+    check("install1", "what shows: an installable browser gets Install on the title and Install app under Display (with a one-line note); iPhone/iPad the same buttons, opening the Share → Add to Home Screen tip; a browser that cannot install no title button and a short note under Display; once installed, nothing",
+      views["ready/title"].button === "Install" && !views["ready/title"].note && views["ready/options"].button === "Install app" && !!views["ready/options"].note && views["ios/title"].button === "Install" && /Share, then Add to Home Screen/.test(views["ios/options"].note ?? "") && !views["unsupported/title"].button && !views["unsupported/title"].note && !views["unsupported/options"].button && /cannot install/.test(views["unsupported/options"].note ?? "") && !views["installed/title"].button && !views["installed/title"].note && !views["installed/options"].button && !views["installed/options"].note);
+  }
+
+  // 7. Wiring: the title and Pause › Display only (not the HUD); a plain button the pad, keys and touch reach.
+  {
+    const titleAt = ui.indexOf('data-testid="title"'), titleEnd = ui.indexOf('{game.mode === "pause"');
+    const optsAt = ui.indexOf("function ScreenOptions("), optsEnd = ui.indexOf("\n}\n", optsAt);
+    const at = (s) => { const out = []; let i = -1; while ((i = ui.indexOf(s, i + 1)) >= 0) out.push(i); return out; };
+    const t = at('<InstallButton where="title" />'), o = at('<InstallButton where="options" />');
+    const ok = t.length === 1 && t[0] > titleAt && t[0] < titleEnd && t[0] > ui.indexOf('data-testid="title-fullscreen"') && o.length === 1 && o[0] > optsAt && o[0] < optsEnd && at("<InstallButton").length === 2;
+    const plain = /<button type="button" data-testid=\{`\$\{where\}-install`\}/.test(btn) && /if \(state === "ios"\) requestIosTip\(\);\n\s+else void installer\(\)\?\.install\(\);/.test(btn) && /useIosTipRequest\(\(\) => setTip\(true\)\);/.test(ui) && /data-testid="a2hs-tip"/.test(ui);
+    const padSel = /button:not\(:disabled\), input\[type="range"\], input\[type="checkbox"\]/.test(ui) && /"title", "talk", "shop", "casino", "bank", "zeppelin", "pause"/.test(ui);
+    check("install1", "the Install button sits on the title (beside Fullscreen) and in ScreenOptions (title Display panel and Pause › Display), nowhere in the HUD; it is a plain <button> inside the title's and the pause menu's pad-nav roots, so the d-pad/stick and A, Tab/Enter and touch all reach it; on iPhone it opens screen1's tip", ok && plain && padSel);
+  }
+
+  // 8. Nothing in play changed; saves are untouched.
+  {
+    const FADE2 = {"src/game/Gravewake.tsx": "35ec89e9444560c7b22a12df60021524", "src/game/audio.ts": "98fbcef17779a2f944f6e71f913eba81", "src/game/bond.ts": "2f29da655a986038789078125ce4c989", "src/game/bounty.ts": "8b71d8a405b42bbd61af08f6e60c32bc", "src/game/content.ts": "e520f80e802f7b80d5b5835893cbb019", "src/game/crowd.ts": "1ee8fc268f06cae9351df0d9bc9cf184", "src/game/decor.ts": "264e4f60b143aa8c3fd297387bffe027", "src/game/derby.ts": "083260bd87dec03a20e13a0e6ad96cca", "src/game/draw.ts": "1272a03419b94195caa0c2f1d0327747", "src/game/fade.ts": "55607bb925c330ba06cd60cd9aa6f6d7", "src/game/feats.ts": "39ed775c579eed137ffa64fd877bb647", "src/game/festivals.ts": "d6c5fd0abacc274cff6d5d35356422fa", "src/game/graves.ts": "bd2a91295356e6e4d6f080a362832b80", "src/game/light.ts": "c87f3807e23eae891280b96731660c88", "src/game/mimic.ts": "23ec42f4ff5bd18b96d1e00234635815", "src/game/particles.ts": "32a2407a12fd4f93b4e6a423adcda043", "src/game/runs.ts": "92b5f1b4c6d493fdb44719c0ca300770", "src/game/screen.ts": "b27ad646226e7b46470d9e929f887aef", "src/game/seasons.ts": "570817f597bdf4a8d21378967ebe27f1", "src/game/sim.ts": "b00b377ffa9ffcf48cdd71ff6d70bcf1"};
+    const files = readdirSync("src/game").filter((f) => /\.tsx?$/.test(f)).map((f) => `src/game/${f}`).sort();
+    const bad = Object.entries(FADE2).filter(([f, h]) => (f === "src/game/Gravewake.tsx" ? md5s(uninstall1Ui(readFileSync(f, "utf8"))) : md5(f)) !== h).map(([f]) => f);
+    const extra = files.filter((f) => !(f in FADE2));
+    const un = uninstall1Ui(ui);
+    const quiet = ![inst, btn].some((t) => /localStorage|sessionStorage|indexedDB|saveSlot|loadSlot|from "\.\.\/game\/sim"/.test(t));
+    check("install1", "play is untouched: every game module (sim, draw, content, saves, the HUD) is fade2's byte for byte, and Gravewake.tsx is fade2's once its five install1 lines are taken out; the install code stores nothing and never touches the sim or the saves", bad.length === 0 && extra.length === 0 && un !== ui && md5s(un) === FADE2["src/game/Gravewake.tsx"] && quiet, [...bad, ...extra].join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, install1");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

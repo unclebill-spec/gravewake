@@ -10,6 +10,10 @@ import { nitro } from "nitro/vite";
 import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
 // @ts-expect-error JS plugin alongside the TS vite config
 import { appEnvPlugin } from "./scripts/app-env-plugin.mjs";
+// @ts-expect-error JS plugin alongside the TS vite config
+import { gravewakeSwPlugin } from "./scripts/gravewake-sw-plugin.mjs";
+// @ts-expect-error JS plugin alongside the TS vite config
+import { gravewakePagesPlugin } from "./scripts/gravewake-pages-plugin.mjs";
 import { isMigrationFile } from "./scripts/migration-plan.mjs";
 
 /** The files `src/lib/db.ts` globs — same directory, same non-recursive scope. */
@@ -146,6 +150,8 @@ function authPopupPlugin(): Plugin {
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
+  // pages1: GRAVEWAKE_BASE=/gravewake/ builds for a GitHub Pages subpath; unset, the site root as before.
+  base: process.env.GRAVEWAKE_BASE || "/",
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -166,6 +172,10 @@ export default defineConfig(({ command, isPreview }) => ({
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     tailwindcss(),
+    // install1: emits sw.js (offline precache, versioned by build hash) in the client build only.
+    // pages1: public-file paths in the game code follow GRAVEWAKE_BASE (no-op at "/").
+    gravewakePagesPlugin(),
+    gravewakeSwPlugin(),
     tanstackStart(),
     ...(command === "build" || isPreview
       ? [

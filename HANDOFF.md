@@ -8,7 +8,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 575 as of fade2), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 592 as of install1), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)
@@ -37,3 +37,6 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 1. Owner decisions: whether to also fade bounty, rift and dungeon foes (festival foes are done in fade2); touch input on the 16:9 and 4:3 bars. Deferred: auto-pause in portrait, and pad buttons for specials 1–4.
 2. Graphics items the owner still needs to decide: C2 (selective outline), C8 (chibi proportions), C10 (native resolution/zoom in `sim.ts`), pillars, light occlusion, and the UI reskin.
 3. Open small questions: decor pricing (casino points or fish points), and optional seeded grave mounds.
+
+## Play link (GitHub Pages)
+- https://unclebill-spec.github.io/gravewake/ is served from the `gh-pages` branch. To update it, run `GRAVEWAKE_BASE=/gravewake/ npm run build:pages` and copy the output, including index.html, 404.html and .nojekyll, to the root of gh-pages.

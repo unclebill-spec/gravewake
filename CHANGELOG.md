@@ -2,6 +2,11 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-01: install1 + pages, Install button and GitHub Pages
+- Added an in-game Install button. It uses the web app manifest, icons made with pixel-writer, and a service worker for offline play. Updates use a network-first index plus versioned caches. On iOS the button is replaced by an "Add to Home Screen" tip. Touch, pad and keyboard can all reach it.
+- `npm run build:pages` makes a build for https://unclebill-spec.github.io/gravewake/ (GRAVEWAKE_BASE=/gravewake/), and it's published on the gh-pages branch. The normal build is unchanged.
+- No gameplay or sim changes. check:game 575 → 592.
+
 ## 2026-10-01: fade2, festival foe fade-in
 - Festival foes now use the fade1 fade-in: bosses, named packs, summons and helpers in all four festivals. Krampus and the Pumpkin Lord are drawn at 2×, and the fade scales with them.
 - [OWNER-APPROVED 2026-10-01 21:20 ET] A minimal sim.ts tag, an optional spawnAt field, records when each festival foe appears. Play never reads it and saves don't store it. Spawns, combat and saves are byte-identical for a fixed seed, and fade1 saves still load.

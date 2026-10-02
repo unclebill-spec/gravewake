@@ -30,6 +30,8 @@ import {
   type ScreenSettings,
   type View,
 } from "./screen";
+import { InstallButton } from "../pwa/InstallButton"; // install1
+import { useIosTipRequest } from "../pwa/install"; // install1
 
 /**
  * The shell around the simulation. The canvas draws the world.
@@ -70,6 +72,7 @@ export function Gravewake() {
   const [portraitOk, setPortraitOk] = useState(false);
   const [tip, setTip] = useState(false);
   const [fs, setFs] = useState(false);
+  useIosTipRequest(() => setTip(true)); // install1: the Install button on iPhone opens screen1's tip
   const [padOn, setPadOn] = useState(false);
   const [titleDisplay, setTitleDisplay] = useState(false);
   const [fsAvail, setFsAvail] = useState(true);
@@ -687,6 +690,7 @@ export function Gravewake() {
             <button type="button" data-testid="title-fullscreen" className="rounded border border-border px-3 py-2 text-sm" onClick={fullscreen}>
               {fs ? "Exit fullscreen" : "Fullscreen"}
             </button>
+            <InstallButton where="title" />
           </div>
           {titleDisplay ? (
             <div className="w-full max-w-lg rounded border border-border bg-surface p-3">
@@ -1709,6 +1713,7 @@ function ScreenOptions({ s, view, fs, onSet, onFullscreen, onClose }: { s: Scree
           </button>
         ) : null}
       </div>
+      <InstallButton where="options" />
     </div>
   );
 }
