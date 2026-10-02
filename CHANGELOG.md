@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1g, biome trail art (drawing only)
+- Trails in the vale, snow, ash and sand get proper path art in place of flat brown squares: worn dirt with seasonal leaf litter, packed snow with footprints, cracked cinder with embers, wind-swept sand with pebbles. 16 NESW masks with ragged blended edges.
+- Trails draw from a cached opaque ground+path atlas (one draw per tile) to keep fps near 1f.
+- Bill decided: no spawn fade-in for bounty, rift or dungeon foes (only night and festival foes fade).
+- check:game 765.
+
 ## 2026-10-02: playtest1f, wayrift portals and swamp paths (OWNER-APPROVED)
 - 11 animated wayrift portals on the vale (violet swirl, red heart, neon-blue cold fire on a rune dais, 3x2 tiles). Four at the town gate lead to the Ashen Rift, the Shifting Barrow, the Waste Pocket and the current season's festival; festival portals for other seasons are sealed until their season.
 - Travel by walking, tapping or pushing the stick into a portal's mouth: an ink iris closes and opens at the far end, and the far portal waits until you step off.

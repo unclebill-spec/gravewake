@@ -436,6 +436,8 @@ def main() -> None:
     print(f"playtest1d C2 sheets {len(c2)}, palette v3 locked")
     d2 = playtest1f_d2()
     print(f"playtest1f D2 sheets {len(d2)}, palette v3 locked")
+    g1 = playtest1g()
+    print(f"playtest1g sheets {len(g1)}, palette v3 locked")
     print(f"wrote {OUT}")
 
 
@@ -680,6 +682,37 @@ def playtest1f_d2() -> dict:
     sheet.alpha_composite(made["swamp-path.png"], (30, 70))
     sheet.alpha_composite(made["wayrift_em.png"].crop((0, 0, 96, 64)), (2, 92))
     sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1f.png")
+    return made
+
+
+def playtest1g() -> dict:
+    """playtest1g (owner-requested 2026-10-02 11:30 ET, [OWNER-APPROVED 2026-10-02: playtest1g trail paths]): the trail
+    paths of the vale (one row a season), the Winter hollow, the Cinder and the Dry waste (trail_writer), 18 cells a
+    row: masks 0-15 (1 N, 2 E, 4 S, 8 W), then the N-S and E-W straights' variant. Runs on its own too:
+    python3 -c "import make_gravewake as m; m.playtest1g()"  (from this folder)."""
+    import trail_writer as t
+
+    made = {}
+    vale = Image.new("RGBA", (18 * 16, 16 * len(t.SEASONS)), (0, 0, 0, 0))
+    for j, season in enumerate(t.SEASONS):
+        vale.alpha_composite(cells(t.cells_for("vale", season)), (0, 16 * j))
+    made["trail-vale.png"] = vale
+    for biome in ("snow", "ash", "sand"):
+        made[f"trail-{biome}.png"] = cells(t.cells_for(biome))
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    grounds = {"snow": (215, 230, 240), "ash": (42, 34, 28), "sand": (182, 164, 124)}
+    sheet = Image.new("RGBA", (296, 16 * 7 + 16), (12, 10, 8, 255))
+    for j in range(4):
+        row = Image.new("RGBA", (288, 16), (42, 74, 40, 255))
+        row.alpha_composite(vale.crop((0, 16 * j, 288, 16 * j + 16)))
+        sheet.alpha_composite(row, (4, 4 + 16 * j))
+    for k, biome in enumerate(("snow", "ash", "sand")):
+        row = Image.new("RGBA", (288, 16), grounds[biome] + (255,))
+        row.alpha_composite(made[f"trail-{biome}.png"])
+        sheet.alpha_composite(row, (4, 4 + 16 * (4 + k) + 4))
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1g.png")
     return made
 
 

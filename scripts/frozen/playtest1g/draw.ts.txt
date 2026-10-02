@@ -3,7 +3,6 @@ import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
 import { HARVEST } from "./festivals";
-import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
 import { townRoomAt } from "./sim";
@@ -944,14 +943,6 @@ if (typeof Image !== "undefined") {
   }
   // playtest1f: the wayrifts, their glow, their map marker and the swamp path load up front too.
   for (const url of WAYRIFT_SHEETS) {
-    if (landSheet[url]) continue;
-    const im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
-
-  // playtest1g: the trail path sheets of the vale, snow, ash and sand load up front too.
-  for (const url of TRAIL_SHEETS) {
     if (landSheet[url]) continue;
     const im = new Image();
     im.src = url;
@@ -2181,66 +2172,6 @@ function paintSwampPath(ctx: CanvasRenderingContext2D, g: Game, x: number, y: nu
   sheetCell(ctx, SWAMP_PATH, swampPathCell(g.tiles, g.w, g.h, x, y), 0, x * TILE, y * TILE);
 }
 
-/** playtest1g [OWNER-APPROVED 2026-10-02: playtest1g trail paths]: the ground a vale, snow, ash or sand trail tile is
- * drawn on (its skin biome's, as its neighbours draw it), or -1: off a trail, on the swamp (its own path) and before its
- * trail sheet loads (the old flat tile then). Such a tile is one copy from the trail atlas (trailComposite: the ground
- * cell with the trail writer's cell for its NESW path neighbours on it, the vale's row by season, its ragged edge letting
- * the ground show through) in place of the flat dirt square; while a ground sheet loads, drawTile and paintTrailPath
- * draw the two. */
-function trailGround(skinBiome: number): number {
-  const ground = VALE_GROUND[skinBiome];
-  if (ground === T.swamp) return -1;
-  const url = TRAIL_BY_GROUND[ground];
-  return url && sheetReady(url) ? ground : -1;
-}
-/** playtest1g, fps parity: a trail tile's ground cell and path cell are composited once into one opaque atlas (64x64
- * slots of 16x16; every ground sheet is opaque, so the atlas has no alpha and a trail tile is one plain copy on
- * screen), keyed by the ground cell and the path cell (a season's vale sheet and path row included), started afresh
- * when full. False while a sheet is still loading (then drawTile and paintTrailPath draw the two). */
-export const TRAIL_ATLAS = 64;
-let trailAtlas: HTMLCanvasElement | null = null;
-let trailAtlasCtx: CanvasRenderingContext2D | null = null;
-const trailSlot = new Map<string, number>();
-const TRAIL_WILD: Readonly<Record<number, string>> = { [T.snow]: "snow", [T.ash]: "ash", [T.sand]: "sand" };
-export const trailAtlasSize = () => trailSlot.size;
-function trailComposite(ctx: CanvasRenderingContext2D, g: Game, x: number, y: number, ground: number): boolean {
-  if (typeof document === "undefined") return false;
-  const url = TRAIL_BY_GROUND[ground];
-  const per = TEX / TILE;
-  const vale = ground === T.grass;
-  const sheet = vale ? (sheetReady(seasonSheet(seasonNow, "vale")) ? seasonSheet(seasonNow, "vale") : "/art/writer/vale.png") : WILD_GROUND[TRAIL_WILD[ground]];
-  if (!sheet || !sheetReady(sheet) || !sheetReady(url)) return false;
-  const gc = vale ? Math.abs(x * 3 + y * 5) % 8 : ((x % per) + per) % per;
-  const gr = vale ? 0 : ((y % per) + per) % per;
-  const cell = swampPathCell(g.tiles, g.w, g.h, x, y);
-  const row = url === TRAIL_VALE ? TRAIL_SEASON_ROW[g.season()] : 0;
-  const key = `${sheet}|${gc}|${gr}|${url}|${cell}|${row}`;
-  let slot = trailSlot.get(key);
-  if (slot === undefined) {
-    if (!trailAtlas) {
-      trailAtlas = document.createElement("canvas");
-      trailAtlas.width = trailAtlas.height = TRAIL_ATLAS * 16;
-      trailAtlasCtx = trailAtlas.getContext("2d", { alpha: false });
-    }
-    if (!trailAtlasCtx) return false;
-    if (trailSlot.size >= TRAIL_ATLAS * TRAIL_ATLAS) trailSlot.clear();
-    slot = trailSlot.size;
-    trailSlot.set(key, slot);
-    const ax = (slot % TRAIL_ATLAS) * 16;
-    const ay = Math.floor(slot / TRAIL_ATLAS) * 16;
-    trailAtlasCtx.imageSmoothingEnabled = false;
-    trailAtlasCtx.drawImage(landSheet[sheet]!, gc * 16, gr * 16, 16, 16, ax, ay, 16, 16);
-    trailAtlasCtx.drawImage(landSheet[url]!, cell * 16, row * 16, 16, 16, ax, ay, 16, 16);
-  }
-  if (!trailAtlas) return false;
-  ctx.drawImage(trailAtlas, (slot % TRAIL_ATLAS) * 16, Math.floor(slot / TRAIL_ATLAS) * 16, 16, 16, x * TILE, y * TILE, 16, 16);
-  return true;
-}
-function paintTrailPath(ctx: CanvasRenderingContext2D, g: Game, x: number, y: number, ground: number) {
-  const url = TRAIL_BY_GROUND[ground];
-  sheetCell(ctx, url, swampPathCell(g.tiles, g.w, g.h, x, y), url === TRAIL_VALE ? TRAIL_SEASON_ROW[g.season()] : 0, x * TILE, y * TILE);
-}
-
 /**
  * playtest1f: the wayrift swirl. An iris of ink closes on the hero over WAYRIFT.out s (three violet and cold-blue arms
  * turning round its edge, a dithered rim, no alpha: every pixel a locked colour), the screen is dark for a beat while
@@ -2880,20 +2811,11 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const n = ((x * 13 + y * 7) % 10) / 10;
       const prop = tile === T.tree || tile === T.rock || tile === T.pump || tile === T.grave;
       const base = prop ? (skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : tile;
-      // playtest1g: a vale, snow, ash or sand trail tile draws its biome's ground here (no flat dirt square under it)
-      const trailG = skin && tile === T.dirt ? trailGround(skin.biome[i]) : -1;
-      const trailDone = trailG >= 0 && trailComposite(ctx, g, x, y, trailG);
-      if (trailDone) {
-        // ground and path in one copy from the trail atlas
-      } else if (trailG >= 0) drawTile(ctx, trailG as Tile, x, y, n, g.theme, trailG, g.frame, trailG, trailG, trailG);
-      else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
+      drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
       if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)
       if (skin && tile === T.dirt && VALE_GROUND[skin.biome[i]] === T.swamp) paintSwampPath(ctx, g, x, y);
-      // playtest1g: so do the vale's, the snow's, the ash's and the sand's (worn dirt and leaf litter, packed snow,
-      // cracked cinder, wind-swept sand), each over its own ground
-      if (trailG >= 0 && !trailDone) paintTrailPath(ctx, g, x, y, trailG);
       if (g.floodAt(x, y)) sheetCell(ctx, FLOOD_SHEET, (x * 3 + y * 5 + (g.frame >> 5)) % 4, 0, x * TILE, y * TILE);
       if (secretTile(tile)) paintSecret(ctx, g, tile, x, y);
       // playtest1d (owner-reported 2026-10-02, "a grey square with an arrow on the ice"): g.feats outlives the last dungeon

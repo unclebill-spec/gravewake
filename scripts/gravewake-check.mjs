@@ -105,6 +105,10 @@ const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.s
 // (as pushed at ee433e3) are frozen in scripts/frozen/playtest1f, and group playtest1e's live pin reads them.
 const PT1F_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
 const pt1eView = (f) => (PT1F_FROZEN.includes(f) ? `scripts/frozen/playtest1f/${f.split("/").pop()}.txt` : f);
+// playtest1g (2026-10-02, [OWNER-APPROVED 2026-10-02: playtest1g trail paths], drawing only): draw.ts as playtest1f
+// shipped it, frozen; group playtest1f's live pin reads it there (pt1fView).
+const PT1G_FROZEN = ["src/game/draw.ts"];
+const pt1fView = (f) => (PT1G_FROZEN.includes(f) ? `scripts/frozen/playtest1g/${f.split("/").pop()}.txt` : f);
 const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
 // install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
@@ -159,7 +163,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -8162,13 +8166,295 @@ if (on("playtest1f")) {
     globalThis.Image = had.Image;
     globalThis.document = had.document;
     const LIVE = {"src/game/sim.ts": "ed21983bb7fdba0c1a983fbe7dbeab30", "src/game/draw.ts": "2d1deb7e9bfe797a01d42ca41e433360", "src/game/wayrifts.ts": "18c5b520de41612be6a31be18f5acbd2", "src/game/content.ts": "d8ee5cbd237c2896fefbad760d0cad86", "src/game/Gravewake.tsx": "8260af8345576dbc081da2fd064731d9", "src/game/bounty.ts": "c7d2ddceadee04efd5bd502ef8b56dd4", "src/game/festivals.ts": "d0e2b1052602741715c0279089762d8c", "tools/map-writer/map_writer.ts": "b231f85001aee13f7fe5b1bb9a6ba67c", "tools/map-writer/gravewake_vale.ts": "910518acdefa35eed839fe9323bcaf89", "tools/map-writer/gravewake_world.ts": "3e1c2a70dce85efe73f460b664c84946"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1fView(f)) !== hh).map(([f]) => f);
     check("playtest1f", "the live game files are byte for byte playtest1f's (sim, draw, wayrifts, content, shell, bounty, festivals, the map writer and its vale and world adapters)", moved.length === 0 && Object.keys(LIVE).length === 10, moved.join(", "));
   }
 }
 
+if (on("playtest1g")) {
+  // [OWNER-APPROVED 2026-10-02: playtest1g trail paths] the vale's, the snow's, the ash's and the sand's trails drawn as
+  // proper paths (the trail writer's 16 NESW masks, ragged edges on each biome's own ground), drawing only.
+  const { readFileSync, writeFileSync, existsSync, readdirSync, statSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-02: playtest1g trail paths]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1g.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as TR from "${root}/src/game/trails.ts";\nexport { SWAMP_PATH } from "${root}/src/game/wayrifts.ts";\nexport { WILD_GROUND } from "${root}/src/game/wild.ts";\nexport { seasonAt } from "${root}/src/game/seasons.ts";\nexport { worldBiome, T } from "${root}/src/game/content.ts";\nexport { VALE_GROUND } from "${root}/tools/map-writer/gravewake_vale.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1g.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1g.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  // playtest1f's draw as pushed (scripts/frozen/playtest1g/draw.ts.txt), bundled beside it, for the before/after frame
+  const fdraw = readFileSync("scripts/frozen/playtest1g/draw.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
+  writeFileSync(join(dir, "draw1f.ts"), fdraw);
+  execFileSync("npx", ["esbuild", join(dir, "draw1f.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "draw1f.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document };
+  let allDraws = [];
+  let allFills = [];
+  const NOTREADY = new Set();
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return !NOTREADY.has(this._s); } set src(u) { this._s = u; } get src() { return this._s; } };
+  const noop = () => {};
+  // the main context records every call; an offscreen one (a fringe cache, the trail atlas) records by canvas and slot,
+  // so an atlas copy on screen can be read back as the ground and path cells composited into that slot
+  const offLog = new Map();
+  let composed = 0;
+  const mock = (off = null) => {
+    const o = {
+      drawImage(im, ...a) {
+        const [sx, sy, sw, sh, dx, dy] = a.length >= 8 ? a : [0, 0, 0, 0, a[0], a[1]];
+        const rec = { u: im && im._s, sx, sy, sw, sh, dx, dy };
+        if (!off) return void allDraws.push(rec);
+        if (off._s) composed++;
+        const k = `${off._s}|${dx},${dy}`;
+        const l = offLog.get(k);
+        if (!l || l.length >= 2) offLog.set(k, [rec]);
+        else l.push(rec);
+      },
+      fillRect(x, y, w, h) { if (!off) allFills.push([x, y, w, h, o.fillStyle]); },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop: noop }) : noop), set: (t, k, v) => { t[k] = v; return true; } });
+  };
+  let canvasN = 0;
+  const atlases = [];
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, n: ++canvasN, opts: null, getContext(kind, opts) { if (opts && opts.alpha === false && !c._s) { c._s = `trail-atlas:${c.n}`; c.opts = opts; atlases.push(c); } return (c.ctx ??= mock(c)); } }; return c; } };
+  const X = await import(pathToFileURL(join(dir, "pt1g.mjs")).href);
+  const F = await import(pathToFileURL(join(dir, "draw1f.mjs")).href);
+  const TR = X.TR;
+  const TT = X.T;
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const trs = readFileSync("src/game/trails.ts", "utf8");
+  const CYCLE = 30 * 60 * 1000;
+  const SEAS = 6 * CYCLE;
+  const mk = (ms = 5 * 60 * 1000) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 93 * TILE + 8); g.worldMs = ms; g.roamers = []; g.mode = "play"; return g; };
+  const at = (g, x, y) => { g.px = x * TILE + 8; g.py = y * TILE + 8; g.roamers = []; g.goal = null; g.riftHold = ""; g.wayHold = ""; };
+  // d: the frame's draws with every trail atlas copy read back as its ground cell then its path cell (marked atlas);
+  // raw: the calls as made
+  const expand = (q) => { if (!String(q.u).startsWith("trail-atlas:")) return [q]; const l = offLog.get(`${q.u}|${q.sx},${q.sy}`) ?? []; return l.map((e) => ({ ...e, dx: q.dx, dy: q.dy, atlas: true })); };
+  const frame = (D, g) => { allDraws = []; allFills = []; D.drawWorld(mock(), g, 960, 640, g.zoom); return { d: allDraws.flatMap(expand), raw: allDraws, f: allFills }; };
+  const g0 = mk();
+  const { w, h, tiles } = g0;
+  // the cell by its own rule here (playtest1f's swamp rule): N 1, E 2, S 4, W 8 for a path neighbour (trail, road,
+  // stair, cache, door); a straight in five (by place) its variant
+  const LINK = new Set([TT.dirt, TT.road, TT.stairD, TT.chest, TT.door]);
+  const lk = (x, y) => x >= 0 && y >= 0 && x < w && y < h && LINK.has(tiles[y * w + x]);
+  const cellOf = (x, y) => { const m = (lk(x, y - 1) ? 1 : 0) | (lk(x + 1, y) ? 2 : 0) | (lk(x, y + 1) ? 4 : 0) | (lk(x - 1, y) ? 8 : 0); return (m === 5 || m === 10) && (x * 7 + y * 3) % 5 === 0 ? (m === 5 ? 16 : 17) : m; };
+  const SHEET = { vale: TR.TRAIL_VALE, snow: TR.TRAIL_SNOW, ash: TR.TRAIL_ASH, sand: TR.TRAIL_SAND };
+  const SPOT = { vale: [16, 38], snow: [109, 27], ash: [88, 102], sand: [108, 44] };
+  const isTrail = (d) => TR.TRAIL_SHEETS.includes(d.u);
+  const SEASONS = ["autumn", "winter", "spring", "summer"];
+
+  // 1. Each biome's trails draw its own path, the cell by its path neighbours, over its own ground.
+  {
+    const out = {};
+    let allOk = true;
+    for (const b of ["vale", "snow", "ash", "sand"]) {
+      const g = mk(); at(g, ...SPOT[b]);
+      const { d, f } = frame(X, g);
+      const paths = d.filter(isTrail);
+      // every trail tile this frame drew (a 16x16 ground fill there) gets a path: this biome's, another's at a biome edge,
+      // or the swamp's
+      const { raw } = frame(X, (() => { const g2 = mk(); at(g2, ...SPOT[b]); return g2; })());
+      const drawn = new Set([...f.filter((q) => q[2] === TILE && q[3] === TILE).map((q) => `${q[0] / TILE},${q[1] / TILE}`), ...raw.filter((q) => q.sw === 16 && q.dx % TILE === 0 && q.dy % TILE === 0).map((q) => `${q.dx / TILE},${q.dy / TILE}`)]);
+      const dirt = [...drawn].map((s) => s.split(",").map(Number)).filter(([x, y]) => x >= 0 && y >= 0 && x < w && y < h && tiles[y * w + x] === TT.dirt).length;
+      const every = paths.length + d.filter((q) => q.u === X.SWAMP_PATH).length === dirt;
+      const mine = paths.filter((q) => q.u === SHEET[b]);
+      const cellsOk = mine.every((q) => q.sw === 16 && q.sh === 16 && q.sx / 16 === cellOf(q.dx / TILE, q.dy / TILE) && q.sy === 0);
+      const where = mine.every((q) => tiles[(q.dy / TILE) * w + q.dx / TILE] === TT.dirt && X.worldBiome(q.dx / TILE, q.dy / TILE) !== "swamp");
+      out[b] = [mine.length, paths.length, dirt, new Set(mine.map((q) => q.sx / 16)).size];
+      allOk = allOk && mine.length >= 10 && cellsOk && where && new Set(mine.map((q) => q.sx / 16)).size >= 3 && every;
+    }
+    // a road is never a trail: at the town gate's road and the snow road, every trail cell lies on a trail tile
+    const roads = [[64, 92], ...Object.values(SPOT)].map(([x, y]) => { const g = mk(); at(g, x, y); const { d, f } = frame(X, g); const onRoad = f.filter((q) => q[2] === TILE && q[3] === TILE && tiles[(q[1] / TILE) * w + q[0] / TILE] === TT.road).length; return [onRoad, d.filter(isTrail).filter((q) => tiles[(q.dy / TILE) * w + q.dx / TILE] !== TT.dirt).length]; });
+    allOk = allOk && roads[0][0] >= 5 && roads.every(([, bad]) => bad === 0);
+    out.roads = roads;
+    check("playtest1g", `the vale's, the snow's, the ash's and the sand's trails draw their own path sheet (${Object.entries(out).map(([b, v]) => `${b} ${v[0]}`).filter((x) => !x.startsWith("roads")).join(", ")} tiles at a trail of each), every cell the one its NESW path neighbours pick (the swamp path's rule), only on trail tiles off the swamp (never on a road: the gate road's and any in view at the four trails are bare of them), and every trail tile on screen gets one`, allOk, JSON.stringify(out));
+  }
+  // 2. The ground under each path is the biome's own, drawn first, and the flat dirt square is gone.
+  {
+    const bad = [];
+    for (const b of ["vale", "snow", "ash", "sand"]) {
+      const g = mk(); at(g, ...SPOT[b]);
+      const { d, f } = frame(X, g);
+      const g1 = mk(); at(g1, ...SPOT[b]);
+      const old = frame(F, g1);
+      const paths = d.filter((q) => q.u === SHEET[b]);
+      // the full-tile fill colour of each tile, now and in playtest1f's frame
+      const fillAt = (fs) => { const m = new Map(); for (const q of fs) if (q[2] === TILE && q[3] === TILE && !m.has(`${q[0]},${q[1]}`)) m.set(`${q[0]},${q[1]}`, q[4]); return m; };
+      const now = fillAt(f), was = fillAt(old.f);
+      for (const q of paths) {
+        const k = `${q.dx},${q.dy}`;
+        const gi = d.findIndex((e) => e.dx === q.dx && e.dy === q.dy && !isTrail(e));
+        const ground = d[gi];
+        const tx = q.dx / TILE, ty = q.dy / TILE, wrap = (v) => ((v % 8) + 8) % 8;
+        const sheetOk = b === "vale" ? ground?.u === "/art/writer/season-autumn-vale.png" && ground.sx === (Math.abs(tx * 3 + ty * 5) % 8) * 16 && ground.sy === 0 : ground?.u === X.WILD_GROUND[b] && ground.sx === wrap(tx) * 16 && ground.sy === wrap(ty) * 16;
+        if (!ground || gi > d.indexOf(q) || !sheetOk || now.get(k) === was.get(k)) bad.push(`${b} ${q.dx / TILE},${q.dy / TILE} ${ground?.u} ${now.get(k)} ${was.get(k)}`);
+      }
+    }
+    check("playtest1g", "each path cell lies on its biome's own ground, the very cell its neighbours' ground draws there (the vale's season sheet, the snow, ash and sand wild sheets), drawn first in the tile, where playtest1f drew a flat dirt square", bad.length === 0, bad.slice(0, 3).join("; "));
+  }
+  // 3. The vale's path follows the season (its sheet has a row a season); the others have one row.
+  {
+    const rows = {};
+    for (let k = 0; k < 4; k++) {
+      const g = mk(k * SEAS + 5 * 60 * 1000); at(g, ...SPOT.vale);
+      const s = g.season();
+      const { d } = frame(X, g);
+      rows[s] = [...new Set(d.filter((q) => q.u === TR.TRAIL_VALE).map((q) => q.sy / 16))];
+    }
+    const ok = SEASONS.every((s, k) => JSON.stringify(rows[s]) === JSON.stringify([k])) && TR.TRAIL_SEASON_ROW.autumn === 0 && TR.TRAIL_SEASON_ROW.summer === 3;
+    const gw = mk(SEAS + 5 * 60 * 1000); at(gw, ...SPOT.snow);
+    const snowRow = [...new Set(frame(X, gw).d.filter((q) => q.u === TR.TRAIL_SNOW).map((q) => q.sy))];
+    for (const s of SEASONS) NOTREADY.add(`/art/writer/season-${s}-vale.png`);
+    const plainRows = [0, 2].map((k) => { const g = mk(k * SEAS + 5 * 60 * 1000); at(g, 30, 40); return [...new Set(frame(X, g).d.filter((q) => q.u === TR.TRAIL_VALE).map((q) => q.sy / 16))].join(""); });
+    NOTREADY.clear();
+    check("playtest1g", `the vale's path is seasonal (even on the plain vale sheet while the season's loads: rows ${plainRows.join(", ")} for autumn, spring): autumn, winter, spring and summer draw rows ${SEASONS.map((s) => rows[s]?.join("")).join(", ")} of its sheet (leaf litter, frost, blossom, dry grass); the snow, ash and sand paths keep their one row all year`, ok && JSON.stringify(snowRow) === "[0]" && plainRows[0] === "0" && plainRows[1] === "2", JSON.stringify({ rows, plainRows }));
+  }
+  // 4. Off the four biomes' trails nothing changed: the swamp path, the town, the camp, a dungeon and the title draw call
+  // for call as playtest1f's draw; so does every trail before its sheet loads.
+  {
+    const same = (a, b) => JSON.stringify(a.raw) === JSON.stringify(b.raw) && JSON.stringify(a.f) === JSON.stringify(b.f);
+    const res = {};
+    const gs = mk(); at(gs, 70, 59);
+    const gs1 = mk(); at(gs1, 70, 59);
+    const sw = frame(X, gs);
+    res.swamp = same(sw, frame(F, gs1)) && sw.d.some((q) => q.u === X.SWAMP_PATH) && !sw.d.some(isTrail);
+    const town = (D) => { const g = mk(); g.enterTown(); g.roamers = []; g.mode = "play"; return frame(D, g); };
+    const t0 = town(X);
+    res.town = same(t0, town(F)) && !t0.d.some(isTrail);
+    const camp = (D) => { const g = mk(); g.enterCamp(); g.roamers = []; g.mode = "play"; return frame(D, g); };
+    const c0 = camp(X);
+    res.camp = same(c0, camp(F)) && !c0.d.some(isTrail);
+    const dung = (D) => { const g = mk(); g.enterDungeon("harrow"); g.roamers = []; g.mode = "play"; return frame(D, g); };
+    const u0 = dung(X);
+    res.dungeon = same(u0, dung(F)) && !u0.d.some(isTrail);
+    for (const u of TR.TRAIL_SHEETS) NOTREADY.add(u);
+    res.unloaded = ["vale", "snow", "ash", "sand"].every((b) => { const g = mk(); at(g, ...SPOT[b]); const g1 = mk(); at(g1, ...SPOT[b]); return same(frame(X, g), frame(F, g1)); });
+    NOTREADY.clear();
+    check("playtest1g", `nothing else moved: the swamp's trails, the town, the camp and a dungeon draw call for call as playtest1f's draw, with no trail sheet; and before the trail sheets load, the four biomes' trails draw playtest1f's flat squares call for call (${Object.entries(res).filter(([, v]) => !v).map(([k]) => k).join(" ") || "all same"})`, Object.values(res).every(Boolean), JSON.stringify(res));
+  }
+  // 5. The frame rate: a trail tile is one copy from the trail atlas where its flat square was one fill, so a frame makes
+  // no more canvas calls than playtest1f's; the atlas is opaque, each composite made once.
+  {
+    const out = {};
+    let ok = true;
+    for (const b of ["vale", "snow", "ash", "sand"]) {
+      const g = mk(); at(g, ...SPOT[b]);
+      const g1 = mk(); at(g1, ...SPOT[b]);
+      const now = frame(X, g), was = frame(F, g1);
+      const n = now.raw.filter((q) => String(q.u).startsWith("trail-atlas:")).length;
+      out[b] = [n, now.raw.length - was.raw.length, now.f.length - was.f.length];
+      ok = ok && n > 0 && now.raw.length - was.raw.length === n && was.f.length - now.f.length === n && !now.raw.some(isTrail);
+    }
+    check("playtest1g", `the draw budget (fps): at each biome's trail every trail tile is one copy from the trail atlas in place of its flat square's one fill, the frame no busier than playtest1f's (${Object.entries(out).map(([b, v]) => `${b} ${v[0]} tiles: +${v[1]} copies, ${v[2]} fills`).join("; ")}); the sheets load up front`, ok && /for \(const url of TRAIL_SHEETS\) \{/.test(draw), JSON.stringify(out));
+    const atl = atlases[atlases.length - 1];
+    const g = mk(); at(g, ...SPOT.ash);
+    frame(X, g);
+    const c0 = composed;
+    frame(X, g);
+    const again = composed - c0;
+    const gs = mk(2 * SEAS + 5 * 60 * 1000); at(gs, 24, 66);
+    const c1 = composed;
+    frame(X, gs);
+    const spring = composed - c1;
+    const size = X.trailAtlasSize();
+    check("playtest1g", `the trail atlas: one opaque canvas (alpha off, ${atl?.width}x${atl?.height}, 64x64 slots), each ground-and-path composite made once (a second frame of the same view composes ${again}; new ground composes its own, ${spring / 2} by the Ashen Rift in spring), ${size} slots in use`, atlases.length === 1 && atl.opts?.alpha === false && atl.width === 1024 && atl.height === 1024 && X.TRAIL_ATLAS === 64 && again === 0 && spring > 0 && spring % 2 === 0 && size > 0 && size <= 64 * 64, `${atlases.length} ${again} ${spring} ${size}`);
+    // while a ground sheet is still loading the tile draws as before the atlas: the ground's own fallback, then the path
+    for (const u of ["/art/writer/wild-snow.png", "/art/writer/wild-ash.png", "/art/writer/wild-sand.png", "/art/writer/vale.png", ...SEASONS.map((s) => `/art/writer/season-${s}-vale.png`)]) NOTREADY.add(u);
+    const fb = {};
+    const fbOk = (raw, b, row) => { const t = raw.filter((q) => q.u === SHEET[b]); const pos = new Set(t.map((q) => `${q.dx},${q.dy}`)); return [t.length, raw.filter((q) => String(q.u).startsWith("trail-atlas:")).length, t.every((q) => q.sx / 16 === cellOf(q.dx / TILE, q.dy / TILE) && q.sy === row * 16 && q.sw === 16) && pos.size === t.length]; };
+    for (const b of ["vale", "snow", "ash", "sand"]) { const g2 = mk(); at(g2, ...SPOT[b]); fb[b] = fbOk(frame(X, g2).raw, b, 0); }
+    { const g2 = mk(2 * SEAS + 5 * 60 * 1000); at(g2, ...SPOT.vale); fb.spring = fbOk(frame(X, g2).raw, "vale", 2); }
+    NOTREADY.clear();
+    check("playtest1g", `fail-safe: while the ground sheets load, a trail tile is its ground's fallback with its path cell drawn on it once in the tile loop, the right cell and the season's row (${Object.entries(fb).map(([b, v]) => `${b} ${v[0]}`).join(", ")}), no atlas copy`, Object.values(fb).every(([n, a, good]) => n >= 10 && a === 0 && good), JSON.stringify(fb));
+  }
+  // 6. The art: the trail writer's sheets, palette v3, hard alpha, reproducible; seams; the looks.
+  {
+    const py = (code) => { try { return JSON.parse(execFileSync("python3", ["-c", code], { cwd: "tools/pixel-writer", encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" } })); } catch (e) { return { error: String(e.stderr || e.message).trim().split("\n").pop() }; } };
+    const files = ["trail-vale.png", "trail-snow.png", "trail-ash.png", "trail-sand.png"];
+    const res = py(`import json, sys
+sys.path.insert(0, '../sprite-writer')
+from palette_locked import LOCKED_V3
+from PIL import Image
+import trail_writer as t
+from pixel_writer import cells
+out = {}
+ims = {f: Image.open('../../public/art/writer/' + f).convert('RGBA') for f in ${JSON.stringify(files)}}
+for f, im in ims.items():
+    bad = sum(1 for (R, G, B, A) in im.getdata() if A not in (0, 255) or (A and '#%02x%02x%02x' % (R, G, B) not in LOCKED_V3))
+    out[f] = [im.width, im.height, bad]
+import tempfile, pathlib, importlib.util
+_sp = importlib.util.spec_from_file_location('mg_pixel', 'make_gravewake.py')
+mg = importlib.util.module_from_spec(_sp)
+_sp.loader.exec_module(mg)
+_td = tempfile.TemporaryDirectory()
+mg.OUT = pathlib.Path(_td.name)
+made = mg.playtest1g()
+own = cells(t.cells_for('snow')).tobytes() == ims['trail-snow.png'].tobytes()
+same = {f: made[f].tobytes() == ims[f].tobytes() and own for f in ${JSON.stringify(files)} if f in made}
+# seams: a side the mask joins is solid across the band (x or y 3..12) at the tile's edge; a side it does not join is
+# open there (5..10 clear); every cell has a ragged edge (ground shows) and a body
+seam = []
+ragged = []
+for f, im in ims.items():
+    for row in range(im.height // 16):
+        for c in range(18):
+            m = c if c < 16 else (5 if c == 16 else 10)
+            A = lambda x, y: im.getpixel((c * 16 + x, row * 16 + y))[3] == 255
+            sides = {1: [(x, 0) for x in range(16)], 2: [(15, y) for y in range(16)], 4: [(x, 15) for x in range(16)], 8: [(0, y) for y in range(16)]}
+            for bit, pts in sides.items():
+                band = [A(*p) for p in pts]
+                if m & bit and not all(band[3:13]): seam.append([f, row, c, bit, 'gap'])
+                if not m & bit and any(band[5:11]): seam.append([f, row, c, bit, 'open'])
+            n = sum(1 for y in range(16) for x in range(16) if A(x, y))
+            if n < 40 or any(A(x, y) for x, y in ((0, 0), (15, 0), (0, 15), (15, 15))): ragged.append([f, row, c, n])
+def cols(im, row=0):
+    return set('#%02x%02x%02x' % p[:3] for p in im.crop((0, 16 * row, 288, 16 * row + 16)).getdata() if p[3])
+v = [cols(ims['trail-vale.png'], j) for j in range(4)]
+looks = {
+  'litter': [sorted(set(t.LITTER[s]) & v[j]) for j, s in enumerate(t.SEASONS)],
+  'rows_differ': len(set(frozenset(x) for x in v)) == 4,
+  'snow_prints': t.PACK[0] in cols(ims['trail-snow.png']),
+  'ash_embers': sorted(set(t.EMBER) & cols(ims['trail-ash.png'])),
+  'sand_pebbles': sorted(set(t.PEBBLE) & cols(ims['trail-sand.png'])),
+  'sand_ripple': t.DUNE[1] in cols(ims['trail-sand.png']),
+}
+# contrast: the path body's mean light against its ground sheet's (the wild sheets; the vale's own autumn grass)
+def lum(px):
+    px = [p for p in px if p[3]]
+    return sum(0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2] for p in px) / max(1, len(px))
+gr = {'snow': '../../public/art/writer/wild-snow.png', 'ash': '../../public/art/writer/wild-ash.png', 'sand': '../../public/art/writer/wild-sand.png'}
+contrast = {b: round(abs(lum(ims['trail-%s.png' % b].crop((80, 0, 96, 16)).getdata()) - lum(Image.open(p).convert('RGBA').getdata())), 1) for b, p in gr.items()}
+print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam), 'ragged': ragged[:6], 'looks': looks, 'contrast': contrast}))`);
+    const o = res.out ?? {};
+    const sizes = o["trail-vale.png"]?.[0] === 288 && o["trail-vale.png"]?.[1] === 64 && ["snow", "ash", "sand"].every((b) => o[`trail-${b}.png`]?.[0] === 288 && o[`trail-${b}.png`]?.[1] === 16);
+    check("playtest1g", "the art is the trail writer's (tools/pixel-writer/trail_writer.py, run from make_gravewake.playtest1g, re-run here into a temp dir): 18 cells of 16x16 a row (the 16 masks, then the straights' variant), the vale's 4 rows a season, snow, ash and sand 1; palette v3 only, hard alpha; a re-run gives the same bytes", sizes && files.every((f) => o[f]?.[2] === 0) && Object.values(res.same ?? {}).every(Boolean) && Object.keys(res.same ?? {}).length === 4, JSON.stringify(res).slice(0, 300));
+    check("playtest1g", `the paths join seamlessly: every side a cell's mask joins is solid across the band at the tile edge and every other side is open (${res.nseam ?? "?"} misses over 126 cells), and no cell is a square: its corners are always the ground's, its edge ragged (a body of 40+ pixels)`, res.nseam === 0 && (res.ragged ?? [1]).length === 0, JSON.stringify([res.seam, res.ragged]));
+    const L = res.looks ?? {};
+    check("playtest1g", `the looks: leaf litter on the vale path in every season (${(L.litter ?? []).map((x) => x.length).join("/")} litter colours) and each season's row its own; boot prints in the snow; embers in the ash's cracks (${(L.ash_embers ?? []).length}); pebbles (${(L.sand_pebbles ?? []).length}) and wind ripples on the sand`, (L.litter ?? []).length === 4 && L.litter.every((x) => x.length >= 1) && L.rows_differ === true && L.snow_prints === true && (L.ash_embers ?? []).length >= 2 && (L.sand_pebbles ?? []).length >= 2 && L.sand_ripple === true, JSON.stringify(L));
+    const C = res.contrast ?? {};
+    check("playtest1g", `the path reads against its ground: its body's mean light differs from the ground sheet's by ${Object.entries(C).map(([b, v]) => `${b} ${v}`).join(", ")} (12 or more of 255)`, ["snow", "ash", "sand"].every((b) => C[b] >= 12), JSON.stringify(C));
+    check("playtest1g", "every trail sheet is asked for up front (TRAIL_SHEETS) and exists, one for each of the four grounds (TRAIL_BY_GROUND: vale grass, snow, ash, sand; the swamp keeps its own)", TR.TRAIL_SHEETS.length === 4 && TR.TRAIL_SHEETS.every((u) => existsSync(`public${u}`)) && Object.keys(TR.TRAIL_BY_GROUND).length === 4 && TR.TRAIL_BY_GROUND[TT.grass] === TR.TRAIL_VALE && TR.TRAIL_BY_GROUND[TT.snow] === TR.TRAIL_SNOW && TR.TRAIL_BY_GROUND[TT.ash] === TR.TRAIL_ASH && TR.TRAIL_BY_GROUND[TT.sand] === TR.TRAIL_SAND && TR.TRAIL_BY_GROUND[TT.swamp] === undefined && /def playtest1g\(\)/.test(readFileSync("tools/pixel-writer/make_gravewake.py", "utf8")));
+  }
+  // 7. Laws: drawing only, the dated owner notes, the frozen playtest1f draw, the live pin.
+  {
+    // every game file but draw.ts (and the new trails.ts), and every older asset, is playtest1f's byte for byte
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+    const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const readme = readFileSync("tools/pixel-writer/README.md", "utf8");
+    check("playtest1g", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt, AGENTS.project.md and the pixel writer's README, and tagged in trails.ts, draw.ts, the trail writer and make_gravewake.py`, law.includes(TAG) && agents.includes(TAG) && readme.includes(TAG) && /trail_writer/.test(readme) && trs.includes(TAG) && draw.includes(TAG) && readFileSync("tools/pixel-writer/trail_writer.py", "utf8").includes(TAG) && readFileSync("tools/pixel-writer/make_gravewake.py", "utf8").includes(TAG));
+    check("playtest1g", "the frozen reference (scripts/frozen/playtest1g/draw.ts.txt) is playtest1f's draw byte for byte (as pushed at dff8ec6), and group playtest1f's live pin reads it", md5f("scripts/frozen/playtest1g/draw.ts.txt") === "2d1deb7e9bfe797a01d42ca41e433360" && /md5f\(pt1fView\(f\)\)/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
+    globalThis.Image = had.Image;
+    globalThis.document = had.document;
+    const LIVE = {"src/game/draw.ts": "4d885c026399d71086e005b86ca35915", "src/game/trails.ts": "0cdbc5096bea5c115066c67d6ce18fbd", "tools/pixel-writer/trail_writer.py": "ca789988347b7abc9f3e2e0d44d7e8a3", "tools/pixel-writer/make_gravewake.py": "ca95b08085bf6bfc73d18d9365fcaac5"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1g", "the live game files are byte for byte playtest1g's (draw, trails, the trail writer and make_gravewake)", moved.length === 0 && Object.keys(LIVE).length === 4, moved.join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

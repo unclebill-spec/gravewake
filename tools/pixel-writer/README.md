@@ -44,3 +44,18 @@ The script stops if any of these pixels is soft or is not in `tools/sprite-write
 - `swamp-path.png`: eighteen 16×16 cells of mossy mud with ragged transparent edges, cells 0 to 15 by neighbour mask (1 N, 2 E, 4 S, 8 W, boardwalk planks on straight runs), 16 and 17 a sunken plank on the N-S and E-W runs.
 
 Run on its own: `python3 -c "import make_gravewake as m; m.playtest1f_d2()"` from this folder.
+
+## Trail paths (playtest1g)
+
+[OWNER-APPROVED 2026-10-02: playtest1g trail paths] `trail_writer.py` draws the trails of the vale, the snow, the ash
+and the sand in palette v3, on the swamp path's band geometry (rift_writer's half-width and wobble, wild_writer's
+Canvas). `make_gravewake.playtest1g()` writes them to `public/art/writer`, 18 cells of 16×16 a row (0 to 15 by
+neighbour mask, 1 N, 2 E, 4 S, 8 W; 16 and 17 the N-S and E-W straights' variant), ragged transparent edges:
+
+- `trail-vale.png` (288×64): worn dirt with ruts and leaf litter, a row a season (autumn, winter, spring, summer); variant a root and a puddle.
+- `trail-snow.png`: packed, trodden snow with a thrown-snow rim and boot prints; variant sled runners.
+- `trail-ash.png`: trodden pale cinder, dark cracks with embers; variant a glowing vent.
+- `trail-sand.png`: compacted sand with wind ripples and pebbles; variant a half-buried bone.
+- `preview-playtest1g.png`: every row on its ground, 3×.
+
+Run on its own: `python3 -c "import make_gravewake as m; m.playtest1g()"` from this folder.

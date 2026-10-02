@@ -981,3 +981,16 @@ net if a front were walled in (it cuts none). Saves: no new key; a journey is ne
 stone is moved off on load. Swamp trails draw the swamp path (mossy mud with ragged edges and boardwalk planks on
 straight runs, picked by neighbour mask) over the swamp ground in place of the flat brown square. Looks only for
 the path: g.tiles still holds a trail there.
+
+OWNER-APPROVED TRAIL PATHS (playtest1g)  [OWNER-APPROVED 2026-10-02: playtest1g trail paths]
+Bill (2026-10-02 11:30 ET): give the trails in the vale, snow, ash and sand biomes proper path art in place of the
+flat brown squares, the swamp path's way. Drawing only. Each trail tile off the swamp draws its skin biome's ground
+(as its neighbours draw it) and then the trail writer's 16x16 cell for its NESW path neighbours (1 N, 2 E, 4 S, 8 W;
+the swamp path's rule, swampPathCell; a straight in five its variant), ragged edges letting the ground show through,
+palette v3, hard alpha: the vale's worn dirt with ruts and leaf litter, one row a season (autumn litter, winter
+frost, spring blossom, summer dry grass); packed snow with boot prints (variant: sled runners); cracked cinder with
+embers (variant: a glowing vent); wind-swept sand with ripples and pebbles (variant: a half-buried bone). For the
+frame rate each ground-and-path pair is composited once into an opaque trail atlas, so a trail tile is one copy where
+its flat square was one fill (no more canvas calls than 1f). Before a trail sheet loads the tile is the old flat
+square; while its ground sheet loads, the ground's fallback with the path cell on it. g.tiles, the sim and the saves
+are untouched.
