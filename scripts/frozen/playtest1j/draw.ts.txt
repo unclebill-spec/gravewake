@@ -7,8 +7,6 @@ import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./t
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
 import { townRoomAt } from "./sim";
-import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
-import { LINE_HALF } from "./telegraph"; // playtest1j
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
@@ -1014,14 +1012,8 @@ function glyphCell(ctx: CanvasRenderingContext2D, glyph: number, state: number, 
   ctx.drawImage(im, (glyph * 3 + state) * 5, 0, 5, 5, dx, dy, 5, 5);
 }
 
-/** playtest1j: what the telegraphs and fight lights read off the game (dungeon traps and ash bursts only below ground). */
-function tellView(g: Game): TellView {
-  const below = g.mapId === "dungeon";
-  return { roamers: g.roamers, spells: g.spells, ashes: below ? g.ashes : [], plates: g.plates, traps: below ? (g.feats?.traps ?? []) : [], fog: g.fog, w: g.w, plateTell: TRAPS.plateTell, ashTell: RUNS.ashTell, plateR: TRAPS.plateRadius, ashR: RUNS.ashRadius, frame: g.frame };
-}
-
-/** The telegraph box drawn for a foe mark, and for a plate trap's mark (playtest1j: no longer drawn; paintTells). */
-export function paintMark(ctx: CanvasRenderingContext2D, mx: number, my: number, rad: number, col: string) {
+/** The telegraph box drawn for a foe mark, and for a plate trap's mark. */
+function paintMark(ctx: CanvasRenderingContext2D, mx: number, my: number, rad: number, col: string) {
   const x0 = Math.round(mx - rad);
   const y0 = Math.round(my - rad / 2);
   const w = Math.round(rad * 2);
@@ -2524,9 +2516,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
     out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.ghostBoss : LIGHT.ghost, c: LIGHTS.ghost, seed: 0, flick: false });
   }
-  // playtest1j: the fight's moving lights (fightlights.ts, a fixed pool): marks, wind-ups, a boss's roar, each spell's neon
-  // core and impact flash, ash fire and live plates, in Bill's neon. They share the budget below.
-  fightLights(tellView(g), out, (c) => fxElement(c, spellElement(c)), (s) => spellHead(s, spellProgress(s)), TILE);
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
   const hero = seen.shift()!;
   seen.sort((a, b) => Math.hypot(a.x - g.px, a.y - g.py) - Math.hypot(b.x - g.px, b.y - g.py));
@@ -3335,9 +3324,16 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       person(ctx, g.px, g.py, role, "#888888", face, g.frame, 1, pose, "hero", actPhase(g.actFor));
     },
   });
-  // playtest1j: every telegraph is a neon ground mark that fills over its tell (big red, mid violet, a rare's tint blue,
-  // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
-  paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
+  for (const r of g.roamers) {
+    if ((r.tell ?? 0) <= 0 || r.markX == null || r.markY == null) continue;
+    paintMark(ctx, r.markX, r.markY, r.markR ?? 40, r.casting === "big" ? "#c4a574" : "#8a6844");
+  }
+  if (g.mapId === "dungeon") {
+    g.feats?.traps?.forEach((t, i) => {
+      if ((g.plates[i]?.tell ?? 0) > 0) paintMark(ctx, t.x * TILE + 8, t.y * TILE + 8, TRAPS.plateRadius, "#8a6844");
+    });
+    for (const a of g.ashes) paintMark(ctx, a.x, a.y, RUNS.ashRadius, "#8a6844");
+  }
   if (g.darkUntil > g.worldMs) {
     for (let i = 0; i < 40; i++) px(ctx, g.px - 70 + (i * 17) % 140, g.py - 50 + (i * 13) % 90, 2, 2, "#0c0a08");
   }
@@ -3417,7 +3413,13 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       }
     }
     glow.push((c) => {
-      paintTells(c, tellView(g), true, TILE, LINE_HALF); // playtest1j: the marks and wind-ups at full light
+      for (const r of g.roamers) if ((r.tell ?? 0) > 0 && r.markX != null && r.markY != null) paintMark(c, r.markX, r.markY, r.markR ?? 40, "#ffffff");
+      if (g.mapId === "dungeon") {
+        g.feats?.traps?.forEach((t, i) => {
+          if ((g.plates[i]?.tell ?? 0) > 0) paintMark(c, t.x * TILE + 8, t.y * TILE + 8, TRAPS.plateRadius, "#ffffff");
+        });
+        for (const a of g.ashes) paintMark(c, a.x, a.y, RUNS.ashRadius, "#ffffff");
+      }
       for (const s of g.spells) paintSpell(c, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
     });
     const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
@@ -3454,7 +3456,11 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   if (g.curseOn() && g.curse === "dark") {
     paintLightless(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
     // A decal must always read: telegraphs sit on top of the dark.
-    paintTells(ctx, tellView(g), false, TILE, LINE_HALF, true); // playtest1j: rims and leading edges over the dark
+    for (const r of g.roamers) if ((r.tell ?? 0) > 0 && r.markX != null && r.markY != null) paintMark(ctx, r.markX, r.markY, r.markR ?? 40, r.casting === "big" ? "#c4a574" : "#8a6844");
+    g.feats?.traps?.forEach((t, i) => {
+      if ((g.plates[i]?.tell ?? 0) > 0) paintMark(ctx, t.x * TILE + 8, t.y * TILE + 8, TRAPS.plateRadius, "#8a6844");
+    });
+    for (const a of g.ashes) paintMark(ctx, a.x, a.y, RUNS.ashRadius, "#8a6844");
   }
   drawWeather(ctx, g, viewW, viewH);
   if (g.travel) paintTravel(ctx, g, camX, camY, viewW, viewH, zoom);

@@ -300,6 +300,12 @@ Rare      1 pack affix + 1 personal trick. Short tell (0.35s).
 Mini      2 abilities, one is a gap-closer or summon. 0.5s tell.
 Boss      3–5 abilities on a cycle. Big move always telegraphs 0.8–1.2s
           with a ground decal + portrait pulse (not a HUD sparkle).
+          [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights] (playtest1j, Bill 2026-10-03 08:41 ET, an
+          owner-approved gameplay change): a boss with a big move turns to PHASE TWO at 50% HP (once; it roars and
+          stands glowing 0.8 s, no hit). Phase one's big aims at you every 8 s (the old cycle); phase two's comes every
+          6 s and alternates two patterns, the NOVA (a 52 px ring round the boss itself, 0.9 s: get away from it) and
+          AIM + ECHO (an aimed 0.8 s mark, then a 0.74 s echo ring where you stand next). A summon, shield or blink big
+          keeps its one form. Smite still breaks a big (the nova too), not the echo. src/game/telegraph.ts.
 
 All four tiers have a PERSONALITY (below). Personality picks which ability
 fires, not a random table.
@@ -405,6 +411,21 @@ Trash     none
 Rare      0.35s tint on the actor
 Mini      0.5s ground mark
 Boss BIG  0.8–1.2s ground decal + portrait flicker (existing i-frame flicker language)
+[OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights] (playtest1j, Bill 2026-10-03 08:41 ET,
+an owner-approved gameplay change: "foes, and bosses most of all, show a readable warning before big attacks ... Keep it
+fair on touch controls"):
+  FAIR FLOOR. A mid or big mark is never shorter than the walk out of it from its centre at 74 px/s plus 0.2 s for a
+  thumb on the stick (ring 40 px 0.74 s, pull 56 px 0.96 s, cone 64 px 1.06 s, a line 16 px sideways 0.42 s); a big
+  stays inside 0.8-1.2 s. Mini and boss mids rise from 0.5 s to their floor. Trash still never telegraphs and the rare's
+  0.35 s tint is unchanged. Mark radii and hit tests are unchanged.
+  NEON MARKS. The ground mark is a pixel ellipse that fills from its centre over the tell and doubles its rim in the last
+  20% (big red #ff3a4f, mid violet #b07aff, rare blue #4ab8ff, plates violet, ash red), a line shows its dotted lane,
+  and the casting foe glows a wind-up ring at its feet. Drawn on the ground under the actors; over the Lightless dark,
+  rims only. Still no full-screen flash and no prompt.
+  FIGHT LIGHTS. Marks, wind-ups, the phase roar, each spell's neon core (its 1h fx element: fire red, ice, lightning and
+  holy blue, venom and shadow violet), impacts, ash fire and live plates cast moving light into the dark (night, rooms,
+  dungeons). A fixed pool of 12 lamps, reused every frame, inside light.ts's 24-light scene budget; marks are baked once
+  and cached. Looks only: the sim never reads them. src/game/fightlights.ts.
 Never a full-screen red flash. Never a "PRESS TO DODGE" prompt.
 If you stand in the mark, you eat it. That is the skill.
 

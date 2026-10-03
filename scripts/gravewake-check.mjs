@@ -105,21 +105,28 @@ const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.s
 // (as pushed at ee433e3) are frozen in scripts/frozen/playtest1f, and group playtest1e's live pin reads them.
 const PT1F_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
 const pt1eView = (f) => (PT1F_FROZEN.includes(f) ? `scripts/frozen/playtest1f/${f.split("/").pop()}.txt` : f);
+// playtest1j (2026-10-03, [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights], a combat change Bill
+// approved at 08:41 ET): sim.ts and draw.ts as playtest1i shipped them (main 36eb728), frozen under scripts/frozen/playtest1j/;
+// every older pin and rest digest that read the live files reads them there (pt1iView, under pt1fView, pt1gView, pt1hView
+// and group playtest1i). Its new modules (pt1jNew) are left out of the older rest digests. Group playtest1j checks the live files.
+const PT1J_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
+const pt1iView = (f) => (PT1J_FROZEN.includes(f) ? `scripts/frozen/playtest1j/${f.split("/").pop()}.txt` : f);
+const pt1jNew = (f) => f === "src/game/telegraph.ts" || f === "src/game/fightlights.ts";
 // playtest1g (2026-10-02, [OWNER-APPROVED 2026-10-02: playtest1g trail paths], drawing only): draw.ts as playtest1f
 // shipped it, frozen; group playtest1f's live pin reads it there (pt1fView).
 const PT1G_FROZEN = ["src/game/draw.ts"];
-const pt1fView = (f) => (PT1G_FROZEN.includes(f) ? `scripts/frozen/playtest1g/${f.split("/").pop()}.txt` : f);
+const pt1fView = (f) => (PT1G_FROZEN.includes(f) ? `scripts/frozen/playtest1g/${f.split("/").pop()}.txt` : pt1iView(f));
 // playtest1h (2026-10-02, [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], drawing only): draw.ts
 // and the pixel writer's make_gravewake.py as playtest1g shipped them (main f21f20e), frozen; group playtest1g's live
 // pin, its draw text and its bundled draw read them there (pt1gView).
 const PT1H_FROZEN = ["src/game/draw.ts", "tools/pixel-writer/make_gravewake.py"];
-const pt1gView = (f) => (PT1H_FROZEN.includes(f) ? `scripts/frozen/playtest1h/${f.split("/").pop()}.txt` : f);
+const pt1gView = (f) => (PT1H_FROZEN.includes(f) ? `scripts/frozen/playtest1h/${f.split("/").pop()}.txt` : pt1iView(f));
 // playtest1i (2026-10-02, [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit] part 2, drawing only):
 // draw.ts and the pixel writer's make_gravewake.py as playtest1h shipped them (main 852eafc), frozen; group playtest1h's
 // bundled draw, its rest digest and its live pin read them there (pt1hView). Its new files (pt1iNew) are left out of the
 // older groups' rest digests.
 const PT1I_FROZEN = ["src/game/draw.ts", "tools/pixel-writer/make_gravewake.py"];
-const pt1hView = (f) => (PT1I_FROZEN.includes(f) ? `scripts/frozen/playtest1i/${f.split("/").pop()}.txt` : f);
+const pt1hView = (f) => (PT1I_FROZEN.includes(f) ? `scripts/frozen/playtest1i/${f.split("/").pop()}.txt` : pt1iView(f));
 const pt1iNew = (f) => f === "src/game/interiors.ts" || /^public\/art\/writer\/(room-floor-(cabin|stone|slate|warm)|room-wall-(cabin|stone|slate|warm)|room-furn|room-rugs|preview-playtest1i)/.test(f);
 const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
@@ -175,7 +182,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -1626,7 +1633,10 @@ if (on("curse")) {
     const fn = drawSrc.slice(drawSrc.indexOf("function lightlessMask"), drawSrc.indexOf("function paintLightless"));
     check("curse", "Lightless paints opaque cave black with hard pixels (no alpha, no blur, no gradient)", fn.includes('"#0c0a08"') && !/globalAlpha|filter|Gradient|shadowBlur|rgba\(/.test(drawSrc.slice(drawSrc.indexOf("function lightlessMask"), drawSrc.indexOf("function paintLightless") + 1200)));
     const after = drawSrc.slice(drawSrc.indexOf("paintLightless(ctx, g, camX"));
-    check("curse", "telegraph marks are drawn on top of the dark", after.indexOf("paintMark(ctx, r.markX") > 0 && after.indexOf("RUNS.ashRadius") > 0 && after.indexOf("TRAPS.plateRadius") > 0 && after.indexOf("paintMark") < after.indexOf("drawWeather"));
+    // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]: the marks are drawn by paintTells (foe marks, plates and
+    // ash bursts; tellView gives it the floor's traps and ashes), still after paintLightless and before the weather.
+    const tells = after.indexOf("paintTells(ctx, tellView(g), false, TILE, LINE_HALF, true)") > 0 && after.indexOf("paintTells") < after.indexOf("drawWeather") && /traps: below \? \(g\.feats\?\.traps \?\? \[\]\)/.test(drawSrc) && /ashes: below \? g\.ashes/.test(drawSrc);
+    check("curse", "telegraph marks are drawn on top of the dark", tells || (after.indexOf("paintMark(ctx, r.markX") > 0 && after.indexOf("RUNS.ashRadius") > 0 && after.indexOf("TRAPS.plateRadius") > 0 && after.indexOf("paintMark") < after.indexOf("drawWeather")));
   }
 }
 
@@ -5253,7 +5263,7 @@ if (on("gfx1")) {
   {
     const body = draw.slice(draw.indexOf("export function drawWorld"));
     const iLight = body.indexOf("paintLight(ctx, g, camX, camY");
-    check("gfx1", "draw: the light layer multiplies over the world after every prop and actor is drawn, before particles, the Lightless curse and the weather; telegraph marks, spells, flames and the vortex go to full light; actors are lifted to the floor", iLight > body.indexOf("for (const d of props) d.fn();") && iLight < body.indexOf("drawParticles(ctx, g, camX") && iLight < body.indexOf("paintLightless(ctx, g, camX") && /ctx\.globalCompositeOperation = "multiply";/.test(draw) && /paintMark\(c, r\.markX, r\.markY, r\.markR \?\? 40, "#ffffff"\)/.test(body) && /paintSpell\(c, s\.x/.test(body) && /glow\.push\(flame\)/.test(body) && /glow\.push\(\(c\) => paintPortalGate\(c, "rift", r\.x, r\.y, g\.frame, "vortex"\)\)/.test(body) && /lc\.globalCompositeOperation = "lighten";/.test(draw));
+    check("gfx1", "draw: the light layer multiplies over the world after every prop and actor is drawn, before particles, the Lightless curse and the weather; telegraph marks, spells, flames and the vortex go to full light; actors are lifted to the floor", iLight > body.indexOf("for (const d of props) d.fn();") && iLight < body.indexOf("drawParticles(ctx, g, camX") && iLight < body.indexOf("paintLightless(ctx, g, camX") && /ctx\.globalCompositeOperation = "multiply";/.test(draw) && (/paintMark\(c, r\.markX, r\.markY, r\.markR \?\? 40, "#ffffff"\)/.test(body) || /paintTells\(c, tellView\(g\), true, TILE, LINE_HALF\)/.test(body)) /* playtest1j: the neon marks */ && /paintSpell\(c, s\.x/.test(body) && /glow\.push\(flame\)/.test(body) && /glow\.push\(\(c\) => paintPortalGate\(c, "rift", r\.x, r\.y, g\.frame, "vortex"\)\)/.test(body) && /lc\.globalCompositeOperation = "lighten";/.test(draw));
   }
 
   // Wall depth: the kit, and how it is drawn.
@@ -6429,7 +6439,10 @@ if (on("fade2")) {
     // bloom b5326b68/45dcdfc7, ashen dafbe36a/e623712d); drawn and undrawn runs must still agree byte for byte below.
     // playtest1f re-pinned (the wayrifts' clearings and their lair gap move tonight's lairs); playtest1e's logs were
     // ad4dc81a… 1865dfdb… de58f099… 7ae29800…, ends 1c816d68… aca95fb8… 596914b0… 3253af28…
-    const GOLD = { harvest: ["7110f4056d74d30486c4727580f673fc", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["2a6c6350026d89d97f89d0005876d40c", "aca95fb82718ec368d0d17492dfa772e"], bloom: ["22b38e1989c73ab6e21b4accff61f304", "93f5773647b3a6e29c9789f2fbafcc5f"], ashen: ["a141f9d205f9a1ea46fda7939672e752", "d4ce705477525ce7a9ba7a86c380a2cf"] };
+    // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks] re-pinned krampus's end (aca95fb8… under playtest1f): Krampus
+    // drops under half HP tonight, so he roars into phase two and his big moves come quicker and in patterns; his spawn
+    // log is unchanged, and the other three nights are unchanged byte for byte. Group playtest1j re-runs this night.
+    const GOLD = { harvest: ["7110f4056d74d30486c4727580f673fc", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["2a6c6350026d89d97f89d0005876d40c", "8bf641d73f3ee80cfae007db61644dcf"], bloom: ["22b38e1989c73ab6e21b4accff61f304", "93f5773647b3a6e29c9789f2fbafcc5f"], ashen: ["a141f9d205f9a1ea46fda7939672e752", "d4ce705477525ce7a9ba7a86c380a2cf"] };
     const night = (fid, drawn) => seeded(2026, () => {
       const g = new X.Game();
       g.start("warrior", "str", "A");
@@ -8454,7 +8467,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8761,7 +8774,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9046,7 +9059,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(pt1iView(f))}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9057,13 +9070,330 @@ if (on("playtest1i")) {
     globalThis.Image = had.Image;
     globalThis.document = had.document;
     const LIVE = {"src/game/draw.ts": "8a50838a6c31fded04a1b8133c279723", "src/game/interiors.ts": "76df93373a92cb65eaec6b53e6a4fee7", "tools/pixel-writer/interior_writer.py": "001aebe58457132827602ed24b21496d", "tools/pixel-writer/make_gravewake.py": "d017892689e677d51042e864a16af8db"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1iView(f)) !== hh).map(([f]) => f);
     check("playtest1i", "the live game files are byte for byte playtest1i's (draw, interiors, the interior writer, make_gravewake)", moved.length === 0 && Object.keys(LIVE).length === 4, moved.join(", "));
   }
 }
 
+// playtest1j ([OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights], part 1 of Bill's 2026-10-03 08:41 ET
+// combat batch): readable, fair telegraphs (every mid and big mark walkable at stick pace with a reaction to spare), boss
+// phase two at half HP with nova and aim + echo patterns, neon marks and wind-up glow, and pooled moving fight lights.
+if (on("playtest1j")) {
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-03: telegraphed attacks";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1j.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport * as FL from "${root}/src/game/fightlights.ts";\nexport { NEON_LIGHT } from "${root}/src/game/looks.ts";\nexport { LIGHT } from "${root}/src/game/light.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1j.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1j.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  writeFileSync(join(dir, "sim1i.ts"), readFileSync("scripts/frozen/playtest1j/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  execFileSync("npx", ["esbuild", join(dir, "sim1i.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1i.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, random: Math.random };
+  let draws = [];
+  let laneDots = 0;
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const mock = (off = null) => {
+    const o = {
+      drawImage(im, ...a) { if (off) return; draws.push({ u: im && im._s, c: im && !im._s ? im : null, dx: a.length >= 8 ? a[4] : a[0], dy: a.length >= 8 ? a[5] : a[1] }); },
+      fillRect() { if (!off && o.fillStyle === "#ff3a4f") laneDots++; },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop() {} }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+  };
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= mock(c)); } }; return c; } };
+  const X = await import(pathToFileURL(join(dir, "pt1j.mjs")).href);
+  const Z = await import(pathToFileURL(join(dir, "sim1i.mjs")).href);
+  const { TG, FL, NEON_LIGHT } = X;
+  const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const simSrc = readFileSync("src/game/sim.ts", "utf8");
+  const kitSrc = simSrc.slice(simSrc.indexOf("const BOSS_KITS"), simSrc.indexOf("export type Battle"));
+  const KITS = Object.fromEntries([...kitSrc.matchAll(/^\s+(\w+): \{ personality: "(\w+)", spam: "[^"]+", spamTag: "(\w+)", mid: "[^"]+", midTag: "(\w+)", big: "[^"]+", bigTag: "(\w+)"/gm)].map((m) => [m[1], { personality: m[2], spamTag: m[3], midTag: m[4], bigTag: m[5] }]));
+  const mk = (M = X) => { const g = new M.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = 5 * 60 * 1000; g.roamers = []; g.mode = "play"; return g; };
+  const bossFight = (id, M = X, extra = {}) => { const g = mk(M); g.touchFoe({ id, x: g.px + 30, y: g.py, family: "zombie", tint: "#888", def: id, level: 12, ang: 0, boss: true, ...extra }); const b = g.roamers.find((r) => r.boss || r.mini); g.roamers = b ? [b] : []; if (b) { b.x = g.px + 30; b.y = g.py; } return { g, b }; };
+  const tick = (g, s, each = () => {}) => { for (let t = 0; t < s; t += 0.05) { g.update(0.05); each(); } };
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+
+  // 1. Fair on touch, from the table: every boss kit's mid and big mark is walkable from its centre at the law's 74 px/s
+  //    walk with 0.2 s to spare, a big stays inside the law's 0.8-1.2 s, the nova too, and a rare's 0.35 s tint is unchanged.
+  {
+    const bad = [];
+    for (const [id, k] of Object.entries(KITS)) {
+      const mid = TG.tellFor("mid", k.midTag, TG.TELL.mid);
+      const big = TG.tellFor("big", k.bigTag, TG.TELL.big);
+      const big2 = TG.tellFor("big", k.bigTag, TG.TELL.bigPhase2);
+      const floor = (t) => TG.escapeDistance(t, TG.markRadius(t)) / 74 + 0.2 - 0.006;
+      if (mid < floor(k.midTag) || mid < 0.5) bad.push(`${id} mid ${mid}`);
+      if (big < floor(k.bigTag) || big < 0.8 || big > 1.2 || big2 < floor(k.bigTag) || big2 < 0.8 || big2 > 1.2) bad.push(`${id} big ${big}/${big2}`);
+    }
+    const nova = TG.tellFor("big", "ring", TG.TELL.bigPhase2, TG.PHASE.novaR);
+    check("playtest1j", `fair on touch: every boss kit's (${Object.keys(KITS).length}) mid and big mark can be walked out of from its centre at 74 px/s with 0.2 s to spare (ring 40 px 0.74 s, pull 0.96, cone 1.06, line 0.42 sideways), a big stays in the law's 0.8-1.2 s (phase two, the nova 0.9), and the rare's 0.35 s tint is unchanged`, Object.keys(KITS).length === 23 && bad.length === 0 && near(nova, 0.9) && TG.tellFor("spam", "melee", 0.35) === 0.35 && TG.tellFor("mid", "ring", 0.5) === 0.74 && TG.tellFor("big", "cone", 1) === 1.06 && TG.tellFor("big", "line", 1) === 1 && TG.WALK_PACE === 74 && /: this\.running \? 110 : 74;/.test(simSrc), bad.join(", ") + ` ${Object.keys(KITS).length} ${nova}`);
+  }
+
+  // 2. The live sim casts with those tells: every boss's first big (aimed at the hero) and its mid.
+  {
+    const bad = [];
+    for (const [id, k] of Object.entries(KITS)) {
+      seed(7);
+      const { g, b } = bossFight(id);
+      if (!b) { bad.push(`${id} no boss`); continue; }
+      b.age = k.personality === "tyrant" ? 16.05 : 8.05; b.wave = 0; b.cool = 0; b.hp = b.max;
+      let cast = null;
+      tick(g, 1, () => { g.hp = g.maxHp; if (!cast && b.casting) cast = { slot: b.casting, max: b.tellMax, r: b.markR, pat: b.pattern, mx: b.markX, my: b.markY, px: g.px, py: g.py, log: g.logLine, act: b.act }; });
+      const want = TG.tellFor("big", k.bigTag, 1);
+      if (!cast || cast.slot !== "big" || !near(cast.max, want) || cast.r !== TG.markRadius(k.bigTag) || cast.pat !== "" || cast.act !== "cast" || Math.hypot(cast.mx - cast.px, cast.my - cast.py) > 4) bad.push(`${id} big ${JSON.stringify(cast)}`);
+      const f2 = bossFight(id);
+      f2.b.age = 4; f2.b.wave = 0; f2.b.cool = 0;
+      let mid = null;
+      tick(f2.g, 0.5, () => { f2.g.hp = f2.g.maxHp; if (!mid && f2.b.casting) mid = { slot: f2.b.casting, max: f2.b.tellMax }; });
+      if (!mid || mid.slot !== "mid" || !near(mid.max, TG.tellFor("mid", k.midTag, 0.5))) bad.push(`${id} mid ${JSON.stringify(mid)}`);
+    }
+    check("playtest1j", "the live sim casts every boss's big at the hero with the fair tell (tellMax kept for the fill), its mark's old radius, a wind-up pose, and every mid with its fair tell", bad.length === 0, bad.slice(0, 4).join(" | "));
+  }
+
+  // 3. Dodging works the same on all three inputs: the touch / gamepad stick, the keyboard and a click-to-walk goal.
+  {
+    const run = (id, how, wait = 0.2) => {
+      seed(3);
+      const { g, b } = bossFight(id);
+      b.age = KITS[id].personality === "tyrant" ? 16.05 : 8.05; b.wave = 0; b.cool = 0;
+      tick(g, 0.05);
+      const dir = KITS[id].bigTag === "line" ? [0, 1] : [-1, 0];
+      let t = 0;
+      let landed = false;
+      let clear = false;
+      while (b.casting === "big" && t < 2) {
+        g.iframe = 0;
+        if (t >= wait) {
+          if (how === "stick") { g.stickX = dir[0]; g.stickY = dir[1]; }
+          if (how === "keys") g.held.add(dir[0] ? "KeyA" : "KeyS");
+          if (how === "goal" && !g.goal) g.goal = { x: g.px + dir[0] * 120, y: g.py + dir[1] * 120 };
+        }
+        const hp = g.hp;
+        g.update(0.05);
+        t += 0.05;
+        if (g.hp < hp) landed = true;
+        if (/step clear/.test(g.logLine)) clear = true;
+      }
+      return { landed, clear };
+    };
+    const res = {};
+    for (const id of ["frank", "warlock", "dracula", "horseman", "wolfman"]) for (const how of ["stick", "keys", "goal", "stand"]) res[`${id}/${how}`] = run(id, how === "stand" ? "stick" : how, how === "stand" ? 9 : 0.2);
+    const ok = Object.entries(res).every(([k, v]) => (k.endsWith("/stand") ? v.landed && !v.clear : v.clear && !v.landed));
+    check("playtest1j", "dodging is fair on every input: after 0.2 s of reaction, walking out on the touch/gamepad stick, the keyboard or a click-to-walk goal clears every big (ring, cone, line sideways) and standing still takes it", ok, JSON.stringify(res));
+  }
+
+  // 4. Phase two at half HP: once, with the roar; a remnant (no big) and trash never.
+  {
+    seed(5);
+    const { g, b } = bossFight("frank");
+    b.age = 2; b.cool = 9; b.hp = Math.ceil(b.max * 0.51) + 1;
+    tick(g, 0.2, () => { g.hp = g.maxHp; });
+    const before = b.phase ?? 1;
+    b.hp = Math.floor(b.max * 0.5);
+    g.update(0.05);
+    const roar = { phase: b.phase, log: g.logLine, act: b.act, flash: b.flash, cool: b.cool };
+    let roars = 0;
+    b.hp = Math.floor(b.max * 0.3);
+    tick(g, 3, () => { g.hp = g.maxHp; if (/second phase/.test(g.logLine) && g.logLine !== roar.log) roars++; });
+    const lights = FL.fightLights({ roamers: [{ ...b, tell: 0, phase: 2, flash: 0.5, act: "cast" }], spells: [], ashes: [], plates: [], traps: [], w: 1 }, [], () => "fire", (s) => ({ x: s.x, y: s.y, hit: false }), TILE);
+    seed(5);
+    const m = bossFight("frank", X, { boss: false, mini: true });
+    m.b.hp = 1; m.b.age = 30;
+    tick(m.g, 4, () => { m.g.hp = m.g.maxHp; });
+    seed(5);
+    const t = mk();
+    t.touchFoe({ id: "zombie", x: t.px + 30, y: t.py, family: "zombie", tint: "#888", def: "zombie", level: 4, ang: 0 });
+    const z = t.roamers.filter((r) => r.aggro);
+    let tells = 0;
+    tick(t, 6, () => { t.hp = t.maxHp; tells += z.filter((r) => (r.tell ?? 0) > 0 || r.phase).length; });
+    check("playtest1j", "phase two: at 50% HP a boss with a big roars once ('roars. Its second phase begins.', stands glowing 0.8 s, no hit) and lights a red roar; above half it stays in phase one; a remnant and trash never change phase (trash still has no tell)", before === 1 && roar.phase === 2 && /roars\. Its second phase begins\./.test(roar.log) && roar.act === "cast" && roar.flash > 0.7 && roar.cool >= 0.7 && roars === 0 && lights === 1 && !(m.b.phase) && m.b.casting !== "big" && z.length > 0 && tells === 0, JSON.stringify({ before, roar, roars, lights, mini: m.b.phase, tells, z: z.length }));
+  }
+
+  // 5. Patterns: phase one aims every 8 s; phase two alternates the nova (round the boss) and aim + echo every 6 s.
+  {
+    const watch = (id, hp, secs) => {
+      seed(11);
+      const { g, b } = bossFight(id);
+      b.hp = Math.floor(b.max * hp);
+      b.age = 0;
+      const seq = [];
+      let was = "";
+      tick(g, secs, () => {
+        g.hp = g.maxHp; b.hp = Math.min(b.hp, Math.floor(b.max * hp)); if (b.hp < 1) b.hp = 1;
+        const now = b.casting ? `${b.casting}:${b.pattern}` : "";
+        if (now && now !== was) seq.push({ s: b.casting, p: b.pattern, at: Math.round((b.age ?? 0) * 20) / 20, max: b.tellMax, r: b.markR, onBoss: Math.hypot(b.markX - b.x, b.markY - b.y) < 1, onHero: Math.hypot(b.markX - g.px, b.markY - g.py) < 4 });
+        was = now;
+      });
+      return seq;
+    };
+    const one = watch("frank", 1, 34).filter((c) => c.s === "big");
+    const two = watch("frank", 0.4, 34);
+    const bigs2 = two.filter((c) => c.s === "big");
+    const echoes = two.filter((c) => c.p === "echoed");
+    const gaps = (l, cyc) => l.slice(1).map((c, i) => Math.floor(c.at / cyc) - Math.floor(l[i].at / cyc));
+    const shade = watch("shade", 0.4, 30).filter((c) => c.s === "big");
+    const ok1 = one.length >= 3 && one.every((c) => c.p === "" && c.onHero) && gaps(one, 8).every((d) => d === 1);
+    const ok2 = bigs2.length >= 4 && bigs2.every((c, i) => c.p === (i % 2 ? "echo" : "nova")) && bigs2.filter((c) => c.p === "nova").every((c) => c.onBoss && c.r === 52 && near(c.max, 0.9)) && bigs2.filter((c) => c.p === "echo").every((c) => c.onHero && near(c.max, 0.8)) && gaps(bigs2, 6).every((d) => d === 1) && echoes.length === bigs2.filter((c) => c.p === "echo").length && echoes.every((c) => c.s === "mid" && c.onHero && c.r === 40 && near(c.max, 0.74));
+    check("playtest1j", "patterns: phase one's big always aims at the hero, one in each 8 s cycle; phase two's comes in each 6 s cycle (never skipping one) and alternates the nova (a 52 px ring round the boss itself, 0.9 s: get away from it) and an aimed 0.8 s mark followed by its echo (a 0.74 s ring where the hero stands next); a summon big (Shade) keeps its one form", ok1 && ok2 && shade.length >= 3 && shade.every((c) => c.p === "") && TG.bigPattern(2, 0, "summon") === "aim" && TG.bigPattern(2, 0, "shield") === "aim" && TG.bigPattern(2, 0, "blink") === "aim" && TG.bigPattern(1, 1, "ring") === "aim", JSON.stringify({ one: gaps(one, 8), two: bigs2.map((c) => c.p + "@" + c.at), echoes: echoes.length, shade: shade.map((c) => c.p) }));
+  }
+
+  // 6. The nova hits beside the boss and misses away from it; Smite still breaks a big (the nova too) but not an echo.
+  {
+    const nova = (dx) => {
+      seed(13);
+      const { g, b } = bossFight("frank");
+      b.hp = Math.floor(b.max * 0.4); b.phase = 2; b.bigs = 0; b.age = 6.05; b.wave = 0; b.cool = 0;
+      b.x = g.px + dx; b.y = g.py;
+      tick(g, 0.05);
+      const pat = b.pattern;
+      b.x = g.px + dx; b.y = g.py;
+      b.markX = b.x; b.markY = b.y;
+      const hp = g.hp;
+      let landed = false;
+      tick(g, 1.2, () => { g.iframe = 0; b.x = g.px + dx; b.y = g.py; if (g.hp < hp) landed = true; });
+      return { pat, landed };
+    };
+    const nearN = nova(20);
+    const farN = nova(60);
+    const smite = (pattern) => {
+      seed(17);
+      const { g, b } = bossFight("frank");
+      g.energy = 40;
+      b.hp = Math.floor(b.max * 0.4); b.phase = 2; b.bigs = pattern === "echoed" ? 1 : 0; b.age = 6.05; b.wave = 0; b.cool = 0;
+      tick(g, 0.05);
+      if (pattern === "echoed") { b.tell = 0.01; g.update(0.05); }
+      const before = { casting: b.casting, pattern: b.pattern };
+      g.smite();
+      return { before, after: b.casting, log: g.logLine };
+    };
+    const sN = smite("nova");
+    const sE = smite("echoed");
+    check("playtest1j", "the nova lands on a hero 20 px from the boss and misses one 60 px out; Smite still breaks a big tell (a nova too) and cannot break an echo (it is a mid mark)", nearN.pat === "nova" && nearN.landed && farN.pat === "nova" && !farN.landed && sN.before.casting === "big" && sN.after === "" && sE.before.pattern === "echoed" && sE.after === "mid", JSON.stringify({ nearN, farN, sN, sE }));
+  }
+
+  // 7. Elsewhere unchanged: a fixed-seed trash and rare fight plays the same on the frozen playtest1i sim and the live one.
+  {
+    const play = (M) => {
+      seed(23);
+      const g = mk(M);
+      const log = [];
+      g.touchFoe({ id: "zombie", x: g.px + 30, y: g.py, family: "zombie", tint: "#888", def: "zombie", level: 6, ang: 0 });
+      g.roamers.forEach((r, i) => { if (i === 0) { r.rare = true; r.spam = "rot-swipe"; r.spamTag = "melee"; } });
+      for (let i = 0; i < 400; i++) {
+        if (i % 9 === 0) g.held.add("Space"); else g.held.delete("Space");
+        g.update(0.05);
+        if (g.hp < 5) g.hp = g.maxHp;
+        log.push(g.logLine);
+      }
+      return JSON.stringify({ hp: g.hp, log: log.join("|"), r: g.roamers.map((r) => [Math.round(r.x * 100), Math.round(r.y * 100), r.hp, r.casting, Math.round((r.tell ?? 0) * 1000)]), nums: g.nums.length, sp: g.spells.length });
+    };
+    const a = play(Z);
+    const b = play(X);
+    check("playtest1j", "nothing else moves: a fixed-seed field fight of trash and a rare (its 0.35 s tint) plays frame for frame the same on the frozen playtest1i sim and the live one", a === b && a.length > 1000, `${a.length} ${b.length}`);
+  }
+
+  // 8. Saves: no new save keys; a playtest1i save loads and saves back the same; a phase-two fight leaves nothing in a save.
+  {
+    seed(29);
+    const old = mk(Z); old.level = 9;
+    const rec = JSON.parse(JSON.stringify(old.saveRecord()));
+    const now = mk(X); now.level = 9;
+    const keys = (o) => Object.keys(o).sort().join(",");
+    const live = new X.Game(); live.start("warrior", "str", "Q"); live.loadRecord(JSON.parse(JSON.stringify(rec)));
+    const back = JSON.parse(JSON.stringify(live.saveRecord()));
+    const { g, b } = bossFight("frank");
+    b.phase = 2; b.bigs = 3; b.pattern = "echo"; b.tellMax = 1;
+    const s = JSON.stringify(g.saveRecord());
+    check("playtest1j", "saves unchanged: the live save has playtest1i's keys, a playtest1i save loads and saves back with the same fields, and a boss's phase, pattern and tell never reach a save", keys(rec) === keys(JSON.parse(JSON.stringify(now.saveRecord()))) && keys(back) === keys(rec) && back.level === 9 && JSON.stringify(back) === JSON.stringify(JSON.parse(JSON.stringify(live.saveRecord()))) && !/"(phase|bigs|pattern|tellMax)"/.test(s), `${keys(rec).length} ${back.level}`);
+  }
+
+  // 9. Marks: neon sprites (red big, violet mid and plates, blue rare), filled in 8 steps with a hot rim, a lane for a
+  //    line, a wind-up ring at the foe's feet; under the actors, rims only over the Lightless dark; baked once and bounded.
+  {
+    const marks = () => draws.filter((d) => d.c && d.c.ctx && Object.values(TG.MARK_NEON).includes(d.c.ctx.fillStyle));
+    const scene = (id, p, extra = {}) => {
+      seed(31);
+      const { g, b } = bossFight(id);
+      b.age = KITS[id].personality === "tyrant" ? 16.05 : 8.05; b.wave = 0; b.cool = 0;
+      g.update(0.05);
+      Object.assign(b, extra);
+      b.tell = b.tellMax * (1 - p);
+      g.zoom = 3;
+      draws = [];
+      laneDots = 0;
+      X.drawWorld(mock(), g, 960, 640, 3);
+      return { g, b, m: marks(), dots: laneDots };
+    };
+    const big = scene("frank", 0.5);
+    const hot = scene("frank", 0.9);
+    const mid = scene("frank", 0.5, { casting: "mid" });
+    const lane = scene("horseman", 0.5);
+    const size = (d) => `${d.c.width}x${d.c.height}`;
+    const bigMark = big.m.find((d) => d.c.width === 81);
+    const ring = big.m.filter((d) => d.c.width <= 35);
+    const hotMark = hot.m.find((d) => d.c.width === 81);
+    const before = FL.markCacheSize();
+    draws = [];
+    X.drawWorld(mock(), big.g, 960, 640, 3);
+    const again = FL.markCacheSize();
+    const reused = marks().length === big.m.length && marks().every((d) => big.m.some((e) => e.c === d.c));
+    const laneEnd = lane.m.find((d) => d.c.width === 33 && Math.round(d.dx) === Math.round(lane.b.markX) - 16);
+    const drawSrc = readFileSync("src/game/draw.ts", "utf8");
+    const main = drawSrc.indexOf("paintTells(ctx, tellView(g), false, TILE, LINE_HALF);");
+    const okDraw = !!bigMark && bigMark.c.ctx.fillStyle === "#ff3a4f" && Math.round(bigMark.dx) === Math.round(big.b.markX) - 40 && ring.length >= 1 && ring.every((d) => d.c.ctx.fillStyle === "#ff3a4f") && !!hotMark && hotMark.c !== bigMark.c && mid.m.some((d) => d.c.width === 81 && d.c.ctx.fillStyle === "#b07aff") && !!laneEnd && lane.dots > 20 && big.dots === 0 && reused && again === before && before <= FL.FIGHT.cacheMax && main > 0 && main < drawSrc.indexOf("props.sort((a, b) => a.y - b.y);\n  for (const d of props) d.fn();", main) && /paintLightless\([^;]*\);[\s\S]{0,600}paintTells\(ctx, tellView\(g\), false, TILE, LINE_HALF, true\)/.test(drawSrc) && !/paintMark\(ctx,/.test(drawSrc.replace(/export function paintMark[\s\S]*?\n}\n/, ""));
+    check("playtest1j", "marks: a big is a red #ff3a4f ellipse sprite on its spot (violet #b07aff for a mid, a dotted lane for a line), filling in 8 steps and doubling its rim when hot, with a wind-up ring at the foe's feet; drawn under the props and actors, rims only over the Lightless dark; a repeat frame blits the same baked sprites (cache bounded)", okDraw, JSON.stringify({ big: bigMark && size(bigMark), ring: ring.map(size), hot: !!hotMark, mid: mid.m.map(size), lane: lane.m.map(size), dots: [lane.dots, big.dots], reused, before, again, main }));
+  }
+
+  // 10. Fight lights: pooled, budgeted, neon by element and slot, at the mark, the foe and each spell's head.
+  {
+    const fv = (o) => ({ roamers: [], spells: [], ashes: [], plates: [], traps: [], w: 1, ...o });
+    const els = Object.fromEntries(Object.keys(FL.ELEMENT_NEON).map((el) => { const out = []; FL.fightLights(fv({ spells: [{ x: 5, y: 6, tx: 50, ty: 6, kind: "bolt", color: "#fff", life: 0.2, max: 0.5 }] }), out, () => el, (s) => ({ x: s.x, y: s.y, hit: false }), TILE); return [el, out[0]?.c]; }));
+    const elOk = els.fire === NEON_LIGHT.red && els.ice === NEON_LIGHT.blue && els.lightning === NEON_LIGHT.blue && els.holy === NEON_LIGHT.blue && els.venom === NEON_LIGHT.violet && els.shadow === NEON_LIGHT.violet;
+    const caster = { x: 100, y: 100, tell: 0.5, tellMax: 1, casting: "big", markX: 60, markY: 100, markR: 40, boss: true };
+    const one = [];
+    FL.fightLights(fv({ roamers: [caster], spells: [{ x: 0, y: 0, tx: 9, ty: 9, kind: "bolt", color: "#fff", life: 0, max: 0.5 }] }), one, () => "fire", (s) => ({ x: s.tx, y: s.ty, hit: true }), TILE);
+    const fogged = [];
+    FL.fightLights(fv({ roamers: [caster], fog: new Uint8Array(4096), w: 64 }), fogged, () => "fire", (s) => ({ x: s.x, y: s.y, hit: false }), TILE);
+    const okOne = one.length === 3 && one[0].c === NEON_LIGHT.red && one[0].x === 60 && one[0].r >= 40 && one[1].x === 100 && one[1].c === NEON_LIGHT.red && one[2].r >= FL.FIGHT.impactLight && fogged.length === 1;
+    // A stress fight in a dungeon at the Retro view: 3 casting foes, 30 spells, a burst of ashes.
+    seed(37);
+    const g = mk();
+    g.enterTown(); g.enterDungeon("ossuary");
+    g.roamers = [0, 1, 2].map((i) => ({ x: g.px + 20 * i, y: g.py - 20, tell: 0.4, tellMax: 1, casting: i ? "mid" : "big", markX: g.px, markY: g.py, markR: 40, def: "zombie", family: "zombie", aggro: true, hp: 9, max: 9, level: 3 }));
+    g.spells = Array.from({ length: 30 }, (_, i) => ({ x: g.px, y: g.py - 10, tx: g.px + (i % 7) * 12 - 36, ty: g.py + (i % 5) * 9 - 18, kind: "bolt", color: ["#e04a2a", "#3a6aa8", "#4aa83a", "#6a3a8a", "#f4e27a"][i % 5], life: 0.1 + (i % 4) * 0.1, max: 0.5 }));
+    g.ashes = Array.from({ length: 6 }, (_, i) => ({ x: g.px + i * 10, y: g.py + 30, tell: 0.3 }));
+    const pool = new Set(FL.fightPool());
+    const frames = [];
+    for (const [vw, vh] of [[320, 240], [480, 270], [960, 640]]) for (let f = 0; f < 3; f++) { g.frame = f; frames.push(X.sceneLights(g, g.px - vw / 2, g.py - vh / 2, vw, vh)); }
+    const fightLamps = frames.map((l) => l.filter((x) => pool.has(x)));
+    const okStress = frames.every((l) => l.length <= X.LIGHT.budget && l.length > 0) && fightLamps.every((l) => l.length > 0 && l.length <= FL.FIGHT.pool) && FL.fightPool().length === 12 && FL.FIGHT_BUDGET.scene === X.LIGHT.budget && fightLamps.flat().every((l) => [NEON_LIGHT.red, NEON_LIGHT.blue, NEON_LIGHT.violet].includes(l.c));
+    check("playtest1j", "fight lights: a spell's neon core takes its 1h fx element (fire red, ice/lightning/holy blue, venom/shadow violet) and flashes wider at the impact; a mark lights its spot in its slot's neon and the foe's wind-up glows (not on unexplored rock); a 30-spell dungeon fight at the Retro, phone and auto views stays inside the 12-lamp pool (the same objects every frame) and the scene's 24-light budget", elOk && okOne && okStress && !/fightlights/.test(simSrc), JSON.stringify({ els: Object.fromEntries(Object.entries(els).map(([k, v]) => [k, v && v.join()])), one: one.map((l) => [l.x, l.r]), fogged: fogged.length, frames: frames.map((l) => l.length), fight: fightLamps.map((l) => l.length) }));
+  }
+
+  // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const files = ["src/game/sim.ts", "src/game/draw.ts", "src/game/telegraph.ts", "src/game/fightlights.ts"];
+    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    const notes = (law.match(/\[OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights\]/g) ?? []).length;
+    check("playtest1j", "the change is an owner-approved combat change, recorded as dated [OWNER-APPROVED 2026-10-03] notes in rules/GAME_LAYOUT_TWO.txt (TELEGRAPHS and MONSTER TIERS, where the law says not to change combat) and AGENTS.project.md, and tagged in sim.ts, draw.ts, telegraph.ts and fightlights.ts", notes >= 2 && agents.includes("## playtest1j (telegraphed attacks and dynamic fight lights) — [OWNER-APPROVED 2026-10-03") && untagged.length === 0, `${notes} ${untagged.join(", ")}`);
+    const cs = readFileSync("scripts/gravewake-check.mjs", "utf8");
+    check("playtest1j", "the frozen references (scripts/frozen/playtest1j/) are playtest1i's sim and draw byte for byte (as pushed at 36eb728), and the older groups' views, rest digests and live pins read them", md5f("scripts/frozen/playtest1j/sim.ts.txt") === "ed21983bb7fdba0c1a983fbe7dbeab30" && md5f("scripts/frozen/playtest1j/draw.ts.txt") === "8a50838a6c31fded04a1b8133c279723" && /md5f\(pt1iView\(f\)\) !== hh/.test(cs) && /const pt1hView = \(f\) => [^\n]*pt1iView\(f\)/.test(cs));
+    globalThis.Image = had.Image;
+    globalThis.document = had.document;
+    Math.random = had.random;
+    const LIVE = {"src/game/sim.ts": "50c8cb43e2d0ae7222c2e7df4edb3681", "src/game/draw.ts": "763b9990c200ba16ee6b8e544d920eec", "src/game/telegraph.ts": "d1ab7dcd4552eed6ce23687fa1a5f88b", "src/game/fightlights.ts": "9f81aedf78bef6883d282afc8da09ef9"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1j", "the live game files are byte for byte playtest1j's (sim, draw, telegraph, fightlights)", moved.length === 0 && Object.keys(LIVE).length === 4, moved.join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

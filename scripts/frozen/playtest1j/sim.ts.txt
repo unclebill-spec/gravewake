@@ -78,7 +78,6 @@ import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival,
 export { FAMILIES, scaleMonster, zoneLevel };
 import type { AudioBus } from "./audio";
 import { ParticlePool, paletteIndex } from "./particles";
-import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -275,12 +274,6 @@ export type Roamer = {
   markX?: number;
   markY?: number;
   markR?: number;
-  /** playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]: the whole tell this cast started with (the mark fills over it), the boss phase (2 at or under
-   * half HP), how many big moves it has cast, and the pattern of the cast in hand ("nova", "echo", "echoed"). Never saved. */
-  tellMax?: number;
-  phase?: number;
-  bigs?: number;
-  pattern?: string;
   homeX?: number;
   homeY?: number;
   hits?: number;
@@ -5743,26 +5736,10 @@ export class Game {
         r.tell = 0;
         continue;
       }
-      // playtest1j: a boss with a big move turns to phase two at half HP: it roars (stands and glows, no hit), then its
-      // big moves come quicker and in patterns (telegraph.ts).
-      if (r.boss && r.big && (r.phase ?? 1) < 2 && (r.hp ?? 1) <= (r.max ?? 1) * PHASE.at && !(r.tell ?? 0)) {
-        r.phase = 2;
-        r.wave = Math.floor((r.age ?? 0) / PHASE.cycle2);
-        r.cool = Math.max(r.cool ?? 0, PHASE.roar);
-        r.act = "cast";
-        r.actFor = PHASE.roar;
-        r.flash = PHASE.roar;
-        this.logLine = `${r.name ?? "It"} roars. Its second phase begins.`;
-      }
       if ((r.tell ?? 0) > 0) {
         r.moving = false;
         r.tell = (r.tell ?? 0) - dt;
-        if ((r.tell ?? 0) <= 0) {
-          // playtest1j: an aimed phase-two big is followed by its echo, whatever the first one hit.
-          const echo = r.pattern === "echo";
-          this.resolveCast(r, dist);
-          if (echo && this.liveFoe(r)) this.beginEcho(r);
-        }
+        if ((r.tell ?? 0) <= 0) this.resolveCast(r, dist);
         continue;
       }
       const ox = r.x;
@@ -5799,12 +5776,7 @@ export class Game {
   private wantBig(r: Roamer) {
     if ((r.age ?? 0) < 6) return false;
     if (r.personality === "tyrant" && (r.hp ?? 1) > (r.max ?? 1) * 0.4 && (r.age ?? 0) < 12) return false;
-    return Math.floor((r.age ?? 0) / this.bigCycle(r)) !== (r.wave ?? 0);
-  }
-
-  /** playtest1j: seconds between big moves (8 in phase one, the old cycle; 6 in phase two). */
-  private bigCycle(r: Roamer) {
-    return (r.phase ?? 1) >= 2 ? PHASE.cycle2 : PHASE.cycle1;
+    return Math.floor((r.age ?? 0) / 8) !== (r.wave ?? 0);
   }
 
   private inReach(r: Roamer, dist: number) {
@@ -5836,54 +5808,21 @@ export class Game {
 
   private beginCast(r: Roamer, slot: "mid" | "big" | "spam", name: string, tag: string, seconds: number) {
     r.casting = slot;
+    r.tell = seconds;
     r.markX = this.px;
     r.markY = this.py;
-    r.markR = markRadius(tag);
-    r.pattern = "";
-    // playtest1j: a big move's pattern (phase one aims; phase two alternates a nova round the boss and an aimed mark
-    // with an echo), and every mid and big mark long enough to walk out of on a touch stick (telegraph.ts tellFor).
-    if (slot === "big") {
-      const pat = bigPattern(r.phase ?? 1, r.bigs ?? 0, tag);
-      r.bigs = (r.bigs ?? 0) + 1;
-      if ((r.phase ?? 1) >= 2) seconds = TELL.bigPhase2;
-      if (pat === "nova") {
-        r.markX = r.x;
-        r.markY = r.y;
-        r.markR = PHASE.novaR;
-        tag = "ring";
-      }
-      r.pattern = pat === "aim" ? "" : pat;
-    }
-    r.tell = tellFor(slot, tag, seconds, r.markR);
-    r.tellMax = r.tell;
+    r.markR = tag === "line" ? 18 : tag === "cone" ? 64 : tag === "pull" ? 56 : 40;
     r.cool = slot === "big" ? 2.2 : 1.3;
     r.act = "cast";
-    r.actFor = r.tell;
-    if (slot === "big") r.wave = Math.floor((r.age ?? 0) / this.bigCycle(r));
-    this.logLine = r.pattern === "nova" ? `${r.name ?? "It"} gathers ${name} around itself.` : `${r.name ?? "It"} marks ${name}.`;
-  }
-
-  /** playtest1j: the echo, a second mark on the spot the hero stepped to, right after an aimed phase-two big move. */
-  private beginEcho(r: Roamer) {
-    r.casting = "mid";
-    r.markX = this.px;
-    r.markY = this.py;
-    r.markR = markRadius("ring");
-    r.pattern = "echoed";
-    r.tell = tellFor("mid", "ring", TELL.echo, r.markR);
-    r.tellMax = r.tell;
-    r.cool = 1.3;
-    r.act = "cast";
-    r.actFor = r.tell;
-    this.logLine = `${r.name ?? "It"} marks ${r.big ?? "it"} again.`;
+    r.actFor = seconds;
+    if (slot === "big") r.wave = Math.floor((r.age ?? 0) / 8);
+    this.logLine = `${r.name ?? "It"} marks ${name}.`;
   }
 
   private resolveCast(r: Roamer, dist: number) {
-    const pattern = r.pattern ?? "";
-    const name = pattern === "echoed" ? `${r.big ?? "it"}'s echo` : r.casting === "big" ? r.big : r.casting === "spam" ? r.spam : r.mid;
-    const tag = pattern === "nova" || pattern === "echoed" ? "ring" : r.casting === "big" ? r.bigTag : r.casting === "spam" ? r.spamTag : r.midTag;
+    const name = r.casting === "big" ? r.big : r.casting === "spam" ? r.spam : r.mid;
+    const tag = r.casting === "big" ? r.bigTag : r.casting === "spam" ? r.spamTag : r.midTag;
     const slot = r.casting;
-    r.pattern = "";
     const mx = r.markX ?? this.px;
     const my = r.markY ?? this.py;
     const inside = this.inMark(mx, my, r.markR ?? 40);
