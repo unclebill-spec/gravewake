@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,10 @@ import {
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// Gravewake playtest1m (2026-10-03): these tests pin the template's default head tags, but the injector reads the og
+// identity (src/lib/og/site.json, public/og.jpg) from process.cwd(), and this app ships its own (title Gravewake,
+// x:game, a custom card). Run from an empty directory so the defaults are what is tested; files are read by path.
+process.chdir(mkdtempSync(join(tmpdir(), "grok-pwa-test-")));
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
@@ -489,7 +493,9 @@ test("vite config keeps the nitro serverDir wiring", () => {
   assert.match(viteConfig, /grokPwaPlugin\(\)/);
 });
 
-test("nitro middleware and its bundled assets exist", () => {
+test("nitro middleware and its bundled assets exist", {
+  skip: !existsSync(join(TEMPLATE_ROOT, "server/middleware/grok-pwa.ts")) && "retired in Gravewake playtest1m (2026-10-03): Gravewake is a static GitHub Pages build and ships no server/ folder (no nitro middleware); runs again whenever server/middleware/grok-pwa.ts exists",
+}, () => {
   const middleware = readFileSync(join(TEMPLATE_ROOT, "server/middleware/grok-pwa.ts"), "utf8");
   assert.match(middleware, /install-page\.html\?raw/);
   assert.match(middleware, /virtual:grok-og-identity/);

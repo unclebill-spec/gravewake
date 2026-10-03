@@ -8,7 +8,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 856 as of playtest1l), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 865 as of playtest1m), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)
@@ -23,7 +23,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - Before any push: scan the files and history for secrets. `src/lib/auth/preview.ts` reads `PREVIEW_CLIENT_SECRET` from env in this repo, and the template's hard-coded value must never be committed.
 - Keep `CHANGELOG.md` and this file current, and use descriptive commits.
 
-## Current state (2026-10-03, playtest1l)
+## Current state (2026-10-03, playtest1m)
 - The feature list is done, festivals are done for all four seasons, map writer phases 1–3 are done (the 128x120 vale), and graphics pass rounds 1–3 and art audits 1–2 are done.
 - Screen and display settings are done (screen1), and a true 320×240 Retro mode is done (retro1, an owner-approved exception).
 - playtest1e–1g: the bigger world and edge border, wayrift portals, swamp paths, and biome trail art.
@@ -33,8 +33,9 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands] (Bill, 2026-10-03 08:41 ET, re-confirmed 10:03 ET; Layout Two's PAD MAP and WEAKNESSES carry the dated notes): elemental combos (VENOM BLAST, WILDFIRE, SHATTER, CHAIN; run-only statuses from venom, rain, swamp, snow, ice and oiled families; at most two per cast, one per foe per 3 s) and four companion orders (Taunt, Heal or guard me, Focus my target, Stay or follow) on keys Z X R V, pad RT LT R3 L3 and a touch strip beside the stick. No save fields. `src/game/combos.ts`, `src/game/commands.ts`.
 - playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] (Bill, 2026-10-03 09:21 ET; an exception to Layout Two's "No bloom", noted under every such line): Display options rows Bloom glow Off / Low / High and Scanlines Off / Subtle / Strong, saved in their own record `gravewake-postfx-v1`. Bloom is a small WebGL1 glow layer over the untouched game canvas (half the game pixels, scaled up smoothly); scanlines are a static 2D column (work without WebGL). Defaults: scanlines Off; bloom Low only on a capable desktop GPU, Off on Phone / touch / software renderer / 2 cores or fewer / 2 GB or less, plus an fps guard that turns the default off for good if it costs frames. HUD stays dry. `src/game/postfx.ts`, `src/game/FxOptions.tsx`.
 
+- playtest1m (Bill, 2026-10-03 15:41 ET; tidy, no gameplay change): test1 195 tests, 188 pass, 0 fail, 7 app-template tests retired with a dated reason while the builder files they read are absent; lint 0 (fixed in code); 55 never-loaded art files left public/art and 51 stay with reasons (`scripts/frozen/playtest1m/removed-art.json`). After a full writer re-run, run `node scripts/prune-unused-art.mjs`.
 ## Known issues
-- Lint has 10 problems that predate this work; test1 is 177/195 with a known failing list.
+- test1 skips 7 app-template tests while `.grok/` builder files, `server/` and `migrations/` are absent (see playtest1m in the CHANGELOG).
 - Summer vale nights stay dark (84% near-black) because the summer ground is darker.
 - Near a biome border, the HUD zone name can disagree with how the ground looks, because the blend is visual only.
 - Rift gate pillars overlap walkable tiles (art only).

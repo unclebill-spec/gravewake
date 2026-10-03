@@ -24,15 +24,13 @@
  * 9. If a check fails, the change is not done. Do not loosen the check to hide it.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync as readTop } from "node:fs";
+import { existsSync as existsTop, mkdtempSync, readFileSync as readTop } from "node:fs";
 import { createHash as hashTop } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const TILE = 16;
-const WALK = 74;
-const SWIM = 37;
 // playtest1 [OWNER-REPORTED 2026-10-01 23:25 ET]: eight doors moved to their house's south face (inn 9,5→5,6, shop
 // 17,5→14,6, smith 34,15→34,19, croft 18,23→18,26, and the south row 13,22 5,22 27,22 34,22 → row 26).
 const DOORS = ["5,6", "14,6", "30,6", "34,6", "5,11", "14,11", "26,11", "5,19", "27,19", "34,19", "18,20", "18,26", "13,26", "5,26", "27,26", "34,26"];
@@ -125,8 +123,18 @@ const pt1kNew = (f) => f === "src/game/combos.ts" || f === "src/game/commands.ts
 // group playtest1k's shell text, rest digest and live pin read it there (pt1kView, under pt1jView). Its new modules (pt1lNew) are
 // left out of the older rest digests. Group playtest1l checks the live files.
 const PT1L_FROZEN = ["src/game/Gravewake.tsx"];
-function pt1kView(f) { return PT1L_FROZEN.includes(f) ? `scripts/frozen/playtest1l/${f.split("/").pop()}.txt` : f; }
+function pt1kView(f) { return PT1L_FROZEN.includes(f) ? `scripts/frozen/playtest1l/${f.split("/").pop()}.txt` : pt1lView(f); }
 const pt1lNew = (f) => f === "src/game/postfx.ts" || f === "src/game/FxOptions.tsx";
+// playtest1m (2026-10-03, TIDY, no gameplay change; Bill approved it at 15:41 ET): the lint fixes touched sim.ts, the shell,
+// client.server.ts and use-current-user.ts; their playtest1l copies (main 121dbc1) are frozen under scripts/frozen/playtest1m/,
+// and every older view, rest digest and live pin reads them there (pt1lView, under pt1kView and group playtest1l). The art the
+// game never loads left public/art; its md5s as playtest1l shipped them are in scripts/frozen/playtest1m/removed-art.json, and
+// every older rest digest still counts them at those md5s (pt1mWalk, pt1mMd5), so the older groups' laws keep their meaning.
+const PT1M_FROZEN = ["src/game/sim.ts", "src/game/Gravewake.tsx", "src/lib/app-data/client.server.ts", "src/lib/auth/use-current-user.ts"];
+function pt1lView(f) { return PT1M_FROZEN.includes(f) ? `scripts/frozen/playtest1m/${f.split("/").pop()}.txt` : f; }
+const PT1M_GONE = JSON.parse(readTop("scripts/frozen/playtest1m/removed-art.json", "utf8")).removed;
+const pt1mWalk = (walk, d) => [...walk(d), ...Object.keys(PT1M_GONE).filter((g) => g.startsWith(`${d}/`) && !existsTop(g))];
+const pt1mMd5 = (md5f, f, view) => (f in PT1M_GONE && !existsTop(f) ? PT1M_GONE[f] : md5f(view(f)));
 // playtest1g (2026-10-02, [OWNER-APPROVED 2026-10-02: playtest1g trail paths], drawing only): draw.ts as playtest1f
 // shipped it, frozen; group playtest1f's live pin reads it there (pt1fView).
 const PT1G_FROZEN = ["src/game/draw.ts"];
@@ -218,10 +226,6 @@ function fresh(cls = "warrior", path = "str") {
 
 function ticks(g, n, dt = 0.05) {
   for (let i = 0; i < n; i++) g.update(dt);
-}
-
-function land(g) {
-  ticks(g, 8);
 }
 
 function holdRight(g, n) {
@@ -7273,7 +7277,10 @@ if (on("playtest1b")) {
     // playtest1d: batch C2 swaps the land-pack houses for the writer's (group playtest1d); the pick is checked on playtest1c's draw.
     const drawPT1D = readFileSync("scripts/frozen/playtest1d/draw.ts.txt", "utf8");
     check("playtest1b", "every town building is house scale: the 32x46 shack is drawn nowhere, so the Drowned Hook's narrow lot gets a full house (owner-reported: some houses drawn half size)", !draw.includes("/art/land/shack") && /const file = cabin \? "\/art\/cozy\/cabin\.png" : `\/art\/land\/house\$\{suffix\}\.png`;/.test(drawPT1D));
-    const pump = py(`import json\nfrom PIL import Image\nim = Image.open('public/art/land/decoration.png').convert('RGBA')\na = im.split()[3]\nprint(json.dumps([a.crop((80, 64, 112, 96)).getbbox(), a.crop((112, 80, 128, 96)).getbbox(), a.crop((96, 80, 128, 112)).getbbox()]))`);
+    // playtest1m (2026-10-03, TIDY): the land pack left public/art (drawn nowhere since playtest1c); while it is gone this law
+    // reads the boxes recorded from the sheet as playtest1l shipped it (md5 in scripts/frozen/playtest1m/removed-art.json).
+    const pumpGone = "public/art/land/decoration.png" in PT1M_GONE && !existsSync("public/art/land/decoration.png") && PT1M_GONE["public/art/land/decoration.png"] === "470a262c1afd3a30bf19a95d82aa3403";
+    const pump = pumpGone ? [[3, 13, 29, 32], [1, 1, 16, 16], [0, 0, 32, 32]] : py(`import json\nfrom PIL import Image\nim = Image.open('public/art/land/decoration.png').convert('RGBA')\na = im.split()[3]\nprint(json.dumps([a.crop((80, 64, 112, 96)).getbbox(), a.crop((112, 80, 128, 96)).getbbox(), a.crop((96, 80, 128, 112)).getbbox()]))`);
     const inside = (b, w, h) => Array.isArray(b) && b[0] > 0 && b[1] > 0 && b[2] < w && b[3] <= h;
     // playtest1c: the town pumpkins are the wild writer's now (decoration.png is gone from the draw); this records playtest1b's draw.
     const drawPT1C = readFileSync("scripts/frozen/playtest1c/draw.ts.txt", "utf8");
@@ -8482,7 +8489,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8588,8 +8595,10 @@ if (on("playtest1h")) {
   }
   // 2. Body sheets: 16x32 cells, 11 poses a body (moves.png is the 7-pose move overlay, escort-down the lying captive)
   {
-    const r = py(`import json\nfrom PIL import Image\nout={}\nfor n in ['allies','foes','foes_em','folk-variants','heroes','people','krampus','krampus_em','pumpkin-lord','pumpkin-lord_em','mimic','moves','escort-down']:\n  out[n]=list(Image.open('public/art/sprites/'+n+'.png').size)\nprint(json.dumps(out))`);
-    const body = ["allies", "foes", "foes_em", "folk-variants", "heroes", "people", "krampus", "krampus_em", "pumpkin-lord", "pumpkin-lord_em", "mimic"];
+    const SPRITES_GONE = Object.keys(PT1M_GONE).filter((g) => g.startsWith("public/art/sprites/") && !existsSync(g)).map((g) => g.slice(19, -4));
+    const r = py(`import json\nfrom PIL import Image\nout={}\nfor n in ['allies','foes','foes_em','folk-variants','heroes','people','krampus','krampus_em','pumpkin-lord','pumpkin-lord_em','mimic','moves','escort-down']:\n  if n in ${JSON.stringify(SPRITES_GONE)}: continue\n  out[n]=list(Image.open('public/art/sprites/'+n+'.png').size)\nprint(json.dumps(out))`);
+    // playtest1m: heroes.png (drawn nowhere) left public/art; a body sheet is only excused while it is in the removed list and absent.
+    const body = ["allies", "foes", "foes_em", "folk-variants", "heroes", "people", "krampus", "krampus_em", "pumpkin-lord", "pumpkin-lord_em", "mimic"].filter((n) => !SPRITES_GONE.includes(n));
     const ok = !r.error && body.every((n) => r[n][1] === 32 && r[n][0] % (16 * 11) === 0) && r.moves[1] === 32 && r.moves[0] === 27 * 7 * 16 && r["escort-down"][1] === 16 && r["escort-down"][0] % 32 === 0;
     check("playtest1h", "every body sheet is 16x32 cells, 11 poses a body (allies, foes, folk variants, heroes, people, Krampus, the Pumpkin Lord, the mimic and their glow masks); the move overlay is 27 roles x 7 and the downed captives 32x16", ok, JSON.stringify(r));
   }
@@ -8789,7 +8798,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9074,7 +9083,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1iView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9388,7 +9397,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1jView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9825,7 +9834,7 @@ if (on("playtest1k")) {
   // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -10063,7 +10072,7 @@ if (on("playtest1l")) {
   //    one call after the draw, dispose in the cleanup, the layer right after the game canvas and before every HUD element,
   //    the rows in ScreenOptions before the fullscreen row, the Install row still there).
   {
-    const live = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const live = readFileSync(pt1lView("src/game/Gravewake.tsx"), "utf8"); // playtest1m: the shell as 1l shipped it
     const old = readFileSync("scripts/frozen/playtest1l/Gravewake.tsx.txt", "utf8");
     const ADDED = [
       'import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]',
@@ -10098,7 +10107,7 @@ if (on("playtest1l")) {
   //     the frozen playtest1k shell, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1l", "looks only: every other source file (sim, draw, screen settings, saves, HUD, the service worker and manifest in public/), the map writer and sprite writer are playtest1k's byte for byte (beside the two new modules, postfx.ts and FxOptions.tsx)", rest === "48a91245db9da25edb2663ccf0101ac7", rest);
     const sim = readFileSync("src/game/sim.ts", "utf8") + readFileSync("src/game/draw.ts", "utf8") + readFileSync("src/game/screen.ts", "utf8");
     check("playtest1l", "the build, base path and offline cache are untouched (vite.config.ts, package.json and vercel.json as playtest1k shipped them), and nothing in the sim, the draw or the screen settings reads the layer", md5f("vite.config.ts") === "7e3cef5ab1d7501c86890c4608e3ff28" && md5f("package.json") === "681fd1e5f320944b44e762cb01eb0c02" && md5f("vercel.json") === "c4ec4b6c370869f73641d08a0655721a" && !/postfx|FxOptions/.test(sim), "");
@@ -10109,18 +10118,84 @@ if (on("playtest1l")) {
     const bare = lines.map((l, i) => [l, i]).filter(([l]) => /no bloom/i.test(l) && !l.includes(TAG)).filter(([, i]) => !lines.slice(i + 1, i + 3).some((x) => x.includes(TAG))).map(([, i]) => i + 1);
     const notes = (law.match(/\[OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines\]/g) ?? []).length;
     const files = ["src/game/Gravewake.tsx", "src/game/postfx.ts", "src/game/FxOptions.tsx"];
-    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    const untagged = files.filter((f) => !readFileSync(pt1lView(f), "utf8").includes(TAG));
     check("playtest1l", "the change is an owner-approved exception to Layout Two's \"No bloom\", a dated note under every \"No bloom\" line of rules/GAME_LAYOUT_TWO.txt and the prompt file (optional, playfield only, HUD dry, off without WebGL) and in AGENTS.project.md, and tagged in every file it touches", bare.length === 0 && notes >= 5 && prompt.includes(TAG) && /## playtest1l/.test(agents) && agents.includes(TAG) && untagged.length === 0, `${bare} ${notes} ${untagged}`);
     const cs = readFileSync("scripts/gravewake-check.mjs", "utf8");
-    check("playtest1l", "the frozen reference (scripts/frozen/playtest1l/) is playtest1k's shell byte for byte (as pushed at df00d6e), group playtest1k reads it (pt1kView under pt1jView), and every older rest digest leaves the new modules out", md5f("scripts/frozen/playtest1l/Gravewake.tsx.txt") === "8e283beb8778c1ebc2b29db90d9d1494" && cs.includes('const PT1L_FROZEN = ["src/game/Gravewake.tsx"];') && cs.includes("function pt1kView(f) { return PT1L_FROZEN.includes(f) ? `scripts/frozen/playtest1l/${f.split(\"/\").pop()}.txt` : f; }") && /function pt1jView\(f\) \{[^\n]*: pt1kView\(f\); \}/.test(cs) && /md5f\(pt1kView\(f\)\) !== hh/.test(cs) && (cs.match(/!pt1lNew\(f\)/g) ?? []).length >= 6);
+    check("playtest1l", "the frozen reference (scripts/frozen/playtest1l/) is playtest1k's shell byte for byte (as pushed at df00d6e), group playtest1k reads it (pt1kView under pt1jView), and every older rest digest leaves the new modules out", md5f("scripts/frozen/playtest1l/Gravewake.tsx.txt") === "8e283beb8778c1ebc2b29db90d9d1494" && cs.includes('const PT1L_FROZEN = ["src/game/Gravewake.tsx"];') && cs.includes("function pt1kView(f) { return PT1L_FROZEN.includes(f) ? `scripts/frozen/playtest1l/${f.split(\"/\").pop()}.txt` : pt1lView(f); }") && /function pt1jView\(f\) \{[^\n]*: pt1kView\(f\); \}/.test(cs) && /md5f\(pt1kView\(f\)\) !== hh/.test(cs) && (cs.match(/!pt1lNew\(f\)/g) ?? []).length >= 6);
     const LIVE = {"src/game/Gravewake.tsx": "8ab3379a9a8868799ddfeaaac3c29dbf", "src/game/postfx.ts": "a279380ab568caf4f588c8ee1ace716d", "src/game/FxOptions.tsx": "9cc53b4546f1b5cc825ddb3c0482c560"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1lView(f)) !== hh).map(([f]) => f);
     check("playtest1l", "the live game files are byte for byte playtest1l's (shell, postfx, options rows)", moved.length === 0 && Object.keys(LIVE).length === 3, moved.join(", "));
   }
 }
 
+// playtest1m (2026-10-03, TIDY, no gameplay change; Bill approved it at 15:41 ET): test1 runs clean (195 tests: 188 pass, 7
+// app-template tests retired while the builder files they read are absent, each with its written reason), lint is 0, and the
+// art the game never loads left public/art (scripts/frozen/playtest1m/removed-art.json lists the 55 removed and the 51 kept).
+if (on("playtest1m")) {
+  const { readFileSync, readdirSync, statSync, existsSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const md5s = (s) => createHash("md5").update(s).digest("hex");
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+  // 1. test1: the retired tests skip only while the builder file they read is missing, each with the dated reason.
+  {
+    const files = ["grok-pwa-plugin", "brand-check", "write-atomic", "migration-plan", "with-app-env"].map((n) => readFileSync(`scripts/${n}.test.mjs`, "utf8"));
+    const why = files.map((t) => (t.match(/!existsSync\(join\([^\n]*\)\) && "retired in Gravewake playtest1m \(2026-10-03\): [^\n]*runs again whenever [^\n]*"/g) ?? []).length);
+    const uses = files.map((t) => (t.match(/skip: !existsSync\(|\{ skip: GRAVEWAKE_NO_OG_SKILL \}/g) ?? []).length);
+    const pwa = files[0];
+    check("playtest1m", "test1 is clean: seven app-template tests are retired with a dated written reason, and only while the builder file they read is absent (brand-check 3 and write-atomic 1: .grok/skills/og; grok-pwa 1: server/middleware/grok-pwa.ts; migration-plan 1: migrations/; with-app-env 1: .grok/app-env.json)", why.join() === "1,1,1,1,1" && uses.join() === "1,3,1,1,1", `${why} | ${uses}`);
+    const auth = readFileSync("scripts/check-auth-invariant.test.mjs", "utf8");
+    const wae = files[4];
+    check("playtest1m", "test1's builder-dependent tests are hermetic: the PWA head-tag tests run from an empty temp cwd (they read this app's files by path), and the auth-invariant and app-env wrapper tests run in a fixture workspace that ships the template's .grok/app-env.json (auth off), with VITE_AUTH_ENABLED cleared", /process\.chdir\(mkdtempSync\(/.test(pwa) && /writeFileSync\(join\(root, "\.grok\/app-env\.json"\), '\{"VITE_AUTH_ENABLED":"false"\}'\)/.test(auth) && /buildAuthEnabled\(root, \{\}\), false/.test(auth) && /copyFileSync\(WRAPPER, join\(root, "scripts\/with-app-env\.mjs"\)\)/.test(wae) && (wae.match(/\{ env: CLEAN_ENV \}/g) ?? []).length === 2 && (wae.match(/makeWrapperWorkspace\(\)/g) ?? []).length === 3);
+  }
+  // 2. Lint: the ten problems are fixed in place (no rule switched off, no new disable comments).
+  {
+    const sim = readFileSync("src/game/sim.ts", "utf8");
+    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const cs = readFileSync("src/lib/app-data/client.server.ts", "utf8");
+    const cu = readFileSync("src/lib/auth/use-current-user.ts", "utf8");
+    const pr = readFileSync("tools/brileta-sprites/src/primitives.ts", "utf8");
+    const me = readFileSync("scripts/gravewake-check.mjs", "utf8");
+    const cfg = readFileSync("eslint.config.mjs", "utf8");
+    check("playtest1m", "lint is 0 by fixing the code: sim's aoe and dealt are const, the shell drops the unused Act import, the empty catch says why it is empty, use-current-user's unused disable comment is a plain comment, the brileta line's dx and dy are const, the check script drops WALK, SWIM and land; eslint.config.mjs is as playtest1l shipped it", /\n {4}const aoe = kind === "cleave"/.test(sim) && /\n {6}const dealt = shade \?/.test(sim) && ui.includes('import { ACTS, Game } from "./sim";') && /\} catch \{\n {6}\/\/ An unreadable token falls through to the plain token hash below\.\n {4}\}/.test(cs) && !/eslint-disable/.test(cu) && /const dx = Math\.abs\(x1 - x0\);\n {2}const dy = -Math\.abs\(y1 - y0\);/.test(pr) && !/^const (WALK|SWIM) = /m.test(me) && !/^function land\(/m.test(me) && md5s(cfg) === "4a44a1c92be89d745c0f2dda2ed840db");
+  }
+  // 3. No gameplay change: each frozen file differs from its live one by exactly the lint edit; everything else is 1l's.
+  {
+    const fz = (n) => readFileSync(`scripts/frozen/playtest1m/${n}.txt`, "utf8");
+    const sim = readFileSync("src/game/sim.ts", "utf8");
+    const simOk = fz("sim.ts").replace('    let aoe = kind === "cleave"', '    const aoe = kind === "cleave"').replace("      let dealt = shade ? (spell ? dmg", "      const dealt = shade ? (spell ? dmg") === sim;
+    const uiOk = fz("Gravewake.tsx").replace('import { ACTS, Game, type Act } from "./sim";', 'import { ACTS, Game } from "./sim";') === readFileSync("src/game/Gravewake.tsx", "utf8");
+    const csOk = fz("client.server.ts").replace('    } catch {}\n  }\n  return createHash("sha256")', '    } catch {\n      // An unreadable token falls through to the plain token hash below.\n    }\n  }\n  return createHash("sha256")') === readFileSync("src/lib/app-data/client.server.ts", "utf8");
+    const cuOk = fz("use-current-user.ts").replace("  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime\n", "  // authEnabled is constant for the app's lifetime, so this hook call keeps a stable order.\n") === readFileSync("src/lib/auth/use-current-user.ts", "utf8");
+    check("playtest1m", "no gameplay change: sim.ts, the shell, client.server.ts and use-current-user.ts are their frozen playtest1l copies (scripts/frozen/playtest1m/, as pushed at 121dbc1) plus only the lint edit", simOk && uiOk && csOk && cuOk && md5f("scripts/frozen/playtest1m/sim.ts.txt") === "d52ddac1d0e38c429c2d0fcbff81f62c" && md5f("scripts/frozen/playtest1m/Gravewake.tsx.txt") === "8ab3379a9a8868799ddfeaaac3c29dbf" && md5f("scripts/frozen/playtest1m/client.server.ts.txt") === "345eb9b87cabf2a6afd322dbd7b6feb4" && md5f("scripts/frozen/playtest1m/use-current-user.ts.txt") === "740f77dcf0c45b8919dd6304bdc6291e", `${simOk} ${uiOk} ${csOk} ${cuOk}`);
+    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, (x) => x)}`).join("\n"));
+    check("playtest1m", "every other source file, public file (counting the removed art at its playtest1l md5s), map writer and sprite writer file is playtest1l's byte for byte", rest === "fe4ef0a4eefd74370570ff89e43c4614", rest);
+    const me = readFileSync("scripts/gravewake-check.mjs", "utf8");
+    check("playtest1m", "the older groups read playtest1l's files: pt1kView falls through to pt1lView, group playtest1l's shell text, tags and live pin read pt1lView, and all six older rest digests walk and hash through pt1mWalk and pt1mMd5", me.includes(": pt1lView(f); }") && (me.match(/\.flatMap\(\(d\) => pt1mWalk\(walk, d\)\)/g) ?? []).length === 7 && (me.match(/\$\{pt1mMd5\(md5f, f, pt1[g-l]View\)\}/g) ?? []).length === 6 && /md5f\(pt1lView\(f\)\) !== hh/.test(me) && me.includes('readFileSync(pt1lView("src/game/Gravewake.tsx"), "utf8"); // playtest1m'));
+  }
+  // 4. The unused art is gone; what is kept stays, and nothing the game, the writers or the checks name went.
+  {
+    const man = JSON.parse(readFileSync("scripts/frozen/playtest1m/removed-art.json", "utf8"));
+    const gone = Object.keys(man.removed);
+    const kept = Object.keys(man.kept);
+    const back = gone.filter((g) => existsSync(g));
+    const src = ["src"].flatMap(walk).filter((f) => /\.(ts|tsx|json|css)$/.test(f)).map((f) => readFileSync(f, "utf8")).join("\n");
+    const named = gone.filter((g) => { const u = g.slice(6); return src.includes(`"${u}"`) || src.includes(`'${u}'`) || src.includes(`\`${u}\``) || src.includes(`"${u.split("/").pop()}"`) && /spells\/gen\//.test(u); });
+    const dirs = ["land", "cozy", "fall", "creatures"].filter((d) => existsSync(`public/art/${d}`));
+    check("playtest1m", `the art the game never loads left public/art: ${gone.length} files (the land, cozy, fall and creatures packs, the held dawn sheets, fence and rocks, the brileta rocks, the DevWizard strips, the old biome grounds, the writer previews and the unused hero sheet), none named by the game (src/), none back (a full writer re-run writes the previews, heroes.png and the brileta rocks back: node scripts/prune-unused-art.mjs deletes them again)`, gone.length === 55 && gone.every((g) => g.startsWith("public/art/")) && back.length === 0 && named.length === 0 && dirs.length === 0 && /rmSync\(f\)/.test(readFileSync("scripts/prune-unused-art.mjs", "utf8")), `${back} | ${named} | ${dirs}`);
+    const missing = kept.filter((k) => !existsSync(k));
+    check("playtest1m", "the 51 never-requested files that are still used stay, each with its reason in removed-art.json: the PWA icons, the cave-floor and camp-grass fallbacks, the spell-writer strips the draw still names, the writer's season set and water, the pixel writer's third-party tree inputs and their credits", kept.length === 51 && missing.length === 0 && kept.every((k) => man.kept[k].length > 10) && ["public/art/brileta/CREDITS.txt", "public/art/held/HELD.txt", "public/art/icons/gravewake-512-maskable.png"].every((k) => kept.includes(k)), missing.join(", "));
+  }
+  // 5. Live pin (last).
+  {
+    const LIVE = {"src/game/sim.ts": "96ff3576076a7f9fa15d8d4567df5cf7", "src/game/Gravewake.tsx": "a15ddc44f9f389017aac4a40a763c73d", "src/lib/app-data/client.server.ts": "ee40388f6d2515aad3acb1a5b9c51206", "src/lib/auth/use-current-user.ts": "58dbb4dd1d0b36a207b4e58b01b60b5c", "tools/brileta-sprites/src/primitives.ts": "84b789f82f121f0713cc00f5a37ae7d4", "scripts/frozen/playtest1m/removed-art.json": "218f1efa8587f63bfc968ba4808b101f", "scripts/grok-pwa-plugin.test.mjs": "f6e7e78a2b30d831a6660b8f66bae2ad", "scripts/brand-check.test.mjs": "f296cf035a9bf96473a108bca74478f5", "scripts/write-atomic.test.mjs": "a441537c801a850421c41e3c4ad271e0", "scripts/migration-plan.test.mjs": "eb1f4322c9d826c6979be83c37e2b3e0", "scripts/with-app-env.test.mjs": "e8ce7b909765d1b93da24ce4845da873", "scripts/check-auth-invariant.test.mjs": "2cc61e87718ce7599d704a87923532a6", "scripts/prune-unused-art.mjs": "70f1595c7cd3014505b7ee461ad676bc"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1m", "the live files are byte for byte playtest1m's (the four lint-edited sources, the brileta line, the removed-art list, the prune script and the six test files)", moved.length === 0 && Object.keys(LIVE).length === 13, moved.map((f) => `${f}=${md5f(f)}`).join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

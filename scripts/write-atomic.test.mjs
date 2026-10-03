@@ -164,7 +164,9 @@ test("cli: relative paths follow the script's root, not the caller's cwd", () =>
   assert.equal(existsSync(join(root, "public/og.jpg")), false);
 });
 
-test("every hand-over the og skill prints is one this script accepts", () => {
+test("every hand-over the og skill prints is one this script accepts", {
+  skip: !existsSync(join(TEMPLATE_ROOT, ".grok/skills/og/references")) && "retired in Gravewake playtest1m (2026-10-03): the app-builder's .grok/skills/og/references/ are not part of this game (.grok/ is builder-local, never zipped or committed); runs again whenever they are present",
+}, () => {
   // The card and banner recipes live in the skill's references/, not SKILL.md.
   const skillDir = join(TEMPLATE_ROOT, ".grok/skills/og");
   const docs = [

@@ -6564,7 +6564,7 @@ export class Game {
     }
     const target = living[0];
     let dmg = this.atk + (this.ranks[kind] ?? 0);
-    const aoe = kind === "cleave" || kind === "Earthshatter" || kind === "Grave Nova";
+    let aoe = kind === "cleave" || kind === "Earthshatter" || kind === "Grave Nova";
     if (kind === "ranged") dmg = Math.round(dmg * 0.85);
     if (kind === "Deathbolt") dmg = Math.round(dmg * 1.45);
     if (kind === "Ambush") dmg = Math.round(dmg * 1.7);
@@ -6577,7 +6577,7 @@ export class Game {
     dmg *= mult;
     const apply = (f: Foe) => {
       const shade = f.id === "shade" || f.name === "Death Shade";
-      const dealt = shade ? (spell ? dmg : Math.max(1, Math.round(dmg * 0.6))) : Math.max(1, dmg - f.ac);
+      let dealt = shade ? (spell ? dmg : Math.max(1, Math.round(dmg * 0.6))) : Math.max(1, dmg - f.ac);
       if (f.hp <= 0) return;
       const lethal = dealt >= f.hp;
       if (lethal && f.id === "lich" && b.phylactery === "whole") {

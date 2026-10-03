@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -16,6 +16,18 @@ import {
 const execFileAsync = promisify(execFile);
 const WRAPPER = join(projectRoot(), "scripts/with-app-env.mjs");
 const PRINT_FLAG = "process.stdout.write(String(process.env.VITE_AUTH_ENABLED));";
+
+// Gravewake playtest1m (2026-10-03): the template ships .grok/app-env.json with auth off, but Gravewake does not carry
+// .grok/ (builder-local, never zipped or committed). The wrapper tests below run a copy of the wrapper inside a fixture
+// workspace that ships the template's file, so they test the wrapper, not whether this checkout has the file.
+const TEMPLATE_APP_ENV = '{"VITE_AUTH_ENABLED":"false"}';
+function makeWrapperWorkspace() {
+  const root = makeWorkspace(TEMPLATE_APP_ENV);
+  mkdirSync(join(root, "scripts"));
+  copyFileSync(WRAPPER, join(root, "scripts/with-app-env.mjs"));
+  return root;
+}
+const { VITE_AUTH_ENABLED: _ignored, ...CLEAN_ENV } = process.env;
 
 function makeWorkspace(appEnvJson) {
   const root = mkdtempSync(join(tmpdir(), "app-env-"));
@@ -59,7 +71,9 @@ test("an explicit process-env override wins over the file", () => {
   assert.equal(merged.PATH, "/usr/bin");
 });
 
-test("the template ships auth off", () => {
+test("the template ships auth off", {
+  skip: !existsSync(join(projectRoot(), APP_ENV_REL_PATH)) && "retired in Gravewake playtest1m (2026-10-03): Gravewake does not carry the builder's .grok/app-env.json (.grok/ is builder-local, never zipped or committed); the wrapper itself is tested on a fixture that ships the template's file; runs again whenever the file is present",
+}, () => {
   assert.deepEqual(readAppEnv(projectRoot()), { VITE_AUTH_ENABLED: "false" });
 });
 
@@ -74,12 +88,13 @@ test("vite loadEnv resolves the wrapped value", () => {
 });
 
 test("the wrapped command runs with the app env applied", async () => {
+  const root = makeWrapperWorkspace();
   const { stdout } = await execFileAsync(process.execPath, [
-    WRAPPER,
+    join(root, "scripts/with-app-env.mjs"),
     process.execPath,
     "-e",
     PRINT_FLAG,
-  ]);
+  ], { env: CLEAN_ENV });
   assert.equal(stdout, "false");
 });
 
@@ -117,12 +132,12 @@ test("the CLI still runs when invoked through a symlinked path", async () => {
   // node realpaths import.meta.url but not process.argv[1], so a raw comparison
   // turns the wrapper into a no-op that exits 0 without starting anything.
   const link = join(mkdtempSync(join(tmpdir(), "app-env-link-")), "scripts");
-  symlinkSync(join(projectRoot(), "scripts"), link);
+  symlinkSync(join(makeWrapperWorkspace(), "scripts"), link);
   const { stdout } = await execFileAsync(process.execPath, [
     join(link, "with-app-env.mjs"),
     process.execPath,
     "-e",
     PRINT_FLAG,
-  ]);
+  ], { env: CLEAN_ENV });
   assert.equal(stdout, "false");
 });

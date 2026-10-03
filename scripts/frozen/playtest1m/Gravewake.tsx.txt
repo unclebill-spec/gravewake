@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CLASSES, type ClassId, type StatPath } from "./content";
 import { AudioBus } from "./audio";
 import { cameraFor, drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
-import { ACTS, Game } from "./sim";
+import { ACTS, Game, type Act } from "./sim";
 import { ORDERS, ORDER_LABEL } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { CAMP_ICON, PORTRAITS } from "./looks"; // playtest1b
 import {
