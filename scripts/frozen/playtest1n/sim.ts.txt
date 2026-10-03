@@ -79,7 +79,6 @@ export { FAMILIES, scaleMonster, zoneLevel };
 import type { AudioBus } from "./audio";
 import { ParticlePool, paletteIndex } from "./particles";
 import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
-import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing, patchAt, placeRoom, propLive, roomBusy, wary, type Fall, type RoomProp, type RoomState } from "./room"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 
@@ -288,14 +287,6 @@ export type Roamer = {
    * cooldown; seconds left) and the world ms a companion's taunt holds it until. Never saved. */
   st?: Status;
   taunt?: number;
-  /** playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]: the shove a slash or whirl gives (px/s, s left), a stun (s), the oil soak (s left) and the
-   * world s a spike last bit it. Never saved. */
-  shoveX?: number;
-  shoveY?: number;
-  shoveT?: number;
-  stun?: number;
-  oilT?: number;
-  spikeAt?: number;
   homeX?: number;
   homeY?: number;
   hits?: number;
@@ -627,9 +618,6 @@ export class Game {
   orderCool: Record<Order, number> = { taunt: 0, guard: 0, focus: 0, stay: 0 };
   private lastHit: Roamer | null = null;
   private castCombos = 0;
-  /** playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]: this floor's props, fire and oil patches, falling pillars and lanterns (room.ts). Placed from the
-   * floor's seed on every load and never saved. */
-  room: RoomState = emptyRoom();
   /** The combo names this cast set off (an area spell's log names them). */
   private castNames: string[] = [];
   favor: Record<string, number> = {};
@@ -1609,11 +1597,9 @@ export class Game {
     const stand = stepOff(this.tiles, this.w, this.h, spot.x, spot.y);
     this.px = stand.x * TILE + 8;
     this.py = stand.y * TILE + 10;
-    this.placeFloorRoom(def?.rift ? `${this.dungeon}:c${this.riftCycle}` : this.dungeon); // playtest1n: the room's props
     this.reveal();
     this.seedDungeonFoes();
     this.syncMimic();
-    for (const r of this.roamers) this.freeBody(r); // playtest1n: no foe starts inside a prop
     this.critters = [
       { x: this.px + 24, y: this.py, kind: "rat", vx: 8 },
       { x: this.px - 20, y: this.py + 10, kind: "bat", vx: -8 },
@@ -3003,7 +2989,6 @@ export class Game {
     this.tickRoamers(dt);
     this.tickFestival(dt);
     if (this.mapId === "dungeon") this.tickTraps(dt);
-    if (this.mapId === "dungeon") this.tickRoom(dt); // playtest1n: spikes on foes, fire, oil, fuses, falls
     if (this.mapId === "dungeon") this.tickRun(dt);
     this.tickFolk(dt);
     if (this.mapId === "town") {
@@ -3280,7 +3265,6 @@ export class Game {
     if (t === T.wall || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t)) return true;
     // playtest1f: a wayrift's standing stones (its footprint but the mouth) stop everyone
     if (this.mapId === "world" && waySolid(tx, ty)) return true;
-    if (this.mapId === "dungeon" && this.room.solid.has(ty * this.w + tx)) return true; // playtest1n: a standing room prop
     // Item 10: bought furniture stands in the croft and stops everyone, like any furnishing.
     if (this.mapId === "inside" && this.inside === "croft" && this.decorAt(tx, ty)) return true;
     /** The hero may enter. Townsfolk, critters, and roamers may not. */
@@ -3625,7 +3609,6 @@ export class Game {
     if (this.mapId === "world" && this.phase === "night") this.spawnFestival();
     for (const r of [...this.roamers]) {
       if (this.mode !== "play") break;
-      if ((r.stun ?? 0) > 0 || (r.shoveT ?? 0) > 0) continue; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]: held by the room
       if (r.boss || r.mini) {
         const gap = Math.abs(r.level - this.level) / Math.max(8, r.level);
         const rad = (1 - Math.min(1, gap)) * 64 + 16;
@@ -5410,8 +5393,7 @@ export class Game {
     const aoe = name === "Earthshatter" || name === "Grave Nova" || name === "Summon Shade";
     const reach = name === "Ambush" ? 30 : 100;
     const foe = this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - this.px, r.y - this.py) < reach);
-    const prop = !self && !aoe && !foe ? this.propInReach(reach) : null; // playtest1n: no foe, but a prop to aim at
-    if (!self && !aoe && !foe && !prop) {
+    if (!self && !aoe && !foe) {
       this.logLine = "Nothing in reach.";
       return;
     }
@@ -5462,29 +5444,18 @@ export class Game {
         hit(r, Math.round(power * mul));
         n += 1;
       }
-      n += this.roomArea(this.px, this.py, rad, el); // playtest1n: props and oil in the area
       paint(this.px, this.py);
       this.logLine = n ? `${name}.${this.castNames.map((c) => ` ${c}!`).join("")}` : `${name} finds nothing.`; // playtest1k: and the combos it set off
       this.audio?.spell();
       return;
     }
-    if (!foe) {
-      if (!prop) return;
-      // playtest1n: the spell flies at the prop; fire lights it, anything else strikes it.
-      const c = centre(prop, TILE);
-      paint(c.x, c.y - 8);
-      this.hitProp(prop, c.x - this.px, c.y - this.py, el);
-      this.logLine = `${name}. ${this.logLine}`;
-      this.audio?.spell();
-      return;
-    }
+    if (!foe) return;
     let dealt = power;
     if (name === "Deathbolt") dealt = Math.round(power * 1.45);
     if (name === "Ambush") dealt = Math.round(power * 1.7);
     if (name === "Execution" && (foe.hp ?? 0) < (foe.max ?? 1) * 0.4) dealt = power * 2;
     if (name === "Tripwire") foe.cool = (foe.cool ?? 0) + 2;
     hit(foe, dealt);
-    if (el === "fire") this.roomIgnite(foe.x, foe.y, ROOM.igniteR, foe.x - this.px, foe.y - this.py); // playtest1n: fire at the impact catches
     paint(foe.x, foe.y - 10);
     this.logLine = `${name}. ${this.logLine}`;
     this.audio?.spell();
@@ -5622,13 +5593,6 @@ export class Game {
       break;
     }
     if (!n && this.smiteSaint()) n = 1;
-    const prop = n ? null : this.propInReach(96); // playtest1n: no foe, but a prop to strike
-    if (prop) {
-      const c = centre(prop, TILE);
-      this.bolt(this.px, this.py - 12, c.x, c.y - 8, "bolt", this.cls === "wizard" ? "#6a3a8a" : "#f4e27a");
-      this.hitProp(prop, c.x - this.px, c.y - this.py, null);
-      n = 1;
-    }
     if (!n) {
       this.bolt(this.px, this.py - 14, this.px, this.py - 14, "ring"); // playtest1: a fizzle you can see
       this.logLine = "Smite finds nothing.";
@@ -5684,11 +5648,9 @@ export class Game {
       const crit = dmg > this.atk;
       if (verb === "slash") this.fx.slash(r.x, r.y - 10, aim, boneKin(r), crit);
       this.hurtFoe(r, Math.max(1, dmg - (r.ac ?? 0)), verb);
-      if (verb !== "smite") this.shove(r, dx / dist, dy / dist); // playtest1n: the blow carries the foe
       if (crit) this.logLine = `Critical. ${this.logLine}`;
       n += 1;
     }
-    n += this.strikeProps(aim, half, reach, n > 0); // playtest1n: a lantern, barrel or pillar in the swing
     if (n) this.audio?.hit();
     return n;
   }
@@ -5716,7 +5678,7 @@ export class Game {
 
   /** Is this foe oiled (wax, pitch, straw or resin)? */
   oiled(r: Roamer) {
-    return OILED_FAMILIES.has(r.family) || (r.oilT ?? 0) > 0; // playtest1n: or soaked in a barrel's oil
+    return OILED_FAMILIES.has(r.family);
   }
 
   /** An element hit has landed on r for dealt: set off its reaction (at most two per cast), then lay the element's
@@ -6021,7 +5983,6 @@ export class Game {
       r.flash = Math.max(0, (r.flash ?? 0) - dt);
       r.age = (r.age ?? 0) + dt;
       this.tickStatus(r, dt, weather);
-      if (this.roomHold(r, dt)) continue; // playtest1n: shoved or stunned, it does nothing else this frame
       if (r.goblin && (r.age ?? 0) > 4) {
         const ox = r.x;
         const oy = r.y;
@@ -6116,7 +6077,7 @@ export class Game {
   private stepFoe(r: Roamer, ux: number, uy: number, dist: number, dt: number) {
     const fast = r.affix === "fast" ? 1.25 : 1;
     const p = r.personality ?? "brawler";
-    const step = (sx: number, sy: number) => this.roomStep(r, sx, sy); // playtest1n: a wary foe steps round a live hazard
+    const step = (sx: number, sy: number) => this.tryBody(r, sx, sy);
     if (p === "anchor" && r.homeX != null && r.homeY != null) {
       if (Math.hypot(r.x - r.homeX, r.y - r.homeY) > 12) step(Math.sign(r.homeX - r.x) * 20 * dt, Math.sign(r.homeY - r.y) * 20 * dt);
       return;
@@ -6251,362 +6212,6 @@ export class Game {
     }
     const dealt = Math.max(1, (r.atk ?? 2) + (slot === "big" ? 4 : 1) - Math.floor(this.ac / 2));
     this.bite(dealt, `${r.name ?? "It"} lands ${name} for ${dealt}.`);
-  }
-
-  // ---- playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] ----
-  // Bill (2026-10-03 15:41 ET): knock foes into spikes and hazards, drop lanterns into fire, set off oil and powder
-  // barrels, break pillars; foes a little wary; fair (every hazard is marked before it lands); saves untouched.
-
-  /** This floor's props, from its seed (room.ts placeRoom), the same whichever stair you came by: the arrival kept clear
-   * is the up stair's (the down stair's is inside the stair gap). Hidden secret rooms count as rock, so nothing stands there. */
-  private placeFloorRoom(seedKey: string) {
-    const tiles = Uint8Array.from(this.tiles);
-    for (const i of this.hidden) if (tiles[i] !== T.chest) tiles[i] = T.wall; // a secret room is rock; its chest still keeps props off
-    const up = findTile(this.tiles, this.w, T.stairU) ?? findTile(this.tiles, this.w, T.floor) ?? { x: 2, y: 2 };
-    this.room = placeRoom(tiles, this.w, this.h, seedKey, this.floor, featSpots(this.feats), stepOff(this.tiles, this.w, this.h, up.x, up.y));
-  }
-
-  /** The nearest prop in reach that can still be struck, on explored floor. */
-  private propInReach(reach: number): RoomProp | null {
-    if (this.mapId !== "dungeon") return null;
-    let best: RoomProp | null = null;
-    let bd = reach;
-    for (const p of this.room.props) {
-      if (!propLive(p) || (this.fog && this.fog[p.y * this.w + p.x] === 0)) continue;
-      const c = centre(p, TILE);
-      const d = Math.hypot(c.x - this.px, c.y - this.py);
-      if (d < bd) {
-        best = p;
-        bd = d;
-      }
-    }
-    return best;
-  }
-
-  /** The hero's swing on the props in its arc (aim, half-angle, reach as strikeCone). The log keeps a foe's line. */
-  private strikeProps(aim: number, half: number, reach: number, foeHit: boolean) {
-    if (this.mapId !== "dungeon") return 0;
-    let n = 0;
-    const log = this.logLine;
-    for (const p of this.room.props) {
-      if (!propLive(p) || !inSwing(p, this.px, this.py, aim, half, reach, TILE)) continue;
-      const c = centre(p, TILE);
-      this.hitProp(p, c.x - this.px, c.y - this.py, null);
-      n += 1;
-    }
-    if (n && foeHit) this.logLine = `${log} ${this.logLine}`;
-    return n;
-  }
-
-  /** A slash or whirl shoves the foe it hits (below ground: that is where the hazards are). Minis and rares less, bosses not. */
-  private shove(r: Roamer, ux: number, uy: number) {
-    if (this.mapId !== "dungeon" || r.boss || !this.liveFoe(r)) return;
-    const k = r.mini || r.rare ? ROOM.shoveMini : 1;
-    r.shoveX = ux * ROOM.shove * k;
-    r.shoveY = uy * ROOM.shove * k;
-    r.shoveT = ROOM.shoveFor;
-  }
-
-  /** The room's hold on a foe this frame: the shove carries it, a stun stands it still. True while either lasts. */
-  private roomHold(r: Roamer, dt: number) {
-    if (r.oilT) r.oilT = Math.max(0, r.oilT - dt);
-    if ((r.shoveT ?? 0) > 0) {
-      const t = Math.min(dt, r.shoveT ?? 0);
-      this.tryBody(r, (r.shoveX ?? 0) * t, (r.shoveY ?? 0) * t);
-      r.shoveT = (r.shoveT ?? 0) - dt;
-      r.moving = true;
-      if ((r.shoveT ?? 0) <= 0) this.shoveLands(r);
-      return true;
-    }
-    if ((r.stun ?? 0) > 0) {
-      r.stun = Math.max(0, (r.stun ?? 0) - dt);
-      r.moving = false;
-      return true;
-    }
-    return false;
-  }
-
-  /** A shoved foe lands. On a spike trap it springs the spikes at once, whatever their cycle (that is the point of the
-   * shove), and the foe reels ROOM.spikeStun s; a spike bites a foe once per rise either way. */
-  private shoveLands(r: Roamer) {
-    const sec = this.worldMs / 1000;
-    const tx = Math.floor(r.x / TILE);
-    const ty = Math.floor(r.y / TILE);
-    const t = this.feats?.traps?.find((k) => k.kind === "spike" && k.x === tx && k.y === ty);
-    if (!t || !this.liveFoe(r) || sec - (r.spikeAt ?? -99) < TRAPS.spikeUp + 0.05) return;
-    r.spikeAt = sec;
-    this.bolt(tx * TILE + 8, ty * TILE + 8, tx * TILE + 8, ty * TILE + 8, "ring", "#b07aff");
-    this.roomHurt(r, trapAtk(this.dungeonLevel()) * ROOM.foeSpike, "Thrown on the spikes:", false);
-    this.roomStun(r, ROOM.spikeStun);
-  }
-
-  /** A foe's step. A wary one (room.ts wary: two in three, never a boss) will not step into a live hazard: it slides
-   * round it, or waits. Bold ones walk on. Only below ground, and only while something there is live. */
-  private roomStep(r: Roamer, sx: number, sy: number) {
-    const traps = this.feats?.traps;
-    if (this.mapId !== "dungeon" || !wary(r.id, !!r.boss) || (!roomBusy(this.room) && !traps?.some((t) => t.kind === "spike"))) {
-      this.tryBody(r, sx, sy);
-      return;
-    }
-    const sec = this.worldMs / 1000;
-    const bad = (x: number, y: number) => hazardAt(this.room, traps, sec, x, y, TILE);
-    const len = Math.hypot(sx, sy) || 1;
-    const ahead = (ax: number, ay: number) => bad(r.x + (ax / len) * 10, r.y + (ay / len) * 10);
-    if (bad(r.x, r.y) || !ahead(sx, sy)) {
-      this.tryBody(r, sx, sy);
-      return;
-    }
-    if (!ahead(-sy, sx)) this.tryBody(r, -sy, sx);
-    else if (!ahead(sy, -sx)) this.tryBody(r, sy, -sx);
-  }
-
-  /** Strike a prop (from the direction dx, dy). Fire sets it alight instead; stone does not burn. */
-  private hitProp(p: RoomProp, dx: number, dy: number, el: Element | null) {
-    if (!propLive(p)) return;
-    const d = Math.hypot(dx, dy) || 1;
-    const ux = dx / d;
-    const uy = dy / d;
-    const c = centre(p, TILE);
-    this.spark(c.x, c.y - 10, p.kind === "pillar" ? "#767488" : "#8a6848");
-    if (el === "fire" && p.kind !== "pillar") {
-      this.lightProp(p, ux, uy);
-      return;
-    }
-    p.hp -= 1;
-    if (p.kind === "pillar") {
-      if (p.hp > 0) {
-        this.logLine = p.hp === 1 ? "The pillar groans. One more." : "The pillar cracks.";
-        return;
-      }
-      this.topple(p, ux, uy);
-    } else if (p.kind === "lantern") this.dropLantern(p, ux, uy);
-    else if (p.kind === "oil") this.burstOil(p, false);
-    else this.lightFuse(p);
-  }
-
-  /** Fire on a prop: a lantern drops, an oil barrel goes up in a big fire, a powder barrel's fuse catches. */
-  private lightProp(p: RoomProp, ux: number, uy: number) {
-    if (!propLive(p)) return;
-    if (p.kind === "lantern") this.dropLantern(p, ux, uy);
-    else if (p.kind === "oil") this.burstOil(p, true);
-    else if (p.kind === "powder") this.lightFuse(p);
-  }
-
-  private propIndex(p: RoomProp) {
-    return p.y * this.w + p.x;
-  }
-
-  /** The lantern swings off its hook away from the blow; its red mark fills where it will land (room.ts dropTell). */
-  private dropLantern(p: RoomProp, ux: number, uy: number) {
-    p.done = true;
-    const c = centre(p, TILE);
-    let x = c.x + ux * ROOM.dropOut;
-    let y = c.y + uy * ROOM.dropOut + 2;
-    if (this.solidAt(x, y) || this.blockedProp(x, y)) {
-      x = c.x + ux * 4;
-      y = c.y + 6;
-    }
-    this.room.drops.push({ x, y, tell: ROOM.dropTell, max: ROOM.dropTell });
-    this.logLine = "The lantern swings off its hook.";
-  }
-
-  /** An oil barrel bursts: a slick (foes in it are oiled), or a big fire if it was lit. */
-  private burstOil(p: RoomProp, lit: boolean) {
-    p.done = true;
-    this.room.solid.delete(this.propIndex(p));
-    const c = centre(p, TILE);
-    if (lit) {
-      addPatch(this.room, "fire", c.x, c.y, ROOM.fireBigR);
-      this.bolt(c.x, c.y - 6, c.x, c.y - 6, "nova", "#e04a2a");
-      this.logLine = "The oil barrel goes up.";
-    } else {
-      addPatch(this.room, "oil", c.x, c.y + 2, ROOM.oilR);
-      this.logLine = "The oil barrel bursts. Anything that walks the slick will burn.";
-    }
-    this.audio?.hit();
-  }
-
-  /** A powder barrel's fuse: its red blast mark fills over ROOM.fuse, then it goes off. */
-  private lightFuse(p: RoomProp) {
-    if (p.fuse > 0 || p.done) return;
-    p.fuse = ROOM.fuse;
-    this.logLine = "The powder barrel's fuse catches. Get clear.";
-  }
-
-  /** A pillar on its last crack topples away from the blow: its violet lane fills, then it lands. */
-  private topple(p: RoomProp, ux: number, uy: number) {
-    p.done = true;
-    this.room.solid.delete(this.propIndex(p));
-    const c = centre(p, TILE);
-    this.room.falls.push({ x: c.x, y: c.y, dx: ux, dy: uy, tell: ROOM.fallTell, max: ROOM.fallTell, k: this.room.props.indexOf(p) });
-    this.logLine = "The pillar topples.";
-  }
-
-  /** Fire at (x, y) within rad: props there catch, oil there goes up. (dx, dy) is the way the fire came from. */
-  private roomIgnite(x: number, y: number, rad: number, dx = 0, dy = 1) {
-    if (this.mapId !== "dungeon") return;
-    for (const p of this.room.props) {
-      if (!propLive(p) || p.kind === "pillar") continue;
-      const c = centre(p, TILE);
-      if (Math.hypot(c.x - x, c.y - y) <= rad) this.lightProp(p, c.x - x || dx, c.y - y || dy);
-    }
-    for (const o of this.room.patches) {
-      if (o.kind !== "oil" || o.life <= 0 || Math.hypot(o.x - x, o.y - y) > rad + o.r) continue;
-      o.kind = "fire";
-      o.r = ROOM.fireBigR;
-      o.life = ROOM.fireLife;
-      o.max = ROOM.fireLife;
-      o.tick = 0;
-      this.logLine = "The oil catches.";
-    }
-  }
-
-  /** An area spell on the room: every live prop in rad is struck (fire lights it), and fire lights the oil there. */
-  private roomArea(x: number, y: number, rad: number, el: Element | null) {
-    if (this.mapId !== "dungeon") return 0;
-    let n = 0;
-    for (const p of this.room.props) {
-      if (!propLive(p)) continue;
-      const c = centre(p, TILE);
-      if (Math.hypot(c.x - x, c.y - y) > rad) continue;
-      this.hitProp(p, c.x - x, c.y - y, el);
-      n += 1;
-    }
-    if (el === "fire") this.roomIgnite(x, y, rad);
-    return n;
-  }
-
-  /** The room hurts a foe: its armour halves it, fire is a fire hit (1k: poisoned is VENOM BLAST, oiled is WILDFIRE).
-   * Room damage is the companion's kind of hit: it does not move "Focus my target". */
-  private roomHurt(r: Roamer, dealt: number, label: string, fire: boolean) {
-    if (!this.liveFoe(r)) return;
-    const d = Math.max(1, Math.round(dealt) - Math.floor((r.ac ?? 0) / 2));
-    this.castCombos = 0;
-    this.castNames = [];
-    this.hurtFoe(r, d, "slash", true);
-    if (fire) this.applyElement(r, "fire", d, true);
-    this.logLine = `${label} ${this.logLine}`;
-  }
-
-  /** The room hurts the hero: lightly, through armour, iframes and the ward like any hit. */
-  private roomBite(share: number, label: string) {
-    const dealt = Math.max(1, Math.round(trapAtk(this.dungeonLevel()) * share) - Math.floor(this.ac / 2));
-    this.bite(dealt, `${label} ${dealt}.`);
-  }
-
-  private roomStun(r: Roamer, s: number) {
-    if (!this.liveFoe(r) || r.boss) return;
-    r.stun = Math.max(r.stun ?? 0, r.mini || r.rare ? s / 2 : s);
-  }
-
-  /** A powder barrel goes off: foes in the blast take it hard and reel, the hero lightly; props in it catch. */
-  private blast(p: RoomProp) {
-    p.fuse = 0;
-    p.done = true;
-    this.room.solid.delete(this.propIndex(p));
-    const c = centre(p, TILE);
-    const atk = trapAtk(this.dungeonLevel());
-    this.bolt(c.x, c.y - 6, c.x, c.y - 6, "nova", "#e04a2a");
-    for (const [sx, sy] of [[-10, -12], [10, -12], [-12, 2], [12, 2], [0, -18]]) this.spark(c.x + sx, c.y + sy, "#e04a2a");
-    this.audio?.hit();
-    let log = "The powder barrel blows.";
-    for (const r of [...this.roamers]) {
-      if (!this.liveFoe(r) || Math.hypot(r.x - c.x, r.y - c.y) > ROOM.blastR) continue;
-      this.roomHurt(r, atk * ROOM.foeBlast, "The blast:", true);
-      log = this.logLine;
-      this.roomStun(r, ROOM.blastStun);
-    }
-    if (Math.hypot(this.px - c.x, this.py - c.y) <= ROOM.blastR) this.roomBite(ROOM.heroBlast, "The blast catches you for");
-    else this.logLine = log;
-    for (const o of this.room.props) {
-      if (!propLive(o)) continue;
-      const oc = centre(o, TILE);
-      if (Math.hypot(oc.x - c.x, oc.y - c.y) > ROOM.blastR + ROOM.igniteR / 2) continue;
-      if (o.kind === "pillar") this.hitProp(o, oc.x - c.x, oc.y - c.y, null);
-      else this.lightProp(o, oc.x - c.x, oc.y - c.y);
-    }
-    this.roomIgnite(c.x, c.y, ROOM.blastR);
-  }
-
-  /** A pillar lands: foes in its lane take it and are stunned (a mini or rare half as long, a boss not), the hero lightly. */
-  private landFall(f: Fall) {
-    const atk = trapAtk(this.dungeonLevel());
-    const ex = f.x + f.dx * ROOM.fallLen;
-    const ey = f.y + f.dy * ROOM.fallLen;
-    this.bolt(ex, ey - 4, ex, ey - 4, "ring", "#767488");
-    for (let t = 8; t <= ROOM.fallLen; t += 12) this.spark(f.x + f.dx * t, f.y + f.dy * t - 4, "#767488");
-    this.audio?.hit();
-    let log = "The pillar comes down.";
-    for (const r of [...this.roamers]) {
-      if (!this.liveFoe(r) || !inLane(f, r.x, r.y)) continue;
-      this.roomHurt(r, atk * ROOM.foePillar, "The pillar falls:", false);
-      log = this.logLine;
-      this.roomStun(r, ROOM.stun);
-    }
-    if (inLane(f, this.px, this.py)) this.roomBite(ROOM.heroBlast, "The pillar clips you for");
-    else this.logLine = log;
-    for (const o of this.room.props) {
-      if (!propLive(o)) continue;
-      const oc = centre(o, TILE);
-      if (inLane(f, oc.x, oc.y)) this.hitProp(o, f.dx, f.dy, null);
-    }
-  }
-
-  /**
-   * The room, once a frame below ground: spikes now bite foes too (once per rise; a shove is how they get there), a
-   * dropped lantern lands and lights, fuses burn down, pillars land, fire patches burn (every ROOM.fireTick: foes as a
-   * fire hit, the hero lightly, oil and props in reach catch) and oil soaks the foes that walk it.
-   */
-  private tickRoom(dt: number) {
-    const room = this.room;
-    const traps = this.feats?.traps ?? [];
-    if (!roomBusy(room) && !traps.length) return;
-    const atk = trapAtk(this.dungeonLevel());
-    const sec = this.worldMs / 1000;
-    for (const t of traps) {
-      if (t.kind !== "spike" || spikeStage(t, sec) !== 2) continue;
-      for (const r of [...this.roamers]) {
-        if (!this.liveFoe(r) || Math.floor(r.x / TILE) !== t.x || Math.floor(r.y / TILE) !== t.y) continue;
-        if (sec - (r.spikeAt ?? -99) < TRAPS.spikeUp + 0.05) continue;
-        r.spikeAt = sec;
-        this.roomHurt(r, atk * ROOM.foeSpike, "Spikes:", false);
-      }
-    }
-    if (!roomBusy(room)) return;
-    for (const d of room.drops) {
-      d.tell -= dt;
-      if (d.tell > 0) continue;
-      addPatch(room, "fire", d.x, d.y, ROOM.fireR);
-      this.bolt(d.x, d.y - 4, d.x, d.y - 4, "ring", "#e04a2a");
-      this.audio?.hit();
-      this.roomIgnite(d.x, d.y, ROOM.fireR);
-    }
-    room.drops = room.drops.filter((d) => d.tell > 0);
-    for (const p of room.props) {
-      if (p.fuse <= 0) continue;
-      p.fuse -= dt;
-      if (p.fuse <= 0) this.blast(p);
-    }
-    for (const f of room.falls) {
-      f.tell -= dt;
-      if (f.tell <= 0) this.landFall(f);
-    }
-    room.falls = room.falls.filter((f) => f.tell > 0);
-    for (const pa of [...room.patches]) {
-      pa.life -= dt;
-      if (pa.life <= 0) continue;
-      if (pa.kind === "oil") {
-        for (const r of this.roamers) if (this.liveFoe(r) && Math.hypot(r.x - pa.x, r.y - pa.y) < pa.r) r.oilT = ROOM.oilSoak;
-        continue;
-      }
-      pa.tick -= dt;
-      if (pa.tick > 0) continue;
-      pa.tick = ROOM.fireTick;
-      for (const r of [...this.roamers]) if (this.liveFoe(r) && Math.hypot(r.x - pa.x, r.y - pa.y) < pa.r) this.roomHurt(r, atk * ROOM.foeFire, "Fire:", true);
-      if (patchAt(room, this.px, this.py, "fire") === pa) this.roomBite(ROOM.heroFire, "The fire burns you for");
-      this.roomIgnite(pa.x, pa.y, pa.r + 4);
-    }
-    room.patches = room.patches.filter((pa) => pa.life > 0);
   }
 
   /** The telegraph hit test, shared by foe marks and plate traps: a circle on the mark center. */
@@ -8009,7 +7614,6 @@ export class Game {
       this.loadFloor("start");
       this.px = raw.px;
       this.py = raw.py;
-      this.unstick(); // playtest1n: never inside a room prop
     } else this.enterTown(raw.px, raw.py);
     this.mode = "play";
     this.drops = raw.drops ?? [];

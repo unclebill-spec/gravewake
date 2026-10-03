@@ -131,7 +131,13 @@ const pt1lNew = (f) => f === "src/game/postfx.ts" || f === "src/game/FxOptions.t
 // game never loads left public/art; its md5s as playtest1l shipped them are in scripts/frozen/playtest1m/removed-art.json, and
 // every older rest digest still counts them at those md5s (pt1mWalk, pt1mMd5), so the older groups' laws keep their meaning.
 const PT1M_FROZEN = ["src/game/sim.ts", "src/game/Gravewake.tsx", "src/lib/app-data/client.server.ts", "src/lib/auth/use-current-user.ts"];
-function pt1lView(f) { return PT1M_FROZEN.includes(f) ? `scripts/frozen/playtest1m/${f.split("/").pop()}.txt` : f; }
+function pt1lView(f) { return PT1M_FROZEN.includes(f) ? `scripts/frozen/playtest1m/${f.split("/").pop()}.txt` : pt1mView(f); }
+// playtest1n (2026-10-03, [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]): the sim and the draw moved, so every
+// older group reads them as playtest1m left them (scripts/frozen/playtest1n/, as pushed at e47342c), and the new files
+// (the room module, its paint, its writer's four sheets) are not in any older "every other file" digest.
+const PT1N_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
+function pt1mView(f) { return PT1N_FROZEN.includes(f) ? `scripts/frozen/playtest1n/${f.split("/").pop()}.txt` : f; }
+function pt1nNew(f) { return ["src/game/room.ts", "src/game/roomdraw.ts", "public/art/writer/room-props.png", "public/art/writer/room-props_em.png", "public/art/writer/room-fire.png", "public/art/writer/room-oil.png"].includes(f); }
 const PT1M_GONE = JSON.parse(readTop("scripts/frozen/playtest1m/removed-art.json", "utf8")).removed;
 const pt1mWalk = (walk, d) => [...walk(d), ...Object.keys(PT1M_GONE).filter((g) => g.startsWith(`${d}/`) && !existsTop(g))];
 const pt1mMd5 = (md5f, f, view) => (f in PT1M_GONE && !existsTop(f) ? PT1M_GONE[f] : md5f(view(f)));
@@ -205,7 +211,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -8489,7 +8495,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8798,7 +8804,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9083,7 +9089,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9397,7 +9403,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9483,6 +9489,7 @@ if (on("playtest1k")) {
     const res = {};
     // VENOM BLAST: Envenom then Tripwire; the splash reaches a second foe within 32 px.
     {
+      const rnd = Math.random; seed(1013); // playtest1n: the crit roll seeded (it flaked 1-3% unseeded), restored below
       const g = mk(); const a = foe(g, 20); const b = foe(g, 20, 20);
       cast(g, "Envenom");
       const poisoned = a.st?.poison === CB.STATUS.poison;
@@ -9490,6 +9497,7 @@ if (on("playtest1k")) {
       cast(g, "Tripwire");
       const plain = (() => { const h = mk(); const c = foe(h, 20); cast(h, "Tripwire"); return 400 - c.hp; })();
       res.blast = { poisoned, took: ha - a.hp, plain, splash: hb - b.hp, pop: g.pops.map((p) => p.text).join(), log: g.logLine, nova: g.spells.some((s) => s.kind === "nova" && s.color === CB.COMBO_COLOR.blast), spent: a.st?.poison === 0, cool: a.st?.comboCool === CB.STATUS.comboCool };
+      Math.random = rnd;
       res.blastOk = poisoned && res.blast.took === res.blast.plain + Math.max(1, Math.round(res.blast.plain * 0.5)) && res.blast.splash === Math.max(1, Math.round(res.blast.plain * 0.3)) && /VENOM BLAST/.test(res.blast.pop) && /VENOM BLAST!/.test(g.logLine) && res.blast.nova && res.blast.spent && res.blast.cool;
     }
     // WILDFIRE: Tripwire on a lantern (oiled by nature).
@@ -9834,7 +9842,7 @@ if (on("playtest1k")) {
   // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -10107,7 +10115,7 @@ if (on("playtest1l")) {
   //     the frozen playtest1k shell, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1l", "looks only: every other source file (sim, draw, screen settings, saves, HUD, the service worker and manifest in public/), the map writer and sprite writer are playtest1k's byte for byte (beside the two new modules, postfx.ts and FxOptions.tsx)", rest === "48a91245db9da25edb2663ccf0101ac7", rest);
     const sim = readFileSync("src/game/sim.ts", "utf8") + readFileSync("src/game/draw.ts", "utf8") + readFileSync("src/game/screen.ts", "utf8");
     check("playtest1l", "the build, base path and offline cache are untouched (vite.config.ts, package.json and vercel.json as playtest1k shipped them), and nothing in the sim, the draw or the screen settings reads the layer", md5f("vite.config.ts") === "7e3cef5ab1d7501c86890c4608e3ff28" && md5f("package.json") === "681fd1e5f320944b44e762cb01eb0c02" && md5f("vercel.json") === "c4ec4b6c370869f73641d08a0655721a" && !/postfx|FxOptions/.test(sim), "");
@@ -10150,7 +10158,7 @@ if (on("playtest1m")) {
   }
   // 2. Lint: the ten problems are fixed in place (no rule switched off, no new disable comments).
   {
-    const sim = readFileSync("src/game/sim.ts", "utf8");
+    const sim = readFileSync(pt1mView("src/game/sim.ts"), "utf8");
     const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
     const cs = readFileSync("src/lib/app-data/client.server.ts", "utf8");
     const cu = readFileSync("src/lib/auth/use-current-user.ts", "utf8");
@@ -10162,13 +10170,13 @@ if (on("playtest1m")) {
   // 3. No gameplay change: each frozen file differs from its live one by exactly the lint edit; everything else is 1l's.
   {
     const fz = (n) => readFileSync(`scripts/frozen/playtest1m/${n}.txt`, "utf8");
-    const sim = readFileSync("src/game/sim.ts", "utf8");
+    const sim = readFileSync(pt1mView("src/game/sim.ts"), "utf8");
     const simOk = fz("sim.ts").replace('    let aoe = kind === "cleave"', '    const aoe = kind === "cleave"').replace("      let dealt = shade ? (spell ? dmg", "      const dealt = shade ? (spell ? dmg") === sim;
     const uiOk = fz("Gravewake.tsx").replace('import { ACTS, Game, type Act } from "./sim";', 'import { ACTS, Game } from "./sim";') === readFileSync("src/game/Gravewake.tsx", "utf8");
     const csOk = fz("client.server.ts").replace('    } catch {}\n  }\n  return createHash("sha256")', '    } catch {\n      // An unreadable token falls through to the plain token hash below.\n    }\n  }\n  return createHash("sha256")') === readFileSync("src/lib/app-data/client.server.ts", "utf8");
     const cuOk = fz("use-current-user.ts").replace("  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime\n", "  // authEnabled is constant for the app's lifetime, so this hook call keeps a stable order.\n") === readFileSync("src/lib/auth/use-current-user.ts", "utf8");
     check("playtest1m", "no gameplay change: sim.ts, the shell, client.server.ts and use-current-user.ts are their frozen playtest1l copies (scripts/frozen/playtest1m/, as pushed at 121dbc1) plus only the lint edit", simOk && uiOk && csOk && cuOk && md5f("scripts/frozen/playtest1m/sim.ts.txt") === "d52ddac1d0e38c429c2d0fcbff81f62c" && md5f("scripts/frozen/playtest1m/Gravewake.tsx.txt") === "8ab3379a9a8868799ddfeaaac3c29dbf" && md5f("scripts/frozen/playtest1m/client.server.ts.txt") === "345eb9b87cabf2a6afd322dbd7b6feb4" && md5f("scripts/frozen/playtest1m/use-current-user.ts.txt") === "740f77dcf0c45b8919dd6304bdc6291e", `${simOk} ${uiOk} ${csOk} ${cuOk}`);
-    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, (x) => x)}`).join("\n"));
+    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
     check("playtest1m", "every other source file, public file (counting the removed art at its playtest1l md5s), map writer and sprite writer file is playtest1l's byte for byte", rest === "fe4ef0a4eefd74370570ff89e43c4614", rest);
     const me = readFileSync("scripts/gravewake-check.mjs", "utf8");
     check("playtest1m", "the older groups read playtest1l's files: pt1kView falls through to pt1lView, group playtest1l's shell text, tags and live pin read pt1lView, and all six older rest digests walk and hash through pt1mWalk and pt1mMd5", me.includes(": pt1lView(f); }") && (me.match(/\.flatMap\(\(d\) => pt1mWalk\(walk, d\)\)/g) ?? []).length === 7 && (me.match(/\$\{pt1mMd5\(md5f, f, pt1[g-l]View\)\}/g) ?? []).length === 6 && /md5f\(pt1lView\(f\)\) !== hh/.test(me) && me.includes('readFileSync(pt1lView("src/game/Gravewake.tsx"), "utf8"); // playtest1m'));
@@ -10189,13 +10197,412 @@ if (on("playtest1m")) {
   // 5. Live pin (last).
   {
     const LIVE = {"src/game/sim.ts": "96ff3576076a7f9fa15d8d4567df5cf7", "src/game/Gravewake.tsx": "a15ddc44f9f389017aac4a40a763c73d", "src/lib/app-data/client.server.ts": "ee40388f6d2515aad3acb1a5b9c51206", "src/lib/auth/use-current-user.ts": "58dbb4dd1d0b36a207b4e58b01b60b5c", "tools/brileta-sprites/src/primitives.ts": "84b789f82f121f0713cc00f5a37ae7d4", "scripts/frozen/playtest1m/removed-art.json": "218f1efa8587f63bfc968ba4808b101f", "scripts/grok-pwa-plugin.test.mjs": "f6e7e78a2b30d831a6660b8f66bae2ad", "scripts/brand-check.test.mjs": "f296cf035a9bf96473a108bca74478f5", "scripts/write-atomic.test.mjs": "a441537c801a850421c41e3c4ad271e0", "scripts/migration-plan.test.mjs": "eb1f4322c9d826c6979be83c37e2b3e0", "scripts/with-app-env.test.mjs": "e8ce7b909765d1b93da24ce4845da873", "scripts/check-auth-invariant.test.mjs": "2cc61e87718ce7599d704a87923532a6", "scripts/prune-unused-art.mjs": "70f1595c7cd3014505b7ee461ad676bc"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1mView(f)) !== hh).map(([f]) => f);
     check("playtest1m", "the live files are byte for byte playtest1m's (the four lint-edited sources, the brileta line, the removed-art list, the prune script and the six test files)", moved.length === 0 && Object.keys(LIVE).length === 13, moved.map((f) => `${f}=${md5f(f)}`).join(", "));
   }
 }
 
+// playtest1n (2026-10-03, [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat], a combat change Bill approved at
+// 15:41 ET): the room a fight can use. Shoves onto spikes, lanterns that drop into fire, oil and powder barrels, pillars
+// that break, a little hazard sense in the foes, every hazard marked before it lands; nothing saved.
+if (on("playtest1n")) {
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1n.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as RM from "${root}/src/game/room.ts";\nexport * as RD from "${root}/src/game/roomdraw.ts";\nexport { MARK_NEON, WALK_PACE, TELL, fairTell } from "${root}/src/game/telegraph.ts";\nexport { DUNGEONS, T, TRAPS, trapAtk } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1n.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1n.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  writeFileSync(join(dir, "sim1m.ts"), readFileSync("scripts/frozen/playtest1n/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  execFileSync("npx", ["esbuild", join(dir, "sim1m.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1m.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, random: Math.random, ls: globalThis.localStorage };
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
+  let subFills = new Set();
+  const sub = () => { const o = { fillRect() { subFills.add(o.fillStyle); }, drawImage() {} }; return new Proxy(o, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; } }); };
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= sub()); } }; return c; } };
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  const X = await import(pathToFileURL(join(dir, "pt1n.mjs")).href);
+  const Z = await import(pathToFileURL(join(dir, "sim1m.mjs")).href);
+  const { RM, RD, T } = X;
+  const R = RM.ROOM;
+  const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  seed(1013);
+  // A dungeon fight: the hero (cls) on a 5x5 open patch of floor id's floor 1, every trap and prop cleared, the floor seen.
+  const mk = (id = "harrow", cls = "warrior", M = X) => {
+    const g = new M.Game(); g.start(cls, "str", "Q"); g.enterDungeon(id); g.mode = "play"; g.level = 20; g.energy = 999; g.stam = 999; g.blood = 999;
+    g.specials = ["Envenom", "Tripwire", "Ambush", "Vanish", "Execution", "Earthshatter", "War Cry", "Deathbolt", "Curse", "Grave Nova", "Summon Shade"];
+    g.roamers = []; if (g.room) g.room = RM.emptyRoom(); if (g.feats) g.feats.traps = [];
+    let spot = null;
+    for (let y = 2; y < g.h - 2 && !spot; y++) for (let x = 2; x < g.w - 2 && !spot; x++) { let ok = true; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (g.tiles[(y + dy) * g.w + x + dx] !== T.floor) ok = false; if (ok) spot = { x, y }; }
+    g.px = spot.x * TILE + 8; g.py = spot.y * TILE + 10; g.fog?.fill(2); g.curse = ""; g.iframe = 0;
+    return { g, s: spot };
+  };
+  const foe = (g, x, y, family = "zombie", extra = {}) => { const n = g.roamers.length; g.touchFoe({ id: `${family}${n}`, x, y, family, tint: "#888", def: family, level: 6, ang: 0, ...extra }); const fresh = g.roamers.slice(n); g.roamers = g.roamers.slice(0, n).concat(fresh.slice(0, 1)); const r = fresh[0]; if (r) { r.x = x; r.y = y; r.hp = r.max = 400; r.ac = 0; r.cool = 99; r.family = family; Object.assign(r, extra); } return r; };
+  const prop = (g, kind, x, y) => { const p = { kind, x, y, hp: R.hp[kind], done: false, fuse: 0 }; g.room.props.push(p); g.room.solid.add(y * g.w + x); return p; };
+  const tick = (g, s, each = () => {}) => { for (let t = 0; t < s - 1e-9; t += 0.05) { g.update(0.05); each(); } };
+  const C = (p) => ({ x: p.x * TILE + 8, y: p.y * TILE + 10 });
+  const atkOf = (g) => X.trapAtk(g.dungeonLevel());
+  const heroHit = (g, share) => Math.max(1, Math.round(atkOf(g) * share) - Math.floor(g.ac / 2));
+
+  // 1. The numbers, and fair: each hazard's tell covers the walk out of its mark at 74 px/s plus the 0.2 s thumb.
+  {
+    const want = { shove: 110, shoveFor: 0.12, shoveMini: 0.5, spikeStun: 0.4, fireR: 20, fireBigR: 28, fireLife: 4, fireTick: 0.5, dropTell: 0.35, dropOut: 14, oilR: 24, oilLife: 10, oilSoak: 6, fuse: 0.8, blastR: 32, blastStun: 0.6, igniteR: 24, fallTell: 0.6, fallLen: 44, fallHalf: 10, stun: 1.5, foeSpike: 2, foeFire: 0.6, foeBlast: 3, foePillar: 2.5, heroFire: 0.4, heroBlast: 1, wary: 3, maxPatches: 6, maxProps: 5, per: 30, openMin: 5, gap: 3, stairGap: 2, arriveGap: 3 };
+    const bad = Object.entries(want).filter(([k, v]) => R[k] !== v).map(([k]) => k);
+    const hp = R.hp.lantern === 1 && R.hp.oil === 1 && R.hp.powder === 1 && R.hp.pillar === 3;
+    const fair = R.fuse >= X.fairTell("ring", R.blastR) && R.fallTell >= R.fallHalf / X.WALK_PACE + X.TELL.reaction && R.dropOut + 16 > R.fireR && R.fireLife > R.fireTick;
+    check("playtest1n", "the room's numbers (shares of the floor's trap hit: spikes 2x, fire 0.6x a 0.5 s tick to foes and 0.4x to the hero, blast 3x / 1x, pillar 2.5x / 1x; shove 110 px/s for 0.12 s; fuse 0.8 s r32, pillar 0.6 s 44x10, lantern 0.35 s 14 px out) and fair: the fuse covers the walk out of the blast (0.63 s), the pillar's tell its 10 px lane, and a lantern lands clear of the hero who struck it", bad.length === 0 && hp && fair && RM.ROOM_TAG === TAG, bad.join());
+  }
+
+  // 2. Placement: seeded, the same on every load and by either stair; on open floor only; off stairs, traps, secrets,
+  //    the captive and the mimic; never in a hidden room; the floor stays whole; all four kinds across the dungeons.
+  {
+    let floors = 0, props = 0, bad = [], kinds = {};
+    const walks = (t) => t !== T.wall && t !== T.shelf && t !== T.cauldron && t !== T.moon && !(t >= 28 && t <= 31);
+    const reach = (g, sx, sy, block) => { const seen = new Uint8Array(g.w * g.h); const q = [sy * g.w + sx]; seen[q[0]] = 1; for (let k = 0; k < q.length; k++) { const i = q[k]; const x = i % g.w, y = Math.floor(i / g.w); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = (y + dy) * g.w + x + dx; if (x + dx < 0 || y + dy < 0 || x + dx >= g.w || y + dy >= g.h || seen[j] || block.has(j) || !walks(g.tiles[j])) continue; seen[j] = 1; q.push(j); } } return q.length; };
+    for (const d of X.DUNGEONS) {
+      const g = new X.Game(); g.start(d.id === "grave" ? "vampire" : "warrior", "str", "Q"); g.enterDungeon(d.id);
+      for (let f = 1; f <= (d.floors ?? 5); f++) {
+        if (f > 1) { g.floor = f; g.loadFloor("down"); }
+        floors += 1;
+        const room = g.room;
+        const key = room.props.map((p) => `${p.kind}${p.x},${p.y}`).join();
+        g.loadFloor("up");
+        const again = g.room.props.map((p) => `${p.kind}${p.x},${p.y}`).join();
+        if (key !== again) bad.push(`${d.id}${f} differs by stair`);
+        const sp = [];
+        for (let i = 0; i < g.tiles.length; i++) if ([T.stairD, T.stairU, T.exit, T.chest].includes(g.tiles[i])) sp.push({ x: i % g.w, y: Math.floor(i / g.w) });
+        const off = RM.featSpots(g.feats);
+        const up = sp.find((p) => g.tiles[p.y * g.w + p.x] === T.stairU);
+        for (const p of room.props) {
+          props += 1; kinds[p.kind] = (kinds[p.kind] ?? 0) + 1;
+          const i = p.y * g.w + p.x;
+          let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && g.tiles[(p.y + dy) * g.w + p.x + dx] === T.floor) n += 1;
+          const cheb = (a) => Math.max(Math.abs(a.x - p.x), Math.abs(a.y - p.y));
+          if (g.tiles[i] !== T.floor || n < R.openMin || sp.some((a) => cheb(a) <= R.stairGap) || off.some((a) => cheb(a) <= 1) || g.hidden.has(i) || room.props.some((o) => o !== p && cheb(o) < R.gap) || !p.hp || p.done) bad.push(`${d.id}${f}@${p.x},${p.y}`);
+        }
+        if (room.props.length > Math.min(R.maxProps, Math.floor([...g.tiles].filter((t) => t === T.floor).length / R.per))) bad.push(`${d.id}${f} too many`);
+        if (up) { const a = { x: Math.floor(g.px / TILE), y: Math.floor(g.py / TILE) }; const base = reach(g, a.x, a.y, new Set()); if (reach(g, a.x, a.y, room.solid) !== base - room.solid.size) bad.push(`${d.id}${f} cut`); }
+      }
+    }
+    // A secret room is rock to the placement even where every other rule would allow a prop: mark the far half of three
+    // floors hidden and deal eight seeds each; none may stand there (without the rule about two in three of them do).
+    const rnd0 = Math.random; seed(1014); // its own stream, so the later blocks roll as before
+    let inHidden = 0, dealt = 0;
+    for (const id of ["harrow", "ossuary", "chapel"]) {
+      const g = new X.Game(); g.start("warrior", "str", "Q"); g.enterDungeon(id);
+      const keep = g.hidden, hid = new Set(keep), ux = g.tiles.indexOf(T.stairU) % g.w;
+      for (let i = 0; i < g.tiles.length; i++) if (g.tiles[i] === T.floor && (ux < g.w / 2 ? i % g.w >= g.w / 2 : i % g.w < g.w / 2)) hid.add(i);
+      g.hidden = hid;
+      for (let k = 0; k < 8; k++) { g.placeFloorRoom(`${id}:hid${k}`); dealt += g.room.props.length; inHidden += g.room.props.filter((p) => hid.has(p.y * g.w + p.x)).length; }
+      g.hidden = keep;
+    }
+    if (inHidden || dealt < 12) bad.push(`hidden ${inHidden}/${dealt}`);
+    Math.random = rnd0;
+    check("playtest1n", "placement: each floor stands its props from its seed, the same coming down or up; each on a floor tile with 5+ floor neighbours, 3+ tiles from a stair, exit or chest (a secret room's chest too), off traps, secrets, the captive and the mimic and out of hidden rooms, 3 apart; one per 30 floor tiles (5 at most); the floor stays whole; every kind on 40+ of the 94 floors", floors === 94 && props >= 200 && bad.length === 0 && ["lantern", "oil", "powder", "pillar"].every((k) => (kinds[k] ?? 0) >= 40), `${floors} floors ${props} props ${JSON.stringify(kinds)} ${bad.slice(0, 6).join(" ")}`);
+  }
+
+  // 3. Saves: no field added (a 1n save has exactly 1m's keys), the room is not in it, a load stands the floor's own props
+  //    fresh, and a hero saved where a prop now stands is stepped off it.
+  {
+    const a = mk().g; const b = mk("harrow", "warrior", Z).g;
+    const ka = Object.keys(a.saveRecord()).sort().join(); const kb = Object.keys(b.saveRecord()).sort().join();
+    const g = new X.Game(); g.start("warrior", "str", "Q"); g.enterDungeon("ossuary"); g.floor = 2; g.loadFloor("down");
+    const first = g.room.props.map((p) => `${p.kind}${p.x},${p.y}`).join();
+    for (const p of g.room.props) { p.done = true; p.hp = 0; }
+    const p0 = g.room.props[0];
+    g.px = p0.x * TILE + 8; g.py = p0.y * TILE + 10;
+    const rec = JSON.parse(JSON.stringify(g.saveRecord()));
+    const h = new X.Game(); h.start("warrior", "str", "Q"); h.loadRecord(rec);
+    const back = h.room.props.map((p) => `${p.kind}${p.x},${p.y}`).join();
+    const fresh = h.room.props.every((p) => !p.done && p.hp === R.hp[p.kind] && p.fuse === 0) && h.room.patches.length === 0;
+    const off = !h.room.solid.has(Math.floor(h.py / TILE) * h.w + Math.floor(h.px / TILE));
+    check("playtest1n", "saves are safe: no save field added (a 1n save has exactly playtest1m's keys) and nothing of the room is in it; a load stands the floor's own props again, whole; a hero saved where a prop now stands steps off it", ka === kb && !/room|prop|patch|stun|shove|oilT|spikeAt/.test(JSON.stringify(rec)) && back === first && first.length > 0 && fresh && off && h.mapId === "dungeon", `${ka === kb} ${back === first} ${fresh} ${off}`);
+  }
+
+  // 4. Collision: a standing prop stops the hero and foes; a burst barrel and a fallen pillar do not; a dropped lantern's
+  //    post stays; above ground nothing of the room stands.
+  {
+    const { g, s } = mk();
+    const l = prop(g, "lantern", s.x, s.y); const o = prop(g, "oil", s.x + 2, s.y);
+    const at = (p) => g["solidAt"](p.x * TILE + 8, p.y * TILE + 8, true);
+    const stand = at(l) && at(o);
+    const r = foe(g, (s.x + 1) * TILE + 8, s.y * TILE + 8); const fx = r.x; g["tryBody"](r, 16, 0); const blocked = r.x === fx;
+    g["hitProp"](l, 1, 0, null); g["hitProp"](o, 1, 0, null);
+    const after = at(l) && !at(o);
+    g.enterWorld(64 * TILE + 8, 80 * TILE + 8);
+    const world = !g["solidAt"](64 * TILE + 8, 80 * TILE + 8, true) && g.mapId === "world";
+    check("playtest1n", "collision: a standing prop stops the hero and foes; once burst a barrel's tile is open while a dropped lantern's post still stands; above ground the room stops nothing", stand && blocked && after && world, `${stand} ${blocked} ${after} ${world}`);
+  }
+
+  // 5. The shove: below ground a Slash or Whirl carries the foe it hits about a tile (13 px on the 3 px knockback); a mini or
+  //    rare half, a boss not at all; Smite never shoves; above ground only the old knockback.
+  {
+    const run = (extra, verb = "slash", world = false) => {
+      const { g } = mk(); if (world) { g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.roamers = []; }
+      g.facing = "e"; const r = foe(g, g.px + 14, g.py - 2, "zombie", extra); const x0 = r.x;
+      if (verb === "slash") g.slash(); else if (verb === "whirl") g.whirl(); else g.smite();
+      for (let t = 0; t < 0.15; t += 0.05) { g.update(0.05); r.cool = 99; }
+      return r.x - x0;
+    };
+    const plain = run({}), whirl = run({}, "whirl"), mini = run({ mini: true }), boss = run({ boss: true }), smite = run({}, "smite"), world = run({}, "slash", true);
+    const ok = plain > 14 && plain < 19 && whirl > 14 && whirl < 19 && mini > 8 && mini < 12 && boss < 4 && smite < 4 && world < 4;
+    check("playtest1n", "the shove: below ground a Slash or Whirl carries the foe about a tile (13 px on the old 3 px knockback), a mini or rare half that, a boss not at all; Smite never shoves, and above ground only the old knockback moves a foe", ok, [plain, whirl, mini, boss, smite, world].map((v) => v.toFixed(1)).join(" "));
+  }
+
+  // 6. Spikes: a foe shoved onto a spike trap springs it at once (2x the trap hit, a 0.4 s reel); a foe on raised spikes is
+  //    bitten once a rise; a plate still hurts only the hero.
+  {
+    const { g, s } = mk();
+    g.feats.traps = [{ kind: "spike", x: s.x + 1, y: s.y, phase: 0 }];
+    g.worldMs = 0; g.px = s.x * TILE - 4; g.facing = "e";
+    const r = foe(g, (s.x + 1) * TILE - 4, s.y * TILE + 8);
+    const hp0 = r.hp; g.slash(); const swing = hp0 - r.hp;
+    tick(g, 0.15, () => { r.cool = 99; });
+    const thrown = hp0 - r.hp - swing; const log = g.logLine; const reel = r.stun ?? 0;
+    const k = foe(g, (s.x + 1) * TILE + 8, s.y * TILE + 8);
+    k.id = "spikeholder"; const k0 = k.hp; g.px = (s.x - 2) * TILE; let hits = 0, last = k.hp;
+    tick(g, 4.8, () => { k.x = (s.x + 1) * TILE + 8; k.y = s.y * TILE + 8; k.cool = 99; g.iframe = 9; if (k.hp < last) hits += 1; last = k.hp; });
+    const { g: h, s: t } = mk();
+    h.feats.traps = [{ kind: "plate", x: t.x + 1, y: t.y, phase: 0 }];
+    const q = foe(h, (t.x + 1) * TILE + 8, t.y * TILE + 8); const q0 = q.hp; h.px = (t.x - 2) * TILE;
+    tick(h, 3, () => { q.x = (t.x + 1) * TILE + 8; q.y = t.y * TILE + 8; q.cool = 99; });
+    check("playtest1n", "spikes: a foe shoved onto a spike trap springs it at once for 2x the floor's trap hit and reels 0.4 s; a foe held on raised spikes is bitten once a rise (2 in 4.8 s); a pressure plate still hurts only the hero", thrown === 2 * atkOf(g) && /^Thrown on the spikes: /.test(log) && reel > 0.25 && reel <= 0.4 && hits === 2 && k0 - k.hp === 4 * atkOf(g) && q.hp === q0, `${thrown} ${log} ${reel} ${hits} ${k0 - k.hp} ${q0 - q.hp}`);
+  }
+
+  // 7. A lantern: struck, it swings off AWAY from the blow; its mark fills 0.35 s, then a fire patch (r 20, 4 s) lies 14 px
+  //    past its post, out of reach of the hero who struck it; it burns a foe in it 0.6x every 0.5 s.
+  {
+    const { g, s } = mk();
+    const l = prop(g, "lantern", s.x, s.y);
+    g.px = s.x * TILE - 8; g.py = s.y * TILE + 10; g.facing = "e";
+    g.slash();
+    const d = g.room.drops[0]; const c = C(l);
+    const away = d && d.x - c.x === R.dropOut && d.tell === R.dropTell && l.done && g.room.patches.length === 0;
+    tick(g, 0.3); const early = g.room.patches.length === 0;
+    tick(g, 0.1);
+    const pa = g.room.patches[0];
+    const clear = pa && pa.kind === "fire" && pa.r === R.fireR && Math.hypot(g.px - pa.x, g.py - pa.y) > pa.r + 8;
+    const r = foe(g, pa.x, pa.y); const h0 = r.hp; const hh = g.hp;
+    tick(g, 4, () => { r.x = pa.x; r.y = pa.y; r.cool = 99; });
+    const burnt = h0 - r.hp; const per = Math.max(1, Math.round(atkOf(g) * R.foeFire)); const ticks = Math.round(R.fireLife / R.fireTick);
+    check("playtest1n", "a lantern struck swings off its hook away from the blow (no fire yet: its red mark fills 0.35 s), then lays a 20 px fire patch 14 px past its post, clear of the hero who struck it; the patch burns a foe in it 0.6x the trap hit every 0.5 s for 4 s (8 ticks; the first lands as it is laid, before this foe steps in), and goes out", away && early && clear && burnt >= (ticks - 1) * per && burnt <= ticks * per && g.room.patches.length === 0 && g.hp >= hh - 1, `${away} ${early} ${clear} ${burnt}/${ticks * per}`);
+  }
+
+  // 8. Fire ties into 1k: fire on a poisoned foe is VENOM BLAST, on an oiled one (a lantern-foe, or a zombie soaked in a
+  //    barrel's oil for 6 s) WILDFIRE; the soak wears off.
+  {
+    const res = {};
+    for (const [name, family, st] of [["blast", "zombie", { poison: 4 }], ["wild", "lantern", null], ["plain", "zombie", null]]) {
+      const { g, s } = mk();
+      RM.addPatch(g.room, "fire", s.x * TILE + 8, s.y * TILE + 10, R.fireR);
+      const r = foe(g, s.x * TILE + 8, s.y * TILE + 10, family); if (st) r.st = { ...st };
+      g.px = (s.x - 2) * TILE; let log = "";
+      tick(g, 0.1, () => { r.x = s.x * TILE + 8; r.y = s.y * TILE + 10; r.cool = 99; if (/BLAST|WILDFIRE/.test(g.logLine)) log = g.logLine; });
+      res[name] = log;
+    }
+    const { g, s } = mk();
+    RM.addPatch(g.room, "oil", s.x * TILE + 8, s.y * TILE + 10, R.oilR);
+    const z = foe(g, s.x * TILE + 8, s.y * TILE + 10); g.px = (s.x - 2) * TILE;
+    tick(g, 0.1, () => { z.cool = 99; z.x = s.x * TILE + 8; z.y = s.y * TILE + 10; });
+    const soaked = g.oiled(z) && z.oilT > 5.8;
+    z.x = (s.x + 6) * TILE; g.room.patches = [];
+    z.oilT = 0.2; tick(g, 0.3, () => { z.cool = 99; });
+    const dry = !g.oiled(z);
+    check("playtest1n", "fire ties into the 1k combos: a fire patch on a poisoned foe sets off VENOM BLAST, on an oiled lantern-foe WILDFIRE, on a plain zombie nothing; oil soaks a foe (oiled for 6 s after it steps out) and the soak wears off", /^Fire: VENOM BLAST! /.test(res.blast) && /^Fire: WILDFIRE! /.test(res.wild) && res.plain === "" && soaked && dry, JSON.stringify(res) + ` ${soaked} ${dry}`);
+  }
+
+  // 9. Oil: a barrel struck bursts into a slick (r 24, 10 s, no fire); fire at a foe in the slick lights it (a big fire, r 28);
+  //    a barrel set alight by fire goes up at once.
+  {
+    const { g, s } = mk("harrow", "warrior");
+    const o = prop(g, "oil", s.x, s.y);
+    g.px = s.x * TILE - 6; g.facing = "e"; g.slash();
+    const slick = g.room.patches[0];
+    const a = slick && slick.kind === "oil" && slick.r === R.oilR && slick.life === R.oilLife && o.done && !g.room.solid.has(s.y * g.w + s.x);
+    const r = foe(g, s.x * TILE + 10, s.y * TILE + 12);
+    tick(g, 0.1, () => { r.cool = 99; r.x = s.x * TILE + 10; r.y = s.y * TILE + 12; });
+    g.px = (s.x - 2) * TILE; g.spellCool = 0; g.castKnown("Execution");
+    const lit = g.room.patches[0];
+    const b = lit && lit.kind === "fire" && lit.r === R.fireBigR && lit.life === R.fireLife;
+    const { g: h, s: t } = mk("harrow", "warrior");
+    const o2 = prop(h, "oil", t.x + 1, t.y);
+    foe(h, (t.x + 1) * TILE + 2, (t.y + 1) * TILE + 6);
+    h.px = (t.x - 1) * TILE; h.spellCool = 0; h.castKnown("Execution");
+    const up = h.room.patches.find((p) => p.kind === "fire" && p.r === R.fireBigR) && o2.done;
+    check("playtest1n", "oil: a struck barrel bursts into a 24 px slick for 10 s (no fire, its tile opens); fire at a foe standing in the slick (Execution) lights it into a 28 px fire for 4 s; fire that lands by a barrel sets it straight up in a big fire", a && b && up, `${a} ${b} ${!!up}`);
+  }
+
+  // 10. Powder: a struck barrel lights its fuse (no blast yet); 0.8 s on, foes in 32 px take 3x and reel 0.6 s (a boss is not
+  //     stunned), a hero still there takes 1x, one who walked out from beside it (after 0.2 s) nothing; props in it catch.
+  {
+    const { g, s } = mk();
+    const p = prop(g, "powder", s.x, s.y); const near = prop(g, "powder", s.x + 2, s.y + 1); const oil = prop(g, "oil", s.x - 1, s.y + 2);
+    g.px = s.x * TILE - 6; g.facing = "e"; g.slash();
+    const lit = p.fuse === R.fuse && !p.done;
+    const r = foe(g, s.x * TILE + 8 + 16, s.y * TILE + 10); const b = foe(g, s.x * TILE + 8, s.y * TILE - 6, "zombie", { boss: true });
+    const h0 = r.hp, b0 = b.hp, hh = g.hp;
+    tick(g, 0.7, () => { r.cool = 99; b.cool = 99; g.iframe = 0; });
+    const notYet = !p.done && r.hp === h0;
+    tick(g, 0.15, () => { r.cool = 99; b.cool = 99; });
+    const blown = p.done && h0 - r.hp === 3 * atkOf(g) && (r.stun ?? 0) > 0.5 && b0 - b.hp === 3 * atkOf(g) && !(b.stun > 0) && Math.abs(hh - g.hp - heroHit(g, R.heroBlast)) < 0.5;
+    const chain = near.fuse > 0 && oil.done && g.room.patches.some((q) => q.kind === "fire" && q.r === R.fireBigR);
+    const { g: h, s: t } = mk();
+    prop(h, "powder", t.x, t.y); h.px = t.x * TILE - 6; h.facing = "e"; h.slash(); const h1 = h.hp;
+    for (let k = 0; k < 1.2; k += 0.05) { if (k > 0.2) h.px -= X.WALK_PACE * 0.05; h.update(0.05); }
+    const rnd1 = Math.random; seed(1015); // its own stream, so the later blocks roll as before
+    const { g: q, s: u } = mk();
+    prop(q, "oil", u.x - 1, u.y); q.px = (u.x - 1) * TILE - 6; q.facing = "e"; q.slash();
+    const slick = q.room.patches.find((o) => o.kind === "oil");
+    const pw = prop(q, "powder", u.x + 1, u.y); q.px = (u.x + 1) * TILE + 22; q.facing = "w"; q.slash();
+    tick(q, 0.9, () => { q.iframe = 0; });
+    const slickLit = !!slick && pw.done && slick.kind === "fire" && slick.r === R.fireBigR;
+    Math.random = rnd1;
+    check("playtest1n", "powder: a struck barrel lights its 0.8 s fuse (no blast yet); then foes in 32 px take 3x the trap hit and reel 0.6 s (a boss takes it but is not stunned), a hero still beside it takes 1x through armour, one who walks out after a 0.2 s thumb takes nothing; a powder barrel in the blast lights, an oil barrel goes up and an oil slick in reach catches", lit && notYet && blown && chain && slickLit && h.hp >= h1, `${lit} ${notYet} ${blown} ${chain} ${slickLit} ${h1 - h.hp}`);
+  }
+
+  // 11. Pillars: three hits (cracks, groans), then it topples away from the blow under a 0.6 s violet lane; foes in the lane
+  //     take 2.5x and are stunned 1.5 s (a mini half), a foe beside the lane nothing, the hero in it 1x; rubble does not block.
+  {
+    const { g, s } = mk();
+    const p = prop(g, "pillar", s.x, s.y);
+    g.px = s.x * TILE - 6; g.facing = "e";
+    const logs = []; for (let i = 0; i < 3; i++) { g.slash(); logs.push(g.logLine); }
+    const f = g.room.falls[0];
+    const lane = f && f.dx > 0.95 && f.tell === R.fallTell && p.done && !g.room.solid.has(s.y * g.w + s.x);
+    const r = foe(g, s.x * TILE + 8 + 30, s.y * TILE + 10); const m = foe(g, s.x * TILE + 8 + 18, s.y * TILE + 14, "zombie", { mini: true }); const o = foe(g, s.x * TILE + 8 + 24, s.y * TILE + 10 + 20);
+    const [r0, m0, o0] = [r.hp, m.hp, o.hp];
+    tick(g, 0.65, () => { for (const k of [r, m, o]) k.cool = 99; });
+    const hit = r0 - r.hp === Math.round(atkOf(g) * R.foePillar) && (r.stun ?? 0) > 1.3 && m0 - m.hp === Math.round(atkOf(g) * R.foePillar) && (m.stun ?? 0) > 0.6 && (m.stun ?? 0) <= 0.75 && o.hp === o0 && g.room.falls.length === 0;
+    const { g: h, s: t } = mk();
+    const q = prop(h, "pillar", t.x, t.y); q.hp = 1; const hh = h.hp;
+    h["hitProp"](q, 1, 0, null); h.px = t.x * TILE + 8 + 20; h.py = t.y * TILE + 10;
+    tick(h, 0.65);
+    check("playtest1n", "pillars: three hits (it cracks, it groans, it topples) and it falls away from the blow under a 0.6 s lane, its tile open; foes in the lane take 2.5x the trap hit and are stunned 1.5 s (a mini half), a foe beside the lane is untouched, a hero in it takes 1x", lane && hit && /cracks/.test(logs[0]) && /groans/.test(logs[1]) && /topples/.test(logs[2]) && Math.abs(hh - h.hp - heroHit(h, R.heroBlast)) < 0.5, `${lane} ${hit} ${logs} ${hh - h.hp}`);
+  }
+
+  // 12. Spells and Smite: with no foe in reach a class spell aims at the nearest prop (fire lights it, anything else strikes
+  //     it); an area spell strikes every prop in its area; Smite strikes a prop in 96 px; nothing at all is still "Nothing in reach".
+  {
+    const { g, s } = mk("harrow", "wizard");
+    const pw = prop(g, "powder", s.x + 2, s.y); g.px = s.x * TILE - 8; const e0 = g.energy;
+    g.spellCool = 0; g.castKnown("Deathbolt"); const bolt = pw.fuse > 0 && g.energy < e0 && /^Deathbolt\. /.test(g.logLine);
+    const { g: h, s: t } = mk("harrow", "warrior");
+    const ol = prop(h, "oil", t.x + 2, t.y); h.px = t.x * TILE - 8; h.spellCool = 0; h.castKnown("Execution");
+    const fire = ol.done && h.room.patches.some((p) => p.kind === "fire" && p.r === R.fireBigR);
+    const { g: a, s: u } = mk("harrow", "wizard");
+    const p1 = prop(a, "pillar", u.x + 2, u.y); const p2 = prop(a, "lantern", u.x - 2, u.y + 1); a.spellCool = 0; a.castKnown("Grave Nova");
+    const area = p1.hp === R.hp.pillar - 1 && p2.done;
+    const { g: m, s: v } = mk("harrow", "warrior");
+    const p3 = prop(m, "pillar", v.x + 3, v.y); m.px = v.x * TILE - 8; m.energy = 999; m.smite(); const smite = p3.hp === R.hp.pillar - 1;
+    const { g: n } = mk("harrow", "wizard"); n.spellCool = 0; n.castKnown("Deathbolt"); const none = n.logLine === "Nothing in reach.";
+    check("playtest1n", "spells and Smite use the room: with no foe in reach Deathbolt strikes the nearest prop (a powder fuse lights) and spends its mana, Execution's fire sends an oil barrel up; Grave Nova strikes every prop in its area; Smite strikes a prop within 96 px; with nothing there it is still \"Nothing in reach.\"", bolt && fire && area && smite && none, `${bolt} ${fire} ${area} ${smite} ${none}`);
+  }
+
+  // 13. Wary foes: two in three (fixed per foe, never a boss) will not walk into live fire, a burning fuse's mark or rising
+  //     spikes: they slide round or wait; bold ones walk on and burn.
+  {
+    const ids = Array.from({ length: 300 }, (_, i) => `d${i}-${i % 3}`);
+    const share = ids.filter((i) => RM.wary(i, false)).length / ids.length;
+    const fixed = ids.every((i) => RM.wary(i, false) === RM.wary(i, false)) && ids.every((i) => !RM.wary(i, true));
+    let wb = 0, wn = 0, bb = 0, bn = 0;
+    for (let k = 0; k < 12; k++) {
+      const { g, s } = mk();
+      RM.addPatch(g.room, "fire", s.x * TILE + 8, s.y * TILE + 10, R.fireR); g.room.patches[0].life = 99;
+      const r = foe(g, (s.x + 2) * TILE + 8, s.y * TILE + 10, "zombie"); r.id = `w${k}`;
+      const h0 = r.hp;
+      tick(g, 3, () => { g.px = (s.x - 2) * TILE + 8; g.py = s.y * TILE + 10; g.iframe = 9; r.cool = 99; });
+      if (RM.wary(r.id, false)) { wn += 1; wb += h0 - r.hp; } else { bn += 1; bb += h0 - r.hp; }
+    }
+    const hz = (() => { const { g, s } = mk(); const p = prop(g, "powder", s.x, s.y); p.fuse = 0.5; g.feats.traps = [{ kind: "spike", x: s.x - 2, y: s.y, phase: 0 }]; const sec = (1.6) - 0; return RM.hazardAt(g.room, g.feats.traps, 1.6, s.x * TILE + 8 + 20, s.y * TILE + 8) && RM.hazardAt(g.room, g.feats.traps, 1.6, (s.x - 2) * TILE + 8, s.y * TILE + 8) && !RM.hazardAt(g.room, g.feats.traps, 0.5, (s.x - 2) * TILE + 8, s.y * TILE + 8) && !RM.hazardAt(g.room, [], sec, s.x * TILE + 8 + 40, s.y * TILE + 8); })();
+    check("playtest1n", "wary foes: two in three (a fixed pick per foe, never a boss) step round or wait at live fire, a burning fuse's 32 px mark and rising or raised spikes; walking at the hero across a fire patch the wary ones took nothing, the bold ones burned", share > 0.6 && share < 0.73 && fixed && wn >= 4 && bn >= 2 && wb === 0 && bb > 0 && hz, `${share.toFixed(2)} ${fixed} wary ${wn}:${wb} bold ${bn}:${bb} ${hz}`);
+  }
+
+  // 14. A stunned foe stands: no step, no swing, its cast waits; then it fights on.
+  {
+    const { g } = mk();
+    const r = foe(g, g.px + 20, g.py); r.cool = 0; r.stun = 1; const x0 = r.x, y0 = r.y, hh = g.hp;
+    tick(g, 0.9, () => { g.iframe = 0; });
+    const held = Math.hypot(r.x - x0, r.y - y0) < 0.5 && g.hp >= hh && r.stun > 0;
+    tick(g, 1.5, () => { g.iframe = 0; });
+    check("playtest1n", "a stunned foe stands still: it does not step or swing while the stun runs, then fights on", held && g.hp < hh, `${held} ${hh - g.hp}`);
+  }
+
+  // 15. The draw: below ground the props join the y-sorted props from the writer's sheet (a lit lantern, its bare post, the
+  //     staves, the rubble), the lit flames join the glow; a lantern's landing and a fuse wear red marks, a falling pillar a
+  //     violet lane; nothing is drawn above ground; the room's lights come from a fixed pool of 10.
+  {
+    const { g, s } = mk();
+    prop(g, "lantern", s.x, s.y); const d = prop(g, "lantern", s.x + 2, s.y); d.done = true; const o = prop(g, "oil", s.x - 2, s.y); o.done = true;
+    const pl = prop(g, "pillar", s.x, s.y + 2); pl.done = true; const pw = prop(g, "powder", s.x + 2, s.y + 2);
+    const box = { x: 0, y: 0, w: 2000, h: 2000 };
+    const drawn = []; let mainFills = new Set();
+    const ctx = new Proxy({ globalAlpha: 1, drawImage(im, sx) { drawn.push(`${im?._s ?? "canvas"}#${sx}`); }, fillRect() { mainFills.add(this.fillStyle); } }, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+    const props = [], glow = [];
+    RD.roomScene(ctx, g, props, glow, box);
+    for (const p of props) p.fn();
+    const cells = drawn.filter((u) => u.startsWith(RM.ROOM_SHEETS.props)).map((u) => +u.split("#")[1] / 16).sort().join();
+    const glows = glow.length;
+    drawn.length = 0; subFills = new Set(); mainFills = new Set();
+    pw.fuse = 0.4; g.room.drops.push({ x: 100, y: 100, tell: 0.2, max: R.dropTell });
+    RD.roomScene(ctx, g, [], [], box);
+    const red = subFills.has(X.MARK_NEON.big) && !subFills.has(X.MARK_NEON.mid);
+    subFills = new Set(); mainFills = new Set(); pw.fuse = 0; g.room.drops = [];
+    g.room.falls.push({ x: 100, y: 100, dx: 1, dy: 0, tell: 0.3, max: R.fallTell, k: 3 });
+    RD.roomScene(ctx, g, [], [], box);
+    const violet = mainFills.has(X.MARK_NEON.mid) && !mainFills.has(X.MARK_NEON.big);
+    const out = []; RM.addPatch(g.room, "fire", 50, 50, R.fireR); pw.fuse = 0.3;
+    const n = RD.roomLights(g, out); const pool1 = [...out]; out.length = 0; RD.roomLights(g, out);
+    const pooled = n >= 3 && n <= RD.ROOM_LIGHT.pool && out.every((l, i) => l === pool1[i]) && RD.roomPool().length === 10 && out[0].c === RD.roomPool()[0].c;
+    g.mapId = "world"; const wp = []; RD.roomScene(ctx, g, wp, [], box); const none = wp.length === 0 && RD.roomLights(g, []) === 0;
+    check("playtest1n", "the draw: below ground each prop joins the y-sorted props as its writer cell (lit lantern 0, bare post 1, staves 4, rubble 7, powder 3) and the lit flames join the glow; a lantern's landing and a fuse wear red marks, a falling pillar a violet lane; the room's lights come from a fixed pool of 10; above ground nothing is drawn", cells === "0,1,3,4,7" && glows >= 3 && red && violet && pooled && none, `${cells} ${glows} ${red} ${violet} ${pooled} ${none}`);
+  }
+
+  // 16. The art: the room writer's four sheets in palette v3 (hard alpha), the sizes the draw reads, and the writer rebuilds
+  //     them byte for byte.
+  {
+    const py = (code) => { try { return JSON.parse(execFileSync("python3", ["-c", code], { cwd: "tools/pixel-writer", encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" } })); } catch (e) { return { error: String(e.stderr || e.message).trim().split("\n").pop() }; } };
+    const out = mkd(join(tmpdir(), "gw-room-"));
+    const r = py(`import json, sys, hashlib\nsys.path.insert(0, '../sprite-writer')\nfrom pathlib import Path\nfrom PIL import Image\nfrom palette_locked import LOCKED_V3\nimport room_writer as w\nw.OUT = Path(${JSON.stringify(out)})\nw.main()\nres = {}\nfor n in ['room-props.png', 'room-props_em.png', 'room-fire.png', 'room-oil.png']:\n    im = Image.open('../../public/art/writer/' + n).convert('RGBA')\n    bad = sum(1 for (r, g, b, a) in im.getdata() if a not in (0, 255) or (a and '#%02x%02x%02x' % (r, g, b) not in LOCKED_V3))\n    same = hashlib.md5(open(${JSON.stringify(out)} + '/' + n, 'rb').read()).hexdigest() == hashlib.md5(open('../../public/art/writer/' + n, 'rb').read()).hexdigest()\n    res[n] = [im.width, im.height, bad, same]\nprint(json.dumps(res))`);
+    const want = { "room-props.png": [128, 32], "room-props_em.png": [128, 32], "room-fire.png": [128, 16], "room-oil.png": [32, 16] };
+    const ok = !r.error && Object.entries(want).every(([n, [w, h]]) => r[n] && r[n][0] === w && r[n][1] === h && r[n][2] === 0 && r[n][3] === true);
+    const src = readFileSync("tools/pixel-writer/room_writer.py", "utf8");
+    check("playtest1n", "the art: the room writer's four sheets (props and their emissive copy 8 cells of 16x32, the 4-frame fire, the oil slick) are palette v3 with hard alpha, the sizes the draw reads, and the writer rebuilds them byte for byte", ok && src.includes(TAG) && /from wild_writer import Canvas/.test(src), JSON.stringify(r));
+  }
+
+  // 17. Only the sim's fight and the draw moved: the frozen copies are playtest1m's (main e47342c), the draw is them plus
+  //     exactly the four tagged lines, and the older views read the frozen copies.
+  {
+    const cs = readFileSync("scripts/gravewake-check.mjs", "utf8");
+    const fd = readFileSync("scripts/frozen/playtest1n/draw.ts.txt", "utf8");
+    const live = readFileSync("src/game/draw.ts", "utf8");
+    const added = live.split("\n").filter((l) => !fd.split("\n").includes(l));
+    const back = live.split("\n").filter((l) => !/\/\/ playtest1n/.test(l) || /^import \{ fightLights/.test(l)).join("\n") === fd;
+    check("playtest1n", "only the fight moved: the frozen references (scripts/frozen/playtest1n/) are playtest1m's sim and draw byte for byte (as pushed at e47342c); the live draw is that plus exactly four tagged lines (the import, roomLights, roomScene, roomRims); every older view, rest digest and live pin reads the frozen copies (pt1mView under pt1lView, pt1nNew out of all seven rest digests)", md5f("scripts/frozen/playtest1n/sim.ts.txt") === "96ff3576076a7f9fa15d8d4567df5cf7" && md5f("scripts/frozen/playtest1n/draw.ts.txt") === "d118165d8af0411153f865b9cc3bfb6e" && added.length === 4 && added.every((l) => /\/\/ playtest1n/.test(l)) && back && cs.includes(': pt1mView(f); }') && pt1mView("src/game/sim.ts") === "scripts/frozen/playtest1n/sim.ts.txt" && pt1mView("src/game/draw.ts") === "scripts/frozen/playtest1n/draw.ts.txt" && pt1mView("src/game/room.ts") === "src/game/room.ts" && (cs.match(/!pt1nNew\(f\) && /g) ?? []).length >= 7 && cs.includes('"src/game/room.ts", "src/game/roomdraw.ts"]); // playtest1c adds'), `${added.length} ${back}`);
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, (x) => x)}`).join("\n")).digest("hex");
+    check("playtest1n", "every other source file, public file, map writer and sprite writer file is playtest1m's byte for byte (beside the two new modules, room.ts and roomdraw.ts, and the four room sheets)", rest === "08a6f0edf537ad995c93f06f31f7bf92", rest);
+  }
+
+  // 18. The owner notes.
+  {
+    const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const ag = readFileSync("AGENTS.project.md", "utf8");
+    check("playtest1n", "the owner notes: a dated note under each of Layout Two's three 2-3 px knockback lines (the shove, below ground only) and THE ROOM / WARY FOES / FAIR after its TELEGRAPHS section; AGENTS.project.md ## playtest1n; the notes carry the numbers the game uses", (rules.match(/\[OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat\] playtest1n: below ground a Slash or Whirl also shoves/g) ?? []).length === 3 && /THE ROOM\. [\s\S]*WARY FOES\. [\s\S]*FAIR\. /.test(rules) && ["up to 5 props", "(2x, a 0.4 s", "14 px past its post after a 0.35 s red mark", "(r 20, 4 s; foes 0.6x every 0.5 s", "the hero 0.4x", "(r 24, 10 s) that oils foes for 6 s", "big fire (r 28)", "fuse burns 0.8 s", "(r 32: the walk out from its centre plus 0.2 s is 0.63 s)", "take 3x and reel", "0.6 s, the hero 1x", "takes 3 hits", "(44 px long, 10 px either side, 0.6 s): foes in it 2.5x and stunned 1.5 s", "Two foes in three (fixed per foe, never a boss)", "own pool of 10 inside the 24-light budget"].every((t) => rules.replace(/\n\s*/g, " ").includes(t)) && ag.includes(`## playtest1n (use-the-room combat) — ${TAG}`));
+  }
+
+  // 19. Live pin (last).
+  {
+    const LIVE = {"src/game/sim.ts": "e4ff28d93acc7a3214131ed475dd144d", "src/game/draw.ts": "e8d23687274f3f98d0b5de67cdae2f85", "src/game/room.ts": "b69774ace098592a740ccc0888f373b6", "src/game/roomdraw.ts": "70d0adc2d09564e89b61e867facd87e1", "tools/pixel-writer/room_writer.py": "38671b0ff9cb9a4f58b4cd9159cd0187", "public/art/writer/room-props.png": "c167ea0d0e357e6032d67fde9edaf919", "public/art/writer/room-props_em.png": "93575ce25a74160e6c2b703f5aac484a", "public/art/writer/room-fire.png": "86a89140241a86ac93af0b09329180a4", "public/art/writer/room-oil.png": "22c12e5a8ff04f93fd8646441fb0f4e9", "rules/GAME_LAYOUT_TWO.txt": "8b50c0bc857fe8ec4df2c4a7e824835a", "AGENTS.project.md": "dbc1895b92ceca139ecfcf3f3d6d750a"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1n", "the live files are byte for byte playtest1n's (sim, draw, room, roomdraw, the room writer and its four sheets, the owner notes)", moved.length === 0 && Object.keys(LIVE).length === 11, moved.map((f) => `${f}=${md5f(f)}`).join(", "));
+  }
+  Object.assign(globalThis, { Image: had.Image, document: had.document, localStorage: had.ls }); Math.random = had.random;
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

@@ -8,14 +8,14 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 865 as of playtest1m), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 885 as of playtest1n), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)
 - Keep replies brief. Build one or two features at a time, check how they play, then send screenshots plus the source and playable zips.
 - Run every check before and after a change. Placement is seeded only, never `Math.random`.
 - Art is palette-locked and must be made through the writers, never hand-drawn.
-- Don't touch movement, collision, combat numbers, shops or audio unless that is the bug. Silent audio counts as a bug. [OWNER-APPROVED 2026-10-03] Exception: the playtest1j/1k combat batch (telegraphs, boss phases, elemental combos, companion commands, fight lights), which Bill approved on 2026-10-03 at 08:41 ET.
+- Don't touch movement, collision, combat numbers, shops or audio unless that is the bug. Silent audio counts as a bug. [OWNER-APPROVED 2026-10-03] Exception: the playtest1j/1k combat batch (telegraphs, boss phases, elemental combos, companion commands, fight lights), which Bill approved on 2026-10-03 at 08:41 ET, and playtest1n's use-the-room combat (approved 2026-10-03 15:41 ET).
 - Saves stay backward compatible.
 - A rule conflict needs the owner's approval, recorded as a dated `[OWNER-APPROVED EXCEPTION YYYY-MM-DD ...]` tag.
 - He plays on his phone (touch), with a Bluetooth gamepad, and with WASD and mouse on a PC. All three must work.
@@ -23,7 +23,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - Before any push: scan the files and history for secrets. `src/lib/auth/preview.ts` reads `PREVIEW_CLIENT_SECRET` from env in this repo, and the template's hard-coded value must never be committed.
 - Keep `CHANGELOG.md` and this file current, and use descriptive commits.
 
-## Current state (2026-10-03, playtest1m)
+## Current state (2026-10-03, playtest1n)
 - The feature list is done, festivals are done for all four seasons, map writer phases 1–3 are done (the 128x120 vale), and graphics pass rounds 1–3 and art audits 1–2 are done.
 - Screen and display settings are done (screen1), and a true 320×240 Retro mode is done (retro1, an owner-approved exception).
 - playtest1e–1g: the bigger world and edge border, wayrift portals, swamp paths, and biome trail art.
@@ -34,6 +34,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] (Bill, 2026-10-03 09:21 ET; an exception to Layout Two's "No bloom", noted under every such line): Display options rows Bloom glow Off / Low / High and Scanlines Off / Subtle / Strong, saved in their own record `gravewake-postfx-v1`. Bloom is a small WebGL1 glow layer over the untouched game canvas (half the game pixels, scaled up smoothly); scanlines are a static 2D column (work without WebGL). Defaults: scanlines Off; bloom Low only on a capable desktop GPU, Off on Phone / touch / software renderer / 2 cores or fewer / 2 GB or less, plus an fps guard that turns the default off for good if it costs frames. HUD stays dry. `src/game/postfx.ts`, `src/game/FxOptions.tsx`.
 
 - playtest1m (Bill, 2026-10-03 15:41 ET; tidy, no gameplay change): test1 195 tests, 188 pass, 0 fail, 7 app-template tests retired with a dated reason while the builder files they read are absent; lint 0 (fixed in code); 55 never-loaded art files left public/art and 51 stay with reasons (`scripts/frozen/playtest1m/removed-art.json`). After a full writer re-run, run `node scripts/prune-unused-art.mjs`.
+- playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] (Bill, 2026-10-03 15:41 ET; Layout Two's knockback lines and THE ROOM / WARY FOES / FAIR carry the dated notes): below ground a Slash or Whirl shoves a foe about a tile (onto spike traps: 2x and a 0.4 s reel), and each floor stands up to 5 seeded props: hanging lanterns that drop fire, oil barrels that make a slick (fire on it is a big fire, oiled foes WILDFIRE), powder barrels with a 0.8 s fuse and r 32 blast, and 3-hit pillars that topple down a violet lane (2.5x, 1.5 s stun). Two foes in three shy from live hazards. Every hazard is marked before it lands; nothing is saved. `src/game/room.ts`, `src/game/roomdraw.ts`, `tools/pixel-writer/room_writer.py`; sim.ts and draw.ts frozen as 1m under `scripts/frozen/playtest1n/`.
 ## Known issues
 - test1 skips 7 app-template tests while `.grok/` builder files, `server/` and `migrations/` are absent (see playtest1m in the CHANGELOG).
 - Summer vale nights stay dark (84% near-black) because the summer ground is darker.

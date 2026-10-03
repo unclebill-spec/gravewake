@@ -7,7 +7,6 @@ import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./t
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
 import { townRoomAt } from "./sim";
-import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
@@ -2528,7 +2527,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   // playtest1j: the fight's moving lights (fightlights.ts, a fixed pool): marks, wind-ups, a boss's roar, each spell's neon
   // core and impact flash, ash fire and live plates, in Bill's neon. They share the budget below.
   fightLights(tellView(g), out, (c) => fxElement(c, spellElement(c)), (s) => spellHead(s, spellProgress(s)), TILE);
-  roomLights(g, out); // playtest1n: fire, fuses, falls and lit lanterns, from the room's own pool
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
   const hero = seen.shift()!;
   seen.sort((a, b) => Math.hypot(a.x - g.px, a.y - g.py) - Math.hypot(b.x - g.px, b.y - g.py));
@@ -3340,7 +3338,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // playtest1j: every telegraph is a neon ground mark that fills over its tell (big red, mid violet, a rare's tint blue,
   // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
   paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
-  roomScene(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // playtest1n: the room's props, patches and marks
   if (g.darkUntil > g.worldMs) {
     for (let i = 0; i < 40; i++) px(ctx, g.px - 70 + (i * 17) % 140, g.py - 50 + (i * 13) % 90, 2, 2, "#0c0a08");
   }
@@ -3458,7 +3455,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     paintLightless(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
     // A decal must always read: telegraphs sit on top of the dark.
     paintTells(ctx, tellView(g), false, TILE, LINE_HALF, true); // playtest1j: rims and leading edges over the dark
-    roomRims(ctx, g); // playtest1n: the room's marks too
   }
   paintCombos(ctx, g); // playtest1k: statuses, orders and the combo pops, over the light and the Lightless dark
   drawWeather(ctx, g, viewW, viewH);

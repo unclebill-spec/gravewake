@@ -74,6 +74,7 @@ No foe and no context = tap does nothing (no dirt-swing).
 2. HIT FEEDBACK
 ================================================================
 On connect: 1-frame white flash on the struck sprite, 2–3 px knockback on the pixel grid.
+  [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] playtest1n: below ground a Slash or Whirl also shoves the foe it hits (110 px/s for 0.12 s, about 13 px; a mini or rare half that, a boss never) so it can be knocked onto spikes or into fire, oil or a blast. The 2–3 px knockback itself is unchanged, and above ground nothing else moves.
 Screen shake only on crit, warden, Fourfold, Sovereign, or vampire.
 No bloom. i-frames (Morrowstead 0.7s or title equivalent): portrait flickers.
   [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
@@ -292,6 +293,7 @@ LAW
 No second battle screen. Fights happen on the Wastes and in delves.
 Player verbs stay Layout One: MAIN Slash, hold Interact, SEC Whirl, 3RD Smite.
 Soft-lock 40° cone. i-frames + 1-frame flash + 2–3 px knockback already in Layout One.
+  [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] playtest1n: below ground a Slash or Whirl also shoves the foe it hits (110 px/s for 0.12 s, about 13 px; a mini or rare half that, a boss never) so it can be knocked onto spikes or into fire, oil or a blast. The 2–3 px knockback itself is unchanged, and above ground nothing else moves.
 Death: fallen overlay, reload run0. No gold tax.
 
 Threat is a pack problem, not a menu problem. You kite, interrupt, or die.
@@ -444,6 +446,26 @@ fair on touch controls"):
   and cached. Looks only: the sim never reads them. src/game/fightlights.ts.
 Never a full-screen red flash. Never a "PRESS TO DODGE" prompt.
 If you stand in the mark, you eat it. That is the skill.
+[OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] (playtest1n, Bill 2026-10-03 15:41 ET, an
+owner-approved gameplay change: "knock foes into spike traps and hazards ... lanterns or braziers ... barrels ... pillars
+... foes a little hazard-aware ... keep it fair, telegraph the hazards with the 1j marks and glow"):
+  THE ROOM. Each dungeon floor stands up to 5 props from its seed (one per 30 floor tiles; never in a corridor, by a
+  stair, chest, trap or secret, or where the hero arrives; the floor stays whole): a hanging lantern, an oil barrel, a
+  powder barrel, a cracked pillar. Nothing is saved: the same floor stands the same props every load.
+  Numbers are shares of the floor's trap hit (trapAtk). A foe shoved onto a spike trap springs it at once (2x, a 0.4 s
+  reel); raised spikes bite foes too (2x, once a rise). A struck lantern swings off its hook AWAY from the blow and lands
+  14 px past its post after a 0.35 s red mark: a fire patch (r 20, 4 s; foes 0.6x every 0.5 s as a fire hit, so a
+  poisoned foe is VENOM BLAST and an oiled one WILDFIRE; the hero 0.4x). An oil barrel bursts into a slick (r 24, 10 s)
+  that oils foes for 6 s; fire on the slick or the barrel makes a big fire (r 28). A powder barrel's fuse burns 0.8 s
+  under a red blast mark (r 32: the walk out from its centre plus 0.2 s is 0.63 s), then foes in it take 3x and reel
+  0.6 s, the hero 1x, and props in it catch. A pillar takes 3 hits, then topples away from the blow under a violet lane
+  (44 px long, 10 px either side, 0.6 s): foes in it 2.5x and stunned 1.5 s (minis and rares half, bosses no stun), the
+  hero 1x. Fire spells light props and oil at their impact; with no foe in reach a class spell or Smite aims at a prop.
+  WARY FOES. Two foes in three (fixed per foe, never a boss) will not step into live fire, a burning fuse's mark or a
+  rising spike: they slide round or wait. Oil and falling pillars they do not read. Bold ones walk on.
+  FAIR. Every hazard that lands later wears a neon mark first (lantern and blast red, pillar violet) and a fire patch keeps
+  a red rim; marks, fire, fuses and lit lanterns cast fight light from their own pool of 10 inside the 24-light budget.
+  Art is the room writer's (tools/pixel-writer/room_writer.py, palette v3). src/game/room.ts, src/game/roomdraw.ts.
 
 ================================================================
 WEAKNESSES — VERDICT
@@ -517,6 +539,7 @@ Death = fallen overlay + reload run0. No gold tax.
 
 FEEL
 1-frame flash + 2–3px knockback. Portrait flickers in i-frames. Soft-lock cone invisible.
+  [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] playtest1n: below ground a Slash or Whirl also shoves the foe it hits (110 px/s for 0.12 s, about 13 px; a mini or rare half that, a boss never) so it can be knocked onto spikes or into fire, oil or a blast. The 2–3 px knockback itself is unchanged, and above ground nothing else moves.
 Damage numbers = 0–9 sprite strip. No HUD sparkles.
 
 LIGHT + FX
