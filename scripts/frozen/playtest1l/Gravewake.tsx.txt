@@ -34,8 +34,6 @@ import {
   type View,
 } from "./screen";
 import { InstallButton } from "../pwa/InstallButton"; // install1
-import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
-import { FxOptions } from "./FxOptions"; // playtest1l
 import { useIosTipRequest } from "../pwa/install"; // install1
 
 /**
@@ -45,7 +43,6 @@ import { useIosTipRequest } from "../pwa/install"; // install1
 export function Gravewake() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
-  const fxRef = useRef<HTMLDivElement>(null); // playtest1l: the bloom and scanline layer
   const gameRef = useRef<Game | null>(null);
   const audioRef = useRef<AudioBus | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -121,7 +118,6 @@ export function Gravewake() {
     };
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
-    const fx = fxRef.current ? new PostFx(fxRef.current) : null; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
     let raf = 0;
     let last = performance.now();
     let alive = true;
@@ -179,7 +175,6 @@ export function Gravewake() {
         else if (game.mode === "map") drawMap(ctx, game, w, h);
         else drawWorld(ctx, game, w, h, v.k);
       }
-      fxFrame(fx, canvas, v, dprRaw, game.mode); // playtest1l: bloom and scanlines over the playfield (never the HUD)
       const mini = miniRef.current;
       if (mini && game.mode !== "title" && game.mode !== "map") {
         if (mini.width !== 96) mini.width = 96;
@@ -540,7 +535,6 @@ export function Gravewake() {
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
-      fx?.dispose(); // playtest1l
       document.removeEventListener("touchmove", touchMove);
       document.removeEventListener("gesturestart", gesture);
       document.removeEventListener("contextmenu", menu);
@@ -787,7 +781,6 @@ export function Gravewake() {
           pinchD.current = null;
         }}
       />
-      <div ref={fxRef} aria-hidden="true" data-testid="fx-layer" className="pointer-events-none absolute" />
       {game?.mode === "title" || !game ? (
         <section
           data-padnav
@@ -1941,7 +1934,6 @@ function ScreenOptions({ s, view, fs, onSet, onFullscreen, onClose }: { s: Scree
           {s.preset === "auto" && view.eff !== "auto" ? " (Auto on a touch screen)" : ""} · frame {view.bufW}×{view.bufH} · {view.k} px per game pixel · view {Math.round(view.worldW)}×{Math.round(view.worldH)} game px, as the zoom sets it
         </p>
       ) : null}
-      <FxOptions view={view} /> {/* playtest1l: Bloom glow and Scanlines */}
       <div className="flex flex-wrap gap-2">
         <button type="button" data-testid="options-fullscreen" className="rounded border border-primary px-3 py-2" onClick={onFullscreen}>
           {fs ? "Exit fullscreen" : "Fullscreen"}

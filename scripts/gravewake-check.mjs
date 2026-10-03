@@ -118,8 +118,15 @@ const pt1jNew = (f) => f === "src/game/telegraph.ts" || f === "src/game/fightlig
 // under pt1iView, pt1eView and group playtest1j). Its new modules (pt1kNew) are left out of the older rest digests.
 // Group playtest1k checks the live files.
 const PT1K_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx"];
-function pt1jView(f) { return PT1K_FROZEN.includes(f) ? `scripts/frozen/playtest1k/${f.split("/").pop()}.txt` : f; }
+function pt1jView(f) { return PT1K_FROZEN.includes(f) ? `scripts/frozen/playtest1k/${f.split("/").pop()}.txt` : pt1kView(f); }
 const pt1kNew = (f) => f === "src/game/combos.ts" || f === "src/game/commands.ts";
+// playtest1l (2026-10-03, [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines], a looks-only player
+// setting Bill asked for at 09:21 ET): the shell as playtest1k shipped it (main df00d6e), frozen under scripts/frozen/playtest1l/;
+// group playtest1k's shell text, rest digest and live pin read it there (pt1kView, under pt1jView). Its new modules (pt1lNew) are
+// left out of the older rest digests. Group playtest1l checks the live files.
+const PT1L_FROZEN = ["src/game/Gravewake.tsx"];
+function pt1kView(f) { return PT1L_FROZEN.includes(f) ? `scripts/frozen/playtest1l/${f.split("/").pop()}.txt` : f; }
+const pt1lNew = (f) => f === "src/game/postfx.ts" || f === "src/game/FxOptions.tsx";
 // playtest1g (2026-10-02, [OWNER-APPROVED 2026-10-02: playtest1g trail paths], drawing only): draw.ts as playtest1f
 // shipped it, frozen; group playtest1f's live pin reads it there (pt1fView).
 const PT1G_FROZEN = ["src/game/draw.ts"];
@@ -190,7 +197,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -8475,7 +8482,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8782,7 +8789,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9067,7 +9074,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1iView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1iView(f))}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9381,7 +9388,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1jView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(pt1jView(f))}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9761,7 +9768,7 @@ if (on("playtest1k")) {
   // 14. The shell: the keyboard handler, the touch strip (testids, dimmed while waiting, Heal/Guard and Stay/Follow, the
   //     pad glyph when a pad leads), placed beside the stick on every preset; help and the binds list name the orders.
   {
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const ui = readFileSync(pt1kView("src/game/Gravewake.tsx"), "utf8"); // playtest1l: the shell as 1k shipped it
     const keyb = /for \(const o of ORDERS\) if \(e\.code === bind\[o\]\) game\.order\(o\);/.test(ui);
     const strip = /data-testid="hud-orders"/.test(ui) && /data-testid=\{`order-\$\{o\}`\}/.test(ui) && /game\.orderWait\(o\)/.test(ui) && /\$\{wait > 0 \? "opacity-40" : ""\}/.test(ui) && /game\.allyStay \? "Follow" : "Stay"/.test(ui) && /game\.allyHeals\(\) \? "Heal" : "Guard"/.test(ui) && /onPointerDown=\{\(\) => \{\s*unlock\(\);\s*game\.order\(o\);\s*bump\(\);/.test(ui) && /padFirst \? <PadGlyph b=\{padLabel\(game\.padBind\[o\]\)\} \/>/.test(ui) && /left: "calc\(8\.25rem \+ var\(--sal\)\)", bottom: "calc\(0\.75rem \+ var\(--sab\)\)"/.test(ui) && /className="gw-orders absolute z-10 grid grid-cols-2 gap-1 sm:flex"/.test(ui) && /\{game\.companion && game\.mapId !== "camp" \? \(\s*<div\s*data-testid="hud-orders"/.test(ui);
     const help = /Give your companion orders: \{keyLabel\(game\.keyBind\.taunt\)\}/.test(ui) && /Spells react\. Fire on a poisoned or oiled foe explodes\./.test(ui) && /ORDER_LABEL\[act as keyof typeof ORDER_LABEL\]\.long/.test(ui);
@@ -9818,24 +9825,302 @@ if (on("playtest1k")) {
   // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1K_FROZEN.includes(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
     check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
     const files = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx", "src/game/combos.ts", "src/game/commands.ts"];
-    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    const untagged = files.filter((f) => !readFileSync(pt1kView(f), "utf8").includes(TAG));
     const notes = (law.match(/\[OWNER-APPROVED 2026-10-03: elemental combos, companion commands\]/g) ?? []).length;
     check("playtest1k", "the change is an owner-approved combat and companion change, recorded as dated [OWNER-APPROVED 2026-10-03] notes in rules/GAME_LAYOUT_TWO.txt (combat and companions, where the law guards them) and AGENTS.project.md, and tagged in every file it touches", notes >= 2 && /## playtest1k/.test(agents) && agents.includes(TAG) && untagged.length === 0, `${notes} ${untagged}`);
     const cs = readFileSync("scripts/gravewake-check.mjs", "utf8");
     check("playtest1k", "the frozen references (scripts/frozen/playtest1k/) are playtest1j's sim, draw and shell byte for byte (as pushed at 1656bf0), and the older groups' views, rest digests and live pins read them", md5f("scripts/frozen/playtest1k/sim.ts.txt") === "50c8cb43e2d0ae7222c2e7df4edb3681" && md5f("scripts/frozen/playtest1k/draw.ts.txt") === "763b9990c200ba16ee6b8e544d920eec" && md5f("scripts/frozen/playtest1k/Gravewake.tsx.txt") === "8260af8345576dbc081da2fd064731d9" && /const pt1iView = \(f\) => [^\n]*pt1jView\(f\)/.test(cs) && /const pt1eView = \(f\) => [^\n]*pt1jView\(f\)/.test(cs) && /md5f\(pt1jView\(f\)\) !== hh/.test(cs) && (cs.match(/!pt1kNew\(f\)/g) ?? []).length >= 5);
     const LIVE = {"src/game/sim.ts": "d52ddac1d0e38c429c2d0fcbff81f62c", "src/game/draw.ts": "d118165d8af0411153f865b9cc3bfb6e", "src/game/Gravewake.tsx": "8e283beb8778c1ebc2b29db90d9d1494", "src/game/combos.ts": "7555b47301bc8f632b95305cbb2ce9a5", "src/game/commands.ts": "d731301e75df0576ec796342bf58b232"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1kView(f)) !== hh).map(([f]) => f);
     check("playtest1k", "the live game files are byte for byte playtest1k's (sim, draw, shell, combos, commands)", moved.length === 0 && Object.keys(LIVE).length === 5, moved.join(", "));
   }
 }
 
+// playtest1l ([OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines], Bill's 2026-10-03 09:21 ET
+// ask): a Bloom glow (Off / Low / High) and Scanlines (Off / Subtle / Strong) setting in the Display options, laid over the
+// finished playfield frame by src/game/postfx.ts (WebGL1 bloom, a 2D scanline column). Looks only: the sim, the draw, the
+// screen settings and the saves do not move; only the shell gains a layer, one call per frame and the options rows.
+if (on("playtest1l")) {
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1l.tsx"), `export * from "${root}/src/game/postfx.ts";\nexport { FxOptions } from "${root}/src/game/FxOptions.tsx";\nexport { renderToStaticMarkup } from "react-dom/server";\nexport { createElement } from "react";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1l.tsx"), "--bundle", "--platform=node", "--format=esm", "--jsx=automatic", "--log-level=error", "--banner:js=import { createRequire as __cr } from \"node:module\"; const require = __cr(import.meta.url);", `--outfile=${join(dir, "pt1l.mjs")}`], { stdio: ["ignore", "ignore", "inherit"], env: { ...process.env, NODE_PATH: `${root}/node_modules` } });
+  const had = { ls: globalThis.localStorage };
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  const P = await import(pathToFileURL(join(dir, "pt1l.mjs")).href);
+  const CAP = { gl: true, soft: false, cores: 8, memory: 8 };
+  // A DOM stand-in for the layer: canvases with a 2D context that counts its writes; WebGL is never there in node.
+  const mockDoc = () => {
+    const doc = {
+      puts: 0, draws: 0,
+      createElement() {
+        const c = { width: 300, height: 150, style: {}, dataset: {}, attrs: {}, parent: null, setAttribute(k, v) { c.attrs[k] = v; }, addEventListener() {}, remove() { if (c.parent) c.parent.children = c.parent.children.filter((x) => x !== c); c.parent = null; },
+          getContext(t) { return t === "2d" ? (c.ctx ??= { drawImage() { doc.draws++; }, createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), putImageData(img) { doc.puts++; c.img = img; } }) : null; } };
+        return c;
+      },
+    };
+    const rootEl = { ownerDocument: doc, children: [], style: {}, dataset: {}, appendChild(c) { c.parent = rootEl; rootEl.children.push(c); } };
+    return { doc, rootEl };
+  };
+  const view = (eff, worldW, worldH, bufW, bufH, cssW, cssH) => ({ eff, worldW, worldH, bufW, bufH, css: { x: 0, y: 0, w: cssW, h: cssH }, box: { x: 0, y: 0, w: cssW, h: cssH }, k: 1, dprA: 1, devPerGame: 1, devPerBuf: 1, tv: false, ui: 1 });
+  const RETRO = view("retro", 320, 240, 320, 240, 960, 720);
+  const AUTO = view("auto", 640, 360, 1920, 1080, 1920, 1080);
+  const PHONE = view("phone", 480, 216, 480, 216, 844, 390);
+  const srcCanvas = { style: { left: "12px", top: "0px", width: "960px", height: "720px" } };
+
+  // 1. The record: its own key, field by field, old boolean forms migrate, broken or foreign records fall back.
+  {
+    const p = P.parseFx;
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const def = same(P.DEFAULT_FX, { bloom: null, scan: "off", autoOff: false }) && [null, undefined, "", "{", "[1,2]", "null", "7", '"low"'].every((r) => same(p(r), P.DEFAULT_FX));
+    const keep = same(p('{"bloom":"high","scan":"strong","autoOff":true}'), { bloom: "high", scan: "strong", autoOff: true }) && same(p('{"bloom":"off","scan":"subtle"}'), { bloom: "off", scan: "subtle", autoOff: false });
+    const old = same(p('{"bloom":true,"scan":true}'), { bloom: "low", scan: "subtle", autoOff: false }) && same(p('{"bloom":false,"scan":false}'), { bloom: "off", scan: "off", autoOff: false });
+    const field = same(p('{"bloom":"neon","scan":"strong","autoOff":"yes"}'), { bloom: null, scan: "strong", autoOff: false }) && same(p('{"bloom":"low","scan":9}'), { bloom: "low", scan: "off", autoOff: false });
+    for (const k of Object.keys(store)) delete store[k];
+    P.fxStore.reload();
+    let heard = 0;
+    const un = P.fxStore.subscribe(() => heard++);
+    const first = same(P.fxStore.get(), P.DEFAULT_FX);
+    P.fxStore.set({ scan: "strong" });
+    P.fxStore.set({ bloom: "high" });
+    const saved = store[P.FX_KEY] === '{"bloom":"high","scan":"strong","autoOff":false}' && Object.keys(store).length === 1;
+    store[P.FX_KEY] = '{"bloom":true}';
+    P.fxStore.reload();
+    const migrated = same(P.fxStore.get(), { bloom: "low", scan: "off", autoOff: false });
+    un();
+    P.fxStore.set({ scan: "off" });
+    const ls = globalThis.localStorage;
+    globalThis.localStorage = { getItem() { throw new Error("private"); }, setItem() { throw new Error("private"); } };
+    const priv = same(P.loadFx(), P.DEFAULT_FX) && (() => { try { P.saveFx({ bloom: "low", scan: "off", autoOff: false }); return true; } catch { return false; } })();
+    globalThis.localStorage = ls;
+    check("playtest1l", "the settings record: its own key (gravewake-postfx-v1, nothing else written), read field by field (bloom unset = the device default, scanlines Off), an older boolean record migrates (true → Low / Subtle), broken or foreign values fall back, private mode never throws; the store saves each pick at once and tells its listeners", P.FX_KEY === "gravewake-postfx-v1" && def && keep && old && field && first && saved && migrated && heard === 3 && priv, JSON.stringify({ def, keep, old, field, first, saved, migrated, heard, priv }));
+  }
+
+  // 2. Defaults: Low on a capable GPU (Auto, Retro, TV); Off on the Phone preset, a software renderer, ≤2 cores, ≤2 GB,
+  //    after the guard, and without WebGL; a player's pick wins, except without WebGL.
+  {
+    const d = P.deviceBloom;
+    const capable = ["auto", "retro", "tv", "desktop", "tablet"].every((e) => d(CAP, e) === "low") && d({ ...CAP, memory: null, cores: 0 }, "auto") === "low";
+    const off = d(CAP, "phone") === "off" && P.PHONE_BLOOM === "off" && d({ ...CAP, gl: false }, "auto") === "off" && d({ ...CAP, soft: true }, "auto") === "off" && d({ ...CAP, cores: 2 }, "auto") === "off" && d({ ...CAP, memory: 2 }, "auto") === "off" && d(CAP, "auto", true) === "off" && d({ ...CAP, cores: 4, memory: 4 }, "auto") === "low";
+    const e = P.effectiveBloom;
+    const pick = e({ bloom: "high", scan: "off", autoOff: true }, { ...CAP, soft: true }, "phone") === "high" && e({ bloom: "off", scan: "off", autoOff: false }, CAP, "auto") === "off" && e({ bloom: "high", scan: "off", autoOff: false }, { ...CAP, gl: false }, "auto") === "off" && e(P.DEFAULT_FX, CAP, "auto") === "low" && e(P.DEFAULT_FX, CAP, "phone") === "off" && e({ bloom: null, scan: "off", autoOff: true }, CAP, "auto") === "off";
+    check("playtest1l", "defaults: bloom Low on a capable WebGL device (Auto, Retro, TV), Off on the Phone preset, a software renderer, two cores or fewer, 2 GB or less, once the fps guard caught it, and always without WebGL; a player's own pick wins (except without WebGL); scanlines default Off", capable && off && pick && P.DEFAULT_FX.scan === "off", JSON.stringify({ capable, off, pick }));
+  }
+
+  // 3. The fps guard: steady fast play keeps the default bloom; slow play tries a window without it and turns it off only if
+  //    that is clearly faster; otherwise it rests a minute; a gap restarts the window; once off it stays off.
+  {
+    const run = (fpsOn, fpsOff, secs, gaps = []) => {
+      const g = P.newGuard(0);
+      let t = 0, out = [];
+      while (t < secs * 1000) {
+        const r = P.guardStep(g, t);
+        out.push(r);
+        if (r === "drop") break;
+        t += 1000 / (r === "trial" ? fpsOff : fpsOn);
+        for (const [at, len] of gaps) if (t >= at && t - 1000 / fpsOn < at) t += len;
+      }
+      return { g, out, t };
+    };
+    const fast = run(60, 60, 30);
+    const keepFast = fast.out.every((r) => r === "keep") && fast.g.phase === "watch";
+    const slow = run(25, 40, 30);
+    const dropped = slow.out.at(-1) === "drop" && slow.out.includes("trial") && slow.g.phase === "done" && slow.t > P.GUARD.warm + 2 * P.GUARD.window - 100 && slow.t < P.GUARD.warm + 2 * P.GUARD.window + 200 && P.guardStep(slow.g, 1e9) === "drop";
+    const flat = run(25, 26, 20);
+    const rested = !flat.out.includes("drop") && flat.g.phase === "rest" && flat.g.until > 60000;
+    const warmKeep = run(10, 60, 2.9).out.every((r) => r === "keep");
+    // A 2 s pause (a menu, a hidden tab) every 3 s: no full window ever fills, so nothing is judged.
+    const gappy = run(25, 60, 30, Array.from({ length: 12 }, (_, i) => [3000 + i * 3000, 2000]));
+    const gapOk = gappy.out.every((r) => r === "keep");
+    check("playtest1l", "the fps guard (the default bloom only): 60 fps keeps it; under 40 fps for a 4 s window it tries 4 s without and turns it off for good when that is 20% faster, else rests a minute and keeps it; the first 3 s and any window broken by a pause (a menu, a hidden tab) judge nothing", keepFast && dropped && rested && warmKeep && gapOk && P.GUARD.floor === 40 && P.GUARD.gain === 1.2, JSON.stringify({ keepFast, dropped, rested, warmKeep, gapOk, t: slow.t }));
+  }
+
+  // 4. Sizes: the glow is half the game pixels seen (at most 480 wide, the frame's aspect); the scanlines are one row per
+  //    game pixel row (Retro: 240), darkest at each row's foot, Strong darker than Subtle, Off none.
+  {
+    const r = P.fxSize(RETRO, 1, "strong", "low");
+    const a = P.fxSize(AUTO, 2, "subtle", "high");
+    const o = P.fxSize(PHONE, 3, "off", "off");
+    const sizes = r.glowW === 160 && r.glowH === 120 && r.rows === 720 && r.rowPx === 3 && a.glowW === 320 && a.glowH === 180 && a.rows === 2160 && a.rowPx === 6 && o.rows === 0 && o.rowPx === 0 && o.glowW === 240 && P.fxSize(view("auto", 2000, 1000, 2000, 1000, 2000, 1000), 1, "off", "low").glowW === 480 && P.fxSize(view("auto", 2000, 1000, 2000, 1000, 9000, 9000), 1, "subtle", "low").rows === 4320;
+    const sub = P.scanColumn(720, 3, "subtle");
+    const str = P.scanColumn(720, 3, "strong");
+    const rows240 = (col, per) => { let n = 0; for (let y = per - 1; y < col.length; y += per) if (col[y] > col[y - 1]) n++; return n; };
+    const shape = rows240(str, 3) === 240 && rows240(sub, 3) === 240 && str[0] < str[2] && sub[0] <= sub[2] && str[2] === str[5] && Math.max(...str) <= Math.round(255 * P.SCAN.strong.dark) && Math.max(...sub) <= Math.round(255 * P.SCAN.subtle.dark) && str.reduce((s, x) => s + x, 0) > sub.reduce((s, x) => s + x, 0) && Math.max(...sub) > 30 && P.scanColumn(10, 2, "off").every((x) => x === 0);
+    check("playtest1l", "sizes: the glow buffer is half the game pixels seen (Retro 160x120, at most 480 wide, the frame's aspect); the scanlines are one dark band per game row (Retro 320x240: 240 on screen), darkest at each row's foot, Strong darker than Subtle, at most 4320 device rows, none when Off", sizes && shape, JSON.stringify({ r, a, o, shape }));
+  }
+
+  // 5. The layer without WebGL: bloom stays off (whatever the pick), the scanlines still draw from a 2D column redrawn only
+  //    when the size or setting changes; nothing on the title or the full map; the layer sits on the game canvas's box;
+  //    dispose takes it out of the page.
+  {
+    const { doc, rootEl } = mockDoc();
+    const fx = new P.PostFx(rootEl);
+    const two = rootEl.children.length === 2 && rootEl.children[0].dataset.testid === "fx-glow" && rootEl.children[1].dataset.testid === "fx-scan" && rootEl.children.every((c) => c.style.pointerEvents === "none" && c.attrs["aria-hidden"] === "true" && c.style.display === "none") && rootEl.children[1].style.imageRendering === "pixelated";
+    const noGl = fx.caps.gl === false && fx.gl === null && P.activeFx() === fx;
+    P.fxStore.set({ bloom: "high", scan: "strong", autoOff: false });
+    P.fxFrame(fx, srcCanvas, RETRO, 1, "play", 0);
+    const t1 = rootEl.dataset.fx;
+    const shown = rootEl.children[0].style.display === "none" && rootEl.children[1].style.display === "block" && rootEl.children[1].height === 720 && rootEl.children[1].width === 1 && doc.puts === 1 && doc.draws === 0;
+    const alphas = rootEl.children[1].img && [...rootEl.children[1].img.data].filter((_, i) => i % 4 === 3).join() === [...P.scanColumn(720, 3, "strong")].join();
+    for (let i = 1; i < 30; i++) P.fxFrame(fx, srcCanvas, RETRO, 1, "play", i * 16);
+    const once = doc.puts === 1;
+    P.fxFrame(fx, srcCanvas, RETRO, 2, "play", 600);
+    const resized = doc.puts === 2 && rootEl.children[1].height === 1440;
+    const placed = rootEl.style.left === "12px" && rootEl.style.top === "0px" && rootEl.style.width === "960px" && rootEl.style.height === "720px";
+    P.fxFrame(fx, srcCanvas, RETRO, 2, "title", 700);
+    const title = rootEl.dataset.fx === "off:off" && rootEl.children[1].style.display === "none" && fx.last === null;
+    P.fxFrame(fx, srcCanvas, RETRO, 2, "map", 800);
+    const map = rootEl.dataset.fx === "off:off";
+    P.fxStore.set({ bloom: null, scan: "off" });
+    P.fxFrame(fx, srcCanvas, AUTO, 1, "play", 900);
+    const dry = rootEl.dataset.fx === "off:off" && fx.guard === null;
+    fx.dispose();
+    const gone = rootEl.children.length === 0 && P.activeFx() === null;
+    P.fxFrame(null, srcCanvas, AUTO, 1, "play", 1000);
+    check("playtest1l", "without WebGL (and in node): bloom stays off whatever the pick, the scanlines still draw (Retro: a 1 px column of 720 device rows, redrawn only on a resize or a new setting), nothing shows on the title or the full map, the layer follows the game canvas's box, both canvases are aria-hidden and click-through, and dispose takes them out", two && noGl && t1 === "off:strong" && shown && alphas && once && resized && placed && title && map && dry && gone, JSON.stringify({ two, noGl, t1, shown, alphas, once, resized, placed, title, map, dry, gone }));
+  }
+
+  // 6. With a GPU (a stand-in pass): the default bloom draws Low on a capable device, the guard turns it off when it costs
+  //    frames and the record remembers it; a player's own pick is never guarded; Phone draws none by default.
+  {
+    const { rootEl } = mockDoc();
+    const fx = new P.PostFx(rootEl);
+    fx.dispose();
+    fx.caps = { ...CAP };
+    let glows = 0;
+    fx.drawGlow = (src, f) => { if (f.bloom === "off") return false; glows++; return true; };
+    P.fxStore.set({ bloom: null, scan: "off", autoOff: false });
+    P.fxFrame(fx, srcCanvas, AUTO, 1, "play", 0);
+    const low = rootEl.dataset.fx === "low:off" && fx.last?.bloom === "low" && fx.guard?.phase === "watch";
+    let t = 0;
+    while (t < 20000 && !P.fxStore.get().autoOff) { t += rootEl.dataset.fx === "low:off" ? 40 : 25; P.fxFrame(fx, srcCanvas, AUTO, 1, "play", t); }
+    const caught = P.fxStore.get().autoOff === true && P.fxStore.get().bloom === null && JSON.parse(store[P.FX_KEY]).autoOff === true && rootEl.dataset.fx === "off:off";
+    P.fxFrame(fx, srcCanvas, AUTO, 1, "play", t + 16);
+    const stays = rootEl.dataset.fx === "off:off";
+    P.fxStore.set({ bloom: "low", autoOff: true });
+    fx.guard = null;
+    for (let i = 0; i < 600; i++) P.fxFrame(fx, srcCanvas, AUTO, 1, "play", t + 100 + i * 40);
+    const own = rootEl.dataset.fx === "low:off" && fx.guard === null && P.fxStore.get().bloom === "low";
+    P.fxStore.set({ bloom: null, autoOff: false });
+    P.fxFrame(fx, srcCanvas, PHONE, 3, "play", t + 1e5);
+    const phone = rootEl.dataset.fx === "off:off";
+    P.fxStore.set({ bloom: "high" });
+    P.fxFrame(fx, srcCanvas, PHONE, 3, "play", t + 1e5 + 16);
+    const phonePick = rootEl.dataset.fx === "high:off";
+    P.fxStore.set({ bloom: null, scan: "off", autoOff: false });
+    check("playtest1l", "with WebGL (a stand-in pass): the default bloom draws Low on a capable device; at 25 fps against 40 the guard turns it off within its windows and the record remembers it (autoOff), a player's own Low is never guarded, the Phone preset draws none by default and High when picked", low && caught && t < 12000 && stays && own && phone && phonePick && glows > 0, JSON.stringify({ low, caught, t, stays, own, phone, phonePick }));
+  }
+
+  // 7. The shader pass reads the frame once, small: one 2D copy at twice the glow size, never a full-size upload, a
+  //    bright-and-saturated extract (grey and white bloom little), separable blur, glow-only output (premultiplied).
+  {
+    const src = readFileSync("src/game/postfx.ts", "utf8");
+    const pass = /const sw = f\.glowW \* 2;/.test(src) && /sc\.imageSmoothingEnabled = true;/.test(src) && /sc\.drawImage\(src, 0, 0, sw, sh\);/.test(src) && /gl\.texImage2D\(gl\.TEXTURE_2D, 0, gl\.RGBA, gl\.RGBA, gl\.UNSIGNED_BYTE, this\.small\);/.test(src) && (src.match(/texImage2D/g) ?? []).length === 2 && !/getImageData|readPixels|toDataURL/.test(src);
+    const shade = /smoothstep\(thr,thr\+/.test(src) && /\*mix\(\$\{BLOOM\.satFloor\.toFixed\(3\)\},1\.0,smoothstep/.test(src) && P.BLOOM.satFloor <= 0.2 && /smoothstep\(\$\{BLOOM\.satLo/.test(src) && /vec4\(c,max\(c\.r,max\(c\.g,c\.b\)\)\)/.test(src) && /premultipliedAlpha: true/.test(src) && /antialias: false/.test(src) && P.BLOOM.low.strength < P.BLOOM.high.strength && P.BLOOM.low.threshold > P.BLOOM.high.threshold && P.BLOOM.low.passes === 2 && P.BLOOM.high.passes === 3;
+    const safe = /webglcontextlost/.test(src) && /e\.preventDefault\(\);/.test(src) && /webglcontextrestored/.test(src) && /!this\.progs \|\| this\.lost \|\| gl\.isContextLost\(\)\) return false;/.test(src) && /swiftshader\|llvmpipe/.test(src) && /this\.cost > REFRESH\.fast && this\.tick % 2 === 1/.test(src) && P.REFRESH.fast === 4;
+    check("playtest1l", "the WebGL pass: one smoothed 2D copy of the frame at twice the glow size per refresh (no full-size upload, no readback), a bright-and-saturated extract so grey text, bone and snow bloom little, a separable blur (2 passes Low, 3 wider High), a glow-only premultiplied canvas; a lost context hides it and a restored one rebuilds it; a software renderer counts as weak; past 4 ms a refresh it runs every second frame", pass && shade && safe, JSON.stringify({ pass, shade, safe }));
+  }
+
+  // 8. The options rows (server-rendered): Bloom glow Off / Low / High and Scanlines Off / Subtle / Strong as plain buttons
+  //    (touch, the pad's menu focus and keys reach them), the default marked, Low and High disabled without WebGL (a note
+  //    says why), the autoOff note, (CRT) on Strong in Retro.
+  {
+    const html = (eff) => P.renderToStaticMarkup(P.createElement(P.FxOptions, { view: { ...AUTO, eff } })).replaceAll("<!-- -->", "");
+    P.fxStore.set({ bloom: null, scan: "off", autoOff: false });
+    const none = html("auto");
+    const ids = ["fx-options", "bloom-off", "bloom-low", "bloom-high", "scan-off", "scan-subtle", "scan-strong", "bloom-note"].every((id) => none.includes(`data-testid="${id}"`)) && (none.match(/<button/g) ?? []).length === 6 && (none.match(/type="button"/g) ?? []).length === 6;
+    const disabled = /data-testid="bloom-low" aria-pressed="false" disabled=""/.test(none) && /data-testid="bloom-high" aria-pressed="false" disabled=""/.test(none) && !/data-testid="bloom-off"[^>]*disabled=""/.test(none) && !/data-testid="scan-[a-z]+"[^>]*disabled=""/.test(none) && (none.match(/disabled=""/g) ?? []).length === 2 && /Bloom needs WebGL/.test(none) && /data-testid="bloom-off" aria-pressed="true"/.test(none);
+    const { rootEl } = mockDoc();
+    const fx = new P.PostFx(rootEl);
+    fx.caps = { ...CAP };
+    const a = html("auto");
+    const lowDef = /data-testid="bloom-low" aria-pressed="true"[^>]*>Low \(default\)</.test(a) && !/data-testid="bloom-note"/.test(a) && !/disabled=""/.test(a);
+    const p = html("phone");
+    const phoneDef = /data-testid="bloom-off" aria-pressed="true"[^>]*>Off \(default\)</.test(p);
+    P.fxStore.set({ autoOff: true });
+    const note = /Bloom was turned off to keep the game smooth here/.test(html("auto"));
+    P.fxStore.set({ bloom: "high", scan: "strong" });
+    const r = html("retro");
+    const picked = /data-testid="bloom-high" aria-pressed="true"[^>]*>High</.test(r) && !/\(default\)/.test(r) && !/bloom-note/.test(r) && /data-testid="scan-strong" aria-pressed="true"[^>]*>Strong \(CRT\)</.test(r) && !/\(CRT\)/.test(html("auto"));
+    fx.dispose();
+    P.fxStore.set({ bloom: null, scan: "off", autoOff: false });
+    const src = readFileSync("src/game/FxOptions.tsx", "utf8");
+    const sync = /useSyncExternalStore\(fxStore\.subscribe, fxStore\.get, fxStore\.get\)/.test(src) && /onClick=\{\(\) => fxStore\.set\(\{ bloom: id \}\)\}/.test(src) && /onClick=\{\(\) => fxStore\.set\(\{ scan: id \}\)\}/.test(src);
+    check("playtest1l", "the options rows: Bloom glow Off / Low / High and Scanlines Off / Subtle / Strong as six plain buttons (touch, the pad's menu focus and keys reach them; aria-pressed shows the pick), the device default marked (Low on a capable Auto, Off on Phone), Low and High disabled with a note without WebGL, a note after the guard, Strong reads (CRT) in Retro; a press saves at once", ids && disabled && lowDef && phoneDef && note && picked && sync, JSON.stringify({ ids, disabled, lowDef, phoneDef, note, picked, sync }));
+  }
+
+  // 9. The shell: exactly the playtest1k shell plus the layer's lines (two imports, the ref, the pass after the 2D context,
+  //    one call after the draw, dispose in the cleanup, the layer right after the game canvas and before every HUD element,
+  //    the rows in ScreenOptions before the fullscreen row, the Install row still there).
+  {
+    const live = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const old = readFileSync("scripts/frozen/playtest1l/Gravewake.tsx.txt", "utf8");
+    const ADDED = [
+      'import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]',
+      'import { FxOptions } from "./FxOptions"; // playtest1l',
+      "  const fxRef = useRef<HTMLDivElement>(null); // playtest1l: the bloom and scanline layer",
+      "    const fx = fxRef.current ? new PostFx(fxRef.current) : null; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]",
+      "      fxFrame(fx, canvas, v, dprRaw, game.mode); // playtest1l: bloom and scanlines over the playfield (never the HUD)",
+      "      fx?.dispose(); // playtest1l",
+      '      <div ref={fxRef} aria-hidden="true" data-testid="fx-layer" className="pointer-events-none absolute" />',
+      "      <FxOptions view={view} /> {/* playtest1l: Bloom glow and Scanlines */}",
+    ];
+    const L = live.split("\n");
+    const at = ADDED.map((a) => L.indexOf(a));
+    const once = ADDED.every((a) => L.filter((l) => l === a).length === 1);
+    const rest = L.filter((l) => !ADDED.includes(l)).join("\n") === old;
+    const idx = (re) => L.findIndex((l) => re.test(l));
+    const ctx2d = idx(/getContext\("2d"/);
+    const draw = idx(/^\s+else drawWorld\(ctx, game, w, h, v\.k\);$/);
+    const cv = L.slice(0, at[6]).findLastIndex((l) => /^\s+<canvas$/.test(l) || /^\s+<canvas\s/.test(l));
+    const canvasEnd = cv >= 0 && L[at[6] - 1] === "      />" && L.slice(cv + 1, at[6] - 1).every((x) => !/^\s+<[A-Za-z]/.test(x));
+    const firstHud = idx(/data-testid="(hud|title|minimap)/);
+    const order = ctx2d >= 0 && at[3] > ctx2d && draw >= 0 && at[4] === draw + 2 && L[draw + 1] === "      }" && at[5] > at[4] && firstHud > at[6] && canvasEnd && L.slice(0, at[6]).filter((l) => /^\s+<canvas/.test(l)).length === 1;
+    const so = live.indexOf("function ScreenOptions(");
+    const inSo = so > 0 && live.indexOf(ADDED[7]) > so && live.indexOf(ADDED[7]) < live.indexOf('data-testid="options-fullscreen"', so) && live.indexOf('data-testid="screen-info"', so) < live.indexOf(ADDED[7]);
+    const install = /<InstallButton/.test(live) && (live.match(/<InstallButton/g) ?? []).length === (old.match(/<InstallButton/g) ?? []).length;
+    check("playtest1l", "the shell is playtest1k's plus eight tagged lines: the imports, the layer's ref, the pass made after the 2D context, one fxFrame call right after the draw, dispose in the cleanup, the fx-layer (aria-hidden, click-through) right after the game canvas and before the title and every HUD element (so HUD text stays dry), the rows in ScreenOptions after the screen info and before Fullscreen; the Install button untouched", once && rest && order && inSo && install, JSON.stringify({ once, rest, order, inSo, install, at, ctx2d, draw, firstHud, cv, canvasEnd }));
+  }
+
+  globalThis.localStorage = had.ls;
+
+  // 10. Laws: looks only (the rest byte for byte), the base path, PWA and offline cache untouched, the dated owner notes,
+  //     the frozen playtest1k shell, the live pin (last).
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1l", "looks only: every other source file (sim, draw, screen settings, saves, HUD, the service worker and manifest in public/), the map writer and sprite writer are playtest1k's byte for byte (beside the two new modules, postfx.ts and FxOptions.tsx)", rest === "48a91245db9da25edb2663ccf0101ac7", rest);
+    const sim = readFileSync("src/game/sim.ts", "utf8") + readFileSync("src/game/draw.ts", "utf8") + readFileSync("src/game/screen.ts", "utf8");
+    check("playtest1l", "the build, base path and offline cache are untouched (vite.config.ts, package.json and vercel.json as playtest1k shipped them), and nothing in the sim, the draw or the screen settings reads the layer", md5f("vite.config.ts") === "7e3cef5ab1d7501c86890c4608e3ff28" && md5f("package.json") === "681fd1e5f320944b44e762cb01eb0c02" && md5f("vercel.json") === "c4ec4b6c370869f73641d08a0655721a" && !/postfx|FxOptions/.test(sim), "");
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const prompt = readFileSync("rules/GAME_LAYOUT_TWO_PROMPT.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const lines = law.split("\n");
+    const bare = lines.map((l, i) => [l, i]).filter(([l]) => /no bloom/i.test(l) && !l.includes(TAG)).filter(([, i]) => !lines.slice(i + 1, i + 3).some((x) => x.includes(TAG))).map(([, i]) => i + 1);
+    const notes = (law.match(/\[OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines\]/g) ?? []).length;
+    const files = ["src/game/Gravewake.tsx", "src/game/postfx.ts", "src/game/FxOptions.tsx"];
+    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    check("playtest1l", "the change is an owner-approved exception to Layout Two's \"No bloom\", a dated note under every \"No bloom\" line of rules/GAME_LAYOUT_TWO.txt and the prompt file (optional, playfield only, HUD dry, off without WebGL) and in AGENTS.project.md, and tagged in every file it touches", bare.length === 0 && notes >= 5 && prompt.includes(TAG) && /## playtest1l/.test(agents) && agents.includes(TAG) && untagged.length === 0, `${bare} ${notes} ${untagged}`);
+    const cs = readFileSync("scripts/gravewake-check.mjs", "utf8");
+    check("playtest1l", "the frozen reference (scripts/frozen/playtest1l/) is playtest1k's shell byte for byte (as pushed at df00d6e), group playtest1k reads it (pt1kView under pt1jView), and every older rest digest leaves the new modules out", md5f("scripts/frozen/playtest1l/Gravewake.tsx.txt") === "8e283beb8778c1ebc2b29db90d9d1494" && cs.includes('const PT1L_FROZEN = ["src/game/Gravewake.tsx"];') && cs.includes("function pt1kView(f) { return PT1L_FROZEN.includes(f) ? `scripts/frozen/playtest1l/${f.split(\"/\").pop()}.txt` : f; }") && /function pt1jView\(f\) \{[^\n]*: pt1kView\(f\); \}/.test(cs) && /md5f\(pt1kView\(f\)\) !== hh/.test(cs) && (cs.match(/!pt1lNew\(f\)/g) ?? []).length >= 6);
+    const LIVE = {"src/game/Gravewake.tsx": "8ab3379a9a8868799ddfeaaac3c29dbf", "src/game/postfx.ts": "a279380ab568caf4f588c8ee1ace716d", "src/game/FxOptions.tsx": "9cc53b4546f1b5cc825ddb3c0482c560"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1l", "the live game files are byte for byte playtest1l's (shell, postfx, options rows)", moved.length === 0 && Object.keys(LIVE).length === 3, moved.join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

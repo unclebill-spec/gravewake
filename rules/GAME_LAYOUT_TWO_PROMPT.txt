@@ -20,6 +20,7 @@ Glow local and cheap. Playfield only. cycleT drives grade. Lamps own night.
 Particles AFTER world, BEFORE HUD. Detail in the texture. Pool + SoA. One instanced draw.
 Caps: combat 24, interact 16, hub 12, wastes ash 40–80, delves mute.
 Four shaders only: WorldGrade, ChipParticle, AshTile, LightBlob. No bloom.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
 
 COMBAT — ASHFIELD
 Trash: 1 move, no tell. Rare: 1 affix + 2–4 minions, 0.35s tint. Mini/remnant: SPAM+MID, 0.5s mark, no BIG.

@@ -76,6 +76,7 @@ No foe and no context = tap does nothing (no dirt-swing).
 On connect: 1-frame white flash on the struck sprite, 2–3 px knockback on the pixel grid.
 Screen shake only on crit, warden, Fourfold, Sovereign, or vampire.
 No bloom. i-frames (Morrowstead 0.7s or title equivalent): portrait flickers.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
 Do not add extra HUD hit meters.
 
 ================================================================
@@ -154,6 +155,7 @@ DO NOT ADD
 New face buttons, second weather widget, combo meter, dodge-roll besides dash,
 hard target lock, or a separate battle screen.
 No bloom, TAA, god rays, HDR eye-adapt, neon UI, or glowing HUD buttons.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
 
 ================================================================
 GLOW AND LIGHTING
@@ -206,6 +208,7 @@ SHADERS
 - Four programs only: WorldGrade (cycleT + weather mul), ChipParticle, AshTile,
   LightBlob (nearest). No bloom, TAA, PBR-per-chip, or extra lighting model.
   [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C6: the light-buffer composite (an extended LightBlob, Canvas2D multiply, no shader) is allowed. Still no bloom.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
 - Web Gravewake: GLSL/WGSL, not a Unity graph at runtime. Shader Graph is the
   authoring pattern if the title later moves engines (URP Unlit Particle + instancing).
 
@@ -521,6 +524,7 @@ Glow local and cheap. Playfield only. cycleT drives grade. Lamps own night.
 Particles AFTER world, BEFORE HUD. Detail in the texture. Pool + SoA. One instanced draw.
 Caps: combat 24, interact 16, hub 12, wastes ash 40–80, delves mute.
 Four shaders only: WorldGrade, ChipParticle, AshTile, LightBlob. No bloom.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
 [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C6: plus the light-buffer composite (Canvas2D, Option A); no new shader.
 
 COMBAT — ASHFIELD
@@ -843,6 +847,7 @@ Workflow to steal from Shader Graph (Unity 6 / URP):
 - Custom lighting, if any, is the cycleT grade already in Layout One — do it as a
   multiply on the backbuffer or a hemisphere uniform, not per-particle PBR.
 - No bloom node. No TAA. No soft-particle depth fade unless delves need it later.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
 
 Recommended graphs to keep (even if written as GLSL/WGSL):
 A) WorldGrade     inputs: cycleT, weather mul    output: scene tint + fog
