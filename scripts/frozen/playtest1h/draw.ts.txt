@@ -8,7 +8,7 @@ import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET,
 import type { Game } from "./sim";
 import { townRoomAt } from "./sim";
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
-import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
+import { ATLAS_CELL, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { secretTile, spikeStage } from "./feats";
 import { rescueFor } from "./runs";
@@ -130,8 +130,6 @@ const texFrame = (kind: keyof typeof TEX_FRAMES, frame: number) => Math.floor(Ma
 /** One frame of a spell writer strip (16px frames). playtest1d (owner-requested 2026-10-02, batch C2): the last
  * third-party strips (DevWizard's Pixel Art Spells) are gone from the draw; every spell frame is the spell writer's. */
 const SPELL_DIR = "/art/spells/gen";
-/** playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the fx writer's cast, impact, area and whirl strips. */
-const SPELL_FX = "/art/spells/fx";
 function spellFrame(
   ctx: CanvasRenderingContext2D,
   file: string,
@@ -588,9 +586,6 @@ function drawTile(
     if ((x * 3 + y) % 5 === 0) px(ctx, gx + 4, gy + 6, 3, 2, "#d8c4a0");
     if ((x + y * 2) % 7 === 0) px(ctx, gx + 10, gy + 3, 2, 2, "#6a5038");
     if (n > 0.8) px(ctx, gx + 7, gy + 10, 2, 1, "#e6d4b0");
-  } else if (!usedLand && cave && (tile === T.road || tile === T.cobble) && sheetCell(ctx, `/art/writer/floor-${theme in CAVES ? theme : "cave"}.png`, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
-    // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): a road or cobble below
-    // ground (the Hollow Chapel's aisle) is laid in the dungeon's own floor-kit slabs, not the painted mortar blocks.
   } else if (!usedLand && (tile === T.road || tile === T.cobble)) {
     const mortar = "#3a3028";
     px(ctx, gx, gy, TILE, TILE, mortar);
@@ -711,10 +706,7 @@ function drawTile(
   if ((tile === T.water || tile === T.pool) && !(usedLand && tile === T.water)) {
     // playtest1c: vale and camp water is one wrapping surface (no tile grid); caves keep their own liquid.
     const wave = (theme === "over" || theme === "camp") && tile === T.water && texCell(ctx, WATER, texFrame("water", frame), x, y);
-    // playtest1h: a dungeon's water or pool is the prop writer's wrapping liquid in that dungeon's own colour and accent
-    // (cave-liquid-<theme>.png, four frames like the vale water), not a flat square with one stripe.
-    const pond = !wave && cave && texCell(ctx, caveLiquid(theme), texFrame("water", frame), x, y);
-    if (!wave && !pond) {
+    if (!wave) {
     const wob = (Math.floor(frame) + x) % 4;
     const col = cave ? palOf(theme).liquid : theme === "town" ? "#1a1428" : "#16344c";
     px(ctx, gx, gy, TILE, TILE, col);
@@ -789,14 +781,12 @@ function drawTile(
     }
     if (cave) px(ctx, gx + 5, gy + 13, 6, 2, shade(palOf(theme).floor, -20));
   }
-  // playtest1h: the chest is the prop writer's (drawWorld lays it on the ground it stands on, chestOn); this flat block
-  // is only the not-yet-loaded fallback.
   if (tile === T.chest) {
     px(ctx, gx + 3, gy + 6, 10, 7, "#6a4818");
     px(ctx, gx + 3, gy + 6, 10, 3, "#c4a050");
     px(ctx, gx + 7, gy + 9, 2, 2, "#f0e2c8");
   }
-  if (tile === T.bone && !cave && !sheetCell(ctx, PROP_BONES, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
+  if (tile === T.bone && !cave) {
     px(ctx, gx + 4, gy + 8, 8, 2, "#e6dcc8");
   }
   if (tile === T.hearth) {
@@ -897,15 +887,6 @@ export const PT1_FENCE = "/art/writer/town-fence.png";
 const FRINGE_SHEETS = ["/art/writer/vale.png", ...["snow", "sand", "ash", "swamp"].map((b) => WILD_GROUND[b])];
 /** Sleeping mimic (owner-approved 2026-09-30): 0 lid lifted a pixel, 1 with a tooth glint. Pixel writer, laid over the chest. */
 const MIMIC_SLEEP = "/art/writer/mimic-sleep.png";
-/** playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): prop writer sheets. */
-const PROP_CHEST = "/art/writer/prop-chest.png";
-const PROP_MIMIC_LID = "/art/writer/prop-mimic-lid.png";
-const PROP_BONES = "/art/writer/prop-bones.png";
-export const caveLiquid = (theme: string) => `/art/writer/cave-liquid-${theme in CAVES ? theme : "cave"}.png`;
-function chestArt() {
-  const im = landSheet[PROP_CHEST];
-  return !!im && im.complete && im.naturalWidth > 0;
-}
 /** A freed captive knocked down on the escort: one 32x16 cell per RESCUES entry. Sprite writer. */
 const ESCORT_DOWN = "/art/sprites/escort-down.png";
 /** Item 8: fresh-turned earth at the foot of a grave dug tonight. Item 9: the derby trophy on the croft wall. */
@@ -2899,19 +2880,13 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const n = ((x * 13 + y * 7) % 10) / 10;
       const prop = tile === T.tree || tile === T.rock || tile === T.pump || tile === T.grave;
       const base = prop ? (skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : tile;
-      // playtest1h: a chest stands on the ground around it (floor indoors and below, the biome outside), not a flat square
-      const chestOn = tile === T.chest ? (g.mapId === "inside" || g.mapId === "dungeon" ? T.floor : skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : -1;
       // playtest1g: a vale, snow, ash or sand trail tile draws its biome's ground here (no flat dirt square under it)
       const trailG = skin && tile === T.dirt ? trailGround(skin.biome[i]) : -1;
       const trailDone = trailG >= 0 && trailComposite(ctx, g, x, y, trailG);
       if (trailDone) {
         // ground and path in one copy from the trail atlas
       } else if (trailG >= 0) drawTile(ctx, trailG as Tile, x, y, n, g.theme, trailG, g.frame, trailG, trailG, trailG);
-      else if (chestOn >= 0 && chestArt()) {
-        const slab = g.mapId === "dungeon" && sheetCell(ctx, `/art/writer/floor-${g.theme in CAVES ? g.theme : "cave"}.png`, Math.abs(x * 3 + y * 5) % 4, 0, x * TILE, y * TILE);
-        if (!slab) drawTile(ctx, chestOn as Tile, x, y, n, g.theme, above, g.frame, left, right, below);
-        sheetCell(ctx, PROP_CHEST, 0, 0, x * TILE, y * TILE);
-      } else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
+      else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
       if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)
@@ -2930,8 +2905,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const mim = g.mapId === "dungeon" && tile === T.chest ? g.feats?.mimic : undefined;
       if (mim && mim.x === x && mim.y === y) {
         const cell = mimicHint(g.worldMs / 1000, x, y);
-        // playtest1h: over the prop writer's chest, its own lifted lid (so a mimic still looks like every other chest)
-        if (cell >= 0 && !(chestArt() && sheetCell(ctx, PROP_MIMIC_LID, cell, 0, x * TILE, y * TILE))) sheetCell(ctx, MIMIC_SLEEP, cell, 0, x * TILE, y * TILE);
+        if (cell >= 0) sheetCell(ctx, MIMIC_SLEEP, cell, 0, x * TILE, y * TILE);
       }
       if (g.mapId === "inside" && g.inside === "croft" && x === DERBY.trophyX && y === DERBY.trophyY && g.hasDerbyTrophy()) sheetCell(ctx, DERBY_TROPHY, 0, 0, x * TILE, y * TILE);
       if (g.mapId === "inside" && g.inside === "croft") {
@@ -3032,8 +3006,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         props.push({
           y: y * TILE + 12,
           fn: () => {
-            // playtest1h: a bone heap from the prop writer; the three dashes below are the not-yet-loaded fallback.
-            if (sheetCell(ctx, PROP_BONES, Math.abs(x * 3 + y * 5) % 4, 0, x * TILE, y * TILE)) return;
             px(ctx, x * TILE + 3, y * TILE + 8, 8, 2, "#e6dcc8");
             px(ctx, x * TILE + 2, y * TILE + 7, 2, 3, "#e6dcc8");
             px(ctx, x * TILE + 10, y * TILE + 7, 2, 3, "#e6dcc8");
@@ -3346,8 +3318,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       x += 4;
     }
   }
-  warmPt1h();
-  paintWhirlRings(ctx, g);
   drawParticles(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
   if (g.curseOn() && g.curse === "dark") {
     paintLightless(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
@@ -3595,9 +3565,6 @@ function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, t
       drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") || drew;
     } else drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen");
     px(ctx, hx - 1, hy - 1, 3, 3, "#fff8e0");
-    // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the cast beat, a turning
-    // sigil at the hand for the first fifth of the flight (fx_writer.cast).
-    if (t < SPELL_FLIGHT * 0.4) spellFrame(ctx, `cast-${fxElement(color, element)}.png`, Math.floor((t / (SPELL_FLIGHT * 0.4)) * 4), 4, Math.round(x) - 8, Math.round(y) - 8, 16, 16, SPELL_FX);
     // playtest1: drawn either way (the hot core shows while a strip loads); never the old DevWizard strips.
     return drew || true;
   }
@@ -3606,18 +3573,6 @@ function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, t
   const cx = Math.round(tx);
   const cy = Math.round(ty);
   if (kind === "cone" || (kind === "nova" && (element === "fire" || element === "ice"))) drew = stampCluster(ctx, element === "ice" ? "ice-rain.png" : "fire-rain.png", frame, cx, cy);
-  // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the hit is the fx writer's
-  // round impact (core, broken ring, thrown chips), not the 16 px burst at 2x that read as a box; a self-centred art
-  // (Earthshatter, Summon Shade, Grave Nova, Vanish, the stances and cries) also lays the area burst on the ground.
-  const fi = Math.min(5, Math.floor(k * 6));
-  const selfCast = Math.abs(tx - x) < 2 && ty - y >= 0 && ty - y <= 14;
-  const fxEl = fxElement(color, element);
-  // the area burst lies on the ground (a nova anywhere, e.g. Tripwire's snare, too): its centre a few pixels below the point
-  if (selfCast || kind === "nova") drew = spellFrame(ctx, `shock-${fxEl}.png`, fi, 6, cx - 32, cy - 10, 64, 32, SPELL_FX) || drew;
-  const hit = spellFrame(ctx, `impact-${fxEl}.png`, fi, 6, cx - 16, cy - 16, 32, 32, SPELL_FX);
-  drew = hit || drew;
-  if (hit) return true;
-  color = spellGlow(color);
   const burst = kind === "ring" || kind === "mend" ? "ring.png" : "nova.png";
   // the burst strip at twice its size (whole pixels, nearest neighbour), so the hit reads on a phone
   ctx.save();
@@ -3644,80 +3599,6 @@ function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, t
     px(ctx, cx + Math.round(Math.cos(a) * (reach - 3)), cy + Math.round(Math.sin(a) * (reach - 3)), 1, 1, color);
   }
   return drew || true;
-}
-
-/**
- * playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): a spell colour that reads on
- * the gloom. Summon Shade (#2a241c) and Vanish (#1a140c) were near-black sparks on a near-black floor; a colour that
- * dark glows violet neon (palette v3 #b07aff) instead. Drawing only: the spell's own colour is unchanged.
- */
-export function spellGlow(color: string): string {
-  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
-  if (!m) return color;
-  const hi = Math.max(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
-  return hi < 0x50 ? "#b07aff" : color;
-}
-
-/** playtest1h: the fx strips' element: a near-black spell (Summon Shade, Vanish) is shadow's violet, not the holy gold its colour falls to. */
-function fxElement(color: string, element: string): string {
-  return spellGlow(color) !== color ? "shadow" : element;
-}
-
-/** playtest1h: every strip the spell and prop draws name, so the first cast and the first chest are never a blank frame. */
-export const PT1H_ART = [
-  ...["fire", "ice", "lightning", "venom", "shadow", "holy"].flatMap((el) => [`impact-${el}`, `shock-${el}`, `cast-${el}`]).map((n) => `${SPELL_FX}/${n}.png`),
-  `${SPELL_FX}/whirl.png`,
-  "/art/writer/prop-chest.png",
-  "/art/writer/prop-mimic-lid.png",
-  "/art/writer/prop-bones.png",
-  ...Object.keys(CAVES).map(caveLiquid),
-];
-let pt1hWarm = false;
-function warmPt1h() {
-  if (pt1hWarm || typeof Image === "undefined") return;
-  pt1hWarm = true;
-  for (const url of PT1H_ART) {
-    if (landSheet[url]) continue;
-    const im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
-}
-
-/**
- * playtest1h: Whirl's foot dust ring (rules/GAME_LAYOUT_TWO.txt: "Whirl = dust-ring quad"). The particle pool's whirl
- * (8-12 dust specks for 0.2 s) is the only K_DUST emitter; their centre is the swing's feet and their age the frame.
- * The pool is read, never written.
- */
-/** The fx writer's Whirl ring (public/art/spells/fx, not the spell writer's gen/ strips). */
-const WHIRL_STRIP = "whirl.png";
-let whirlSeen: { x: number; y: number; at: number } | null = null;
-function paintWhirlRings(ctx: CanvasRenderingContext2D, g: Game) {
-  const p = g.fx;
-  let n = 0;
-  let sx = 0;
-  let sy = 0;
-  let age = 0;
-  for (let i = 0; i < p.size; i++) {
-    if (p.life[i] <= 0 || p.kind[i] !== K_DUST) continue;
-    n++;
-    sx += p.x[i];
-    sy += p.y[i];
-    age = Math.max(age, 1 - p.life[i] / Math.max(0.001, p.maxLife[i]));
-  }
-  // the specks live 0.2 s; the ring is held for 0.36 s from the swing so it reads (drawing only, the pool is untouched)
-  const RING_MS = 360;
-  if (n) {
-    const at = g.worldMs - age * 200;
-    if (!whirlSeen || Math.abs(whirlSeen.at - at) > 60) whirlSeen = { x: Math.round(sx / n), y: Math.round(sy / n), at };
-  }
-  if (!whirlSeen) return;
-  const k = (g.worldMs - whirlSeen.at) / RING_MS;
-  if (k < 0 || k >= 1) {
-    if (!n) whirlSeen = null;
-    return;
-  }
-  spellFrame(ctx, WHIRL_STRIP, Math.min(5, Math.floor(k * 6)), 6, whirlSeen.x - 24, whirlSeen.y - 12, 48, 24, SPELL_FX);
 }
 
 /** A piece of loot. The shape is the slot. The sparkle is the rank. */

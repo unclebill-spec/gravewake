@@ -59,3 +59,12 @@ neighbour mask, 1 N, 2 E, 4 S, 8 W; 16 and 17 the N-S and E-W straights' variant
 - `preview-playtest1g.png`: every row on its ground, 3×.
 
 Run on its own: `python3 -c "import make_gravewake as m; m.playtest1g()"` from this folder.
+
+## Props and dungeon liquids (playtest1h)
+
+[OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit] `prop_writer.py` draws the last props the game still painted as flat blocks: the chest (`prop-chest.png`, closed
+and open, 16×16), the sleeping mimic's lid for it (`prop-mimic-lid.png`, the lid lifted a pixel over a black seam, a
+tooth glint on cell 1), dungeon bone heaps (`prop-bones.png`, four variants) and each dungeon's water and pools
+(`cave-liquid-<theme>.png`, four 128×128 wrapping frames like the vale water, in the dungeon's liquid and accent from
+`cave-liquids.json`, which mirrors draw.ts `CAVES`). `make_gravewake.playtest1h()` writes them to `public/art/writer`
+with `preview-playtest1h.png`; palette v3, hard alpha (checked as it writes).

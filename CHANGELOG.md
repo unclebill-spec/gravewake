@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-02: playtest1h, art and loading audit part 1: loading, placeholders, spells (drawing only)
+- Audit of every asset across 56 scenes (title, character select, town, all 16 rooms, the vale in every season, snow, ash, sand, swamp, camp, 14 dungeons, the grave, rifts, the four festivals, swimming, climbing, a companion): 0 failed loads, 0 page errors, and every body sheet uses 16x32 cells with 11 poses.
+- Placeholders replaced with writer art (new `prop_writer.py`): chests now have iron bands and a blue keyhole and sit on their own ground (no more purple square in the croft); sleeping mimics lift that same lid; every dungeon's water and pools are animated liquid in that dungeon's colours; bones are bone heaps; the Hollow Chapel aisle uses the dungeon's floor slabs.
+- Spells (new `fx_writer.py`, `public/art/spells/fx`): a cast sigil at the hand, a round impact in place of the square burst, and a ground area burst for self-cast and area arts (Earthshatter, War Cry, Summon Shade, Grave Nova, Vanish, Tripwire). Summon Shade and Vanish now glow violet. Whirl has a dust ring. Damage and timing are unchanged.
+- check:game 786 (21 new: all assets resolve, up-front loads, no placeholders, spell beats); fail-proofs 68/68 caught (all 38 new + every 8th inherited mutation on the frozen files), logged in qa/playtest1h.
+
 ## 2026-10-02: playtest1g, biome trail art (drawing only)
 - Trails in the vale, snow, ash and sand get proper path art in place of flat brown squares: worn dirt with seasonal leaf litter, packed snow with footprints, cracked cinder with embers, wind-swept sand with pebbles. 16 NESW masks with ragged blended edges.
 - Trails draw from a cached opaque ground+path atlas (one draw per tile) to keep fps near 1f.

@@ -41,5 +41,33 @@ def main() -> None:
     print(f"wrote {len(NAMES)} strips to {OUT}")
 
 
+def playtest1h(out: Path = OUT.parent / "fx") -> dict:
+    """playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the cast, impact, area and
+    whirl strips (fx_writer.py) that frame the bolts above, in public/art/spells/fx (gen/ stays the bolts and their emits).
+    The strips above are untouched. Runs on its own:
+    python3 -c "import make_gravewake as m; m.playtest1h()"  (from this folder)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sprite-writer"))
+    from fx_writer import strips
+    from palette_locked import LOCKED_V3
+
+    out.mkdir(parents=True, exist_ok=True)
+    made = strips()
+    for name, im in made.items():
+        for r, g, b, a in im.convert("RGBA").getdata():
+            if a not in (0, 255):
+                raise SystemExit(f"{name}: a soft pixel (alpha {a})")
+            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V3:
+                raise SystemExit(f"{name}: #{r:02x}{g:02x}{b:02x} is not in palette v3")
+        im.save(out / name)
+    rows = [n for n in sorted(made) if n != "whirl.png"] + ["whirl.png"]
+    sheet = Image.new("RGBA", (392, sum(made[n].height + 2 for n in rows) + 4), (20, 14, 18, 255))
+    y = 2
+    for n in rows:
+        sheet.alpha_composite(made[n], (4, y))
+        y += made[n].height + 2
+    sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST).save(out / "preview-playtest1h.png")
+    return made
+
+
 if __name__ == "__main__":
     main()

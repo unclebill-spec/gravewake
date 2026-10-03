@@ -716,26 +716,5 @@ def playtest1g() -> dict:
     return made
 
 
-def playtest1h(out: Path = OUT) -> dict:
-    """playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the props the audit found
-    still painted as flat blocks (prop_writer.py): the chest and the sleeping mimic's lid, the dungeon bone heaps, and
-    each dungeon's wrapping liquid. Runs on its own: python3 -c "import make_gravewake as m; m.playtest1h()"."""
-    import prop_writer as pw
-
-    made = pw.sheets()
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    themes = list(pw.CAVES)
-    sheet = Image.new("RGBA", (4 + 70 * 7, 40 + 70 * 2), (20, 14, 18, 255))
-    sheet.alpha_composite(made["prop-chest.png"], (4, 4))
-    sheet.alpha_composite(made["prop-mimic-lid.png"], (44, 4))
-    sheet.alpha_composite(made["prop-bones.png"], (84, 4))
-    for k, t in enumerate(themes):
-        sheet.alpha_composite(made[f"cave-liquid-{t}.png"].crop((0, 0, 64, 64)), (4 + 70 * (k % 7), 30 + 70 * (k // 7)))
-    sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST).save(out / "preview-playtest1h.png")
-    return made
-
-
 if __name__ == "__main__":
     main()

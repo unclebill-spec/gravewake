@@ -994,3 +994,17 @@ frame rate each ground-and-path pair is composited once into an opaque trail atl
 its flat square was one fill (no more canvas calls than 1f). Before a trail sheet loads the tile is the old flat
 square; while its ground sheet loads, the ground's fallback with the path cell on it. g.tiles, the sim and the saves
 are untouched.
+
+OWNER-REQUESTED ART AND LOADING AUDIT (playtest1h)  [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]
+Bill (2026-10-02 19:43 ET): "go through all the models, sprites, animations, textures, and make sure nothing is
+mismatched, everything is loading correctly, there's no placeholders, and that there are spell effects that show
+correctly when spells are cast". Drawing and loading only. Every art path the game names resolves (group playtest1h:
+source literals and templates, the runtime asks over every scene; the browser audit qa/playtest1h/audit.mjs saw zero
+failed loads). The last painted placeholders are writer art (tools/pixel-writer/prop_writer.py): the chest (iron-banded
+planks, a domed lid, a cold-blue keyhole) on the ground it stands on, a sleeping mimic lifting that chest's own lid, each
+dungeon's water and pools as a wrapping four-frame liquid in its own palette, bone heaps, and the Hollow Chapel's aisle
+in its floor-kit slabs. Spells keep their bolts and colours and gain three beats from tools/spell-writer/fx_writer.py
+(public/art/spells/fx): a cast sigil at the hand, a round impact at the target (the old 2x burst only while it loads),
+and an area burst on the ground for a self-centred art or a placed nova; a near-black spell (Summon Shade, Vanish)
+glows violet; Whirl = the fx writer's dust ring at the feet, held 0.36 s (the particle pool is read, never written).
+The sim, particles.ts, damage, timings and saves are untouched.

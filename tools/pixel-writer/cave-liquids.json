@@ -1,0 +1,54 @@
+{
+ "harrow": {
+  "liquid": "#1a2838",
+  "accent": "#6a8a48"
+ },
+ "ossuary": {
+  "liquid": "#241830",
+  "accent": "#c8b8d0"
+ },
+ "wraps": {
+  "liquid": "#3a3428",
+  "accent": "#e6d2a2"
+ },
+ "carrion": {
+  "liquid": "#16304a",
+  "accent": "#9ec8e8"
+ },
+ "wick": {
+  "liquid": "#2a2018",
+  "accent": "#e07a2f"
+ },
+ "warren": {
+  "liquid": "#3a3018",
+  "accent": "#c4a15a"
+ },
+ "chapel": {
+  "liquid": "#1a2848",
+  "accent": "#c5d4e8"
+ },
+ "vesper": {
+  "liquid": "#4a1020",
+  "accent": "#a02030"
+ },
+ "drowned": {
+  "liquid": "#143828",
+  "accent": "#6aaa58"
+ },
+ "blackroot": {
+  "liquid": "#142018",
+  "accent": "#4a6840"
+ },
+ "grave": {
+  "liquid": "#1a2818",
+  "accent": "#8a9870"
+ },
+ "hearth": {
+  "liquid": "#3a1810",
+  "accent": "#e07a2f"
+ },
+ "cave": {
+  "liquid": "#1a2438",
+  "accent": "#c4b496"
+ }
+}

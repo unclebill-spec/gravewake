@@ -109,6 +109,11 @@ const pt1eView = (f) => (PT1F_FROZEN.includes(f) ? `scripts/frozen/playtest1f/${
 // shipped it, frozen; group playtest1f's live pin reads it there (pt1fView).
 const PT1G_FROZEN = ["src/game/draw.ts"];
 const pt1fView = (f) => (PT1G_FROZEN.includes(f) ? `scripts/frozen/playtest1g/${f.split("/").pop()}.txt` : f);
+// playtest1h (2026-10-02, [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], drawing only): draw.ts
+// and the pixel writer's make_gravewake.py as playtest1g shipped them (main f21f20e), frozen; group playtest1g's live
+// pin, its draw text and its bundled draw read them there (pt1gView).
+const PT1H_FROZEN = ["src/game/draw.ts", "tools/pixel-writer/make_gravewake.py"];
+const pt1gView = (f) => (PT1H_FROZEN.includes(f) ? `scripts/frozen/playtest1h/${f.split("/").pop()}.txt` : f);
 const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
 // install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
@@ -8180,7 +8185,9 @@ if (on("playtest1g")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const root = process.cwd();
-  writeFileSync(join(dir, "pt1g.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as TR from "${root}/src/game/trails.ts";\nexport { SWAMP_PATH } from "${root}/src/game/wayrifts.ts";\nexport { WILD_GROUND } from "${root}/src/game/wild.ts";\nexport { seasonAt } from "${root}/src/game/seasons.ts";\nexport { worldBiome, T } from "${root}/src/game/content.ts";\nexport { VALE_GROUND } from "${root}/tools/map-writer/gravewake_vale.ts";\n`);
+  // playtest1h: playtest1g's draw as pushed (scripts/frozen/playtest1h/draw.ts.txt) stands in for the live one here
+  writeFileSync(join(dir, "draw1g.ts"), readFileSync(pt1gView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  writeFileSync(join(dir, "pt1g.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${join(dir, "draw1g.ts")}";\nexport * as TR from "${root}/src/game/trails.ts";\nexport { SWAMP_PATH } from "${root}/src/game/wayrifts.ts";\nexport { WILD_GROUND } from "${root}/src/game/wild.ts";\nexport { seasonAt } from "${root}/src/game/seasons.ts";\nexport { worldBiome, T } from "${root}/src/game/content.ts";\nexport { VALE_GROUND } from "${root}/tools/map-writer/gravewake_vale.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1g.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1g.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   // playtest1f's draw as pushed (scripts/frozen/playtest1g/draw.ts.txt), bundled beside it, for the before/after frame
   const fdraw = readFileSync("scripts/frozen/playtest1g/draw.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
@@ -8219,7 +8226,7 @@ if (on("playtest1g")) {
   const F = await import(pathToFileURL(join(dir, "draw1f.mjs")).href);
   const TR = X.TR;
   const TT = X.T;
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readFileSync(pt1gView("src/game/draw.ts"), "utf8"); // playtest1h: playtest1g's draw as pushed
   const trs = readFileSync("src/game/trails.ts", "utf8");
   const CYCLE = 30 * 60 * 1000;
   const SEAS = 6 * CYCLE;
@@ -8438,7 +8445,9 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     // every game file but draw.ts (and the new trails.ts), and every older asset, is playtest1f's byte for byte
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
+    const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8448,13 +8457,317 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     globalThis.Image = had.Image;
     globalThis.document = had.document;
     const LIVE = {"src/game/draw.ts": "4d885c026399d71086e005b86ca35915", "src/game/trails.ts": "0cdbc5096bea5c115066c67d6ce18fbd", "tools/pixel-writer/trail_writer.py": "ca789988347b7abc9f3e2e0d44d7e8a3", "tools/pixel-writer/make_gravewake.py": "ca95b08085bf6bfc73d18d9365fcaac5"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1gView(f)) !== hh).map(([f]) => f);
     check("playtest1g", "the live game files are byte for byte playtest1g's (draw, trails, the trail writer and make_gravewake)", moved.length === 0 && Object.keys(LIVE).length === 4, moved.join(", "));
   }
 }
 
+if (on("playtest1h")) {
+  // [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit] Bill: "make sure nothing is mismatched,
+  // everything is loading correctly, there's no placeholders, and that there are spell effects that show correctly when
+  // spells are cast". Drawing and loading only: every asset the game names resolves, the last painted placeholders
+  // (chests, dungeon liquids, bone heaps, the chapel's mortar blocks) are writer art, and every cast has its beats.
+  const { readFileSync, writeFileSync, existsSync, readdirSync, statSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const py = (code) => { try { return JSON.parse(execFileSync("/home/box/.local/pyvenv/bin/python", ["-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch (e) { return { error: String(e).slice(0, 300) }; } };
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1h.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport * as P from "${root}/src/game/particles.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1h.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1h.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  writeFileSync(join(dir, "draw1g.ts"), readFileSync(pt1gView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  execFileSync("npx", ["esbuild", join(dir, "draw1g.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "draw1g.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document };
+  let draws = [];
+  let fills = [];
+  const asked = new Set();
+  const NOTREADY = new Set();
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return !NOTREADY.has(this._s); } set src(u) { this._s = u; asked.add(u); } get src() { return this._s; } };
+  const noop = () => {};
+  const mock = (off = null) => {
+    const o = {
+      drawImage(im, ...a) { if (off) return; const [sx, sy, sw, sh, dx, dy, dw, dh] = a.length >= 8 ? a : [0, 0, 0, 0, a[0], a[1], 0, 0]; draws.push({ u: im && im._s, sx, sy, sw, sh, dx, dy, dw, dh, tr: o._tr }); },
+      fillRect(x, y, w, h) { if (!off) fills.push([x, y, w, h, o.fillStyle]); },
+      translate(x, y) { o._tr = [x, y]; },
+      restore() { o._tr = undefined; },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop: noop }) : noop), set: (t, k, v) => { t[k] = v; return true; } });
+  };
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= mock(c)); } }; return c; } };
+  const X = await import(pathToFileURL(join(dir, "pt1h.mjs")).href);
+  const G = await import(pathToFileURL(join(dir, "draw1g.mjs")).href);
+  const TT = X.T;
+  const frame = (D, g) => { draws = []; fills = []; D.drawWorld(mock(), g, 960, 640, g.zoom); return { d: draws, f: fills }; };
+  const mk = (cls = "warrior") => { const g = new X.Game(); g.start(cls, "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = 5 * 60 * 1000; g.roamers = []; g.mode = "play"; return g; };
+  const DUNGEONS = ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "pocketvale", "barrow", "hearth", "riftvale"];
+  const dun = (id) => { const g = mk(); g.level = 70; g.enterDungeon(id); g.roamers = []; return g; };
+  const view = (g, x, y) => { g.px = x * TILE + 8; g.py = y * TILE + 8; g.roamers = []; };
+  const tilesOf = (g, set) => { const o = []; for (let i = 0; i < g.tiles.length; i++) if (set.has(g.tiles[i]) && !g.hidden.has(i)) o.push([i % g.w, Math.floor(i / g.w)]); return o; };
+  const unfog = (g) => { if (g.fog) g.fog.fill(1); };
+  const PROP_CHEST = "/art/writer/prop-chest.png";
+  const PROP_BONES = "/art/writer/prop-bones.png";
+  const LID = "/art/writer/prop-mimic-lid.png";
+  const SPELL_FX = "/art/spells/fx";
+  const EL = ["fire", "ice", "lightning", "venom", "shadow", "holy"];
+
+  // 1. All assets resolve: every art path the game's source names is a file, every template matches files, and every
+  //    image a run asks for (title, town, all rooms, the vale's biomes, every dungeon, the spells) exists.
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return statSync(p).isDirectory() ? walk(p) : [p]; });
+    const srcs = walk("src").filter((f) => /\.(ts|tsx)$/.test(f));
+    const art = walk("public/art").map((f) => f.slice("public".length));
+    const lits = new Set();
+    const tpls = new Set();
+    for (const f of srcs) {
+      const s = readFileSync(f, "utf8");
+      for (const m of s.matchAll(/["'`](\/art\/[^"'`\s]*?\.(?:png|json|webp))["'`]/g)) (m[1].includes("${") ? tpls : lits).add(m[1]);
+      for (const m of s.matchAll(/`(\/art\/[^`]*\$\{[^`]*)`/g)) if (/\.(png|json|webp)$/.test(m[1]) || m[1].endsWith("/")) tpls.add(m[1]);
+    }
+    const missing = [...lits].filter((u) => !existsSync(`public${u}`));
+    const dead = [...tpls].filter((t) => { const re = new RegExp(`^${t.split(/\$\{[^}]*\}/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[^/]+")}${t.endsWith("/") ? "" : "$"}`); return !art.some((a) => re.test(a)); });
+    check("playtest1h", `all assets resolve (source): every /art/ path named in src (${lits.size} literal paths, ${tpls.size} templates) is a file under public, and every template names at least one`, lits.size > 50 && missing.length === 0 && dead.length === 0, JSON.stringify({ missing, dead }));
+    const pre = [...X.PT1H_ART];
+    check("playtest1h", `all assets resolve (the new art): the ${pre.length} fx strips and prop sheets the draw asks for up front (PT1H_ART: cast, impact and area strips for six elements, the whirl ring, chest, mimic lid, bones, ${pre.filter((u) => u.includes("cave-liquid")).length} dungeon liquids) are all files`, pre.length === 6 * 3 + 1 + 3 + 13 && pre.every((u) => existsSync(`public${u}`)), pre.filter((u) => !existsSync(`public${u}`)).join(", "));
+  }
+  // the runtime asks (everything asked since the draw loaded: its up-front loads and each scene's): the town, every room, the vale's biomes, the camp, every dungeon and the grave, two frames each
+  {
+    const scenes = [];
+    const g = mk();
+    g.ownedHome = true;
+    g.enterTown(); scenes.push(["town", g]); frame(X, g);
+    // the up-front loads: the first frame of the town (no chest, liquid, bone or spell in it) already asks for every new sheet
+    const early = X.PT1H_ART.filter((u) => !asked.has(u));
+    check("playtest1h", `the new strips and sheets load up front: the first town frame asks for all ${X.PT1H_ART.length} (so the first cast, chest or pool is never a blank frame), and an unknown dungeon theme falls back to the cave's liquid (${X.caveLiquid("nowhere")})`, early.length === 0 && X.caveLiquid("nowhere") === "/art/writer/cave-liquid-cave.png" && X.caveLiquid("vesper") === "/art/writer/cave-liquid-vesper.png", early.slice(0, 4).join(", "));
+    frame(X, g);
+    for (const id of ["inn", "shop", "guild", "bank", "bram", "pell", "ivy", "chapel", "casino", "smith", "fisher", "croft", "noll", "tailor", "alchemy", "mystic"]) { const r = mk(); r.ownedHome = true; r.enterTown(); r.enterInside(id, true); frame(X, r); }
+    for (const [x, y] of [[64, 80], [109, 27], [88, 102], [108, 44], [70, 59]]) { const v = mk(); view(v, x, y); frame(X, v); }
+    const c = mk(); c.enterCamp(); frame(X, c);
+    for (const id of DUNGEONS) { const d = dun(id); unfog(d); frame(X, d); }
+    const gv = mk("vampire"); gv.enterTown(); gv.enterDungeon("grave"); gv.roamers = []; frame(X, gv);
+    const urls = [...asked].map((u) => String(u).split("?")[0]).filter((u) => u.startsWith("/"));
+    const bad = urls.filter((u) => !existsSync(`public${u}`));
+    check("playtest1h", `all assets resolve (runtime): every image the draw asks for over the town, the 16 rooms, five vale biomes, the camp, the ${DUNGEONS.length} dungeons and the grave (${urls.length} files) exists, no 404 (the browser audit, qa/playtest1h/audit.mjs, saw 0 failed loads)`, urls.length > 100 && bad.length === 0, bad.slice(0, 8).join(", "));
+  }
+  // 2. Body sheets: 16x32 cells, 11 poses a body (moves.png is the 7-pose move overlay, escort-down the lying captive)
+  {
+    const r = py(`import json\nfrom PIL import Image\nout={}\nfor n in ['allies','foes','foes_em','folk-variants','heroes','people','krampus','krampus_em','pumpkin-lord','pumpkin-lord_em','mimic','moves','escort-down']:\n  out[n]=list(Image.open('public/art/sprites/'+n+'.png').size)\nprint(json.dumps(out))`);
+    const body = ["allies", "foes", "foes_em", "folk-variants", "heroes", "people", "krampus", "krampus_em", "pumpkin-lord", "pumpkin-lord_em", "mimic"];
+    const ok = !r.error && body.every((n) => r[n][1] === 32 && r[n][0] % (16 * 11) === 0) && r.moves[1] === 32 && r.moves[0] === 27 * 7 * 16 && r["escort-down"][1] === 16 && r["escort-down"][0] % 32 === 0;
+    check("playtest1h", "every body sheet is 16x32 cells, 11 poses a body (allies, foes, folk variants, heroes, people, Krampus, the Pumpkin Lord, the mimic and their glow masks); the move overlay is 27 roles x 7 and the downed captives 32x16", ok, JSON.stringify(r));
+  }
+
+  // 3. No placeholder chest: the prop writer's chest on its own ground (dungeon slabs, the croft's floor), never the flat block or a purple square
+  {
+    const res = {};
+    let ok = true;
+    for (const id of DUNGEONS) {
+      const d = dun(id); unfog(d);
+      const ch = tilesOf(d, new Set([TT.chest]));
+      if (!ch.length) continue;
+      view(d, ...ch[0]);
+      const { d: dd, f } = frame(X, d);
+      const [cx, cy] = ch[0];
+      const art = dd.filter((q) => q.u === PROP_CHEST && q.dx === cx * TILE && q.dy === cy * TILE).length;
+      const flat = f.filter((q) => q[4] === "#6a4818" || (q[0] === cx * TILE + 3 && q[1] === cy * TILE + 6 && q[2] === 10)).length;
+      const under = dd.findIndex((q) => q.dx === cx * TILE && q.dy === cy * TILE && String(q.u).includes("/floor-"));
+      const chestAt = dd.findIndex((q) => q.u === PROP_CHEST && q.dx === cx * TILE && q.dy === cy * TILE);
+      res[id] = [ch.length, art, flat, under >= 0 && under < chestAt];
+      ok = ok && art >= 1 && flat === 0 && under >= 0 && under < chestAt;
+    }
+    const cr = mk(); cr.ownedHome = true; cr.enterTown(); cr.enterInside("croft", true);
+    const cc = tilesOf(cr, new Set([TT.chest]))[0];
+    const { d: cd, f: cf } = frame(X, cr);
+    const purple = cf.filter((q) => q[0] === cc[0] * TILE && q[1] === cc[1] * TILE && q[2] === TILE && (q[4] === "#342038" || q[4] === "#4a3048")).length;
+    const croftArt = cd.filter((q) => q.u === PROP_CHEST && q.dx === cc[0] * TILE).length;
+    res.croft = [croftArt, purple];
+    check("playtest1h", `no placeholder chest: every dungeon's chests (${Object.keys(res).length - 1} dungeons) and the croft's draw the prop writer's chest (prop-chest.png) on the floor slab under it, with no flat 10x7 block and no purple square under the croft's`, Object.keys(res).length >= 8 && ok && croftArt >= 1 && purple === 0, JSON.stringify(res));
+  }
+  // 4. the mimic: a sleeping mimic's chest lifts the prop chest's own lid (prop-mimic-lid.png), not the old gold lid
+  {
+    let found = null;
+    for (let s = 0; s < 400 && !found; s++) {
+      for (const id of ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "drowned", "blackroot", "hearth"]) {
+        const d = dun(id); d.floor = 1 + (s % 6); d.enterDungeon?.(id);
+        if (d.feats?.mimic) { found = d; break; }
+      }
+      break;
+    }
+    let lid = 0, old = 0, cells = new Set();
+    if (found) {
+      unfog(found); view(found, found.feats.mimic.x, found.feats.mimic.y);
+      for (let t = 0; t < 40; t++) { found.worldMs = 5 * 60 * 1000 + t * 250; const { d } = frame(X, found); lid += d.filter((q) => q.u === LID).length; old += d.filter((q) => q.u === "/art/writer/mimic-sleep.png").length; d.filter((q) => q.u === LID).forEach((q) => cells.add(q.sx / 16)); }
+      NOTREADY.add(PROP_CHEST);
+      let oldUnloaded = 0;
+      for (let t = 0; t < 40; t++) { found.worldMs = 5 * 60 * 1000 + t * 250; const { d } = frame(X, found); oldUnloaded += d.filter((q) => q.u === "/art/writer/mimic-sleep.png").length; }
+      NOTREADY.delete(PROP_CHEST);
+      check("playtest1h", `a sleeping mimic lifts the new chest's own lid (prop-mimic-lid.png, ${lid} lifts over 10 s, cells ${[...cells].join(",")}), never the old gold lid over it; while the chest sheet loads the old chest keeps its old lid (${oldUnloaded})`, lid > 0 && old === 0 && oldUnloaded > 0, JSON.stringify({ lid, old, oldUnloaded }));
+    } else check("playtest1h", "a sleeping mimic lifts the new chest's own lid (no mimic floor found)", false);
+  }
+  // 5. dungeon liquids and 6. bone heaps and the chapel aisle
+  {
+    const res = {};
+    let ok = true;
+    let bonesOk = true;
+    const bonesRes = {};
+    for (const id of DUNGEONS) {
+      const d = dun(id); unfog(d);
+      const liq = tilesOf(d, new Set([TT.water, TT.pool]));
+      if (liq.length) {
+        view(d, ...liq[0]);
+        const { d: dd, f } = frame(X, d);
+        const want = `/art/writer/cave-liquid-${["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "grave", "hearth", "cave"].includes(d.theme) ? d.theme : "cave"}.png`;
+        const onScreen = (x, y) => Math.abs(x * TILE - d.px) < 440 && Math.abs(y * TILE - d.py) < 280;
+        const vis = liq.filter(([x, y]) => onScreen(x, y));
+        const got = vis.filter(([x, y]) => dd.some((q) => q.u === want && q.dx === x * TILE && q.dy === y * TILE)).length;
+        const flat = vis.filter(([x]) => f.some((q) => q[0] === x * TILE + 1 && q[2] === 8 && q[3] === 1)).length;
+        res[id] = [vis.length, got, flat];
+        ok = ok && got === vis.length && flat === 0;
+      }
+      const bn = tilesOf(d, new Set([TT.bone]));
+      if (bn.length) {
+        view(d, ...bn[0]);
+        const { d: dd, f } = frame(X, d);
+        const vis = bn.filter(([x, y]) => Math.abs(x * TILE - d.px) < 440 && Math.abs(y * TILE - d.py) < 280);
+        const got = vis.filter(([x, y]) => dd.some((q) => q.u === PROP_BONES && q.dx === x * TILE && q.dy === y * TILE)).length;
+        const dash = f.filter((q) => q[4] === "#e6dcc8" && q[2] === 8 && q[3] === 2).length;
+        bonesRes[id] = [vis.length, got, dash];
+        bonesOk = bonesOk && got === vis.length && dash === 0;
+      }
+    }
+    check("playtest1h", `no placeholder liquid: every dungeon pool and water tile on screen (${Object.entries(res).map(([k, v]) => `${k} ${v[1]}/${v[0]}`).join(", ")}) is the prop writer's wrapping liquid in that dungeon's own colour, not a flat square with a stripe`, Object.keys(res).length >= 4 && ok, JSON.stringify(res));
+    check("playtest1h", `no placeholder bones: every bone tile on screen in the dungeons (${Object.entries(bonesRes).map(([k, v]) => `${k} ${v[1]}/${v[0]}`).join(", ")}) is a bone heap from the prop writer, never the three painted dashes`, Object.keys(bonesRes).length >= 1 && bonesOk, JSON.stringify(bonesRes));
+    const ch = dun("chapel"); unfog(ch);
+    const aisle = tilesOf(ch, new Set([TT.road, TT.cobble]));
+    let mortar = -1, slabs = -1;
+    if (aisle.length) {
+      view(ch, ...aisle[0]);
+      const { d: dd, f } = frame(X, ch);
+      mortar = f.filter((q) => q[4] === "#3a3028" && q[2] === TILE).length;
+      slabs = aisle.filter(([x, y]) => dd.some((q) => String(q.u).includes("/floor-") && q.dx === x * TILE && q.dy === y * TILE)).length;
+    }
+    check("playtest1h", `the Hollow Chapel's aisle (road and cobble below ground, ${aisle.length} tiles) is laid in the dungeon's own floor-kit slabs (${slabs} drawn), never the painted mortar blocks (${mortar})`, aisle.length > 0 && mortar === 0 && slabs > 0, JSON.stringify({ n: aisle.length, mortar, slabs }));
+  }
+  // 7. liquids mirror the dungeon palette
+  {
+    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const js = JSON.parse(readFileSync("tools/pixel-writer/cave-liquids.json", "utf8"));
+    const live = {};
+    for (const m of draw.matchAll(/ {2}(\w+): \{ floor: "#\w+", floor2: "#\w+", wall: "#\w+", wallHi: "#\w+", liquid: "(#\w+)", accent: "(#\w+)" \}/g)) live[m[1]] = { liquid: m[2], accent: m[3] };
+    check("playtest1h", `the liquids' colours are the dungeons' own: tools/pixel-writer/cave-liquids.json mirrors draw.ts CAVES liquid and accent for all ${Object.keys(live).length} palettes`, Object.keys(live).length === 13 && JSON.stringify(live) === JSON.stringify(js), "");
+  }
+
+  // 8. Spells: every cast has its cast beat, its flight, its impact strip; a self-centred art lays its area on the ground; a dark spell glows violet
+  {
+    const res = {};
+    let ok = true;
+    const casts = { warrior: ["Smite", "Loadout Stance", "Earthshatter", "War Cry", "Execution"], wizard: ["Smite", "Deathbolt", "Curse", "Summon Shade", "Grave Nova"], assassin: ["Smite", "Ambush", "Envenom", "Tripwire", "Vanish"], vampire: ["Smite", "Earthshatter", "Deathbolt", "Ambush", "Vanish"] };
+    for (const [cls, list] of Object.entries(casts)) {
+      for (const what of list) {
+        const g = mk(cls);
+        g.energy = 999; g.blood = 999; g.stam = 999; g.spellCool = 0; g.smiteLock = 0; g.facing = "e";
+        g.specials = list.filter((n) => n !== "Smite");
+        g.roamers = [{ id: "dummy", x: g.px + (what === "Ambush" ? 24 : 56), y: g.py, family: "zombie", tint: "#6a7a48", def: "zombie", level: 1, ang: 0, hp: 9999, max: 9999, aggro: true }];
+        if (what === "Smite") g.smite(); else g.castKnown(what);
+        const saved = g.spells.map((s) => ({ ...s }));
+        g.roamers = [];
+        const beats = { cast: 0, fly: 0, impact: 0, shock: 0, rain: 0, box: 0 };
+        const el = new Set();
+        for (const t of [0.05, 0.3, 0.6, 0.75, 0.9]) {
+          g.spells = saved.map((s) => ({ ...s, life: s.max * (1 - t) }));
+          const { d, f } = frame(X, g);
+          for (const q of d) {
+            const u = String(q.u);
+            if (u.startsWith(`${SPELL_FX}/cast-`)) beats.cast++;
+            if (u.startsWith(`${SPELL_FX}/impact-`)) { beats.impact++; el.add(u.split("impact-")[1]); }
+            if (u.startsWith(`${SPELL_FX}/shock-`)) beats.shock++;
+            if (u.endsWith("/fire-rain.png") || u.endsWith("/ice-rain.png")) beats.rain++;
+            if (u.startsWith("/art/spells/gen/") && (u.includes("beam-") || u.includes("orb") || u.includes("lightning"))) beats.fly++;
+          }
+          beats.box += f.filter((q) => q[2] === 7 && q[3] === 7 && q[4] === "#fff8e0").length;
+        }
+        const self = saved.some((s) => Math.abs(s.tx - s.x) < 2 && s.ty - s.y >= 0 && s.ty - s.y <= 14);
+        res[`${cls} ${what}`] = { ...beats, el: [...el].map((e) => e.replace(".png", "")).join("/"), self, nova: saved.every((q) => q.kind === "nova" || q.kind === "cone"), n: saved.length };
+        // a flying spell opens with the cast sigil at the hand; a self-centred art opens with its area burst instead
+        ok = ok && saved.length > 0 && beats.impact > 0 && beats.box === 0 && (self ? beats.shock > 0 : (beats.cast > 0 && beats.fly > 0) || (saved.every((q) => q.kind === "nova" || q.kind === "cone") && beats.shock + beats.rain > 0));
+      }
+    }
+    check("playtest1h", `every spell of every class shows its beats: a flying spell its cast sigil at the hand and its flight, every spell the fx writer's impact at the target (never the 7x7 white box), a placed nova or cone its area burst or rain, and a self-centred art (${Object.entries(res).filter(([, v]) => v.self).map(([k]) => k).join(", ")}) its area burst on the ground`, ok && Object.keys(res).length === 20, JSON.stringify({ n: Object.keys(res).length, bad: Object.entries(res).filter(([, v]) => !(v.n > 0 && v.impact > 0 && v.box === 0 && (v.self ? v.shock > 0 : v.nova ? v.shock + v.rain > 0 : v.cast > 0 && v.fly > 0))) }));
+    const dark = ["wizard Summon Shade", "assassin Vanish", "vampire Vanish"].map((k) => res[k]?.el);
+    check("playtest1h", `a near-black spell reads: Summon Shade (#2a241c) and Vanish (#1a140c) draw shadow's violet strips (${dark.join(", ")}) and spellGlow lifts a colour that dark to the violet tube #b07aff (a lit colour is unchanged; the spell's own colour is untouched)`, dark.every((e) => e === "shadow") && X.spellGlow("#2a241c") === "#b07aff" && X.spellGlow("#1a140c") === "#b07aff" && X.spellGlow("#6a3a8a") === "#6a3a8a" && X.spellGlow("#e07a2f") === "#e07a2f");
+    // fail-safe: while an impact strip loads, the old burst and sparks still draw (never an empty hit)
+    const g = mk("wizard"); g.roamers = [{ id: "dummy", x: g.px + 56, y: g.py, family: "zombie", tint: "#6a7a48", def: "zombie", level: 1, ang: 0, hp: 9999, max: 9999, aggro: true }]; g.smite();
+    const saved = g.spells.map((s) => ({ ...s })); g.roamers = [];
+    for (const e of EL) NOTREADY.add(`${SPELL_FX}/impact-${e}.png`);
+    g.spells = saved.map((s) => ({ ...s, life: s.max * 0.3 }));
+    const { d, f } = frame(X, g);
+    for (const e of EL) NOTREADY.delete(`${SPELL_FX}/impact-${e}.png`);
+    const nova = d.filter((q) => String(q.u).endsWith("/nova.png") || String(q.u).endsWith("/ring.png")).length;
+    check("playtest1h", `fail-safe: while the impact strips load, a hit still draws the old burst strip (${nova}) and its sparks (${f.length} fills)`, nova > 0 && f.some((q) => q[2] === 2 && q[3] === 2));
+  }
+  // 9. Whirl: the dust ring at the feet, held 0.36 s (the particle pool is read, never written)
+  {
+    const g = mk(); g.energy = 999; g.stam = 999; g.blood = 999;
+    g.fx.clear(); g.whirl();
+    const before = g.fx.count(X.P.CH_COMBAT);
+    const ring = (dt) => { g.worldMs += dt; const { d } = frame(X, g); return d.filter((q) => q.u === `${SPELL_FX}/whirl.png`); };
+    const r0 = ring(0);
+    g.fx.update(0.25);
+    const r1 = ring(250);
+    const r2 = ring(200);
+    const after = g.fx.count(X.P.CH_COMBAT);
+    check("playtest1h", `Whirl draws the fx writer's dust ring at the hero's feet (rules: "Whirl = dust-ring quad"): frame ${r0[0]?.sx / 48} at once, held after the ${before} specks die (frame ${r1[0]?.sx / 48} at 0.25 s), gone by 0.45 s; drawing never adds or removes a speck`, r0.length === 1 && Math.abs(r0[0].dx + 24 - g.px) <= 3 && r1.length === 1 && r1[0].sx > r0[0].sx && r2.length === 0 && before >= 8 && after === 0, JSON.stringify({ r0, r1, r2: r2.length, before, after }));
+  }
+
+  // 10. Nothing else moved: the town, the rooms, the vale's biomes and the camp draw call for call as playtest1g's draw
+  {
+    const res = {};
+    // a chest or bone tile on the vale (the map writer's snow caches) is this batch's change; every other call must match
+    const same = (g, D1, D2) => {
+      const skip = new Set(tilesOf(g, new Set([TT.chest, TT.bone])).map(([x, y]) => `${x},${y}`));
+      const keep = (x, y) => !skip.has(`${Math.floor(x / TILE)},${Math.floor(y / TILE)}`);
+      const a = frame(D1, g);
+      const b = frame(D2, g);
+      const k = (r) => JSON.stringify([r.d.filter((q) => keep(q.dx, q.dy)).map((q) => [q.u, q.sx, q.sy, q.dx, q.dy]), r.f.filter((q) => keep(q[0], q[1]))]);
+      return k(a) === k(b);
+    };
+    const t = mk(); t.enterTown(); res.town = same(t, X, G);
+    for (const id of ["inn", "shop", "chapel", "smith"]) { const r = mk(); r.enterTown(); r.enterInside(id, true); res[id] = same(r, X, G); }
+    for (const [k, x, y] of [["vale", 64, 80], ["snow", 109, 27], ["ash", 88, 102], ["sand", 108, 44], ["swamp", 70, 59]]) { const v = mk(); view(v, x, y); res[k] = same(v, X, G); }
+    const c = mk(); c.enterCamp(); res.camp = same(c, X, G);
+    check("playtest1h", `nothing else moved: away from chests and bone tiles, the town, four rooms, the vale's five biomes and the camp draw call for call as playtest1g's draw (${Object.entries(res).filter(([, v]) => !v).map(([k]) => k).join(" ") || "all same"})`, Object.values(res).every(Boolean), JSON.stringify(res));
+  }
+  globalThis.Image = had.Image;
+  globalThis.document = had.document;
+
+  // 11. The art: the fx writer's and the prop writer's, re-run here into a temp dir: same bytes, palette v3, hard alpha, right sizes
+  {
+    const tmp = mkdtempSync(join(tmpdir(), "gravewake-1h-"));
+    const r = py(`import json,sys,hashlib,os\nsys.dont_write_bytecode=True\nfrom pathlib import Path\nfrom PIL import Image\nsys.path.insert(0,'tools/spell-writer'); sys.path.insert(0,'tools/pixel-writer'); sys.path.insert(0,'tools/sprite-writer')\nfrom palette_locked import LOCKED_V3\nimport importlib.util\ndef load(n,p):\n  s=importlib.util.spec_from_file_location(n,p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); return m\nsp=load('mg_spell','tools/spell-writer/make_gravewake.py'); pw=load('mg_pixel','tools/pixel-writer/make_gravewake.py')\nT=Path('${tmp}')\n(T/'fx').mkdir(); (T/'w').mkdir()\na=sp.playtest1h(T/'fx'); b=pw.playtest1h(T/'w')\nout={'same':{},'size':{},'bad':[]}\nfor d,made,pub in ((T/'fx',a,'public/art/spells/fx/'),(T/'w',b,'public/art/writer/')):\n  for n in list(made)+['preview-playtest1h.png']:\n    out['same'][d.name+'/'+n]=hashlib.md5(open(d/n,'rb').read()).hexdigest()==hashlib.md5(open(pub+n,'rb').read()).hexdigest()\n  for n in made:\n    im=Image.open(pub+n).convert('RGBA'); out['size'][n]=list(im.size)\n    for p in im.getdata():\n      if p[3] not in (0,255) or (p[3] and '#%02x%02x%02x'%p[:3] not in LOCKED_V3): out['bad'].append(n); break\nprint(json.dumps(out))`);
+    const S = r.size ?? {};
+    const sizes = EL.every((e) => JSON.stringify(S[`impact-${e}.png`]) === "[192,32]" && JSON.stringify(S[`shock-${e}.png`]) === "[384,32]" && JSON.stringify(S[`cast-${e}.png`]) === "[64,16]") && JSON.stringify(S["whirl.png"]) === "[288,24]" && JSON.stringify(S["prop-chest.png"]) === "[32,16]" && JSON.stringify(S["prop-mimic-lid.png"]) === "[32,16]" && JSON.stringify(S["prop-bones.png"]) === "[64,16]" && Object.keys(S).filter((n) => n.startsWith("cave-liquid-")).length === 13 && Object.entries(S).filter(([n]) => n.startsWith("cave-liquid-")).every(([, v]) => JSON.stringify(v) === "[512,128]");
+    check("playtest1h", "the art is the writers' (tools/spell-writer/fx_writer.py and tools/pixel-writer/prop_writer.py, run from each make_gravewake.playtest1h, re-run here into a temp dir): a re-run gives the same bytes; palette v3 only, hard alpha; impact 6x32x32, area 6x64x32, cast 4x16x16, whirl 6x48x24, chest and lid 2x16, bones 4x16, 13 liquids of 4x128x128", !r.error && sizes && (r.bad ?? [1]).length === 0 && Object.values(r.same ?? {}).length === 37 && Object.values(r.same).every(Boolean), JSON.stringify({ error: r.error, bad: r.bad, n: Object.keys(r.same ?? {}).length, differ: Object.entries(r.same ?? {}).filter(([, v]) => !v).map(([k]) => k), sizes }));
+  }
+  // 12. Laws: drawing only, the dated owner notes, the frozen playtest1g files, the live pin (last)
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+    const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const files = ["src/game/draw.ts", "tools/spell-writer/fx_writer.py", "tools/pixel-writer/prop_writer.py", "tools/spell-writer/make_gravewake.py", "tools/pixel-writer/make_gravewake.py", "tools/pixel-writer/README.md", "tools/spell-writer/README.md"];
+    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    check("playtest1h", `the change is recorded as a dated owner-requested note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in draw.ts, the fx and prop writers, both make_gravewake.py and both writers' READMEs`, law.includes(TAG) && agents.includes(TAG) && untagged.length === 0, untagged.join(", "));
+    check("playtest1h", "the frozen references (scripts/frozen/playtest1h/) are playtest1g's draw and pixel make_gravewake byte for byte (as pushed at f21f20e), and group playtest1g's live pin, draw text and bundled draw read them", md5f("scripts/frozen/playtest1h/draw.ts.txt") === "4d885c026399d71086e005b86ca35915" && md5f("scripts/frozen/playtest1h/make_gravewake.py.txt") === "ca95b08085bf6bfc73d18d9365fcaac5" && /md5f\(pt1gView\(f\)\) !== hh/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")) && /readFileSync\(pt1gView\("src\/game\/draw.ts"\), "utf8"\); \/\/ playtest1h/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
+    const LIVE = {"src/game/draw.ts": "beb938dee860186ae4159dc14baf6d04", "tools/spell-writer/fx_writer.py": "d56db00b18c3e2fcbb95ed1fdc25494d", "tools/pixel-writer/prop_writer.py": "a6d5f0d7ae0d00563a121d1f96159b04", "tools/spell-writer/make_gravewake.py": "a07afddc9f47fb50f7c56f390cfedb8e", "tools/pixel-writer/make_gravewake.py": "af77433df2ee05afcaa4f95c9360a31e", "tools/pixel-writer/cave-liquids.json": "32b66f4a0a2a15c490376c175968e5e4"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1h", "the live game files are byte for byte playtest1h's (draw, the fx and prop writers, both make_gravewake.py, the liquids' palette)", moved.length === 0 && Object.keys(LIVE).length === 6, moved.join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);
