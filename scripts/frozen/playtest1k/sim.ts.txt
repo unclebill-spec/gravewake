@@ -79,8 +79,6 @@ export { FAMILIES, scaleMonster, zoneLevel };
 import type { AudioBus } from "./audio";
 import { ParticlePool, paletteIndex } from "./particles";
 import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
-import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
-import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -283,10 +281,6 @@ export type Roamer = {
   phase?: number;
   bigs?: number;
   pattern?: string;
-  /** playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: elemental statuses (poison, wet, chill, the combo
-   * cooldown; seconds left) and the world ms a companion's taunt holds it until. Never saved. */
-  st?: Status;
-  taunt?: number;
   homeX?: number;
   homeY?: number;
   hits?: number;
@@ -308,20 +302,18 @@ export type Roamer = {
   /** True only while the feet actually moved. Idle bodies do not march. */
   moving?: boolean;
 };
-export type Act = "up" | "down" | "left" | "right" | "use" | "area" | "far" | "drink" | "pause" | "map" | Order;
+export type Act = "up" | "down" | "left" | "right" | "use" | "area" | "far" | "drink" | "pause" | "map";
 
-// playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: the four companion orders are binds too (keys Z, X, R, V; pad RT, LT, R3, L3).
-export const ACTS: Act[] = ["up", "down", "left", "right", "use", "area", "far", "drink", "pause", "map", "taunt", "guard", "focus", "stay"];
+export const ACTS: Act[] = ["up", "down", "left", "right", "use", "area", "far", "drink", "pause", "map"];
 
 const BIND_KEY = "gravewake-binds-v1";
-const ORDER_ACTS: Order[] = ["taunt", "guard", "focus", "stay"];
 
 function defaultKeys(): Record<Act, string> {
-  return { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD", use: "KeyE", area: "KeyQ", far: "KeyF", drink: "KeyP", pause: "Escape", map: "KeyM", taunt: "KeyZ", guard: "KeyX", focus: "KeyR", stay: "KeyV" };
+  return { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD", use: "KeyE", area: "KeyQ", far: "KeyF", drink: "KeyP", pause: "Escape", map: "KeyM" };
 }
 
 function defaultPad(): Record<Act, number> {
-  return { up: 12, down: 13, left: 14, right: 15, use: 0, area: 2, far: 3, drink: 4, pause: 9, map: 8, taunt: 7, guard: 6, focus: 11, stay: 10 };
+  return { up: 12, down: 13, left: 14, right: 15, use: 0, area: 2, far: 3, drink: 4, pause: 9, map: 8 };
 }
 
 type Critter = { x: number; y: number; kind: "cat" | "bat" | "rat"; vx: number; stuck?: number };
@@ -607,19 +599,6 @@ export class Game {
   fed: Record<string, number> = {};
   entryLevel = 1;
   companion: Companion | null = null;
-  /** playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: combo name pops (drawn in the pixel font), the companion's
-   * orders (stay, the focus target, the guard, each order's cooldown, world ms) and the foe you last hit. Never saved. */
-  pops: { x: number; y: number; text: string; row: "red" | "blue" | "gold" | "violet"; life: number }[] = [];
-  allyStay = false;
-  allyStayAt = "";
-  allyFocus: Roamer | null = null;
-  focusUntil = 0;
-  guardUntil = 0;
-  orderCool: Record<Order, number> = { taunt: 0, guard: 0, focus: 0, stay: 0 };
-  private lastHit: Roamer | null = null;
-  private castCombos = 0;
-  /** The combo names this cast set off (an area spell's log names them). */
-  private castNames: string[] = [];
   favor: Record<string, number> = {};
   trickDay: Record<string, number> = {};
   opener: "strike" | "cleave" | "ranged" = "strike";
@@ -746,7 +725,6 @@ export class Game {
     if (edge("drink")) this.fireAct("drink");
     if (edge("pause")) this.fireAct("pause");
     if (edge("map")) this.fireAct("map");
-    for (const o of ORDER_ACTS) if (edge(o)) this.fireAct(o);
     const hold = (act: Act, code: string) => {
       const b = this.padBind[act];
       const on = b >= 0 && !!pressed[b];
@@ -813,7 +791,6 @@ export class Game {
       return;
     }
     if (this.mode !== "play") return;
-    if (act === "taunt" || act === "guard" || act === "focus" || act === "stay") this.order(act);
     if (act === "use") this.interact();
     if (act === "area") this.engage("cleave");
     if (act === "far") this.engage("ranged");
@@ -2478,29 +2455,8 @@ export class Game {
       return;
     }
     const back = this.facing === "n" ? [0, 18] : this.facing === "s" ? [0, -18] : this.facing === "e" ? [-18, 0] : [18, 0];
-    let tx = this.px + back[0];
-    let ty = this.py + back[1];
-    // playtest1k: orders. Stay holds the spot (until the hero is past the leash or on another map); Focus walks it to
-    // the target; Guard stands it at the hero's side, toward the nearest foe.
-    const here = `${this.mapId}:${this.inside}`;
-    if (this.allyStay && (this.allyStayAt !== here || Math.hypot(this.px - c.x, this.py - c.y) > ORDER.stayLeash * TILE)) {
-      this.allyStay = false;
-      this.logLine = `${c.name} catches up.`;
-    }
-    const focus = this.focusFoe();
-    if (focus) {
-      const d = Math.hypot(focus.x - c.x, focus.y - c.y) || 1;
-      tx = d > 20 ? focus.x - ((focus.x - c.x) / d) * 18 : c.x;
-      ty = d > 20 ? focus.y - ((focus.y - c.y) / d) * 18 : c.y;
-    } else if (this.guardUntil > this.worldMs) {
-      const near = this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - this.px, r.y - this.py) < 96);
-      const d = near ? Math.hypot(near.x - this.px, near.y - this.py) || 1 : 1;
-      tx = near ? this.px + ((near.x - this.px) / d) * 14 : this.px + 12;
-      ty = near ? this.py + ((near.y - this.py) / d) * 14 : this.py;
-    } else if (this.allyStay) {
-      c.moving = false;
-      return;
-    }
+    const tx = this.px + back[0];
+    const ty = this.py + back[1];
     const dx = tx - c.x;
     const dy = ty - c.y;
     const dist = Math.hypot(dx, dy);
@@ -2554,9 +2510,7 @@ export class Game {
     c.cool = Math.max(0, (c.cool ?? 0) - dt);
     c.artCool = Math.max(0, (c.artCool ?? 0) - dt);
     if ((c.cool ?? 0) > 0) return;
-    // playtest1k: "Focus my target" puts the companion on that foe (it walks over in followCompanion).
-    const focus = this.focusFoe();
-    const foe = focus ? (Math.hypot(focus.x - c.x, focus.y - c.y) < 64 ? focus : undefined) : this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - c.x, r.y - c.y) < 48);
+    const foe = this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - c.x, r.y - c.y) < 48);
     const art = this.allyArt(c, foe);
     if (art) {
       this.castAlly(c, art, foe);
@@ -2569,7 +2523,7 @@ export class Game {
     c.act = "swing";
     c.actFor = 0.28;
     const dealt = Math.max(1, 2 + this.companionAtk() - Math.floor((foe.ac ?? 0) / 2));
-    this.hurtFoe(foe, dealt, "slash", true);
+    this.hurtFoe(foe, dealt, "slash");
     this.logLine = `${c.name} swings for ${dealt}.`;
   }
 
@@ -5387,8 +5341,6 @@ export class Game {
       return;
     }
     if (this.spellCool > 0) return;
-    this.castCombos = 0;
-    this.castNames = [];
     const self = name === "Loadout Stance" || name === "War Cry" || name === "Vanish";
     const aoe = name === "Earthshatter" || name === "Grave Nova" || name === "Summon Shade";
     const reach = name === "Ambush" ? 30 : 100;
@@ -5428,13 +5380,7 @@ export class Game {
       this.audio?.spell();
       return;
     }
-    // playtest1k: the spell's element (its 1h fx strip) reacts with the foe's statuses once the hit lands.
-    const el = SPELL_ELEMENT[name] ?? null;
-    const hit = (r: Roamer, dealt: number) => {
-      const d = Math.max(1, dealt - Math.floor((r.ac ?? 0) / 2));
-      this.hurtFoe(r, d, "smite");
-      this.applyElement(r, el, d, false);
-    };
+    const hit = (r: Roamer, dealt: number) => this.hurtFoe(r, Math.max(1, dealt - Math.floor((r.ac ?? 0) / 2)), "smite");
     if (aoe) {
       const rad = name === "Earthshatter" ? 40 : name === "Summon Shade" ? 56 : 72;
       const mul = name === "Summon Shade" ? 0.7 : 1;
@@ -5445,7 +5391,7 @@ export class Game {
         n += 1;
       }
       paint(this.px, this.py);
-      this.logLine = n ? `${name}.${this.castNames.map((c) => ` ${c}!`).join("")}` : `${name} finds nothing.`; // playtest1k: and the combos it set off
+      this.logLine = n ? `${name}.` : `${name} finds nothing.`;
       this.audio?.spell();
       return;
     }
@@ -5495,13 +5441,9 @@ export class Game {
     if (!foe) return;
     const dmg = art.power + Math.floor(this.level / 4) + Math.floor(this.companionAtk() / 2);
     const victims = art.aoe ? this.roamers.filter((r) => this.liveFoe(r) && Math.hypot(r.x - c.x, r.y - c.y) < 40) : [foe];
-    this.castCombos = 0;
-    this.castNames = [];
     for (const r of [...victims]) {
       if (!this.liveFoe(r)) continue;
-      const d = Math.max(1, dmg - Math.floor((r.ac ?? 0) / 2));
-      this.hurtFoe(r, d, "slash", true);
-      this.applyElement(r, artElement(art.kind), d, true); // playtest1k: venom poisons, a gold taunt art is lightning
+      this.hurtFoe(r, Math.max(1, dmg - Math.floor((r.ac ?? 0) / 2)), "slash");
       if (art.kind === "drain") {
         const heal = Math.ceil(dmg * 0.4);
         this.hp = Math.min(this.maxHp, this.hp + heal);
@@ -5659,205 +5601,7 @@ export class Game {
     return r.aggro && (r.hp ?? 0) > 0;
   }
 
-  // ---- playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands] ----
-
-  /** Statuses a foe picks up where it stands: wet in water, a pool, the swamp or open-air rain; chilled on snow, on ice,
-   * in open-air snow, or rimed by nature (the lich). Both linger STATUS.linger s. Poison runs down. No dice: nothing here
-   * draws a random number, so a fight without spells plays exactly as before. */
-  private tickStatus(r: Roamer, dt: number, weather: string) {
-    const st = r.st ?? (r.st = {});
-    st.poison = Math.max(0, (st.poison ?? 0) - dt);
-    st.comboCool = Math.max(0, (st.comboCool ?? 0) - dt);
-    const t = this.tileUnder(r.x, r.y);
-    const open = this.mapId === "world" || this.mapId === "camp";
-    const wet = t === T.water || t === T.pool || t === T.swamp || (open && WET_WEATHER.has(weather));
-    const cold = t === T.snow || t === T.ice || (open && COLD_WEATHER.has(weather)) || RIMED_FAMILIES.has(r.family);
-    st.wet = wet ? STATUS.linger : Math.max(0, (st.wet ?? 0) - dt);
-    st.chill = cold ? STATUS.linger : Math.max(0, (st.chill ?? 0) - dt);
-  }
-
-  /** Is this foe oiled (wax, pitch, straw or resin)? */
-  oiled(r: Roamer) {
-    return OILED_FAMILIES.has(r.family);
-  }
-
-  /** An element hit has landed on r for dealt: set off its reaction (at most two per cast), then lay the element's
-   * own status (venom poisons). Bonus, splash and arcs go through hurtFoe like any hit (shells, family slivers). */
-  private applyElement(r: Roamer, el: Element | null, dealt: number, ally: boolean) {
-    if (!el) return;
-    const st = r.st ?? (r.st = {});
-    let id: ComboId | null = this.castCombos < 2 ? reaction(el, st, this.oiled(r)) : null;
-    const x = r.x;
-    const y = r.y;
-    const others = this.roamers.filter((o) => o !== r && this.liveFoe(o));
-    const wetFirst = (o: Roamer) => ((o.st?.wet ?? 0) > 0 ? 0 : 1);
-    const arcs = id === "chain" ? others.filter((o) => Math.hypot(o.x - x, o.y - y) <= COMBO.chainR).sort((a, b) => wetFirst(a) - wetFirst(b) || Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)).slice(0, COMBO.chainMax) : [];
-    if (id === "chain" && !arcs.length) id = null;
-    if (el === "venom") st.poison = STATUS.poison;
-    if (!id) return;
-    this.castCombos += 1;
-    if (!this.castNames.includes(COMBO_NAME[id])) this.castNames.push(COMBO_NAME[id]);
-    st.comboCool = STATUS.comboCool;
-    if (id === "blast") st.poison = 0;
-    if (id === "shatter") st.chill = 0;
-    const bonus = comboBonus(id, dealt);
-    if (bonus && this.liveFoe(r)) this.hurtFoe(r, bonus, "smite", ally);
-    const color = COMBO_COLOR[id];
-    if (id === "blast" || id === "wildfire") {
-      this.bolt(x, y - 8, x, y - 8, "nova", color);
-      for (const o of others) if (this.liveFoe(o) && Math.hypot(o.x - x, o.y - y) <= COMBO.blastR) this.hurtFoe(o, comboSpread(id, dealt), "smite", ally);
-    } else if (id === "shatter") {
-      this.bolt(x, y - 8, x, y - 8, "ring", color);
-      for (const [sx, sy] of [[-6, -12], [6, -12], [-5, -2], [5, -2]]) this.spark(x + sx, y + sy, color);
-    } else {
-      let fx = x;
-      let fy = y;
-      for (const o of arcs) {
-        this.bolt(fx, fy - 10, o.x, o.y - 10, "bolt", color);
-        fx = o.x;
-        fy = o.y;
-        if (this.liveFoe(o)) this.hurtFoe(o, comboSpread(id, dealt), "smite", ally);
-      }
-    }
-    this.pushPop(x, y - 28, COMBO_NAME[id], COMBO_ROW[id]);
-    this.logLine = `${COMBO_NAME[id]}! ${this.logLine}`;
-    this.audio?.hit();
-  }
-
-  private pushPop(x: number, y: number, text: string, row: "red" | "blue" | "gold" | "violet") {
-    this.pops.push({ x, y, text, row, life: COMBO.popLife });
-    if (this.pops.length > COMBO.popMax) this.pops.shift();
-  }
-
-  private allyUp() {
-    return !!this.companion && this.companion.hp > 0;
-  }
-
-  /** The companion, while r is taunted by it. */
-  private tauntOf(r: Roamer) {
-    const c = this.companion;
-    if (!c || c.hp <= 0 || (r.taunt ?? 0) <= this.worldMs) return null;
-    return c;
-  }
-
-  /** Where a foe aims: the hero, or a taunting companion. */
-  private aimOf(r: Roamer): { x: number; y: number; ally: boolean } {
-    const c = this.tauntOf(r);
-    return c ? { x: c.x, y: c.y, ally: true } : { x: this.px, y: this.py, ally: false };
-  }
-
-  /** A hit on the taunting companion. Field companions do not fall: under ORDER.tauntFloor of its HP it falls back and
-   * every taunt ends. */
-  private hurtAlly(dealt: number, label: string) {
-    const c = this.companion;
-    if (!c) return;
-    c.hp = Math.max(1, c.hp - dealt);
-    this.nums.push({ x: c.x, y: c.y - 18, text: String(dealt), life: 0.55 });
-    this.spark(c.x, c.y - 12, "#f4e27a");
-    this.logLine = label;
-    if (c.hp < this.companionMax() * ORDER.tauntFloor) {
-      for (const r of this.roamers) r.taunt = 0;
-      this.logLine = `${label} ${c.name} falls back.`;
-    }
-  }
-
-  /** The focused foe while the focus holds. */
-  private focusFoe() {
-    const f = this.allyFocus;
-    if (!f || this.focusUntil <= this.worldMs || !this.liveFoe(f) || !this.roamers.includes(f)) {
-      this.allyFocus = null;
-      return null;
-    }
-    return f;
-  }
-
-  resetOrders() {
-    this.allyStay = false;
-    this.allyStayAt = "";
-    this.allyFocus = null;
-    this.focusUntil = 0;
-    this.guardUntil = 0;
-    this.orderCool = { taunt: 0, guard: 0, focus: 0, stay: 0 };
-    this.pops = [];
-    this.lastHit = null;
-  }
-
-  /** Does the companion know a heal (then "Heal or guard me" heals; without one it guards)? */
-  allyHeals() {
-    const c = this.companion;
-    return !!c && KITS[c.kit].tree.some((a) => (a.kind === "heal" || a.kind === "cleanse") && this.level >= a.need);
-  }
-
-  /** The seconds left on an order's cooldown (the touch strip dims while it waits). */
-  orderWait(o: Order) {
-    return Math.max(0, (this.orderCool[o] - this.worldMs) / 1000);
-  }
-
-  /** One-tap orders to the companion: the touch strip, keys Z X R V, pad RT LT R3 L3 (all rebindable). */
-  order(o: Order) {
-    if (this.mode !== "play" || this.fallen > 0) return;
-    const c = this.companion;
-    if (!c || c.hp <= 0) {
-      this.logLine = "No one walks with you.";
-      return;
-    }
-    if (this.orderCool[o] > this.worldMs) {
-      this.logLine = `${ORDER_LABEL[o].long}: not yet.`;
-      return;
-    }
-    let pop = ORDER_LABEL[o].short.toUpperCase();
-    if (o === "focus") {
-      const reach = (r: Roamer) => this.liveFoe(r) && Math.hypot(r.x - this.px, r.y - this.py) <= ORDER.focusR;
-      const last = this.lastHit && this.roamers.includes(this.lastHit) && reach(this.lastHit) ? this.lastHit : null;
-      const t = last ?? this.roamers.filter(reach).sort((a, b) => Math.hypot(a.x - this.px, a.y - this.py) - Math.hypot(b.x - this.px, b.y - this.py))[0];
-      if (!t) {
-        this.logLine = "No target to focus.";
-        return;
-      }
-      this.allyFocus = t;
-      this.focusUntil = this.worldMs + ORDER.focus * 1000;
-      this.logLine = `${c.name} goes for ${t.name ?? "it"}.`;
-    } else if (o === "taunt") {
-      const known = KITS[c.kit].tree.some((a) => a.kind === "aggro" && this.level >= a.need);
-      const secs = known ? ORDER.tauntArt : ORDER.taunt;
-      let n = 0;
-      for (const r of this.roamers) {
-        if (!this.liveFoe(r) || Math.hypot(r.x - c.x, r.y - c.y) > ORDER.tauntR) continue;
-        r.taunt = this.worldMs + (r.boss ? secs / 2 : secs) * 1000;
-        n += 1;
-      }
-      this.bolt(c.x, c.y - 8, c.x, c.y - 8, "ring", "#f4e27a");
-      this.logLine = n ? `${c.name} taunts ${n === 1 ? "the foe" : `${n} foes`}.` : `${c.name} taunts the empty air.`;
-    } else if (o === "guard") {
-      const known = KITS[c.kit].tree.filter((a) => this.level >= a.need);
-      const mend = [...known].reverse().find((a) => a.kind === "heal" || a.kind === "cleanse");
-      if (mend) {
-        this.castAlly(c, mend);
-        c.artCool = 4.5;
-        pop = "HEAL";
-      } else {
-        // The fallback for a companion without a heal: it stands at your side and takes the edge off every hit.
-        this.guardUntil = this.worldMs + ORDER.guard * 1000;
-        this.allyStay = false;
-        this.bolt(c.x, c.y, this.px, this.py, "ring", "#f4e27a");
-        this.logLine = `${c.name} guards you.`;
-        this.audio?.spell();
-        pop = "GUARD";
-      }
-    } else {
-      this.allyStay = !this.allyStay;
-      this.allyStayAt = `${this.mapId}:${this.inside}`;
-      pop = this.allyStay ? "STAY" : "FOLLOW";
-      this.logLine = this.allyStay ? `${c.name} holds here.` : `${c.name} follows.`;
-    }
-    this.orderCool[o] = this.worldMs + ORDER.cool[o] * 1000;
-    c.act = "cast";
-    c.actFor = 0.3;
-    this.pushPop(c.x, c.y - 30, pop, "violet");
-  }
-
-  private hurtFoe(r: Roamer, dealt: number, verb: "slash" | "whirl" | "smite" = "slash", ally = false) {
-    if (!ally) this.lastHit = r; // playtest1k: "Focus my target" reads the foe you last hit
+  private hurtFoe(r: Roamer, dealt: number, verb: "slash" | "whirl" | "smite" = "slash") {
     dealt = this.tuned(r, dealt, verb);
     if ((r.shell ?? 0) > 0) {
       const bite = verb === "smite" ? dealt * 2 : dealt;
@@ -5972,17 +5716,12 @@ export class Game {
     this.riftSwirl(dt);
     this.noteBossRoom();
     this.spells = this.spells.filter((s) => (s.life -= dt) > 0);
-    // playtest1k: combo and order pops rise and fade; statuses read the weather once a frame.
-    this.pops = this.pops.filter((p) => (p.life -= dt) > 0);
-    for (const p of this.pops) p.y -= 12 * dt;
-    const weather = this.weather;
     for (const r of [...this.roamers]) {
       if (!this.liveFoe(r)) continue;
       this.freeBody(r);
       r.actFor = Math.max(0, (r.actFor ?? 0) - dt);
       r.flash = Math.max(0, (r.flash ?? 0) - dt);
       r.age = (r.age ?? 0) + dt;
-      this.tickStatus(r, dt, weather);
       if (r.goblin && (r.age ?? 0) > 4) {
         const ox = r.x;
         const oy = r.y;
@@ -5994,10 +5733,8 @@ export class Game {
         }
         continue;
       }
-      // playtest1k: a taunted foe turns on the companion (it walks to it, swings at it and marks it).
-      const aim = this.aimOf(r);
-      const dx = aim.x - r.x;
-      const dy = aim.y - r.y;
+      const dx = this.px - r.x;
+      const dy = this.py - r.y;
       const dist = Math.hypot(dx, dy) || 1;
       const leash = (r.boss ? 40 : 24) * TILE;
       if (!r.boss && dist > leash) {
@@ -6023,7 +5760,7 @@ export class Game {
         if ((r.tell ?? 0) <= 0) {
           // playtest1j: an aimed phase-two big is followed by its echo, whatever the first one hit.
           const echo = r.pattern === "echo";
-          this.resolveCast(r, aim.ally ? Math.hypot(this.px - r.x, this.py - r.y) || 1 : dist);
+          this.resolveCast(r, dist);
           if (echo && this.liveFoe(r)) this.beginEcho(r);
         }
         continue;
@@ -6099,9 +5836,8 @@ export class Game {
 
   private beginCast(r: Roamer, slot: "mid" | "big" | "spam", name: string, tag: string, seconds: number) {
     r.casting = slot;
-    const aim = this.aimOf(r);
-    r.markX = aim.x;
-    r.markY = aim.y;
+    r.markX = this.px;
+    r.markY = this.py;
     r.markR = markRadius(tag);
     r.pattern = "";
     // playtest1j: a big move's pattern (phase one aims; phase two alternates a nova round the boss and an aimed mark
@@ -6130,9 +5866,8 @@ export class Game {
   /** playtest1j: the echo, a second mark on the spot the hero stepped to, right after an aimed phase-two big move. */
   private beginEcho(r: Roamer) {
     r.casting = "mid";
-    const aim = this.aimOf(r);
-    r.markX = aim.x;
-    r.markY = aim.y;
+    r.markX = this.px;
+    r.markY = this.py;
     r.markR = markRadius("ring");
     r.pattern = "echoed";
     r.tell = tellFor("mid", "ring", TELL.echo, r.markR);
@@ -6199,13 +5934,6 @@ export class Game {
         : tag === "cone"
           ? dist < 80 && inside
           : inside;
-    // playtest1k: a mark aimed at a taunting companion lands on it if it stands there (it does not dodge).
-    const ally = this.tauntOf(r);
-    if (ally && Math.hypot(ally.x - mx, ally.y - my) < (r.markR ?? 40)) {
-      const took = Math.max(1, (r.atk ?? 2) + (slot === "big" ? 4 : 1));
-      this.hurtAlly(took, `${r.name ?? "It"} lands ${name} on ${ally.name} for ${took}.`);
-      if (!hit) return;
-    }
     if (!hit) {
       this.logLine = `You step clear of ${name}.`;
       return;
@@ -6266,14 +5994,6 @@ export class Game {
     r.hits = (r.hits ?? 0) + 1;
     r.act = r.spamTag === "bolt" ? "cast" : "swing";
     r.actFor = 0.28;
-    const ally = this.tauntOf(r);
-    if (ally) {
-      // playtest1k: the taunted foe's swing goes to the companion.
-      if (r.spamTag === "bolt") this.bolt(r.x, r.y - 12, ally.x, ally.y - 10, "bolt");
-      const took = Math.max(1, r.atk ?? 2);
-      this.hurtAlly(took, `${r.name ?? "It"} uses ${r.spam ?? "a swing"} on ${ally.name} for ${took}.`);
-      return;
-    }
     if (r.spamTag === "bolt") this.bolt(r.x, r.y - 12, this.px, this.py - 10, "bolt");
     this.bite(dealt, `${r.name ?? "It"} uses ${r.spam ?? "a swing"} for ${dealt}.`);
   }
@@ -6335,8 +6055,6 @@ export class Game {
   private bite(dealt: number, label: string) {
     if (this.fallen > 0 || this.iframe > 0) return;
     if (this.wardUntil > this.worldMs) dealt = Math.max(1, dealt - 2);
-    // playtest1k: "Guard me" (a companion without a heal): it stands at your side and every hit is cut.
-    if (this.guardUntil > this.worldMs && this.allyUp()) dealt = Math.max(1, Math.round(dealt * ORDER.guardCut));
     this.hp -= dealt;
     this.iframe = 0.7;
     this.nums.push({ x: this.px, y: this.py - 18, text: String(dealt), life: 0.55 });
@@ -7538,7 +7256,6 @@ export class Game {
 
   /** Restore one save record (a slot's, or the autosave's) and rebuild the map under the saved pixel. */
   loadRecord(record: SaveBlob) {
-    this.resetOrders(); // playtest1k: orders and combo pops are never saved; a loaded game follows
     const raw = migrateWorldSave(record);
     this.cls = raw.cls;
     this.path = raw.path;

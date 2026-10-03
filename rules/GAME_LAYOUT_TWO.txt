@@ -241,6 +241,19 @@ HP pot          Health flask (key 1). Hold 0.25s to chug.
 Second pill     Grey / ignored until a mana flask exists.
 Rail            Socketed gear spells / gems only. Cap 4. Hide empty.
 Pause hold      0.35s. Panels I/C/T/K/X stay off the combat pad.
+[OWNER-APPROVED 2026-10-03: elemental combos, companion commands] (playtest1k, Bill 2026-10-03 08:41 ET, re-confirmed
+10:03 ET, an owner-approved companion change: "Taunt, Heal or Guard me, Focus my target, and Stay or Follow ... a touch UI
+that fits the HUD and display presets, plus gamepad and keyboard binds"):
+  ORDERS      Pad RT Taunt, LT Heal or guard me, R3 Focus my target, L3 Stay or follow (no panel on them; the combat
+              verbs above keep their buttons). Keys Z, X, R, V (Gravewake has no X panel). All four are rebindable and
+              an old binds record merges with them. Touch: a row of four small buttons beside the stick, inside the safe
+              area, shown only while a companion walks with you; each dims while it cools down.
+  Taunt (12 s) turns foes within 72 px of the companion onto it for 4 s (6 s if it knows a taunting art; a boss half):
+  their swings and marks go to it. A field companion never falls (HP floor 1) and falls back under 30%.
+  Heal or guard me (10 s): a healer casts its best heal now; a companion without a heal guards instead (5 s at your
+  side, every hit on you cut to 70%, never under 1). Focus my target (3 s): the foe you last hit (else the nearest in
+  120 px) for 8 s. Stay or follow: it holds its spot and catches up by itself past 10 tiles or on another map.
+  Orders are never saved: a loaded game follows. src/game/commands.ts.
 
 PC vs PHONE
 PC keeps click-to-move + A* and keyboard 1/2/3/F.
@@ -446,6 +459,19 @@ USE INSTEAD
 
 If a later expansion wants a puzzle mob, make it a MINI with a breakable
 shell, not a Wastes walker you cannot scratch.
+
+[OWNER-APPROVED 2026-10-03: elemental combos, companion commands] (playtest1k, Bill 2026-10-03 08:41 ET, an
+owner-approved combat change: "Fire on poisoned or oiled foes explodes, ice then lightning shatters for bonus damage, and
+lightning in water or on wet foes chains ... keep the balance modest"):
+  ELEMENTAL COMBOS are bonuses on top of a hit, never a gate: no foe is immune to anything and every verb still does its
+  full damage. Each hero spell and companion art carries the 1h fx element its colour draws (fire, ice, lightning,
+  venom, shadow, holy). STATUSES (run only, never saved): venom POISONS 6 s (no damage of its own); water, pool, swamp
+  and open-air rain make a foe WET; snow, ice and open-air snow CHILL it (a lich is rimed); lanterns, pumpkins,
+  scarecrows and mummies are OILED. Wet and chill linger 2 s.
+  REACTIONS: fire on poison VENOM BLAST (+50% and a 30% splash in 32 px; the poison is spent), fire on oil WILDFIRE
+  (the same), lightning on chill SHATTER (+60%; the chill is spent), lightning on a wet foe CHAIN (40% arcs to at most 2
+  foes in 56 px). One per foe per 3 s, at most two per cast. Each shows its name in the pixel font and its own burst
+  (red nova, blue ring and shards, gold arcs). Statuses show as small motes over a fighting foe. src/game/combos.ts.
 
 ================================================================
 AGGRO / LEASH

@@ -3,7 +3,6 @@ import { CLASSES, type ClassId, type StatPath } from "./content";
 import { AudioBus } from "./audio";
 import { cameraFor, drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
 import { ACTS, Game, type Act } from "./sim";
-import { ORDERS, ORDER_LABEL } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { CAMP_ICON, PORTRAITS } from "./looks"; // playtest1b
 import {
   ASPECTS,
@@ -373,7 +372,6 @@ export function Gravewake() {
       if (e.code === "Digit2") game.castKnown(game.specials[1] ?? "");
       if (e.code === "Digit3") game.castKnown(game.specials[2] ?? "");
       if (e.code === "Digit4") game.castKnown(game.specials[3] ?? "");
-      for (const o of ORDERS) if (e.code === bind[o]) game.order(o); // playtest1k: Z taunt, X heal or guard, R focus, V stay
       const pauseKey = e.code === bind.pause || e.code === "Escape";
       const packKey = (e.code === "KeyI" || e.code === "KeyC") && !pauseKey;
       if (pauseKey) {
@@ -1067,41 +1065,6 @@ export function Gravewake() {
             <span className="text-[9px] leading-none text-fg" data-testid="hud-camp-label">{game.mapId === "camp" ? "Break" : "Camp"}</span>
           </button>
 
-          {/* playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: one-tap companion orders, a
-              row beside the stick (clear of the stick, the camp tent and the right-hand cluster on every preset; on a narrow
-              portrait phone, under 640 px wide, it folds to two by two so it clears the potions). Each
-              dims while its cooldown runs; Stay reads Follow while it holds; Heal reads Guard for a companion without a heal. */}
-          {game.companion && game.mapId !== "camp" ? (
-            <div
-              data-testid="hud-orders"
-              className="gw-orders absolute z-10 grid grid-cols-2 gap-1 sm:flex"
-              style={{ left: "calc(8.25rem + var(--sal))", bottom: "calc(0.75rem + var(--sab))" }}
-            >
-              {ORDERS.map((o) => {
-                const wait = game.orderWait(o);
-                const label = o === "stay" ? (game.allyStay ? "Follow" : "Stay") : o === "guard" ? (game.allyHeals() ? "Heal" : "Guard") : ORDER_LABEL[o].short;
-                return (
-                  <button
-                    key={o}
-                    type="button"
-                    data-testid={`order-${o}`}
-                    aria-label={ORDER_LABEL[o].long}
-                    aria-disabled={wait > 0}
-                    className={`flex h-9 w-11 flex-col items-center justify-center rounded border bg-surface/80 text-[10px] leading-tight ${o === "stay" && game.allyStay ? "border-primary" : "border-border"} ${wait > 0 ? "opacity-40" : ""}`}
-                    onPointerDown={() => {
-                      unlock();
-                      game.order(o);
-                      bump();
-                    }}
-                  >
-                    {label}
-                    {padFirst ? <PadGlyph b={padLabel(game.padBind[o])} /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
           <div className="absolute right-3 bottom-3 z-10 flex flex-col items-end gap-2" style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))" }}>
             <div className="flex max-w-[220px] flex-wrap justify-end gap-1">
               {game.specials.slice(0, 4).map((s) => (
@@ -1526,8 +1489,6 @@ export function Gravewake() {
                   <p>Weather turns on its own: still air, light rain, hard rain, a thunderstorm, then snow. Each holds for a few minutes. Stone roofs keep it off you. Thunder is a low rumble, not a crack.</p>
                   <p>Roads are quieter than the brush. Do not cross the east bridge at level 1. The tent button, above the stick, pitches camp only in the wild. The south mark breaks it.</p>
                   <p>Three save slots wait on the title. One companion walks with you. The living hire from level 10. A vampire bites at night instead.</p>
-                  <p>Give your companion orders: {keyLabel(game.keyBind.taunt)} taunts the foes near it onto itself, {keyLabel(game.keyBind.guard)} heals you (or, with no heal, guards you and cuts every hit), {keyLabel(game.keyBind.focus)} sends it at the foe you last hit, and {keyLabel(game.keyBind.stay)} tells it to stay or follow. On a pad: {padLabel(game.padBind.taunt)}, {padLabel(game.padBind.guard)}, {padLabel(game.padBind.focus)}, {padLabel(game.padBind.stay)}. On a phone: the row beside the stick.</p>
-                  <p>Spells react. Fire on a poisoned or oiled foe explodes. Lightning shatters a chilled foe and chains through wet ones. Venom poisons; rain, water and the swamp soak; snow and ice chill; lanterns, pumpkins, scarecrows and mummies burn.</p>
                   <p>Open water is a swim at half speed. Ice slides. Bog-step boots walk the water. The Drowned Hook, on the south street, sells a pole and creepy bait. Use beside water, then reel. Trade the catch there for points.</p>
                 </div>
               ) : pauseTab === "pad" ? (
@@ -1545,7 +1506,7 @@ export function Gravewake() {
                           bump();
                         }}
                       >
-                        {act in ORDER_LABEL ? ORDER_LABEL[act as keyof typeof ORDER_LABEL].long : act} · {keyLabel(game.keyBind[act])} · {padLabel(game.padBind[act])}
+                        {act} · {keyLabel(game.keyBind[act])} · {padLabel(game.padBind[act])}
                         {game.captureAct === act ? " · press a key or button" : ""}
                       </button>
                     ))}

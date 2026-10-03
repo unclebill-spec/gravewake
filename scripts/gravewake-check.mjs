@@ -104,14 +104,22 @@ const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.s
 // playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: batch D2 edits sim.ts and draw.ts; their playtest1e copies
 // (as pushed at ee433e3) are frozen in scripts/frozen/playtest1f, and group playtest1e's live pin reads them.
 const PT1F_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
-const pt1eView = (f) => (PT1F_FROZEN.includes(f) ? `scripts/frozen/playtest1f/${f.split("/").pop()}.txt` : f);
+const pt1eView = (f) => (PT1F_FROZEN.includes(f) ? `scripts/frozen/playtest1f/${f.split("/").pop()}.txt` : pt1jView(f));
 // playtest1j (2026-10-03, [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights], a combat change Bill
 // approved at 08:41 ET): sim.ts and draw.ts as playtest1i shipped them (main 36eb728), frozen under scripts/frozen/playtest1j/;
 // every older pin and rest digest that read the live files reads them there (pt1iView, under pt1fView, pt1gView, pt1hView
 // and group playtest1i). Its new modules (pt1jNew) are left out of the older rest digests. Group playtest1j checks the live files.
 const PT1J_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
-const pt1iView = (f) => (PT1J_FROZEN.includes(f) ? `scripts/frozen/playtest1j/${f.split("/").pop()}.txt` : f);
+const pt1iView = (f) => (PT1J_FROZEN.includes(f) ? `scripts/frozen/playtest1j/${f.split("/").pop()}.txt` : pt1jView(f));
 const pt1jNew = (f) => f === "src/game/telegraph.ts" || f === "src/game/fightlights.ts";
+// playtest1k (2026-10-03, [OWNER-APPROVED 2026-10-03: elemental combos, companion commands], a combat change Bill approved
+// at 08:41 ET and re-confirmed at 10:03 ET): sim.ts, draw.ts and the shell as playtest1j shipped them (main 1656bf0), frozen
+// under scripts/frozen/playtest1k/; every older pin and rest digest that read the live files reads them there (pt1jView,
+// under pt1iView, pt1eView and group playtest1j). Its new modules (pt1kNew) are left out of the older rest digests.
+// Group playtest1k checks the live files.
+const PT1K_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx"];
+function pt1jView(f) { return PT1K_FROZEN.includes(f) ? `scripts/frozen/playtest1k/${f.split("/").pop()}.txt` : f; }
+const pt1kNew = (f) => f === "src/game/combos.ts" || f === "src/game/commands.ts";
 // playtest1g (2026-10-02, [OWNER-APPROVED 2026-10-02: playtest1g trail paths], drawing only): draw.ts as playtest1f
 // shipped it, frozen; group playtest1f's live pin reads it there (pt1fView).
 const PT1G_FROZEN = ["src/game/draw.ts"];
@@ -182,7 +190,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -8467,7 +8475,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8774,7 +8782,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9059,7 +9067,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(pt1iView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1iView(f))}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9373,7 +9381,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(pt1jView(f))}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9387,13 +9395,447 @@ if (on("playtest1j")) {
     globalThis.document = had.document;
     Math.random = had.random;
     const LIVE = {"src/game/sim.ts": "50c8cb43e2d0ae7222c2e7df4edb3681", "src/game/draw.ts": "763b9990c200ba16ee6b8e544d920eec", "src/game/telegraph.ts": "d1ab7dcd4552eed6ce23687fa1a5f88b", "src/game/fightlights.ts": "9f81aedf78bef6883d282afc8da09ef9"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1jView(f)) !== hh).map(([f]) => f);
     check("playtest1j", "the live game files are byte for byte playtest1j's (sim, draw, telegraph, fightlights)", moved.length === 0 && Object.keys(LIVE).length === 4, moved.join(", "));
   }
 }
 
+// playtest1k ([OWNER-APPROVED 2026-10-03: elemental combos, companion commands], part 2 of Bill's 2026-10-03 08:41 ET
+// combat batch, re-confirmed 10:03 ET): spells and statuses react (VENOM BLAST, WILDFIRE, SHATTER, CHAIN; modest numbers,
+// the 1h fx elements), and the bond companion takes four one-tap orders (Taunt, Heal or guard me, Focus my target, Stay or
+// follow) on touch, keys and pad. Statuses and orders live in the run only: no save field moves.
+if (on("playtest1k")) {
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-03: elemental combos, companion commands]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1k.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as CB from "${root}/src/game/combos.ts";\nexport * as CM from "${root}/src/game/commands.ts";\nexport { HERO_SPELLS, KITS, T } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1k.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1k.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  writeFileSync(join(dir, "sim1j.ts"), readFileSync("scripts/frozen/playtest1k/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  execFileSync("npx", ["esbuild", join(dir, "sim1j.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1j.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, random: Math.random, ls: globalThis.localStorage, pads: globalThis.navigator?.getGamepads };
+  let fills = new Map();
+  let labels = 0;
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const mock = (off = null) => {
+    const o = {
+      drawImage() { if (!off) labels++; },
+      fillRect() { if (!off) fills.set(o.fillStyle, (fills.get(o.fillStyle) ?? 0) + 1); },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop() {} }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+  };
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= mock(c)); } }; return c; } };
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  const X = await import(pathToFileURL(join(dir, "pt1k.mjs")).href);
+  const Z = await import(pathToFileURL(join(dir, "sim1j.mjs")).href);
+  const { CB, T } = X;
+  const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const ALL = ["Envenom", "Tripwire", "Ambush", "Vanish", "Execution", "Earthshatter", "War Cry", "Deathbolt", "Curse", "Grave Nova", "Summon Shade"];
+  // A world fight on dry grass at a still hour (the season clock's 0:05 is rain; 30 min is still: the check finds a still,
+  // non-snow time so the weather adds no status unless a check asks for it).
+  const still = (() => { for (let m = 0; m < 400; m++) { const g = new X.Game(); g.start("warrior", "str", "Q"); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = m * 60 * 1000; if (!CB.WET_WEATHER.has(g.weather) && !CB.COLD_WEATHER.has(g.weather)) return g.worldMs; } return -1; })();
+  const wetMs = (() => { for (let m = 0; m < 400; m++) { const g = new X.Game(); g.start("warrior", "str", "Q"); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = m * 60 * 1000; if (CB.WET_WEATHER.has(g.weather)) return g.worldMs; } return -1; })();
+  const mk = (M = X, cls = "assassin", ms = still) => { const g = new M.Game(); g.start(cls, "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = ms; g.roamers = []; g.mode = "play"; g.level = 20; g.energy = 999; g.specials = [...ALL]; return g; };
+  const foe = (g, dx = 20, dy = 0, family = "zombie", extra = {}) => { const n = g.roamers.length; g.touchFoe({ id: `${family}${n}`, x: g.px + dx, y: g.py + dy, family, tint: "#888", def: family, level: 6, ang: 0, ...extra }); const fresh = g.roamers.slice(n); g.roamers = g.roamers.slice(0, n).concat(fresh.slice(0, 1)); const r = fresh[0]; if (r) { r.x = g.px + dx; r.y = g.py + dy; r.hp = r.max = 400; r.ac = 0; r.cool = 99; r.family = family; } return r; };
+  const ally = (g, kit = "acolyte") => { g.companion = { id: "a", name: "Bren", kit, sourceId: kit, look: "priest", coat: "#000", focus: "heal", hp: g.companionMax(), equip: {}, x: g.px - 16, y: g.py }; return g.companion; };
+  const cast = (g, name) => { g.spellCool = 0; g.energy = 999; g.castCombos = 0; g.castKnown(name); };
+  const tick = (g, s, each = () => {}) => { for (let t = 0; t < s; t += 0.05) { g.update(0.05); each(); } };
+
+  // 1. Elements: every hero spell and companion art carries the 1h fx element its colour already draws.
+  {
+    const bad = Object.entries(CB.SPELL_ELEMENT).filter(([n, el]) => X.elementOfColor(X.HERO_SPELLS[n]?.color ?? "") !== el).map(([n]) => n);
+    const missing = Object.keys(X.HERO_SPELLS).filter((n) => !(n in CB.SPELL_ELEMENT));
+    const arts = { curse: "#6a8a48", drain: "#6a3a8a", aggro: "#f4e27a" };
+    const artBad = Object.entries(arts).filter(([k, c]) => CB.artElement(k) !== X.elementOfColor(c)).map(([k]) => k);
+    check("playtest1k", "elements: each hero spell's (12) and each harmful companion art's element is the 1h fx element its colour draws (fire red, ice/lightning/holy blue, venom/shadow violet); heals, wards and blessings carry none", still >= 0 && bad.length === 0 && missing.length === 0 && artBad.length === 0 && Object.keys(CB.SPELL_ELEMENT).length === 12 && CB.artElement("heal") === null && CB.artElement("ward") === null && CB.ELEMENTS.length === 6, `${bad} ${missing} ${artBad} still=${still}`);
+  }
+
+  // 2. The reaction table: fire spends poison (VENOM BLAST) before oil (WILDFIRE); lightning shatters a chilled foe before it
+  //    chains a wet one; nothing else reacts, and nothing while the foe's combo cool runs. Modest numbers.
+  {
+    const R = CB.reaction;
+    const ok = R("fire", { poison: 1 }, true) === "blast" && R("fire", {}, true) === "wildfire" && R("fire", {}, false) === null && R("lightning", { chill: 1, wet: 1 }, false) === "shatter" && R("lightning", { wet: 1 }, false) === "chain" && R("lightning", {}, true) === null && R("venom", { poison: 1, wet: 1, chill: 1 }, true) === null && R("ice", { wet: 1 }, false) === null && R("shadow", { poison: 1 }, true) === null && R("holy", { chill: 1 }, true) === null && R("fire", { poison: 1, comboCool: 0.1 }, true) === null && R(null, { poison: 1 }, true) === null;
+    const nums = CB.comboBonus("blast", 20) === 10 && CB.comboBonus("wildfire", 20) === 10 && CB.comboBonus("shatter", 20) === 12 && CB.comboBonus("chain", 20) === 0 && CB.comboSpread("blast", 20) === 6 && CB.comboSpread("chain", 20) === 8 && CB.comboBonus("blast", 1) === 1 && CB.COMBO.chainMax === 2 && CB.STATUS.comboCool === 3 && CB.COMBO_COLOR.shatter === "#7ac8ff" && CB.COMBO_COLOR.shatter !== CB.COMBO_COLOR.chain && CB.COMBO_COLOR.shatter !== CB.COMBO_COLOR.blast && CB.COMBO_COLOR.blast === "#e04a2a" && CB.COMBO_COLOR.chain === "#f4e27a"; // the pops read apart: red blasts, a blue shatter, gold chains
+    check("playtest1k", "the reaction table: fire on poison is VENOM BLAST (before oil's WILDFIRE), lightning on chill is SHATTER (before a wet foe's CHAIN), no other element reacts, nothing while the 3 s combo cool runs; modest numbers (+50% blast, +60% shatter, 30% splash, 40% arcs to at most 2)", ok && nums);
+  }
+
+  // 3. In the field: each reaction from a real spell, with its bonus, its splash or arcs, its pop, its log and its effect.
+  {
+    const res = {};
+    // VENOM BLAST: Envenom then Tripwire; the splash reaches a second foe within 32 px.
+    {
+      const g = mk(); const a = foe(g, 20); const b = foe(g, 20, 20);
+      cast(g, "Envenom");
+      const poisoned = a.st?.poison === CB.STATUS.poison;
+      const ha = a.hp; const hb = b.hp; g.spells = [];
+      cast(g, "Tripwire");
+      const plain = (() => { const h = mk(); const c = foe(h, 20); cast(h, "Tripwire"); return 400 - c.hp; })();
+      res.blast = { poisoned, took: ha - a.hp, plain, splash: hb - b.hp, pop: g.pops.map((p) => p.text).join(), log: g.logLine, nova: g.spells.some((s) => s.kind === "nova" && s.color === CB.COMBO_COLOR.blast), spent: a.st?.poison === 0, cool: a.st?.comboCool === CB.STATUS.comboCool };
+      res.blastOk = poisoned && res.blast.took === res.blast.plain + Math.max(1, Math.round(res.blast.plain * 0.5)) && res.blast.splash === Math.max(1, Math.round(res.blast.plain * 0.3)) && /VENOM BLAST/.test(res.blast.pop) && /VENOM BLAST!/.test(g.logLine) && res.blast.nova && res.blast.spent && res.blast.cool;
+    }
+    // WILDFIRE: Tripwire on a lantern (oiled by nature).
+    {
+      const g = mk(); const a = foe(g, 20, 0, "lantern");
+      cast(g, "Tripwire");
+      res.wild = { pop: g.pops.map((p) => p.text).join(), log: g.logLine, oiled: g.oiled(a) };
+      res.wildOk = res.wild.oiled && /WILDFIRE/.test(res.wild.pop) && /WILDFIRE!/.test(g.logLine);
+    }
+    // SHATTER: a foe standing on ice (chilled) then Earthshatter (lightning).
+    {
+      const g = mk(X, "warrior");
+      const a = foe(g, 20);
+      a.st = { chill: CB.STATUS.linger };
+      const ha = a.hp; g.spells = [];
+      cast(g, "Earthshatter");
+      const plain = (() => { const h = mk(X, "warrior"); h.specials = [...ALL]; const c = foe(h, 20); cast(h, "Earthshatter"); return 400 - c.hp; })();
+      res.shatter = { took: ha - a.hp, plain, pop: g.pops.map((p) => p.text).join(), ring: g.spells.some((s) => s.kind === "ring" && s.color === CB.COMBO_COLOR.shatter), spent: a.st.chill === 0 };
+      res.shatterOk = res.shatter.took === res.shatter.plain + Math.max(1, Math.round(res.shatter.plain * 0.6)) && /SHATTER/.test(res.shatter.pop) && res.shatter.ring && res.shatter.spent;
+    }
+    // CHAIN: Grave Nova (lightning, 72 px round you) on one wet foe arcs to the two nearest of three wet foes past its reach
+    //        (within 56 px of the first), never the third.
+    {
+      const g = mk(X, "wizard"); g.specials = [...ALL];
+      const a = foe(g, 30);
+      const others = [foe(g, 85, 0), foe(g, 75, 30), foe(g, 78, -25)];
+      for (const o of [a, ...others]) o.st = { wet: 2 };
+      const hb = others.map((o) => o.hp);
+      g.spells = [];
+      cast(g, "Grave Nova");
+      const hit = others.filter((o, i) => o.hp < hb[i]).length;
+      const plain = 400 - a.hp;
+      res.chain = { hit, plain, each: others.map((o, i) => hb[i] - o.hp), pop: g.pops.map((p) => p.text).join(), arcs: g.spells.filter((s) => s.kind === "bolt" && s.color === CB.COMBO_COLOR.chain).length };
+      res.chain.log = g.logLine;
+      res.chainOk = /CHAIN/.test(res.chain.pop) && /^Grave Nova\. CHAIN!$/.test(g.logLine) && hit === 2 && res.chain.arcs === 2 && res.chain.each.filter((d) => d > 0).every((d) => d === Math.max(1, Math.round(plain * 0.4)));
+    }
+    check("playtest1k", "in the field each reaction lands from a real spell: Envenom then Tripwire is a VENOM BLAST (+50% on the target, 30% splash in 32 px, a red nova, the poison spent), Tripwire on a lantern a WILDFIRE, Earthshatter on a chilled foe a SHATTER (+60%, a blue ring, the chill spent), lightning on a wet foe a CHAIN of gold arcs to at most 2 others; each with its name pop and log (an area spell's log names its combos)", res.blastOk && res.wildOk && res.shatterOk && res.chainOk, JSON.stringify(res));
+  }
+
+  // 4. Limits: one reaction per foe in 3 s, at most two per cast; a chain needs another foe; venom only poisons.
+  {
+    const g = mk(); const a = foe(g, 20, 0, "lantern");
+    cast(g, "Tripwire");
+    const first = g.pops.length;
+    cast(g, "Tripwire");
+    const blocked = g.pops.length === first;
+    const blockedLog = !/WILDFIRE/.test(g.logLine);
+    tick(g, 3.1);
+    a.x = g.px + 20; a.y = g.py;
+    cast(g, "Tripwire");
+    const again = /WILDFIRE!/.test(g.logLine) && blockedLog;
+    // Grave Nova (lightning, round you) on five wet foes at once: two reactions (CHAIN), no more.
+    const h = mk(X, "wizard");
+    const five = [0, 1, 2, 3, 4].map((i) => foe(h, 16 + i * 4, (i - 2) * 6));
+    for (const r of five) r.st = { wet: 2 };
+    h.castCombos = 0; h.spellCool = 0; h.energy = 999;
+    h.castKnown("Grave Nova");
+    const wild = h.pops.filter((p) => p.text === "CHAIN").length;
+    const reacted = five.filter((r) => (r.st?.comboCool ?? 0) > 0).length;
+    const w = mk(X, "warrior"); w.specials = [...ALL]; const wl = foe(w, 20); wl.st = { wet: 2 };
+    w.spellCool = 0; w.castCombos = 0; w.castKnown("Earthshatter");
+    const noChain = !w.pops.some((p) => p.text === "CHAIN");
+    const v = mk(); const vf = foe(v, 20); cast(v, "Envenom");
+    // a companion's art carries its element too: the witch's Hex (venom) poisons,
+    const hx = mk(X, "warrior"); const hc = ally(hx, "witch"); const hf = foe(hx, 20);
+    hx.castAlly(hc, X.KITS.witch.tree.find((t) => t.name === "Hex"), hf);
+    const hexed = hf.st?.poison === 6;
+    check("playtest1k", "limits: one reaction per foe per 3 s (a second Tripwire on the same lantern does nothing until the cool runs out), at most two reactions per cast (Grave Nova on five wet foes: 2 chains), a chain needs another foe in reach, and venom only poisons (no pop, 6 s; a companion's venom art too)", blocked && again && wild === 2 && reacted === 2 && noChain && v.pops.length === 0 && vf.st.poison === 6 && hexed, JSON.stringify({ blocked, again, wild, reacted, noChain, hexed }));
+  }
+
+  // 5. Statuses come from the ground and the sky, decay after 2 s, and use no randomness.
+  {
+    const g = mk(); const a = foe(g, 20);
+    g.update(0.05);
+    const dry = !(a.st?.wet) && !(a.st?.chill);
+    const tile = (t) => { const k = Math.floor(a.y / TILE) * g.w + Math.floor(a.x / TILE); const was = g.tiles[k]; g.tiles[k] = t; g.tickStatus(a, 0.05, "still"); const st = { ...a.st }; g.tiles[k] = was; return st; };
+    const water = tile(T.water).wet === CB.STATUS.linger;
+    const pool = tile(T.pool).wet === CB.STATUS.linger;
+    const swamp = tile(T.swamp).wet === CB.STATUS.linger;
+    const snow = tile(T.snow).chill === CB.STATUS.linger;
+    const ice = tile(T.ice).chill === CB.STATUS.linger;
+    tick(g, 1);
+    const fading = a.st.chill > 0 && a.st.chill < CB.STATUS.linger;
+    tick(g, 1.2);
+    const gone = a.st.chill === 0 && a.st.wet === 0;
+    const rain = mk(X, "assassin", wetMs); const rf = foe(rain, 20); rain.update(0.05);
+    const lich = mk(); const lf = foe(lich, 20, 0, "lich"); lich.update(0.05);
+    let calls = 0;
+    const rnd = Math.random;
+    Math.random = () => { calls++; return rnd(); };
+    const p = mk(); const pf = foe(p, 20); pf.st = { poison: 6, wet: 1, chill: 1, comboCool: 1 };
+    const g0 = calls;
+    p.tickStatus?.(pf, 0.05, p.weather);
+    const st2 = JSON.stringify(pf.st);
+    Math.random = rnd;
+    check("playtest1k", "statuses come from the world: water, a pool and the swamp soak a foe, ice and snow chill it (a lich is rimed by nature), open-air rain soaks it; they linger 2 s after it leaves and need no randomness", dry && water && pool && swamp && snow && ice && fading && gone && wetMs >= 0 && (rf.st?.wet ?? 0) > 0 && (lf.st?.chill ?? 0) > 0 && calls === g0 && /"poison":5\.95/.test(st2), JSON.stringify({ dry, water, pool, swamp, snow, ice, fading, gone, rain: rf.st, lich: lf.st, st2 }));
+  }
+
+  // 6. Elsewhere unchanged: with no spell and no order, a fixed-seed field fight with a companion plays frame for frame the
+  //    same on the frozen playtest1j sim and the live one, in the rain too (statuses are fuel only).
+  {
+    const play = (M, ms) => {
+      seed(23);
+      const g = mk(M, "warrior", ms);
+      const log = [];
+      g.companion = { id: "a", name: "Bren", kit: "acolyte", sourceId: "acolyte", look: "priest", coat: "#000", focus: "heal", hp: 30, equip: {}, x: g.px - 16, y: g.py };
+      g.touchFoe({ id: "zombie", x: g.px + 30, y: g.py, family: "zombie", tint: "#888", def: "zombie", level: 6, ang: 0 });
+      g.roamers.forEach((r, i) => { if (i === 0) { r.rare = true; r.spam = "rot-swipe"; r.spamTag = "melee"; } });
+      for (let i = 0; i < 400; i++) {
+        if (i % 9 === 0) g.held.add("Space"); else g.held.delete("Space");
+        g.update(0.05);
+        if (g.hp < 5) g.hp = g.maxHp;
+        log.push(g.logLine);
+      }
+      return JSON.stringify({ hp: g.hp, c: [Math.round(g.companion.x), Math.round(g.companion.y), g.companion.hp], log: log.join("|"), r: g.roamers.map((r) => [Math.round(r.x * 100), Math.round(r.y * 100), r.hp, r.casting]), nums: g.nums.length, sp: g.spells.length });
+    };
+    const a = play(Z, still); const b = play(X, still);
+    const c = play(Z, wetMs); const d = play(X, wetMs);
+    check("playtest1k", "nothing else moves: with no spell and no order, a fixed-seed field fight (trash, a rare, a healer companion) plays frame for frame the same on the frozen playtest1j sim and the live one, dry and in the rain", a === b && c === d && a.length > 1000, `${a.length} ${b.length} ${c.length} ${d.length}`);
+  }
+
+  // 7. Taunt: foes near the companion turn on it for 4 s (6 with a taunting art, a boss half), swing at it and mark it; the
+  //    companion never falls (HP floor 1) and falls back under 30%; 12 s cooldown.
+  {
+    const g = mk(X, "warrior"); const c = ally(g, "acolyte"); g.level = 11;
+    const a = foe(g, 30); a.cool = 0; a.atk = 3;
+    c.x = a.x - 14; c.y = a.y;
+    g.order("taunt");
+    const marked = (a.taunt ?? 0) === g.worldMs + 4000;
+    const cool = Math.abs(g.orderWait("taunt") - 12) < 1e-9;
+    const hp0 = g.hp; const c0 = c.hp;
+    let low = c0; let swings = 0;
+    tick(g, 1.5, () => { g.iframe = 0; low = Math.min(low, c.hp); if (/on Bren for/.test(g.logLine)) swings++; });
+    const onAlly = low < c0 && swings > 0 && g.hp >= hp0;
+    g.order("taunt");
+    const notYet = /not yet/.test(g.logLine);
+    c.hp = 2;
+    tick(g, 1, () => { g.iframe = 0; });
+    const floor = c.hp >= 1 && (a.taunt ?? 0) === 0;
+    const s = mk(X, "warrior"); s.level = 12; const sc = ally(s, "shade"); const sf = foe(s, 30); sc.x = sf.x - 10; sc.y = sf.y;
+    s.order("taunt");
+    const art = sf.taunt === s.worldMs + 6000;
+    const bs = mk(X, "warrior"); const bc = ally(bs); bs.touchFoe({ id: "frank", x: bs.px + 30, y: bs.py, family: "zombie", tint: "#888", def: "frank", level: 12, ang: 0, boss: true });
+    const boss = bs.roamers.find((r) => r.boss); bc.x = boss.x - 10; bc.y = boss.y;
+    bs.order("taunt");
+    const half = boss.taunt === bs.worldMs + 2000;
+    check("playtest1k", "Taunt: foes within 72 px of the companion turn on it (4 s; 6 s with a taunting art; a boss half), their swings land on it and not on you, the order waits 12 s, and the companion never falls (HP floor 1; under 30% it falls back and every taunt ends)", marked && cool && onAlly && notYet && floor && art && half, JSON.stringify({ marked, cool, onAlly, notYet, floor, art, half, c: c.hp, low, c0, swings, h: [hp0, g.hp] }));
+  }
+
+  // 8. A taunted boss's big mark is laid on the companion and lands on it; you stand clear.
+  {
+    seed(5);
+    const g = mk(X, "warrior"); const c = ally(g);
+    g.touchFoe({ id: "frank", x: g.px + 30, y: g.py, family: "zombie", tint: "#888", def: "frank", level: 12, ang: 0, boss: true });
+    const b = g.roamers.find((r) => r.boss); g.roamers = [b];
+    b.x = g.px + 30; b.y = g.py; c.x = b.x + 40; c.y = b.y + 30;
+    g.order("stay"); // it holds where it stands (a following companion may walk out of the mark)
+    b.taunt = g.worldMs + 60000; b.age = 8.05; b.wave = 0; b.cool = 0;
+    g.update(0.05);
+    const aimed = b.casting === "big" && Math.hypot((b.markX ?? 0) - c.x, (b.markY ?? 0) - c.y) < 20;
+    const c0 = c.hp; const h0 = g.hp;
+    let landed = false;
+    for (let t = 0; t < 2 && b.casting; t += 0.05) { g.iframe = 0; b.taunt = g.worldMs + 60000; g.update(0.05); if (/lands [^.]* on Bren for/.test(g.logLine)) landed = true; }
+    check("playtest1k", "a taunted boss lays its big mark on the companion (not on you) and it lands on the companion; you stand clear", aimed && landed && c.hp < c0 && g.hp >= h0, JSON.stringify({ aimed, cast: b.casting, mx: b.markX, my: b.markY, cx: c.x, cy: c.y, c: [c0, c.hp], h: [h0, g.hp] }));
+  }
+
+  // 9. Heal or guard me: a healer casts its best heal now (pop HEAL); one without a heal guards (pop GUARD): it steps to
+  //    your side and every hit on you is cut to 70% (never under 1) for 5 s. 10 s cooldown.
+  {
+    const g = mk(X, "warrior"); ally(g, "acolyte"); g.level = 18; g.hp = 10;
+    g.order("guard");
+    const healed = g.hp > 10 && g.pops.some((p) => p.text === "HEAL") && g.guardUntil === 0 && Math.abs(g.orderWait("guard") - 10) < 1e-9 && g.allyHeals();
+    const w = mk(X, "warrior"); const wc = ally(w, "witch"); w.level = 18;
+    const a = foe(w, 40); a.cool = 0; a.atk = 10; a.ac = 0;
+    w.order("guard");
+    const guard = w.guardUntil === w.worldMs + 5000 && w.pops.some((p) => p.text === "GUARD") && !w.allyHeals();
+    const plain = mk(X, "warrior"); ally(plain, "witch"); plain.level = 18; const pa = foe(plain, 40); pa.cool = 0; pa.atk = 10;
+    const hurt = (g2) => { const h = g2.hp; g2.iframe = 0; g2.bite(20, "test"); return h - g2.hp; };
+    const cut = hurt(w); const full = hurt(plain);
+    tick(w, 1);
+    const beside = Math.hypot(wc.x - w.px, wc.y - w.py) < 22;
+    w.guardUntil = w.worldMs - 1;
+    const after = hurt(w);
+    check("playtest1k", "Heal or guard me: a healer casts its best heal at once (HEAL; 10 s cooldown); a companion with no heal guards instead (GUARD): it steps to your side and every hit on you is cut to 70% for 5 s, then full again", healed && guard && cut === 14 && full === 20 && after === 20 && beside, JSON.stringify({ healed, guard, cut, full, after, beside }));
+  }
+
+  // 10. Focus my target: the foe you last hit (or the nearest within 120 px); the companion walks to it and fights it, for 8 s.
+  {
+    const g = mk(X, "warrior"); const c = ally(g, "witch"); g.level = 18;
+    const near = foe(g, -30); const far = foe(g, 100);
+    g.hurtFoe(far, 1);
+    g.hurtFoe(near, 1, "slash", true); // the companion's own hit does not move your target
+    g.order("focus");
+    const picked = g.allyFocus === far && g.focusUntil === g.worldMs + 8000;
+    tick(g, 2);
+    const walked = Math.hypot(c.x - far.x, c.y - far.y) < 26;
+    const hitFar = far.hp < far.max - 1;
+    const n = mk(X, "warrior"); ally(n); const nn = foe(n, 50); foe(n, 90);
+    n.order("focus");
+    const nearest = n.allyFocus === nn;
+    const e = mk(X, "warrior"); ally(e); foe(e, 200);
+    e.order("focus");
+    const none = e.allyFocus === null && /No target/.test(e.logLine) && e.orderWait("focus") === 0;
+    tick(g, 6.5);
+    const ends = g.allyFocus === null;
+    check("playtest1k", "Focus my target: the companion goes for the foe you last hit (else the nearest within 120 px), walks over and fights it for 8 s; with no foe in reach it says so and keeps no cooldown", picked && walked && hitFar && nearest && none && ends, JSON.stringify({ picked, walked, hitFar, nearest, none, ends, d: Math.hypot(c.x - far.x, c.y - far.y) }));
+  }
+
+  // 11. Stay or follow: it holds its spot, follows again on the second press, and catches up by itself past 10 tiles or on
+  //     another map.
+  {
+    const g = mk(X, "warrior"); const c = ally(g);
+    g.order("stay");
+    const held = g.allyStay && g.pops.some((p) => p.text === "STAY");
+    const at = [c.x, c.y];
+    g.held.add(g.keyBind.right);
+    tick(g, 1.5);
+    g.held.clear();
+    const stayed = Math.hypot(c.x - at[0], c.y - at[1]) < 0.5 && Math.hypot(g.px - c.x, g.py - c.y) > 40;
+    g.orderCool.stay = 0;
+    g.order("stay");
+    const follow = !g.allyStay && g.pops.some((p) => p.text === "FOLLOW");
+    tick(g, 2);
+    const back = Math.hypot(g.px - c.x, g.py - c.y) < 30;
+    g.orderCool.stay = 0;
+    g.order("stay");
+    g.px += 11 * TILE;
+    g.update(0.05);
+    const leash = !g.allyStay && /catches up/.test(g.logLine);
+    c.x = g.px - 16; c.y = g.py; // beside you: only the map change can end the stay
+    g.orderCool.stay = 0;
+    g.order("stay");
+    g.allyStayAt = "dungeon:x";
+    g.update(0.05);
+    const map = !g.allyStay;
+    check("playtest1k", "Stay or follow: the companion holds its spot while you walk off, follows on the second press (STAY / FOLLOW pops), and catches up by itself past 10 tiles or on another map", held && stayed && follow && back && leash && map, JSON.stringify({ held, stayed, follow, back, leash, map }));
+  }
+
+  // 12. Orders need a living companion and play: no companion says so; a fallen hero or a shop does nothing.
+  {
+    const g = mk(X, "warrior");
+    g.order("taunt");
+    const none = /No one walks with you/.test(g.logLine) && g.orderWait("taunt") === 0;
+    ally(g); g.mode = "shop";
+    g.order("stay");
+    const shop = !g.allyStay;
+    g.mode = "play"; g.companion.hp = 0;
+    g.order("stay");
+    const down = !g.allyStay && /No one/.test(g.logLine);
+    check("playtest1k", "orders need a living companion in play: with none it says \"No one walks with you.\" (no cooldown spent); in a shop or with the companion down nothing happens", none && shop && down);
+  }
+
+  // 13. Binds: keys Z X R V and pad RT LT R3 L3 by default; an old binds record (no order keys) merges with them; a pad
+  //     press fires the order on its edge only; rebinding works and persists.
+  {
+    delete store["gravewake-binds-v1"];
+    const g = mk(X, "warrior");
+    const keys = ["taunt", "guard", "focus", "stay"].map((o) => g.keyBind[o]).join();
+    const pads = ["taunt", "guard", "focus", "stay"].map((o) => g.padBind[o]).join();
+    store["gravewake-binds-v1"] = JSON.stringify({ keys: { up: "KeyI", down: "KeyK", left: "KeyJ", right: "KeyL", use: "KeyE", area: "KeyQ", far: "KeyF", drink: "KeyP", pause: "Escape", map: "KeyM" }, pad: { use: 1 } });
+    const o = mk(X, "warrior");
+    const merged = o.keyBind.up === "KeyI" && o.keyBind.taunt === "KeyZ" && o.padBind.use === 1 && o.padBind.stay === 10;
+    delete store["gravewake-binds-v1"];
+    const p = mk(X, "warrior"); ally(p);
+    let buttons = new Array(17).fill(0).map(() => ({ pressed: false, value: 0 }));
+    const pad = () => [{ connected: true, id: "Test pad", axes: [0, 0, 0, 0], buttons }];
+    const nav = globalThis.navigator;
+    Object.defineProperty(nav, "getGamepads", { value: pad, configurable: true, writable: true });
+    p.pollPad();
+    buttons[10] = { pressed: true, value: 1 };
+    p.pollPad();
+    const edge1 = p.allyStay;
+    p.orderCool.stay = 0;
+    p.pollPad();
+    const held = p.allyStay;
+    buttons[10] = { pressed: false, value: 0 };
+    p.pollPad();
+    buttons[7] = { pressed: true, value: 1 };
+    p.pollPad();
+    const rt = p.orderWait("taunt") > 0;
+    const acts = X.ACTS.slice(-4).join();
+    check("playtest1k", "binds: the orders are keys Z X R V and pad RT LT R3 L3 by default and in the binds list; an old binds record without them merges with the defaults; a pad press fires its order once on the edge (holding does not repeat)", keys === "KeyZ,KeyX,KeyR,KeyV" && pads === "7,6,11,10" && merged && edge1 && held && rt && acts === "taunt,guard,focus,stay", JSON.stringify({ keys, pads, merged, edge1, held, rt, acts }));
+  }
+
+  // 14. The shell: the keyboard handler, the touch strip (testids, dimmed while waiting, Heal/Guard and Stay/Follow, the
+  //     pad glyph when a pad leads), placed beside the stick on every preset; help and the binds list name the orders.
+  {
+    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const keyb = /for \(const o of ORDERS\) if \(e\.code === bind\[o\]\) game\.order\(o\);/.test(ui);
+    const strip = /data-testid="hud-orders"/.test(ui) && /data-testid=\{`order-\$\{o\}`\}/.test(ui) && /game\.orderWait\(o\)/.test(ui) && /\$\{wait > 0 \? "opacity-40" : ""\}/.test(ui) && /game\.allyStay \? "Follow" : "Stay"/.test(ui) && /game\.allyHeals\(\) \? "Heal" : "Guard"/.test(ui) && /onPointerDown=\{\(\) => \{\s*unlock\(\);\s*game\.order\(o\);\s*bump\(\);/.test(ui) && /padFirst \? <PadGlyph b=\{padLabel\(game\.padBind\[o\]\)\} \/>/.test(ui) && /left: "calc\(8\.25rem \+ var\(--sal\)\)", bottom: "calc\(0\.75rem \+ var\(--sab\)\)"/.test(ui) && /className="gw-orders absolute z-10 grid grid-cols-2 gap-1 sm:flex"/.test(ui) && /\{game\.companion && game\.mapId !== "camp" \? \(\s*<div\s*data-testid="hud-orders"/.test(ui);
+    const help = /Give your companion orders: \{keyLabel\(game\.keyBind\.taunt\)\}/.test(ui) && /Spells react\. Fire on a poisoned or oiled foe explodes\./.test(ui) && /ORDER_LABEL\[act as keyof typeof ORDER_LABEL\]\.long/.test(ui);
+    check("playtest1k", "the shell: keys fire the orders through the binds; the touch strip (hud-orders, order-taunt/guard/focus/stay) sits beside the stick inside the safe area (two by two on a narrow portrait phone), shows only with a companion (not in camp, where it paces the fire), dims while an order waits, reads Heal or Guard and Stay or Follow, shows the pad glyph when a pad leads; help and the binds list name the orders and the reactions", keyb && strip && help, JSON.stringify({ keyb, strip, help }));
+  }
+
+  // 15. Drawing: status motes over a fighting foe, a gold "!" while taunted, a violet reticle on the focus, the stay pin and
+  //     guard dashes, the pops in the pixel font (blinking out); none of it under the fog.
+  {
+    const g = mk(X, "warrior"); ally(g, "witch"); g.level = 18;
+    const a = foe(g, 30, 0, "lantern"); a.aggro = true; a.st = { poison: 3, wet: 1, chill: 1 };
+    g.update(0.05);
+    a.st = { poison: 3, wet: 1, chill: 1 };
+    g.zoom = 3;
+    const paint = () => { fills = new Map(); X.drawWorld(mock(), g, 960, 640, 3); return fills; };
+    const f0 = paint();
+    const motes = Object.values(X.STATUS_MOTE).every(([hi, lo]) => hi !== lo && (f0.get(hi) ?? 0) > 0 && (f0.get(lo) ?? 0) > 0) && new Set(Object.values(X.STATUS_MOTE).flat()).size === 2 * Object.keys(X.STATUS_MOTE).length;
+    const reticleBefore = f0.get("#b07aff") ?? 0;
+    g.hurtFoe(a, 1); g.order("focus"); g.order("guard");
+    g.pops = [];
+    const f1 = paint();
+    const reticle = (f1.get("#b07aff") ?? 0) >= reticleBefore + 8 && (f1.get("#e0c060") ?? 0) >= 2;
+    const popDraw = (() => { g.pops = [{ x: g.px, y: g.py - 30, text: "SHATTER", row: "blue", life: 1 }]; labels = 0; paint(); const n = labels; g.pops = []; labels = 0; paint(); return n - labels; })();
+    g.fog = new Uint8Array(g.w * g.h);
+    const f2 = paint();
+    const fogged = Object.values(X.STATUS_MOTE).every(([, lo]) => (f2.get(lo) ?? 0) < (f0.get(lo) ?? 0));
+    check("playtest1k", "drawing: a fighting foe shows its statuses as motes (poison green, wet blue, chill frost, oil amber), the focus a violet reticle, a guard gold dashes over the companion, and the combo pops are drawn; nothing over an unexplored foe", motes && reticle && popDraw > 0 && fogged, JSON.stringify({ motes, reticle, popDraw, fogged }));
+  }
+
+  // 16. Saves: no new save keys; a playtest1j save loads and saves back the same; statuses, taunts and orders never reach a
+  //     save, and a loaded game starts with every order reset.
+  {
+    seed(29);
+    const old = mk(Z, "warrior"); old.level = 9;
+    const rec = JSON.parse(JSON.stringify(old.saveRecord()));
+    const now = mk(X, "warrior"); now.level = 9;
+    const keys = (o) => Object.keys(o).sort().join(",");
+    const live = new X.Game(); live.start("warrior", "str", "Q"); live.loadRecord(JSON.parse(JSON.stringify(rec)));
+    const back = JSON.parse(JSON.stringify(live.saveRecord()));
+    const g = mk(X, "warrior"); ally(g, "witch"); const a = foe(g, 30); a.st = { poison: 3, wet: 1 }; a.taunt = g.worldMs + 4000;
+    g.order("stay"); g.order("guard"); g.hurtFoe(a, 1); g.order("focus");
+    const s = JSON.stringify(g.saveRecord());
+    const re = new X.Game(); re.start("warrior", "str", "Q"); re.allyStay = true; re.guardUntil = 9e9; re.pops = [{}]; re.loadRecord(JSON.parse(s));
+    const reset = !re.allyStay && re.guardUntil === 0 && re.allyFocus === null && re.pops.length === 0 && Object.values(re.orderCool).every((v) => v === 0);
+    check("playtest1k", "saves unchanged: the live save has playtest1j's keys, a playtest1j save loads and saves back the same, statuses, taunts, pops and orders never reach a save, and a loaded game starts with every order reset", keys(rec) === keys(JSON.parse(JSON.stringify(now.saveRecord()))) && keys(back) === keys(rec) && back.level === 9 && JSON.stringify(back) === JSON.stringify(JSON.parse(JSON.stringify(live.saveRecord()))) && !/"(st|taunt|poison|wet|chill|comboCool|allyStay|allyFocus|guardUntil|focusUntil|orderCool|pops)"/.test(s) && reset, `${keys(rec).length} ${back.level} ${reset}`);
+  }
+
+  globalThis.Image = had.Image;
+  globalThis.document = had.document;
+  globalThis.localStorage = had.ls;
+  Math.random = had.random;
+  if (globalThis.navigator) Object.defineProperty(globalThis.navigator, "getGamepads", { value: had.pads, configurable: true, writable: true });
+
+  // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !PT1K_FROZEN.includes(f) && !pt1kNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const files = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx", "src/game/combos.ts", "src/game/commands.ts"];
+    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    const notes = (law.match(/\[OWNER-APPROVED 2026-10-03: elemental combos, companion commands\]/g) ?? []).length;
+    check("playtest1k", "the change is an owner-approved combat and companion change, recorded as dated [OWNER-APPROVED 2026-10-03] notes in rules/GAME_LAYOUT_TWO.txt (combat and companions, where the law guards them) and AGENTS.project.md, and tagged in every file it touches", notes >= 2 && /## playtest1k/.test(agents) && agents.includes(TAG) && untagged.length === 0, `${notes} ${untagged}`);
+    const cs = readFileSync("scripts/gravewake-check.mjs", "utf8");
+    check("playtest1k", "the frozen references (scripts/frozen/playtest1k/) are playtest1j's sim, draw and shell byte for byte (as pushed at 1656bf0), and the older groups' views, rest digests and live pins read them", md5f("scripts/frozen/playtest1k/sim.ts.txt") === "50c8cb43e2d0ae7222c2e7df4edb3681" && md5f("scripts/frozen/playtest1k/draw.ts.txt") === "763b9990c200ba16ee6b8e544d920eec" && md5f("scripts/frozen/playtest1k/Gravewake.tsx.txt") === "8260af8345576dbc081da2fd064731d9" && /const pt1iView = \(f\) => [^\n]*pt1jView\(f\)/.test(cs) && /const pt1eView = \(f\) => [^\n]*pt1jView\(f\)/.test(cs) && /md5f\(pt1jView\(f\)\) !== hh/.test(cs) && (cs.match(/!pt1kNew\(f\)/g) ?? []).length >= 5);
+    const LIVE = {"src/game/sim.ts": "d52ddac1d0e38c429c2d0fcbff81f62c", "src/game/draw.ts": "d118165d8af0411153f865b9cc3bfb6e", "src/game/Gravewake.tsx": "8e283beb8778c1ebc2b29db90d9d1494", "src/game/combos.ts": "7555b47301bc8f632b95305cbb2ce9a5", "src/game/commands.ts": "d731301e75df0576ec796342bf58b232"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1k", "the live game files are byte for byte playtest1k's (sim, draw, shell, combos, commands)", moved.length === 0 && Object.keys(LIVE).length === 5, moved.join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

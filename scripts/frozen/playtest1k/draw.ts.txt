@@ -3456,64 +3456,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // A decal must always read: telegraphs sit on top of the dark.
     paintTells(ctx, tellView(g), false, TILE, LINE_HALF, true); // playtest1j: rims and leading edges over the dark
   }
-  paintCombos(ctx, g); // playtest1k: statuses, orders and the combo pops, over the light and the Lightless dark
   drawWeather(ctx, g, viewW, viewH);
   if (g.travel) paintTravel(ctx, g, camX, camY, viewW, viewH, zoom);
-}
-
-/**
- * playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: a fighting foe's statuses as small motes
- * over its head (poison green, wet blue, chill frost, oil amber; a gold "!" while it is taunted), the companion's orders
- * (a violet reticle on the focused foe, a violet pin over a companion told to stay, gold over a guarding one), and the
- * combo and order pops in the writer's pixel font. Drawn last in the world pass, so they read at night and in the dark.
- */
-export const STATUS_MOTE = {
-  poison: ["#6aaa58", "#6a8a48"],
-  wet: ["#4ab8ff", "#3a6aa8"],
-  chill: ["#c5d4e8", "#9ec8e8"],
-  oil: ["#e07a2f", "#2a2018"],
-} as const;
-function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
-  const f = g.frame;
-  const bob = Math.floor(f / 8) % 2;
-  for (const r of g.roamers) {
-    if (!r.aggro || (r.hp ?? 0) <= 0) continue;
-    if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
-    const st = r.st;
-    const top = Math.round(r.y) - (r.boss ? 44 : 28);
-    const kinds = [(st?.poison ?? 0) > 0 && "poison", (st?.wet ?? 0) > 0 && "wet", (st?.chill ?? 0) > 0 && "chill", g.oiled(r) && "oil"].filter(Boolean) as (keyof typeof STATUS_MOTE)[];
-    let x = Math.round(r.x) - kinds.length * 2;
-    kinds.forEach((k, i) => {
-      const [hi, lo] = STATUS_MOTE[k];
-      const y = top + ((bob + i) % 2);
-      px(ctx, x, y, 2, 2, lo);
-      px(ctx, x, y, 1, 1, hi);
-      if (k === "poison" || k === "wet") px(ctx, x, y + 2 + ((f >> 3) % 2), 1, 1, hi);
-      x += 4;
-    });
-    if ((r.taunt ?? 0) > g.worldMs) drawLabel(ctx, "!", r.x, top - 1, "gold");
-  }
-  const t = g.allyFocus;
-  if (t && g.focusUntil > g.worldMs && (t.hp ?? 0) > 0) {
-    const x0 = Math.round(t.x) - 9;
-    const y0 = Math.round(t.y) - (t.boss ? 36 : 22);
-    const x1 = Math.round(t.x) + 8;
-    const y1 = Math.round(t.y) + 3;
-    for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
-      px(ctx, sx > 0 ? cx : cx - 2, cy, 3, 1, "#b07aff");
-      px(ctx, cx, sy > 0 ? cy : cy - 2, 1, 3, "#b07aff");
-    }
-  }
-  const c = g.companion;
-  if (c && g.mapId !== "camp") {
-    const top = Math.round(c.y) - LABEL.lift - 5;
-    if (g.allyStay && bob) px(ctx, Math.round(c.x) - 1, top, 2, 2, "#b07aff");
-    if (g.guardUntil > g.worldMs) {
-      px(ctx, Math.round(c.x) - 3, top + bob, 2, 1, "#e0c060");
-      px(ctx, Math.round(c.x) + 1, top + bob, 2, 1, "#e0c060");
-    }
-  }
-  for (const p of g.pops) if (p.life > 0.3 || f % 2 === 0) drawLabel(ctx, p.text, p.x, p.y, p.row);
 }
 
 /**
@@ -3810,11 +3754,6 @@ export function spellGlow(color: string): string {
   if (!m) return color;
   const hi = Math.max(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
   return hi < 0x50 ? "#b07aff" : color;
-}
-
-/** playtest1k: the element a spell colour draws as (its 1h fx strip); combos.ts SPELL_ELEMENT is checked against it. */
-export function elementOfColor(color: string): string {
-  return fxElement(color, spellElement(color));
 }
 
 /** playtest1h: the fx strips' element: a near-black spell (Summon Shade, Vanish) is shadow's violet, not the holy gold its colour falls to. */
