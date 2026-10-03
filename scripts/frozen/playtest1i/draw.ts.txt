@@ -7,7 +7,6 @@ import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./t
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
 import { townRoomAt } from "./sim";
-import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
@@ -126,16 +125,6 @@ function texCell(ctx: CanvasRenderingContext2D, url: string, frame: number, x: n
   return sheetCell(ctx, url, frame * per + wrap(x), wrap(y), x * TILE, y * TILE);
 }
 const texFrame = (kind: keyof typeof TEX_FRAMES, frame: number) => Math.floor(Math.max(0, frame) / TEX_TICKS[kind]) % TEX_FRAMES[kind];
-/** playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2): the room being drawn's outside style (set by drawWorld from g.inside). */
-let roomStyleNow: RoomStyle = "cabin";
-/** playtest1i: the interior writer's furniture (and the hearth kit) are loaded, so the old painted shapes stay hidden. */
-function furnArt() {
-  const a = landSheet[ROOM_FURN];
-  const b = landSheet[ROOM_KIT];
-  return !!a && a.complete && a.naturalWidth > 0 && !!b && b.complete && b.naturalWidth > 0;
-}
-/** playtest1i: a room's floor is its style's wrapping 128 px floor (log planks, flagstones, slate boards, warm boards). */
-const roomFloorCell = (ctx: CanvasRenderingContext2D, x: number, y: number) => texCell(ctx, roomFloor(roomStyleNow), 0, x, y);
 
 
 /** One frame of a spell writer strip (16px frames). playtest1d (owner-requested 2026-10-02, batch C2): the last
@@ -375,8 +364,7 @@ function paintRoomEdge(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: 
   // plaster back wall with a wainscot, night-blue windows, cold-blue sconces and a shelf; beams down the sides.
   const back = y === 0;
   const cell = tile === T.door ? ROOM_CELL.door : !back ? ROOM_CELL.side : x % 4 === 2 ? ROOM_CELL.window : x % 4 === 0 && x > 0 ? (Math.floor(frame / 3 + x) % 7 === 0 ? ROOM_CELL.sconce2 : ROOM_CELL.sconce) : x === 9 ? ROOM_CELL.shelf : ROOM_CELL.plain;
-  // playtest1i: the wall of the building's own outside style (logs, ashlar, slate boards, plaster and beams).
-  if (sheetCell(ctx, roomWall(roomStyleNow), cell, 0, gx, gy) || sheetCell(ctx, ROOM_WALL, cell, 0, gx, gy)) return;
+  if (sheetCell(ctx, ROOM_WALL, cell, 0, gx, gy)) return;
   px(ctx, gx, gy, TILE, TILE, "#6b4c34");
   px(ctx, gx, gy, TILE, 2, "#8a6848");
   px(ctx, gx, gy + 14, TILE, 2, "#3a2818");
@@ -621,8 +609,7 @@ function drawTile(
     // playtest1: the writer's floorboards; the old seam and random marks are only the not-yet-loaded fallback.
     // playtest1b B2 (owner-reported 2026-10-02, "bare brick floor"): rooms lay the hearth writer's long boards; the short
     // planks (which read as brick) stay for the town footprints and as the fallback.
-    // playtest1i: the style's wrapping floor first (the short boards are its not-yet-loaded fallback).
-    if (theme.startsWith("room:") && (roomFloorCell(ctx, x, y) || sheetCell(ctx, ROOM_BOARDS, Math.abs(x * 3 + y) % 4, 0, gx, gy))) {
+    if (theme.startsWith("room:") && sheetCell(ctx, ROOM_BOARDS, Math.abs(x * 3 + y) % 4, 0, gx, gy)) {
       // drawn
     } else if (!sheetCell(ctx, PT1_GROUND.floor, Math.abs(x + y * 3) % 4, 0, gx, gy)) {
       px(ctx, gx + 0, gy + 15, TILE, 1, "#3a2818");
@@ -646,19 +633,16 @@ function drawTile(
       px(ctx, gx + 11, gy + 7, 2, 2, "#141414");
     }
     const kind = roomKind(theme);
-    // playtest1i: once the interior writer's furniture is in, none of the painted furniture below draws (it is only the
-    // not-yet-loaded fallback); the rug is the room style's own.
-    const old = !(theme.startsWith("room:") && furnArt());
-    if (old && (kind === "inn" || kind === "cottage") && (x === 2 || x === 3) && y === 2) {
+    if ((kind === "inn" || kind === "cottage") && (x === 2 || x === 3) && y === 2) {
       px(ctx, gx + (x === 2 ? 2 : 0), gy + 5, x === 2 ? 14 : 12, 8, "#6a3048");
       px(ctx, gx + (x === 2 ? 2 : 0), gy + 4, x === 2 ? 14 : 8, 3, "#e8dcc8");
     }
-    if (old && kind === "smith" && x === 9 && y === 3) {
+    if (kind === "smith" && x === 9 && y === 3) {
       px(ctx, gx + 3, gy + 8, 10, 4, "#4a4e54");
       px(ctx, gx + 5, gy + 5, 6, 3, "#7a8088");
       px(ctx, gx + 6, gy + 12, 4, 3, "#3a342c");
     }
-    if (old && kind === "casino" && x === 7 && y === 4) {
+    if (kind === "casino" && x === 7 && y === 4) {
       px(ctx, gx + 1, gy + 3, 14, 10, "#1e4634");
       px(ctx, gx + 1, gy + 3, 14, 2, "#c4a050");
       px(ctx, gx + 3, gy + 7, 2, 2, "#f0e2c8");
@@ -666,51 +650,51 @@ function drawTile(
       px(ctx, gx + 11, gy + 7, 2, 2, "#141414");
     }
     // playtest1b B2: the woven writer rug over the same 4x2 tiles (the flat block is the not-yet-loaded fallback).
-    if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6 && (sheetCell(ctx, ROOM_RUGS, x - 5, rugRow(roomStyleNow) + y - 5, gx, gy) || sheetCell(ctx, ROOM_RUG, x - 5, y - 5, gx, gy))) {
+    if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6 && sheetCell(ctx, ROOM_RUG, x - 5, y - 5, gx, gy)) {
       // drawn
     } else if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6) {
       px(ctx, gx, gy, TILE, TILE, x === 5 || y === 5 ? "#6a3040" : "#5a2838");
       px(ctx, gx + 2, gy + 2, 4, 2, "#8a4860");
       if (x === 5 && y === 5) px(ctx, gx, gy, TILE, 2, "#c4a050");
     }
-    if (old && kind === "inn" && x === 8 && y === 3) {
+    if (kind === "inn" && x === 8 && y === 3) {
       px(ctx, gx + 2, gy + 6, 12, 7, "#5a3828");
       px(ctx, gx + 3, gy + 4, 10, 3, "#c4a06a");
       px(ctx, gx + 4, gy + 2, 2, 4, "#3a2818");
       px(ctx, gx + 10, gy + 2, 2, 4, "#3a2818");
     }
-    if (old && kind === "cottage" && x === 8 && y === 3) {
+    if (kind === "cottage" && x === 8 && y === 3) {
       px(ctx, gx + 3, gy + 7, 10, 6, "#5a3828");
       px(ctx, gx + 4, gy + 5, 8, 3, "#8a6848");
       px(ctx, gx + 6, gy + 6, 3, 2, "#e8dcc8");
     }
-    if (old && kind === "cottage" && x === 10 && y === 6) {
+    if (kind === "cottage" && x === 10 && y === 6) {
       px(ctx, gx + 6, gy + 8, 4, 6, "#5a4030");
       px(ctx, gx + 5, gy + 4, 6, 5, "#2a5838");
       px(ctx, gx + 7, gy + 2, 2, 3, "#3a6840");
     }
-    if (old && (kind === "shop" || kind === "guild" || kind === "bank" || kind === "tailor") && x === 6 && y === 6) {
+    if ((kind === "shop" || kind === "guild" || kind === "bank" || kind === "tailor") && x === 6 && y === 6) {
       px(ctx, gx + 1, gy + 6, 14, 8, "#4a3424");
       px(ctx, gx + 1, gy + 4, 14, 3, "#c4a06a");
       px(ctx, gx + 4, gy + 8, 2, 3, "#8f2d3a");
       px(ctx, gx + 9, gy + 8, 2, 3, "#2a4a38");
     }
-    if (old && kind === "chapel" && (x === 3 || x === 10) && y === 5) {
+    if (kind === "chapel" && (x === 3 || x === 10) && y === 5) {
       px(ctx, gx + 2, gy + 4, 12, 8, "#5a4030");
       px(ctx, gx + 3, gy + 5, 10, 3, "#8a3038");
     }
-    if (old && kind === "smith" && x === 4 && y === 3) {
+    if (kind === "smith" && x === 4 && y === 3) {
       px(ctx, gx + 2, gy + 6, 12, 8, "#3a342c");
       px(ctx, gx + 4, gy + 3, 8, 4, "#e07a2f");
       px(ctx, gx + 6, gy + 2, 4, 3, "#f0c080");
       px(ctx, gx + 3, gy + 1, 2, 4, "#4a4038");
     }
-    if (old && kind === "alchemy" && x === 4 && y === 5) {
+    if (kind === "alchemy" && x === 4 && y === 5) {
       px(ctx, gx + 2, gy + 8, 4, 6, "#6a2030");
       px(ctx, gx + 8, gy + 9, 3, 5, "#2a6848");
       px(ctx, gx + 11, gy + 7, 3, 7, "#3a4a88");
     }
-    if (old && kind === "fisher" && x === 6 && y === 5) {
+    if (kind === "fisher" && x === 6 && y === 5) {
       px(ctx, gx + 2, gy + 8, 12, 5, "#6a5038");
       px(ctx, gx + 3, gy + 6, 4, 4, "#8a6840");
       px(ctx, gx + 9, gy + 6, 4, 4, "#8a6840");
@@ -815,9 +799,6 @@ function drawTile(
   if (tile === T.bone && !cave && !sheetCell(ctx, PROP_BONES, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
     px(ctx, gx + 4, gy + 8, 8, 2, "#e6dcc8");
   }
-  // playtest1i: in a room, the shelf, hearth, cauldron, moon and net tiles are the room's floor under the interior
-  // writer's furniture (drawWorld stands it there), not a flat purple square under a painted block.
-  if (theme.startsWith("room:") && (tile === T.hearth || tile === T.cauldron || tile === T.shelf || tile === T.nets || tile === T.moon) && furnArt() && roomFloorCell(ctx, x, y)) return;
   if (tile === T.hearth) {
     px(ctx, gx + 1, gy + 3, 14, 12, "#2a1c18");
     px(ctx, gx + 3, gy + 8, 10, 5, "#e07a2f");
@@ -1975,7 +1956,7 @@ const fringeReady = () => sheetReady(WILD_BORDER) && sheetReady(WILD_FLECKS) && 
 const fringePending = new Map<string, HTMLCanvasElement>();
 
 /** Paint the neighbour biome's own ground through one fringe mask cell into acc. No new colours: both are locked art. */
-function paintFringe(acc: CanvasRenderingContext2D, ground: Tile, cell: number, x: number, y: number, n: number, theme: string, frame: number, sx = 0, sy = 0) {
+function paintFringe(acc: CanvasRenderingContext2D, ground: Tile, cell: number, x: number, y: number, n: number, theme: string, frame: number) {
   const mask = fringeMask();
   if (!mask || !mask.complete || mask.naturalWidth === 0) return;
   fringeCanvas ??= tileCanvas();
@@ -1988,7 +1969,7 @@ function paintFringe(acc: CanvasRenderingContext2D, ground: Tile, cell: number, 
   off.setTransform(1, 0, 0, 1, -x * TILE, -y * TILE);
   drawTile(off, ground, x, y, n, theme, -1, frame);
   off.globalCompositeOperation = "destination-in";
-  off.drawImage(mask, cell * 16, 0, 16, 16, x * TILE + sx, y * TILE + sy, 16, 16);
+  off.drawImage(mask, cell * 16, 0, 16, 16, x * TILE, y * TILE, 16, 16);
   off.globalCompositeOperation = "source-over";
   acc.imageSmoothingEnabled = false;
   acc.drawImage(fringeCanvas, 0, 0);
@@ -2051,73 +2032,6 @@ function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game,
       fringeCache.set(key, done);
       fringePending.delete(key);
     } else fringePending.set(key, done);
-  }
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(done, 0, 0, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
-}
-
-/**
- * playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2, map consistency): the vale's cart road, the town's dirt patches and the camp
- * clearing met their grass on a hard square step (the only ground edges left without a blend). Now the neighbour's own
- * ground creeps over that step through the same wild-writer drift masks the biome fringes use (sides, the rounded corner
- * two sides leave, and the bare nook at a junction), cached per tile and season. Looks only: g.tiles is never touched.
- */
-const biteCache = new Map<string, HTMLCanvasElement>();
-/** How far (px) a cart road's bite mask is pushed out toward its grass. */
-export const BITE_ROAD = 5;
-const bitePending = new Map<string, HTMLCanvasElement>();
-let biteTiles: ArrayLike<number> | null = null;
-export function biteTile(theme: string, tile: number) {
-  return (theme === "over" && tile === T.road) || ((theme === "town" || theme === "camp") && tile === T.dirt);
-}
-/** The ground a neighbour j lends the bite, or -1 (only plain open ground bites: never a road, trail, wall or water). */
-function biteGround(g: Game, skin: BlendResult | null, j: number): number {
-  const t = g.tiles[j];
-  if (g.theme === "over") return skin && SKIN_OPEN.has(t) ? VALE_GROUND[skin.biome[j]] : -1;
-  if (g.theme === "town") return t === T.grass || t === T.exit ? T.grass : -1;
-  if (g.theme === "camp") return t === T.grass ? T.grass : -1;
-  return -1;
-}
-const biteReady = (theme: string) =>
-  sheetReady(WILD_BORDER) && (theme === "over" ? fringeReady() : sheetReady(seasonSheet(seasonNow, theme === "camp" ? "camp-grass" : "town-grass")));
-function paintBites(ctx: CanvasRenderingContext2D, g: Game, skin: BlendResult | null, x: number, y: number, n: number) {
-  if (typeof document === "undefined" || !sheetReady(WILD_BORDER)) return;
-  if (biteTiles !== g.tiles) {
-    biteTiles = g.tiles;
-    biteCache.clear();
-    bitePending.clear();
-  }
-  const i = y * g.w + x;
-  const nb = (dx: number, dy: number) => {
-    const nx = x + dx;
-    const ny = y + dy;
-    return nx < 0 || ny < 0 || nx >= g.w || ny >= g.h ? -1 : biteGround(g, skin, ny * g.w + nx);
-  };
-  const N = nb(0, -1), E = nb(1, 0), S = nb(0, 1), W = nb(-1, 0);
-  const NE = nb(1, -1), SE = nb(1, 1), SW = nb(-1, 1), NW = nb(-1, -1);
-  if (N < 0 && E < 0 && S < 0 && W < 0 && NE < 0 && SE < 0 && SW < 0 && NW < 0) return;
-  const key = `${g.theme}:${i}:${seasonNow}`;
-  let done = biteCache.get(key);
-  if (!done) {
-    done = bitePending.get(key) ?? tileCanvas();
-    const acc = done.getContext("2d");
-    if (!acc) return;
-    acc.clearRect(0, 0, TILE, TILE);
-    const v = (x * 7 + y * 3) % 2 ? 4 : 0;
-    // a one-tile cart road keeps its middle: its bite is the drift's outer edge only (the mask pushed out toward the grass)
-    const k = g.theme === "over" ? BITE_ROAD : 0;
-    const sides: [number, number, number, number][] = [[N, 0, 0, -k], [E, 1, k, 0], [S, 2, 0, k], [W, 3, -k, 0]];
-    for (const [gr, cell, sx, sy] of sides) if (gr >= 0) paintFringe(acc, gr as Tile, cell + v, x, y, n, g.theme, g.frame, sx, sy);
-    const nooks: [number, number, number, number, number, number][] = [[NE, N, E, 8, k, -k], [SE, S, E, 9, k, k], [SW, S, W, 10, -k, k], [NW, N, W, 11, -k, -k]];
-    for (const [d, a, b, cell, sx, sy] of nooks) if (d >= 0 && a < 0 && b < 0) paintFringe(acc, d as Tile, cell, x, y, n, g.theme, g.frame, sx, sy);
-    if (!k) {
-      const convex: [number, number, number][] = [[N, E, 12], [S, E, 13], [S, W, 14], [N, W, 15]];
-      for (const [a, b, cell] of convex) if (a >= 0 && b >= 0) paintFringe(acc, a as Tile, cell, x, y, n, g.theme, g.frame);
-    }
-    if (biteReady(g.theme)) {
-      biteCache.set(key, done);
-      bitePending.delete(key);
-    } else bitePending.set(key, done);
   }
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(done, 0, 0, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
@@ -2470,15 +2384,8 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if (m >= 0) out.push({ x: (m % g.w) * TILE + 4, y: Math.floor(m / g.w) * TILE + 1, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: 1, flick: false });
   }
   if (g.theme.startsWith("room:")) {
-    // playtest1i: the sconces burn their style's glow (cabin and slate cold blue, stone violet; the unused warm style red), and the
-    // forge (red), cauldron (blue), altar candles (blue), orrery (violet), inn candle (red) and counter lamp (blue) cast light.
-    const sconce = NEON_LIGHT[STYLE_GLOW[roomStyle(g.inside)]];
-    for (let x = 4; x < g.w - 1; x += 4) out.push({ x: x * TILE + 8, y: 6, r: LIGHT.lantern, c: sconce, seed: x & 3, flick: true });
-    for (const p of roomFurniture(g.inside)) {
-      const l = FURN_LIGHT[p.k];
-      if (l) out.push({ x: p.x + l.dx, y: p.y + l.dy, r: l.big ? LIGHT.brazier : LIGHT.lantern, c: NEON_LIGHT[l.c], seed: p.x & 3, flick: true });
-    }
-    for (const d of [...(ROOM_DRESS[g.theme.slice(5)] ?? []), ...roomKitExtra(g.inside)]) if (d.lit) out.push({ x: d.lit.x, y: d.lit.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: true });
+    for (let x = 4; x < g.w - 1; x += 4) out.push({ x: x * TILE + 8, y: 6, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: x & 3, flick: true });
+    for (const d of ROOM_DRESS[g.theme.slice(5)] ?? []) if (d.lit) out.push({ x: d.lit.x, y: d.lit.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: true });
   }
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
@@ -2941,8 +2848,6 @@ function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: num
 export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
   seasonNow = g.season();
   sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
-  roomStyleNow = roomStyle(g.inside); // playtest1i
-  warmPt1i();
   const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
   const cam = cameraFor(g, viewW, viewH, zoom);
   const camX = cam.x + mag;
@@ -3009,7 +2914,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       } else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
       if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
       if (skin) paintFringes(ctx, skin, g, x, y, n);
-      if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
       // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)
       if (skin && tile === T.dirt && VALE_GROUND[skin.biome[i]] === T.swamp) paintSwampPath(ctx, g, x, y);
       // playtest1g: so do the vale's, the snow's, the ash's and the sand's (worn dirt and leaf litter, packed snow,
@@ -3189,20 +3093,12 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // playtest1b B2 (owner-reported 2026-10-02, "cottage interior: flat colored rectangles"): writer furniture on the spots
   // the painted shapes held: a quilted bed, a table with a cold candle and stools, a dresser, an iron stove, a plant.
   if (g.theme.startsWith("room:")) {
-    for (const d of [...(ROOM_DRESS[g.theme.slice(5)] ?? []), ...roomKitExtra(g.inside)]) {
+    for (const d of ROOM_DRESS[g.theme.slice(5)] ?? []) {
       const cell = d.cell === 4 && Math.floor(g.frame / 2) % 2 === 1 ? 5 : d.cell;
       props.push({ y: d.y + 30, fn: () => void sheetCell(ctx, ROOM_KIT, cell, 0, d.x, d.y, 2, 2, 32) });
       glow.push((c) => void sheetCell(c, ROOM_KIT_EM, cell, 0, d.x, d.y, 2, 2, 32));
     }
-    // playtest1i: the trade furniture (counters, shelves, pews and altar, forge and anvil, card table, cauldron, orrery,
-    // nets, crates, strongbox, mannequin, rack), y-sorted with the folk; its glowing parts go to the light layer.
-    for (const p of roomFurniture(g.inside)) {
-      const anim = FURN_ANIM[p.k];
-      const k = anim && Math.floor(g.frame / 3) % 2 === 1 ? anim : p.k;
-      props.push({ y: p.y + 30, fn: () => void sheetCell(ctx, ROOM_FURN, FURN[k], 0, p.x, p.y, 2, 2, 32) });
-      glow.push((c) => void sheetCell(c, ROOM_FURN_EM, FURN[k], 0, p.x, p.y, 2, 2, 32));
-    }
-    for (let x = 4; x < g.w - 1; x += 4) glow.push((c) => void (sheetCell(c, roomWallEm(roomStyleNow), ROOM_CELL.sconce, 0, x * TILE, 0) || sheetCell(c, ROOM_WALL_EM, ROOM_CELL.sconce, 0, x * TILE, 0)));
+    for (let x = 4; x < g.w - 1; x += 4) glow.push((c) => void sheetCell(c, ROOM_WALL_EM, ROOM_CELL.sconce, 0, x * TILE, 0));
   }
   // playtest1b: the town on the vale is a walled hamlet standing on its door (the old one-tile house is its fallback).
   if (g.mapId === "world") {
@@ -3776,19 +3672,6 @@ export const PT1H_ART = [
   "/art/writer/prop-bones.png",
   ...Object.keys(CAVES).map(caveLiquid),
 ];
-/** playtest1i: the interior sheets (every style's floor, wall and glow, the furniture and rugs), loaded up front. */
-export const PT1I_ART = [...INTERIOR_SHEETS];
-let pt1iWarm = false;
-function warmPt1i() {
-  if (pt1iWarm || typeof Image === "undefined") return;
-  pt1iWarm = true;
-  for (const url of PT1I_ART) {
-    if (landSheet[url]) continue;
-    const im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
-}
 let pt1hWarm = false;
 function warmPt1h() {
   if (pt1hWarm || typeof Image === "undefined") return;

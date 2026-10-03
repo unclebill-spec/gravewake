@@ -737,28 +737,5 @@ def playtest1h(out: Path = OUT) -> dict:
     return made
 
 
-def playtest1i(out: Path = OUT) -> dict:
-    """playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2): every building's
-    inside to the finish of its outside (interior_writer.py): a wrapping floor and a wall per outside style (log cabin,
-    stone, slate boards, warm timber), each style's rug, and the trade furniture the rooms still painted as flat blocks.
-    Runs on its own: python3 -c "import make_gravewake as m; m.playtest1i()"."""
-    import interior_writer as iw
-
-    made = iw.sheets()
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    sheet = Image.new("RGBA", (8 + 132 * 4, 8 + 132 + 4 * 20 + 2 * 36 + 132), (20, 14, 18, 255))
-    for i, s in enumerate(iw.STYLES):
-        sheet.alpha_composite(made[f"room-floor-{s}.png"], (4 + 132 * i, 4))
-        sheet.alpha_composite(made[f"room-wall-{s}.png"], (4, 140 + 20 * i))
-        sheet.alpha_composite(made["room-rugs.png"].crop((0, 32 * i, 64, 32 * i + 32)), (130 + 68 * i, 140))
-    furn = made["room-furn.png"]
-    sheet.alpha_composite(furn.crop((0, 0, 320, 32)), (4, 224))
-    sheet.alpha_composite(furn.crop((320, 0, furn.width, 32)), (4, 260))
-    sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST).save(out / "preview-playtest1i.png")
-    return made
-
-
 if __name__ == "__main__":
     main()

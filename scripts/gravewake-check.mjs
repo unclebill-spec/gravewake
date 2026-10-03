@@ -114,6 +114,13 @@ const pt1fView = (f) => (PT1G_FROZEN.includes(f) ? `scripts/frozen/playtest1g/${
 // pin, its draw text and its bundled draw read them there (pt1gView).
 const PT1H_FROZEN = ["src/game/draw.ts", "tools/pixel-writer/make_gravewake.py"];
 const pt1gView = (f) => (PT1H_FROZEN.includes(f) ? `scripts/frozen/playtest1h/${f.split("/").pop()}.txt` : f);
+// playtest1i (2026-10-02, [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit] part 2, drawing only):
+// draw.ts and the pixel writer's make_gravewake.py as playtest1h shipped them (main 852eafc), frozen; group playtest1h's
+// bundled draw, its rest digest and its live pin read them there (pt1hView). Its new files (pt1iNew) are left out of the
+// older groups' rest digests.
+const PT1I_FROZEN = ["src/game/draw.ts", "tools/pixel-writer/make_gravewake.py"];
+const pt1hView = (f) => (PT1I_FROZEN.includes(f) ? `scripts/frozen/playtest1i/${f.split("/").pop()}.txt` : f);
+const pt1iNew = (f) => f === "src/game/interiors.ts" || /^public\/art\/writer\/(room-floor-(cabin|stone|slate|warm)|room-wall-(cabin|stone|slate|warm)|room-furn|room-rugs|preview-playtest1i)/.test(f);
 const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
 // install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
@@ -168,7 +175,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -7249,7 +7256,7 @@ if (on("playtest1b")) {
   // 7. B2: the camp and the rooms.
   {
     check("playtest1b", "the camp is redrawn by the hearth writer: the tent stands on its footprint (the green block and brown box are only the not-loaded fallback), a four-frame cold-blue fire burns on the hearth, log seats, a bedroll, a pack and two lantern posts sit around it, and the old orange stumps are gone (owner-reported: camp graphics unchanged)", /sheetCell\(ctx, CAMP_TENT, 0, 0, gx, gy - 16, 5, 5\)/.test(draw) && /sheetCell\(ctx, CAMP_FIRE, f, 0, x \* TILE, y \* TILE - 16, 1, 2\)/.test(draw) && L.CAMP_DRESS.length === 6 && !draw.includes('"/art/held/fence.png"') && draw.includes("...HEARTH_SHEETS,"));
-    check("playtest1b", "rooms are furnished by the hearth writer: a beamed back wall with night windows and blue sconces, long floorboards (the short planks read as brick), a woven rug on the old 4x2 spot, and Pell's and every cottage has a quilted bed, a candle table, a dresser, an iron stove and a plant (owner-reported: the cottage interior is flat rectangles)", /if \(sheetCell\(ctx, ROOM_WALL, cell, 0, gx, gy\)\) return;/.test(draw) && /sheetCell\(ctx, ROOM_RUG, x - 5, y - 5, gx, gy\)/.test(draw) && /theme\.startsWith\("room:"\) && sheetCell\(ctx, ROOM_BOARDS/.test(draw) && L.ROOM_DRESS.cottage.length === 5 && L.ROOM_DRESS.inn.length === 1);
+    check("playtest1b", "rooms are furnished by the hearth writer: a beamed back wall with night windows and blue sconces, long floorboards (the short planks read as brick), a woven rug on the old 4x2 spot, and Pell's and every cottage has a quilted bed, a candle table, a dresser, an iron stove and a plant (owner-reported: the cottage interior is flat rectangles)", /if \((?:sheetCell\(ctx, roomWall\(roomStyleNow\), cell, 0, gx, gy\) \|\| )?sheetCell\(ctx, ROOM_WALL, cell, 0, gx, gy\)\) return;/.test(draw) && /sheetCell\(ctx, ROOM_RUG, x - 5, y - 5, gx, gy\)/.test(draw) && /theme\.startsWith\("room:"\) && (?:\(roomFloorCell\(ctx, x, y\) \|\| )?sheetCell\(ctx, ROOM_BOARDS/.test(draw) && L.ROOM_DRESS.cottage.length === 5 && L.ROOM_DRESS.inn.length === 1);
     const c = fresh();
     c.enterWorld(32 * TILE + 8, 46 * TILE + 8);
     c.enterCamp();
@@ -8447,7 +8454,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f)).sort().map((f) => `${f} ${md5f(pt1gView(f))}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8474,7 +8481,9 @@ if (on("playtest1h")) {
   const py = (code) => { try { return JSON.parse(execFileSync("/home/box/.local/pyvenv/bin/python", ["-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch (e) { return { error: String(e).slice(0, 300) }; } };
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const root = process.cwd();
-  writeFileSync(join(dir, "pt1h.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport * as P from "${root}/src/game/particles.ts";\n`);
+  // playtest1i: playtest1h's own draw as pushed (pt1hView), so this group keeps proving playtest1h's edits
+  writeFileSync(join(dir, "draw1h.ts"), readFileSync(pt1hView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  writeFileSync(join(dir, "pt1h.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${join(dir, "draw1h.ts")}";\nexport { T } from "${root}/src/game/content.ts";\nexport * as P from "${root}/src/game/particles.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1h.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1h.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   writeFileSync(join(dir, "draw1g.ts"), readFileSync(pt1gView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
   execFileSync("npx", ["esbuild", join(dir, "draw1g.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "draw1g.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -8752,7 +8761,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => !isNew(f) && !pt1iNew(f)).sort().map((f) => `${f} ${md5f(pt1hView(f))}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8761,13 +8770,300 @@ if (on("playtest1h")) {
     check("playtest1h", `the change is recorded as a dated owner-requested note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in draw.ts, the fx and prop writers, both make_gravewake.py and both writers' READMEs`, law.includes(TAG) && agents.includes(TAG) && untagged.length === 0, untagged.join(", "));
     check("playtest1h", "the frozen references (scripts/frozen/playtest1h/) are playtest1g's draw and pixel make_gravewake byte for byte (as pushed at f21f20e), and group playtest1g's live pin, draw text and bundled draw read them", md5f("scripts/frozen/playtest1h/draw.ts.txt") === "4d885c026399d71086e005b86ca35915" && md5f("scripts/frozen/playtest1h/make_gravewake.py.txt") === "ca95b08085bf6bfc73d18d9365fcaac5" && /md5f\(pt1gView\(f\)\) !== hh/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")) && /readFileSync\(pt1gView\("src\/game\/draw.ts"\), "utf8"\); \/\/ playtest1h/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
     const LIVE = {"src/game/draw.ts": "beb938dee860186ae4159dc14baf6d04", "tools/spell-writer/fx_writer.py": "d56db00b18c3e2fcbb95ed1fdc25494d", "tools/pixel-writer/prop_writer.py": "a6d5f0d7ae0d00563a121d1f96159b04", "tools/spell-writer/make_gravewake.py": "a07afddc9f47fb50f7c56f390cfedb8e", "tools/pixel-writer/make_gravewake.py": "af77433df2ee05afcaa4f95c9360a31e", "tools/pixel-writer/cave-liquids.json": "32b66f4a0a2a15c490376c175968e5e4"};
-    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(pt1hView(f)) !== hh).map(([f]) => f);
     check("playtest1h", "the live game files are byte for byte playtest1h's (draw, the fx and prop writers, both make_gravewake.py, the liquids' palette)", moved.length === 0 && Object.keys(LIVE).length === 6, moved.join(", "));
   }
 }
 
+// playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2, drawing only): every room's
+// inside matches its outside (interiors.ts, the interior writer), the old painted furniture is gone, the road, dirt and
+// camp edges blend into their grass, and every asset the live draw asks for resolves.
+if (on("playtest1i")) {
+  const { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const py = (code) => { try { return JSON.parse(execFileSync("/home/box/.local/pyvenv/bin/python", ["-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch (e) { return { error: String(e).slice(0, 300) }; } };
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1i.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport * as I from "${root}/src/game/interiors.ts";\nexport * as L from "${root}/src/game/looks.ts";\nexport { DECOR } from "${root}/src/game/decor.ts";\nexport { BOUNTY } from "${root}/src/game/content.ts";\nexport { DERBY } from "${root}/src/game/derby.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1i.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1i.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  writeFileSync(join(dir, "draw1h.ts"), readFileSync(pt1hView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
+  execFileSync("npx", ["esbuild", join(dir, "draw1h.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "draw1h.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document };
+  let draws = [];
+  let fills = [];
+  const asked = new Set();
+  const NOTREADY = new Set();
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return !NOTREADY.has(this._s); } set src(u) { this._s = u; asked.add(u); } get src() { return this._s; } };
+  const mock = (off = null) => {
+    const o = {
+      drawImage(im, ...a) { const [sx, sy, sw, sh, dx, dy, dw, dh] = a.length >= 8 ? a : [0, 0, 0, 0, a[0], a[1], 0, 0]; if (off) { (off.d ??= []).push({ u: im && im._s }); return; } draws.push({ u: im && im._s, c: im && !im._s ? im : null, sx, sy, sw, sh, dx, dy, dw, dh }); },
+      fillRect(x, y, w, h) { if (!off) fills.push([x, y, w, h, o.fillStyle]); },
+    };
+    return new Proxy(o, { get: (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop() {} }) : () => {}), set: (t, k, v) => { t[k] = v; return true; } });
+  };
+  const canv = [];
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= mock(c)); } }; canv.push(c); return c; } };
+  const X = await import(pathToFileURL(join(dir, "pt1i.mjs")).href);
+  const H = await import(pathToFileURL(join(dir, "draw1h.mjs")).href);
+  const I = X.I;
+  const TT = X.T;
+  const frame = (D, g) => { draws = []; fills = []; D.drawWorld(mock(), g, 960, 640, g.zoom); return { d: draws, f: fills }; };
+  const mk = (cls = "warrior") => { const g = new X.Game(); g.start(cls, "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = 5 * 60 * 1000; g.roamers = []; g.mode = "play"; return g; };
+  const ROOM_IDS = ["inn", "shop", "guild", "bank", "bram", "pell", "ivy", "chapel", "casino", "smith", "fisher", "croft", "noll", "tailor", "alchemy", "mystic"];
+  const room = (id, night = false) => { const g = mk(); g.ownedHome = true; if (night) g.worldMs = 20 * 60 * 1000; g.enterTown(); g.enterInside(id, true); g.px = 7 * TILE + 8; g.py = 8 * TILE + 8; g.roamers = []; g.zoom = 3; return g; };
+  const roomFrame = (D, id, night) => { const g = room(id, night); frame(D, g); return { g, ...frame(D, g) }; };
+  const inRoom = (x, y) => x >= 0 && y >= 0 && x < 14 * TILE && y < 11 * TILE;
+
+  // 1. All assets resolve, on the live draw: every /art/ path in src, every new sheet, and every image a run asks for.
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return statSync(p).isDirectory() ? walk(p) : [p]; });
+    const art = walk("public/art").map((f) => f.slice("public".length));
+    const lits = new Set();
+    const tpls = new Set();
+    for (const f of walk("src").filter((f) => /\.(ts|tsx)$/.test(f))) {
+      const s = readFileSync(f, "utf8");
+      for (const m of s.matchAll(/["'`](\/art\/[^"'`\s]*?\.(?:png|json|webp))["'`]/g)) (m[1].includes("${") ? tpls : lits).add(m[1]);
+      for (const m of s.matchAll(/`(\/art\/[^`]*\$\{[^`]*)`/g)) if (/\.(png|json|webp)$/.test(m[1])) tpls.add(m[1]);
+    }
+    const missing = [...lits].filter((u) => !existsSync(`public${u}`));
+    const dead = [...tpls].filter((t) => { const re = new RegExp(`^${t.split(/\$\{[^}]*\}/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[^/]+")}$`); return !art.some((a) => re.test(a)); });
+    const isrc = readFileSync("src/game/interiors.ts", "utf8");
+    check("playtest1i", `all assets resolve (source): every /art/ path named in src (${lits.size} literal paths, ${tpls.size} templates, interiors.ts's among them) is a file, and every template names at least one`, lits.size > 50 && missing.length === 0 && dead.length === 0 && /room-floor-\$\{s\}/.test(isrc), JSON.stringify({ missing, dead }));
+    const sheets = X.PT1I_ART;
+    const absent = sheets.filter((u) => !existsSync(`public${u}`));
+    check("playtest1i", `all assets resolve (the new art): the ${sheets.length} interior sheets (four styles' floor, wall and wall glow, the furniture and its glow, the rugs) exist`, sheets.length === 15 && absent.length === 0, absent.join(", "));
+    const pre = sheets.filter((u) => asked.has(u));
+    const g = mk();
+    g.ownedHome = true;
+    g.enterTown();
+    frame(X, g);
+    const early = sheets.filter((u) => !asked.has(u));
+    check("playtest1i", "the interior sheets load up front: none is asked for before a frame, and the first town frame already asks for all of them (so a room is never first drawn with the old furniture)", pre.length === 0 && early.length === 0, [...pre, ...early].join(", "));
+    const scenes = [];
+    frame(X, g);
+    for (const id of ROOM_IDS) { scenes.push(room(id)); scenes.push(room(id, true)); }
+    for (const [x, y] of [[64, 80], [109, 27], [88, 102], [108, 44], [70, 59], [96, 34], [80, 92]]) { const v = mk(); v.px = x * TILE + 8; v.py = y * TILE + 8; scenes.push(v); }
+    for (const s of [0, 1, 2, 3]) { const v = mk(); v.worldMs = (s * 6 + 1) * 30 * 60 * 1000 + 5 * 60 * 1000; v.enterWorld(64 * TILE + 8, 80 * TILE + 8); v.roamers = []; scenes.push(v); }
+    { const c = mk(); c.enterCamp(); c.roamers = []; scenes.push(c); }
+    for (const id of ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "pocketvale", "barrow", "hearth", "riftvale"]) { const d = mk(); d.level = 70; d.enterDungeon(id); d.roamers = []; if (d.fog) d.fog.fill(1); scenes.push(d); }
+    for (const s of scenes) { frame(X, s); frame(X, s); }
+    const req = [...asked].filter((u) => u.startsWith("/art/"));
+    const gone = req.filter((u) => !existsSync(`public${u}`));
+    check("playtest1i", `all assets resolve (runtime, live draw): every image asked for over the town, the 16 rooms by day and night, the vale in four seasons and seven biome spots, the camp and the 14 dungeons (${req.length} files) exists (the browser audit, qa/playtest1i/audit.mjs, saw 0 failed loads over 74 scenes)`, req.length > 200 && gone.length === 0, gone.slice(0, 6).join(", "));
+  }
+
+  // 2. Every room: its outside's style, its own floor, walls and rug, its furniture, no painted placeholder furniture.
+  {
+    // the outside style of each room, worked out from the town grid the way the town draw picks its house art
+    const town = mk();
+    town.enterTown();
+    const { w, h, tiles } = town;
+    const seen = new Uint8Array(w * h);
+    const outside = {};
+    for (let i = 0; i < w * h; i++) {
+      if (seen[i] || (tiles[i] !== TT.wall && tiles[i] !== TT.door)) continue;
+      let x0 = w, x1 = -1, doors = [];
+      const st = [i];
+      seen[i] = 1;
+      while (st.length) {
+        const k = st.pop();
+        const kx = k % w, ky = (k - kx) / w;
+        x0 = Math.min(x0, kx); x1 = Math.max(x1, kx);
+        if (tiles[k] === TT.door) doors.push([kx, ky]);
+        for (const m of [kx > 0 ? k - 1 : -1, kx + 1 < w ? k + 1 : -1, ky > 0 ? k - w : -1, ky + 1 < h ? k + w : -1]) if (m >= 0 && !seen[m] && (tiles[m] === TT.wall || tiles[m] === TT.door)) { seen[m] = 1; st.push(m); }
+      }
+      const style = x1 - x0 + 1 >= 5 && x0 % 2 === 0 ? "cabin" : ["stone", "warm", "slate"][x0 % 3];
+      for (const [dx, dy] of doors) { const r = X.townRoomAt(dx, dy); if (r) outside[r.id] = style; }
+    }
+    const wrong = ROOM_IDS.filter((id) => I.roomStyle(id) !== (outside[id] ?? "warm")).map((id) => `${id} outside ${outside[id]}`);
+    check("playtest1i", `every room is its building's outside style (${ROOM_IDS.map((id) => `${id} ${I.roomStyle(id)}`).join(", ")})`, wrong.length === 0 && Object.keys(outside).length === 16, wrong.join(", "));
+    const bad = {};
+    const furnBad = {};
+    const flat = {};
+    for (const id of ROOM_IDS) {
+      const s = I.roomStyle(id);
+      const { g, d, f } = roomFrame(X, id);
+      const floorTiles = [];
+      for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.tiles[y * g.w + x] !== TT.wall && g.tiles[y * g.w + x] !== TT.door) floorTiles.push([x, y]);
+      const fl = d.filter((c) => c.u === I.roomFloor(s));
+      const wl = d.filter((c) => c.u === I.roomWall(s));
+      const rr = ["cabin", "stone", "slate", "warm"].indexOf(s) * 32; // the writer's row block per style (two 16 px rows)
+      const rug = d.filter((c) => c.u === I.ROOM_RUGS && c.sy >= rr && c.sy < rr + 32);
+      const old = d.filter((c) => [X.L.ROOM_BOARDS, X.L.ROOM_WALL, X.L.ROOM_RUG].includes(c.u) || (c.u && /room-(floor|wall)-/.test(c.u) && !c.u.includes(`-${s}`)));
+      const covered = floorTiles.filter(([x, y]) => fl.some((c) => c.dx === x * TILE && c.dy === y * TILE));
+      if (covered.length !== floorTiles.length || wl.length < 40 || rug.length !== 8 || old.length) bad[id] = { floor: `${covered.length}/${floorTiles.length}`, wall: wl.length, rug: rug.length, old: old.length };
+      const want = I.roomFurniture(id);
+      const got = want.filter((p) => d.some((c) => c.u === I.ROOM_FURN && c.dx === p.x && c.dy === p.y && (c.sx === I.FURN[p.k] * 32 || c.sx === I.FURN[I.FURN_ANIM[p.k] ?? p.k] * 32) && c.sw === 32));
+      if (got.length !== want.length) furnBad[id] = `${got.length}/${want.length}`;
+      if (id === "croft") {
+        const kit = I.roomKitExtra(id);
+        const has = (cells) => kit.some((k) => cells.includes(k.cell) && d.some((c) => c.u === X.L.ROOM_KIT && c.dx === k.x && c.dy === k.y && cells.includes(c.sx / 32)));
+        if (!has([0]) || !has([4, 5]) || !kit.some((k) => k.cell === 4 && k.lit)) furnBad.croft = `bed ${has([0])} stove ${has([4, 5])}`;
+      }
+      // painted furniture: any fill smaller than a tile inside the room (the base ground fills are whole 16x16 tiles)
+      const small = f.filter(([x, y, fw, fh]) => inRoom(x, y) && (fw < 16 || fh < 16) && fw * fh >= 4);
+      if (small.length) flat[id] = small.slice(0, 3).map((q) => q.join(" ")).join(" / ");
+    }
+    check("playtest1i", "every room lays its style's wrapping floor on every floor tile (the trade tiles too), its style's wall on the border, its style's rug on the 4x2 spot, and never the old one-for-all boards, wall or rug", Object.keys(bad).length === 0, JSON.stringify(bad));
+    check("playtest1i", `every room's trade furniture is the interior writer's (${Object.values(I.ROOM_FURNITURE).flat().length} pieces: counters, bookcases, shelves, pews, altar, forge, anvil, card table, cauldron, orrery, nets, crates, potions, inn table, strongbox, mannequin, racks), each drawn at its spot`, Object.keys(furnBad).length === 0 && Object.values(I.ROOM_FURNITURE).flat().length >= 35, JSON.stringify(furnBad));
+    check("playtest1i", "no flat-fill furniture: once the art is in, no room paints a shape smaller than a tile (the old shelves, counters, beds, pews, anvil, forge, card table, bottles, crates, hearth, cauldron, moon and nets are gone)", Object.keys(flat).length === 0, JSON.stringify(flat));
+    // the old room (1h's draw) did paint them: the check sees them there
+    let oldFlat = 0;
+    for (const id of ["shop", "smith", "chapel", "casino", "alchemy", "fisher", "mystic"]) oldFlat += roomFrame(H, id).f.filter(([x, y, fw, fh]) => inRoom(x, y) && (fw < 16 || fh < 16) && fw * fh >= 4).length;
+    check("playtest1i", `the flat-fill check sees the old painted furniture in playtest1h's draw (${oldFlat} small fills over seven rooms)`, oldFlat > 40, String(oldFlat));
+    // every trade tile (shelf, hearth, cauldron, nets, moon) stands under a furniture piece's footprint and on the room floor
+    const trade = new Set([TT.shelf, TT.hearth, TT.cauldron, TT.nets, TT.moon]);
+    const TRADE_KIND = new Map([[TT.shelf, ["bookcase", "narrow", "potions", "strongbox", "mannequin"]], [TT.hearth, ["forge", "inntable", "altar"]], [TT.cauldron, ["cauldron"]], [TT.nets, ["net"]], [TT.moon, ["orrery"]]]);
+    const bare = [];
+    for (const id of ROOM_IDS) {
+      const g = room(id);
+      const pcs = I.roomFurniture(id);
+      for (let i = 0; i < g.tiles.length; i++) {
+        if (!trade.has(g.tiles[i])) continue;
+        const cx = (i % g.w) * TILE + 8, cy = Math.floor(i / g.w) * TILE + 8;
+        const kinds = TRADE_KIND.get(g.tiles[i]);
+        if (!pcs.some((p) => cx >= p.x && cx < p.x + 32 && cy >= p.y && cy < p.y + 32 && kinds.includes(p.k))) bare.push(`${id}@${i % g.w},${Math.floor(i / g.w)}`);
+      }
+    }
+    check("playtest1i", "every shelf, hearth, cauldron, net and moon tile has its own furniture standing on it (a shelf, the forge, the inn hearth or the chapel altar, the cauldron, a net, the orrery; no bare trade tile)", bare.length === 0, bare.join(" "));
+    // clear spots: the door, the hero's start, every keeper, the guild board, the croft's decor slots, chest and trophy
+    const clash = [];
+    for (const id of ROOM_IDS) {
+      const g = room(id);
+      const spots = [[7, 10], [7, 8], ...g.npcs.map((n) => [Math.floor(n.x / TILE), Math.floor(n.y / TILE)])];
+      if (id === "guild") spots.push([X.BOUNTY.boardX, X.BOUNTY.boardY + 1]);
+      if (id === "croft") { for (const p of X.DECOR?.pieces ?? []) spots.push([p.x, p.y]); spots.push([X.DERBY.trophyX, X.DERBY.trophyY], [4, 6]); }
+      const pcs = [...I.roomFurniture(id), ...I.roomKitExtra(id).map((k) => ({ k: "kit", x: k.x, y: k.y }))];
+      for (const p of pcs) for (const [sx, sy] of spots) { const cx = sx * TILE + 8, cy = sy * TILE + 8; if (cx > p.x + 4 && cx < p.x + 28 && cy > p.y + 6 && cy < p.y + 30 && !(sy === 4 && p.k === "counter") && !(p.k === "cardtable" && sy === 3)) clash.push(`${id}:${p.k}@${sx},${sy}`); }
+    }
+    check("playtest1i", "the furniture stands clear of the door, the hero's start, every keeper's spot (a counter or the card table may stand before a keeper), the guild board, and the croft's decor slots, chest and derby trophy", clash.length === 0, clash.join(" "));
+  }
+
+  // 3. Lighting and glow: each style's sconces burn its signature glow; the forge, cauldron, altar, orrery cast light; the
+  //    furniture's glow parts reach the light layer; the room stays inside the light budget.
+  {
+    const NL = X.L.NEON_LIGHT;
+    const res = {};
+    for (const id of ROOM_IDS) {
+      const g = room(id, true);
+      frame(X, g);
+      const cam = X.cameraFor(g, 960, 640, g.zoom);
+      const lights = X.sceneLights(g, cam.x, cam.y, 960 / g.zoom, 640 / g.zoom);
+      const sc = lights.filter((l) => l.y === 6);
+      const want = NL[I.STYLE_GLOW[I.roomStyle(id)]];
+      const pcs = I.roomFurniture(id).filter((p) => I.FURN_LIGHT[p.k]);
+      const lit = pcs.filter((p) => lights.some((l) => l.x === p.x + I.FURN_LIGHT[p.k].dx && l.y === p.y + I.FURN_LIGHT[p.k].dy && l.c === NL[I.FURN_LIGHT[p.k].c]));
+      res[id] = sc.length === 3 && sc.every((l) => l.c === want) && lit.length === pcs.length && lights.length <= 24;
+    }
+    const forge = I.FURN_LIGHT.forge.c === "red" && I.FURN_LIGHT.cauldron.c === "blue" && I.FURN_LIGHT.orrery.c === "violet" && I.FURN_LIGHT.altar.c === "blue";
+    check("playtest1i", `every room at night: three sconces in its style's glow (cabin and slate cold blue, stone violet), a light on each glowing piece (forge red, cauldron and altar blue, orrery violet, the counter lamp, the inn candle), and no more than the 24-light budget`, Object.values(res).every(Boolean) && forge, JSON.stringify(Object.entries(res).filter(([, v]) => !v).map(([k]) => k)));
+    const glowOk = {};
+    for (const id of ["smith", "bank", "fisher", "croft", "alchemy", "mystic", "chapel"]) {
+      const g = room(id, true);
+      frame(X, g);
+      for (const c of canv) c.d = [];
+      const main = frame(X, g).d;
+      const off = canv.flatMap((c) => c.d ?? []).concat(main);
+      const em = off.filter((c) => c.u === I.ROOM_FURN_EM).length;
+      const sc = off.filter((c) => c.u === I.roomWallEm(I.roomStyle(id))).length;
+      glowOk[id] = em >= I.roomFurniture(id).length && sc >= 3;
+    }
+    check("playtest1i", "at night the glow pass draws each piece's glowing parts (room-furn_em.png: forge mouth, cauldron brew, altar candles, orrery, lamps) and the style's own sconce flames (room-wall-<style>_em.png)", Object.values(glowOk).every(Boolean), JSON.stringify(glowOk));
+  }
+
+  // 4. Fail-safes: while the interior sheets load, a room still draws (the old boards, wall, rug and painted furniture)
+  {
+    for (const u of X.PT1I_ART) NOTREADY.add(u);
+    const { d, f } = roomFrame(X, "smith");
+    const okOld = d.some((c) => c.u === X.L.ROOM_BOARDS) && d.some((c) => c.u === X.L.ROOM_WALL) && f.some(([x, y, fw, fh]) => inRoom(x, y) && fw < 16 && fh < 16);
+    NOTREADY.clear();
+    check("playtest1i", "while the interior sheets load, a room still draws whole: the old boards, wall and painted furniture are the not-yet-loaded fallback", okOld);
+  }
+
+  // 5. Map consistency: the cart road, the town's dirt and the camp clearing blend into their grass
+  {
+    const counts = {};
+    const town = mk(); town.enterTown(); town.px = 20 * TILE + 8; town.py = 22 * TILE + 8;
+    const camp = mk(); camp.enterCamp(); camp.roamers = [];
+    const vale = mk(); vale.px = 64 * TILE + 8; vale.py = 80 * TILE + 8;
+    for (const [name, g] of [["town", town], ["camp", camp], ["vale", vale]]) {
+      frame(X, g);
+      const { d } = frame(X, g);
+      const cam = X.cameraFor(g, 960, 640, g.zoom);
+      const x0 = Math.max(0, Math.floor(cam.x / TILE)), y0 = Math.max(0, Math.floor(cam.y / TILE));
+      const x1 = Math.min(g.w, Math.ceil((cam.x + 960 / g.zoom) / TILE)), y1 = Math.min(g.h, Math.ceil((cam.y + 640 / g.zoom) / TILE));
+      const grass = new Set(name === "vale" ? [TT.grass, TT.snow, TT.sand, TT.ash, TT.swamp, TT.tree, TT.rock, TT.pump, TT.grave] : name === "town" ? [TT.grass, TT.exit] : [TT.grass]);
+      let edge = 0, bit = 0, stray = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const t = g.tiles[y * g.w + x];
+        if (!X.biteTile(g.theme, t)) continue;
+        const nbs = [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]].some(([dx, dy]) => { const nx = x + dx, ny = y + dy; return nx >= 0 && ny >= 0 && nx < g.w && ny < g.h && grass.has(g.tiles[ny * g.w + nx]); });
+        const drew = d.some((c) => c.c && c.dx === x * TILE && c.dy === y * TILE && c.sw === 16);
+        if (nbs) { edge++; if (drew) bit++; } else if (drew) stray++; // a bite only where grass meets it (never into a wall, water or road)
+      }
+      counts[name] = `${bit}/${edge}` + (stray ? ` +${stray} stray` : "");
+      if (!(edge > 0 && bit === edge && stray === 0)) counts.bad = true;
+    }
+    check("playtest1i", `map consistency: every cart road, town dirt and camp clearing tile on screen that meets grass blends into it through the drift masks, not a square step (${Object.entries(counts).filter(([k]) => k !== "bad").map(([k, v]) => `${k} ${v}`).join(", ")})`, !counts.bad, JSON.stringify(counts));
+    check("playtest1i", `a one-tile cart road keeps its middle: its bite mask is pushed ${X.BITE_ROAD} px out toward the grass (the town and camp bites are the full drift)`, X.BITE_ROAD === 5 && /const k = g\.theme === "over" \? BITE_ROAD : 0;/.test(readFileSync("src/game/draw.ts", "utf8")));
+  }
+
+  // 6. Nothing else moved: away from rooms and the bitten tiles, the town, the vale's biomes, the camp and the dungeons
+  //    draw call for call as playtest1h's draw.
+  {
+    const res = {};
+    const scenes = [];
+    { const g = mk(); g.enterTown(); g.px = 20 * TILE + 8; g.py = 14 * TILE + 8; scenes.push(["town", g]); }
+    for (const [n, x, y] of [["vale", 64, 80], ["snow", 109, 27], ["ash", 88, 102], ["sand", 108, 44], ["swamp", 70, 59]]) { const g = mk(); g.px = x * TILE + 8; g.py = y * TILE + 8; scenes.push([n, g]); }
+    { const g = mk(); g.enterCamp(); g.roamers = []; scenes.push(["camp", g]); }
+    for (const id of ["harrow", "chapel", "drowned", "riftvale"]) { const g = mk(); g.level = 70; g.enterDungeon(id); g.roamers = []; if (g.fog) g.fog.fill(1); scenes.push([id, g]); }
+    for (const [n, g] of scenes) {
+      frame(X, g); frame(H, g);
+      const bitten = new Set();
+      for (let i = 0; i < g.tiles.length; i++) if (X.biteTile(g.theme, g.tiles[i])) bitten.add(`${(i % g.w) * TILE},${Math.floor(i / g.w) * TILE}`);
+      const key = (c) => `${c.u ?? "canvas"}|${c.sx}|${c.sy}|${c.dx}|${c.dy}`;
+      const a = frame(X, g).d.filter((c) => !(c.c && bitten.has(`${c.dx},${c.dy}`)) && !(c.u && /room-|interior/.test(c.u))).map(key);
+      const b = frame(H, g).d.map(key);
+      res[n] = a.length === b.length && a.every((k, i) => k === b[i]);
+    }
+    check("playtest1i", `nothing else moved: away from the rooms and the bitten edge tiles, the town, the vale's five biomes, the camp and four dungeons draw call for call as playtest1h's draw (${Object.entries(res).filter(([, v]) => !v).map(([k]) => k).join(" ") || "all same"})`, Object.values(res).every(Boolean), JSON.stringify(res));
+  }
+
+  // 7. The art is the writer's: make_gravewake.playtest1i() re-run into a temp dir gives the pushed bytes, palette v3, hard alpha
+  {
+    const tmp = mkd(join(tmpdir(), "gw1i-"));
+    const out = py(`import sys, json, hashlib\nsys.path.insert(0, "tools/pixel-writer")\nfrom pathlib import Path\nimport make_gravewake as m\nmade = m.playtest1i(Path("${tmp}"))\nfrom PIL import Image\nres = {}\nfor n in list(made) + ["preview-playtest1i.png"]:\n    a = open(Path("${tmp}") / n, "rb").read(); b = open("public/art/writer/" + n, "rb").read()\n    im = Image.open(Path("${tmp}") / n).convert("RGBA")\n    al = set(p[3] for p in im.getdata())\n    res[n] = [hashlib.md5(a).hexdigest() == hashlib.md5(b).hexdigest(), sorted(al) in ([0, 255], [255], [0]), im.size]\nprint(json.dumps(res))`);
+    const names = Object.keys(out);
+    const same = names.filter((n) => out[n][0]).length;
+    const hard = names.filter((n) => out[n][1]).length;
+    const sizes = out["room-furn.png"]?.[2]?.join("x") === "608x32" && out["room-rugs.png"]?.[2]?.join("x") === "64x128" && ["cabin", "stone", "slate", "warm"].every((s) => out[`room-floor-${s}.png`]?.[2]?.join("x") === "128x128" && out[`room-wall-${s}.png`]?.[2]?.join("x") === "112x16");
+    check("playtest1i", `the art is the interior writer's: make_gravewake.playtest1i() re-run here into a temp dir gives the same bytes for all ${names.length} files (its own palette-v3 check passes as it writes), hard alpha, and the sheet sizes the draw reads (floors 128x128, walls 7 cells, 19 furniture cells, four rugs)`, names.length === 16 && same === 16 && hard === 16 && sizes, out.error ?? JSON.stringify(Object.fromEntries(names.filter((n) => !out[n][0] || !out[n][1]).map((n) => [n, out[n]]))));
+    for (const d of ["tools/pixel-writer/__pycache__", "tools/sprite-writer/__pycache__"]) execFileSync("rm", ["-rf", d]);
+  }
+
+  // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
+  {
+    const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap(walk).filter((f) => f !== "src/game/draw.ts" && !pt1iNew(f)).sort().map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
+    const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const files = ["src/game/draw.ts", "src/game/interiors.ts", "tools/pixel-writer/interior_writer.py", "tools/pixel-writer/make_gravewake.py", "tools/pixel-writer/README.md"];
+    const untagged = files.filter((f) => !readFileSync(f, "utf8").includes(TAG));
+    check("playtest1i", `the change is recorded as a dated owner-requested note (playtest1i), ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in draw.ts, interiors.ts, the interior writer, make_gravewake.py and the pixel writer's README`, law.includes("INTERIORS AND MAP CONSISTENCY (playtest1i)  " + TAG) && agents.includes("## playtest1i (art audit part 2: interiors and map consistency, drawing only) — " + TAG) && readFileSync("tools/pixel-writer/README.md", "utf8").includes(TAG + " (part 2, playtest1i) `interior_writer.py`") && readFileSync("src/game/interiors.ts", "utf8").includes(" * playtest1i (" + TAG) && untagged.length === 0, untagged.join(", "));
+    check("playtest1i", "the frozen references (scripts/frozen/playtest1i/) are playtest1h's draw and pixel make_gravewake byte for byte (as pushed at 852eafc), and group playtest1h's bundled draw, rest digest and live pin read them", md5f("scripts/frozen/playtest1i/draw.ts.txt") === "beb938dee860186ae4159dc14baf6d04" && md5f("scripts/frozen/playtest1i/make_gravewake.py.txt") === "af77433df2ee05afcaa4f95c9360a31e" && /md5f\(pt1hView\(f\)\) !== hh/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")) && /readFileSync\(pt1hView\("src\/game\/draw.ts"\), "utf8"\)/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
+    globalThis.Image = had.Image;
+    globalThis.document = had.document;
+    const LIVE = {"src/game/draw.ts": "8a50838a6c31fded04a1b8133c279723", "src/game/interiors.ts": "76df93373a92cb65eaec6b53e6a4fee7", "tools/pixel-writer/interior_writer.py": "001aebe58457132827602ed24b21496d", "tools/pixel-writer/make_gravewake.py": "d017892689e677d51042e864a16af8db"};
+    const moved = Object.entries(LIVE).filter(([f, hh]) => md5f(f) !== hh).map(([f]) => f);
+    check("playtest1i", "the live game files are byte for byte playtest1i's (draw, interiors, the interior writer, make_gravewake)", moved.length === 0 && Object.keys(LIVE).length === 4, moved.join(", "));
+  }
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

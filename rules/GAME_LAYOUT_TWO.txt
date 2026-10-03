@@ -1008,3 +1008,16 @@ in its floor-kit slabs. Spells keep their bolts and colours and gain three beats
 and an area burst on the ground for a self-centred art or a placed nova; a near-black spell (Summon Shade, Vanish)
 glows violet; Whirl = the fx writer's dust ring at the feet, held 0.36 s (the particle pool is read, never written).
 The sim, particles.ts, damage, timings and saves are untouched.
+
+OWNER-REQUESTED ART AUDIT PART 2: INTERIORS AND MAP CONSISTENCY (playtest1i)  [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]
+Bill (2026-10-02 19:43 ET): "make sure the inside of buildings is up to date and quality of textures as the outside
+... make sure all the textures are high quality and all of the map looks good and matches each other". Drawing only.
+Every room is drawn in its building's outside style (src/game/interiors.ts ROOM_STYLE: the log cabin, the stone house,
+the slate-boarded house), from tools/pixel-writer/interior_writer.py: a wrapping 128 px floor (log planks, flagstones,
+blue-washed boards), the matching inside wall (logs, ashlar, slate boards) with each style's sconce glow (cabin and slate
+cold blue, stone violet), the style's rug, and the trade furniture (counters, bookcases, shelves, pews, altar, forge,
+anvil, card table, cauldron, orrery, nets, crates, potions, inn table, strongbox, mannequin, weapon racks) on the spots
+the painted shapes held, lit (forge red, cauldron and altar blue, orrery violet). The old painted furniture, boards,
+wall and rug draw only while the sheets load. The croft gets the hearth kit's bed and stove (decor slots untouched).
+Map: the vale's cart road, the town's dirt and the camp clearing blend into their grass through the wild writer's
+drift masks (a one-tile road keeps its middle). Room grids, NPC spots, collision, the sim and saves are untouched.

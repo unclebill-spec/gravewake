@@ -68,3 +68,9 @@ tooth glint on cell 1), dungeon bone heaps (`prop-bones.png`, four variants) and
 (`cave-liquid-<theme>.png`, four 128×128 wrapping frames like the vale water, in the dungeon's liquid and accent from
 `cave-liquids.json`, which mirrors draw.ts `CAVES`). `make_gravewake.playtest1h()` writes them to `public/art/writer`
 with `preview-playtest1h.png`; palette v3, hard alpha (checked as it writes).
+
+[OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit] (part 2, playtest1i) `interior_writer.py` draws every building's inside to its outside's finish: a 128×128
+wrapping floor per style (`room-floor-<cabin|stone|slate|warm>.png`), the inside wall per style (`room-wall-<style>.png`,
+seven 16×16 cells in looks.ts ROOM_CELL order, with `_em` glow masks), 19 trade pieces in 32×32 cells (`room-furn.png`
+in interiors.ts FURN order, with `room-furn_em.png`), and four rugs (`room-rugs.png`, 64×32 each). `make_gravewake.playtest1i()`
+writes them with `preview-playtest1i.png`; palette v3, hard alpha (checked as it writes).

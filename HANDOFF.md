@@ -8,7 +8,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 786 as of playtest1h), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 808 as of playtest1i), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)
@@ -23,11 +23,12 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - Before any push: scan the files and history for secrets. `src/lib/auth/preview.ts` reads `PREVIEW_CLIENT_SECRET` from env in this repo, and the template's hard-coded value must never be committed.
 - Keep `CHANGELOG.md` and this file current, and use descriptive commits.
 
-## Current state (2026-10-02, playtest1h)
+## Current state (2026-10-02, playtest1i)
 - The feature list is done, festivals are done for all four seasons, map writer phases 1–3 are done (the 128x120 vale), and graphics pass rounds 1–3 and art audits 1–2 are done.
 - Screen and display settings are done (screen1), and a true 320×240 Retro mode is done (retro1, an owner-approved exception).
 - playtest1e–1g: the bigger world and edge border, wayrift portals, swamp paths, and biome trail art.
-- playtest1h (Bill's 2026-10-02 19:43 ET art and loading audit, part 1): every asset resolves, with 0 failed loads across 56 scenes. Chests, mimic lids, dungeon liquids, bones and the chapel aisle are writer art now, and spells have cast, impact and area beats. Part 2 is playtest1i: building interiors brought up to the outside's art quality, plus a map-consistency pass.
+- playtest1h (Bill's 2026-10-02 19:43 ET art and loading audit, part 1): every asset resolves, with 0 failed loads across 56 scenes. Chests, mimic lids, dungeon liquids, bones and the chapel aisle are writer art now, and spells have cast, impact and area beats.
+- playtest1i (part 2): every room is drawn in its building's outside style (cabin, stone or slate floor, wall, sconces and rug; `src/game/interiors.ts`), with writer furniture (`interior_writer.py`, 35 pieces) in place of painted blocks, a bed and stove in the croft, and blue/violet/red lights. Map walk: the cart road, town dirt and camp clearing now blend into their grass. The "warm" timber style is drawn but no room uses it yet.
 
 ## Known issues
 - Lint has 10 problems that predate this work; test1 is 177/195 with a known failing list.
