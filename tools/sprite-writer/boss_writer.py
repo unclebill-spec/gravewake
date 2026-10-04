@@ -78,6 +78,23 @@ scaled by s/5 into the rank's 24s x 36s cell (soles on row 34s, centre 12s acros
 The writer also measures each sheet's silhouette (shape_of: top, half, body, foot) and writes src/game/bigshapes.ts,
 which bigboss.ts reads for the hurt radius, the foot box, the shadow, the label and bar height and the camera fit.
 Palette LOCKED_V3, hard alpha, the same 108 files, 11 poses x 4 views at 24s x 36s (feet point 34s+2 down, 12s across).
+
+playtest1s [OWNER-APPROVED 2026-10-04 14:08 ET: playtest1s big sprite audit]: audited frame by frame. Bill (2026-10-04
+14:08 ET): every big boss, mini and rare must look good at its size. qa/playtest1s/sheet_audit.py measured every cell of
+the 54 sheets (clipping at the cell edge, stray bits, pinholes, the soles row, pops between frames, glow, colour drift,
+palette) and the contact sheets were looked over; fixed here:
+  tidy       every cell: a pinhole (a transparent bit the body closes round, under max(2, s) px) takes the commonest
+             colour beside it; a crumb (a bit apart from the body, under max(4, s*s) px, no glow) is dropped (hat tips,
+             tatters, a raised foot's raster crumbs). 772 pinholes and 253 crumbs in playtest1r's sheets.
+  west       a person's west row keeps the weapon in its right hand (behind the body, the far hand facing west); it was the
+             east row in a mirror, the weapon changing hands (the 1x sheets keep the hand since playtest1p).
+  reach      a side-view hand past the reach line turns back the short way, by the least it takes (it always threw the
+             claw overhead, so the ghoul's idle beat flung its arms up and down).
+  Krampus    the chain's links hang on one run of chain (they floated apart).
+  horse      the profile horse's hooves stand on the soles row (they floated 6 px over it on the boss).
+  ghost      the eyes stay lit in the idle beat (the mini's and rare's blinked off at every beat).
+  mimic      a true profile (lid hinged at the back, the maw a wedge facing east; it was the front squeezed) and, from
+             behind, the lid stays on its hinge (it floated over a gap).
 """
 
 from __future__ import annotations
@@ -480,12 +497,17 @@ class Body:
                 a1 = math.radians(a + lean * 0.5); a2 = math.radians(a + e + lean * 0.5)
                 ex_, ey = sx + up * math.sin(a1), sy + up * math.cos(a1)
                 hx, hy = ex_ + fo * math.sin(a2), ey + fo * math.cos(a2)
-                # a reach that would leave the cell bends the elbow up (a claw raised) until the hand is in
+                # a reach that would leave the cell bends the elbow until the hand is in. playtest1s: the forearm turns the
+                # short way back in (down toward the side for a low hand, up for a raised one), by the least it takes, so a
+                # hand a hair past the line moves a hair; it always turned up (a claw thrown overhead), so a breath that
+                # crossed the line made the idle beat throw the arm up and down (a pop)
                 lim = REACH_X - 11 - (g.get("held_reach", 0) if side == "R" else 0)
                 bend = 0
+                a0 = a + e + lean * 0.5
+                turn = (1 if hx > 40 else -1) * (-1 if math.cos(math.radians(a0)) > 0 else 1)
                 while abs(hx - 40.0) > lim and bend < 90:
-                    bend += 3
-                    a2 = math.radians(a + e + bend + lean * 0.5) if hx > 40 else math.radians(a + e - bend + lean * 0.5)
+                    bend += 1
+                    a2 = math.radians(a0 + turn * bend)
                     hx, hy = ex_ + fo * math.sin(a2), ey + fo * math.cos(a2)
                 z = 1 if side == "R" else -1
                 self.joints[side] = dict(s=(sx, sy), e=(ex_, ey), h=(hx, hy), z=z, fwd=math.sin(a1))
@@ -1083,6 +1105,8 @@ def held(c, B, pal, sp, P, kind, front=True):
             pts.append((hx + (dx * 18 + sw_ * 2.5) * t_ + math.sin(t_ * 3.2) * 3, min(147.0, hy + 30 * t_ * t_ + dy * 8 * t_)))
         far = max(abs(x - 40.0) for x, _ in pts)
         f_ = 1.0 if far <= REACH_X - 3 else max(0.2, (REACH_X - 3 - abs(hx - 40.0)) / max(1e-6, far - abs(hx - 40.0)))
+        # playtest1s: the links hang on one run of chain (they floated apart, a dot each)
+        c.tube([(hx, hy, 0.75)] + [(hx + (x - hx) * f_, y, 0.75) for x, y in pts], "#5a5e66", mat="metal", line="ink")
         for i, (x, y) in enumerate(pts):
             c.ell(hx + (x - hx) * f_, y, 2.2 if i % 2 else 1.4, 1.6 if i % 2 else 2.4, "#8a8e94", mat="metal", line="ink")
     elif kind == "cleaver":
@@ -1101,9 +1125,17 @@ def person(c, rank, view, P, sp, pal, head_fn, hooks=None):
     J = B.joints
     v = view
     hooks("back", c, B)
-    # side view: the far limbs first, a shade darker
+    # side view: the far limbs first, a shade darker. playtest1s [OWNER-APPROVED 2026-10-04 14:08 ET: playtest1s big sprite audit]: the west
+    # row is this drawing turned over, so for it the arms trade places: the right hand and what it holds go behind the
+    # body (facing west it is the far hand) and the left comes in front; the west row was the east one in a mirror, the
+    # weapon swapping hands
+    west = v == 2 and bool(P.get("_west"))
     if v == 2:
-        if J["L"]["z"] < 0:
+        if west:
+            if sp.get("held"):
+                held(c, B, pal, sp, P, sp["held"])
+            arm(c, B, "R", pal, sp, tone=-1)
+        elif J["L"]["z"] < 0:
             arm(c, B, "L", pal, sp, tone=-1)
         if sp.get("dress") != "robe":
             leg(c, B, "L", pal, sp, tone=-1)
@@ -1165,7 +1197,9 @@ def person(c, rank, view, P, sp, pal, head_fn, hooks=None):
         c.tube([(nx, ny + 3, sp.get("neck_r", 3.4)), (B.head[0] * 0.5 + nx * 0.5, (B.head[1] + ny) / 2, sp.get("neck_r", 3.4) * 0.9)], pal.get("neckc", pal["skin"]), mat=sp.get("neck_mat", "skin"), tone=-1)
     head_fn(c, B, P)
     hooks("head", c, B)
-    if v == 2:
+    if v == 2 and west:
+        arm(c, B, "L", pal, sp)
+    elif v == 2:
         if hk:
             held(c, B, pal, sp, P, hk)
         arm(c, B, "R", pal, sp)
@@ -2005,8 +2039,7 @@ def ghost(c, rank, view, P):
         for s_ in ((-1, 1) if v != 2 else (1,)):
             ex = ox + s_ * r * 0.42 if v != 2 else ox + r * 0.1
             c.ell(ex, hy + 1, r * 0.25, r * 0.36, sw.INK, line=None, part=1101)
-            if pose != "idle":
-                c.dot(ex, hy + 2, "#4ab8ff", r=r * 0.12, glow=eyes, line=None, part=1102)
+            c.dot(ex, hy + 2, "#4ab8ff", r=r * 0.12, glow=eyes, line=None, part=1102)  # playtest1s: lit in idle too (no blink pop)
         mo = {"swing1": 1.0, "cast1": 1.0, "swing0": 0.6, "cast0": 0.6, "swing2": 0.6}.get(pose, 0.3)
         c.ell(ox if v != 2 else ox + r * 0.2, hy + r * 0.6, r * (0.22 if v != 2 else 0.15), 2 + 5 * mo, mouth, line=None, part=1103)
     # the boss: a bride's veil and crown; a mini: the iron collar
@@ -2260,7 +2293,9 @@ def horse(c, rank, view, P):
             kx, ky = hx_ + 18 * math.sin(a1), hy_ + 18 * math.cos(a1)
             ax, ay = kx + 22 * math.sin(a2), min(146, ky + 22 * math.cos(a2))
             if not (front and rear):
-                ay = max(ay, 140) if True else ay
+                # playtest1s: a planted hoof stands on the soles row (the profile horse floated 6 px over it); a
+                # stepping one lifts 4
+                ay = max(ay, 142.0 if pose.startswith("walk") and a > 12 else 146.0)
             c.tube([(hx_, hy_, 6.5 if not front else 5.5), (kx, ky, 3.4), (ax, ay, 2.6)], hide, mat="hide", tone=tone)
             c.poly([(ax - 3, ay - 1), (ax + 3.5, ay - 1), (ax + 4.5, ay + 4), (ax - 3.5, ay + 4)], hoof, bevel=1, mat="horn", tone=tone)
             # feathered fetlocks of fire on the nightmare
@@ -2581,7 +2616,11 @@ def mimic(c, rank, view, P):
                 for k_ in (-1, 0, 1):
                     c.tube([(x + (a * 0.2 if v == 2 else s_ * 2), 148.5, 0.8), (x + (a * 0.2 if v == 2 else s_ * 2) + k_ * 1.6 + 1.5, 149.6, 0.4)], "#e8e0d0", mat="horn", line=None, tone=tone)
     legs_draw(True)
-    hw = W if v != 2 else W * 0.85
+    if v == 2:
+        mimic_side(c, P, C, pose, open_, ang, base, H, lid_h)
+        legs_draw(False)
+        return
+    hw = W
     # the chest
     c.poly([(bx - hw, base - H), (bx + hw, base - H), (bx + hw, base), (bx - hw, base)], C["wood"], bevel=3, mat="wood")
     for s_ in (-1, 1):
@@ -2601,8 +2640,10 @@ def mimic(c, rank, view, P):
             c.tube([(bx, top - 2, 4), (bx + 6 + P["sway"], top + tl * 0.6, 3.6), (bx + 2 + P["sway"] * 1.5, top + tl, 2.4)], C["tongue"], mat="mouth", line="ink")
         for s_ in (-1, 1):
             c.dot(bx + s_ * hw * 0.45, top - gap * 0.5, "#e07a2f", r=2.2 + open_ * 1.2, glow="fire", line=None, part=1802)
-    # the lid, lifted
-    ly = top - gap
+    # the lid, lifted (playtest1s: seen from behind it stays on its hinge, tipping up, where it floated over a gap)
+    ly = top - gap if v != 1 else top
+    if v == 1:
+        lid_h = lid_h + open_ * 10
     lid = [(bx - hw - 1, ly), (bx + hw + 1, ly), (bx + hw - 1, ly - lid_h * 0.6), (bx + hw * 0.6, ly - lid_h), (bx - hw * 0.6, ly - lid_h), (bx - hw + 1, ly - lid_h * 0.6)]
     c.poly(lid, C["wood"], bevel=4, mat="wood")
     c.tube([(bx - hw - 1, ly - 1, 1.6), (bx + hw + 1, ly - 1, 1.6)], C["lid"], mat="gold", line="soft")
@@ -2611,6 +2652,49 @@ def mimic(c, rank, view, P):
         c.poly([(bx - 4, ly - 2), (bx + 4, ly - 2), (bx + 4, ly + 6), (bx, ly + 9), (bx - 4, ly + 6)], C["latch"], bevel=1, mat="metal", line="ink")
         c.ell(bx, ly + 3, 1.6, 2.0, "#2a1018", line=None)
     legs_draw(False)
+
+
+def mimic_side(c, P, C, pose, open_, ang, base, H, lid_h):
+    """playtest1s [OWNER-APPROVED 2026-10-04 14:08 ET: playtest1s big sprite audit]: the mimic in profile (east): the
+    chest's depth, the lid hinged at the back and opening to the front, the maw a wedge of teeth between them facing
+    east, one eye's glow in it and the tongue out over the front (it was the front view squeezed, its face to the viewer)."""
+    bx = 40.0
+    hw = 22.0
+    top = base - H
+    c.poly([(bx - hw, top), (bx + hw, top), (bx + hw, base), (bx - hw, base)], C["wood"], bevel=3, mat="wood")
+    c.poly([(bx + hw - 3, top), (bx + hw + 0.5, top), (bx + hw + 0.5, base), (bx + hw - 3, base)], C["lid"], bevel=1, mat="gold", line="soft")
+    c.poly([(bx - hw - 0.5, top), (bx - hw + 3, top), (bx - hw + 3, base), (bx - hw - 0.5, base)], C["lid"], bevel=1, mat="gold", line="soft")
+    c.tube([(bx - hw, base - H * 0.45, 1.4), (bx + hw, base - H * 0.45, 1.4)], C["lid"], mat="gold", line="soft")
+    a = ang * 1.1
+    hx0, hy0 = bx - hw, top
+    def lr(x, y):
+        return rot(x, y, -a, hx0, hy0)
+    lip = lr(bx + hw + 1, top)
+    if open_ > 0.05:
+        c.poly([(hx0 + 3, top), (bx + hw - 1, top), lip], C["maw"], bevel=1.5, line=None, part=1800)
+        nx, ny = rot(0.0, 1.0, -a)
+        for k_ in range(5):
+            t = 0.3 + k_ * 0.17
+            x = bx - hw + 2 * hw * t
+            c.poly([(x - 2, top), (x + 2, top), (x, top - 3 - open_ * 3)], C["tooth"], bevel=0.3, mat="tooth", line="ink", part=1801)
+            ux, uy = lr(x, top)
+            c.poly([(ux - 2 * math.cos(math.radians(a)), uy + 2 * math.sin(math.radians(a))), (ux + 2 * math.cos(math.radians(a)), uy - 2 * math.sin(math.radians(a))),
+                    (ux + nx * (3 + open_ * 3), uy + ny * (3 + open_ * 3))], C["tooth"], bevel=0.3, mat="tooth", line="ink", part=1801)
+        ex, ey = bx + hw * 0.25, top
+        lx, ly = lr(ex, top)
+        c.dot((ex + lx) / 2, (ey + ly) / 2, "#e07a2f", r=2.2 + open_ * 1.2, glow="fire", line=None, part=1802)
+        if open_ > 0.35:
+            tl = 6 + open_ * 22
+            c.tube([(bx + hw * 0.4, top - 2, 4), (bx + hw + 4 + P["sway"], top + tl * 0.4, 3.6), (bx + hw + 3 + P["sway"] * 1.5, top + tl * 0.8, 2.4)], C["tongue"], mat="mouth", line="ink")
+    lid = [lr(x, y) for x, y in ((bx - hw - 1, top), (bx + hw + 1, top), (bx + hw - 1, top - lid_h * 0.6), (bx + hw * 0.6, top - lid_h), (bx - hw * 0.6, top - lid_h), (bx - hw + 1, top - lid_h * 0.6))]
+    c.poly(lid, C["wood"], bevel=4, mat="wood")
+    b0, b1 = lr(bx - hw - 1, top - 1), lr(bx + hw + 1, top - 1)
+    c.tube([(b0[0], b0[1], 1.6), (b1[0], b1[1], 1.6)], C["lid"], mat="gold", line="soft")
+    t0, t1 = lr(bx - hw * 0.6, top - lid_h + 1), lr(bx + hw * 0.6, top - lid_h + 1)
+    c.tube([(t0[0], t0[1], 1.4), (t1[0], t1[1], 1.4)], C["lid"], mat="gold", line="soft")
+    # the latch on the lid's front lip
+    q = [lr(x, y) for x, y in ((bx + hw - 1, top - 2), (bx + hw + 2, top - 2), (bx + hw + 2, top + 5), (bx + hw - 1, top + 5))]
+    c.poly(q, C["latch"], bevel=0.8, mat="metal", line="ink")
 
 
 # ================================================================ tail
@@ -2661,15 +2745,69 @@ def fit_of(fam, rank):
 
 
 def cell(fam, rank, s, view, pose):
-    """one big cell: codes and its glow mask. view 0 front, 1 back, 2 east, 3 west (the east drawing turned over)."""
+    """one big cell: codes and its glow mask. view 0 front, 1 back, 2 east, 3 west (the east drawing turned over; a
+    person's arms trade places first, playtest1s). Then the playtest1s tidy (_tidy)."""
     c = Cell(s, NEON_OF[fam], fit=fit_of(fam, rank))
     P = dict(BASE_POSE[pose])
     P["_pose"] = pose
+    P["_west"] = view == 3  # playtest1s: person() keeps the weapon in the right hand facing west (the far one)
     DRAW[fam](c, rank, 2 if view == 3 else view, P)
     img, glow = c.render()
+    img = _tidy(img, glow, s)
     if view == 3:
         img, glow = img[:, ::-1], glow[:, ::-1]
     return img, glow
+
+
+def _parts(on, eight):
+    """the connected parts of a mask (8- or 4-connected), largest first: lists of (y, x)"""
+    h, w = on.shape
+    seen = np.zeros_like(on)
+    steps = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)] if eight else [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    out = []
+    for y0, x0 in zip(*np.nonzero(on)):
+        if seen[y0, x0]:
+            continue
+        seen[y0, x0] = True
+        part = [(int(y0), int(x0))]
+        i = 0
+        while i < len(part):
+            y, x = part[i]
+            i += 1
+            for dy, dx in steps:
+                yy, xx = y + dy, x + dx
+                if 0 <= yy < h and 0 <= xx < w and on[yy, xx] and not seen[yy, xx]:
+                    seen[yy, xx] = True
+                    part.append((yy, xx))
+        out.append(part)
+    out.sort(key=lambda q: (-len(q), q[0]))
+    return out
+
+
+def _tidy(img, glow, s):
+    """playtest1s [OWNER-APPROVED 2026-10-04 14:08 ET: playtest1s big sprite audit]: the audit's clean-up of a drawn cell (qa/playtest1s/sheet_audit.py measures the same
+    things). A pinhole, a transparent bit the body closes round (4-connected, under max(2, s) px), takes the commonest
+    colour beside it, so no ground shows through a hem or a seam; a crumb, a bit standing apart from the body (8-connected,
+    under max(4, s*s) px) with no glow in it, is dropped (the thin tip of a hat, a tatter or a raised foot the raster cut
+    off). Glow bits (sparks, motes, an orb) stand apart on purpose and stay."""
+    img = img.copy()
+    on = img != 0
+    h, w = on.shape
+    hole = max(2, s)
+    for part in _parts(~on, False)[1:]:
+        if len(part) >= hole or any(y in (0, h - 1) or x in (0, w - 1) for y, x in part):
+            continue
+        for y, x in part:
+            near = [int(img[yy, xx]) for yy in (y - 1, y, y + 1) for xx in (x - 1, x, x + 1) if 0 <= yy < h and 0 <= xx < w and img[yy, xx] != 0]
+            if near:
+                img[y, x] = max(sorted(set(near)), key=near.count)
+    on = img != 0
+    crumb = max(4, s * s)
+    for part in _parts(on, True)[1:]:
+        if len(part) < crumb and not any(glow[y, x] for y, x in part):
+            for y, x in part:
+                img[y, x] = 0
+    return img
 
 
 def sheet_codes(fam, rank, s):

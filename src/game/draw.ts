@@ -3406,7 +3406,10 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   }
   if (g.companion) {
     const ally = g.companion;
-    const af = faceOf(ally, ally.x, ally.y, !!ally.moving, (ally.actFor ?? 0) > 0 ? nearestOf(g.roamers, ally.x, ally.y) : null).face; // playtest1o
+    // playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]: backing off a big body
+    // (or out of a mark) the companion keeps its face to it
+    const back = g.allyFace;
+    const af = faceOf(ally, ally.x, ally.y, !!ally.moving && !back, back ?? ((ally.actFor ?? 0) > 0 ? nearestOf(g.roamers, ally.x, ally.y) : null)).face; // playtest1o
     const draw = (c: CanvasRenderingContext2D) =>
         person(
           c,

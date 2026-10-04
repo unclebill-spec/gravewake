@@ -82,6 +82,7 @@ import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // p
 import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing, patchAt, placeRoom, propLive, roomBusy, wary, type Fall, type RoomProp, type RoomState } from "./room"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
+import { ALLY_SPACE, exits, gapOf, inArea, pushOut, ringAt, sideAngle, wrap, type Area, type Pt } from "./allyspace"; // playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
@@ -627,6 +628,17 @@ export class Game {
   focusUntil = 0;
   guardUntil = 0;
   orderCool: Record<Order, number> = { taunt: 0, guard: 0, focus: 0, stay: 0 };
+  /** playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]: the big body the
+   * companion is giving room (allySpace), the body or caster it keeps its face to while it backs off (the draw reads it),
+   * the ring side it took (mirrored after getting nowhere), the seconds it has got nowhere, and a staying companion's
+   * spot. Never saved. */
+  allyBack: Roamer | null = null;
+  allyFace: Roamer | null = null;
+  private allyMirror = false;
+  private allyLean = 1;
+  private allyStuck = 0;
+  private allySlide = 0;
+  private allyHome: { x: number; y: number } | null = null;
   private lastHit: Roamer | null = null;
   private castCombos = 0;
   /** playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]: this floor's props, fire and oil patches, falling pillars and lanterns (room.ts). Placed from the
@@ -2616,6 +2628,7 @@ export class Game {
       this.logLine = `${c.name} catches up.`;
     }
     const focus = this.focusFoe();
+    if (!this.allyStay) this.allyHome = null;
     if (focus) {
       const d = Math.hypot(focus.x - c.x, focus.y - c.y) || 1;
       const edge = bodyR(focus); // playtest1p: it stands at a big body's edge, not in it
@@ -2627,6 +2640,18 @@ export class Game {
       tx = near ? this.px + ((near.x - this.px) / d) * 14 : this.px + 12;
       ty = near ? this.py + ((near.y - this.py) / d) * 14 : this.py;
     } else if (this.allyStay) {
+      // playtest1s: Stay holds the spot it was told (it steps aside below like the others, and walks back when clear)
+      this.allyHome ??= { x: c.x, y: c.y };
+      const home = !this.inBigBody(this.allyHome.x, this.allyHome.y, null, ALLY_SPACE.ring); // back only once its spot is off the ring
+      tx = home ? this.allyHome.x : c.x;
+      ty = home ? this.allyHome.y : c.y;
+    }
+    // playtest1s: a big body walking up to it, or a live mark under it, moves its spot (allyspace.ts)
+    const w = this.allySpace(c, tx, ty);
+    if (w) {
+      tx = w.x;
+      ty = w.y;
+    } else if (this.allyStay && Math.hypot(tx - c.x, ty - c.y) < 1.2) {
       c.moving = false;
       return;
     }
@@ -2634,15 +2659,157 @@ export class Game {
     const dy = ty - c.y;
     const dist = Math.hypot(dx, dy);
     if (this.solidAt(c.x, c.y) || this.blockedProp(c.x, c.y)) this.freeBody(c);
-    if (dist < 1.2) {
+    if (dist < (w ? 2.5 : 1.2)) {
       c.moving = false;
       return;
     }
     const step = Math.min(dist, 70 * dt);
     const ox = c.x;
     const oy = c.y;
-    this.tryBody(c, (dx / dist) * step, (dy / dist) * step);
+    if (w) this.allyStep(c, (dx / dist) * step, (dy / dist) * step); // playtest1s: round fire, a lit fuse and spike plates
+    else this.tryBody(c, (dx / dist) * step, (dy / dist) * step);
     c.moving = Math.hypot(c.x - ox, c.y - oy) > 0.2;
+    if (w) {
+      // playtest1s: getting nowhere (a wall, a corner) it tries the body's other side
+      this.allyStuck = c.moving ? 0 : this.allyStuck + dt;
+      if (this.allyStuck > ALLY_SPACE.stuck) {
+        this.allyStuck = 0;
+        this.allyMirror = !this.allyMirror;
+        this.allySlide = -this.allySlide;
+      }
+    }
+  }
+
+  /** playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]: where the
+   * companion goes instead of its order's spot (tx, ty), or null (the order's spot stands). Out of a live mark it stands
+   * in by the nearest way; off a big body (boss, mini, rare) whose own shape has walked within ALLY_SPACE.near of it, to
+   * the spacing ring on the hero's side (its order's spot if that is already past the ring); its spot is kept out of a
+   * live mark until the mark lands. A body it taunts and that body's marks it holds for (playtest1k). Only where it
+   * stands moves: no damage, reach or tell. */
+  private allySpace(c: Companion, tx: number, ty: number): Pt | null {
+    const S = ALLY_SPACE;
+    const hero = { x: this.px, y: this.py };
+    const marks: { m: Area; r: Roamer }[] = [];
+    for (const r of this.roamers) {
+      if (!this.liveFoe(r) || !((r.tell ?? 0) > 0) || this.tauntOf(r)) continue;
+      const m = this.markArea(r);
+      if (m) marks.push({ m, r });
+    }
+    let body: Roamer | null = null;
+    let bg = Infinity;
+    for (const r of this.roamers) {
+      if (!this.liveFoe(r) || !r.aggro || !footOf(r).rx) continue;
+      const g = gapOf(r, bodyR(r), footOf(r), c.x, c.y);
+      const held = r === this.allyBack && !this.tauntOf(r);
+      if (g < (held ? S.ring + S.leave : S.near) && g < bg) {
+        body = r;
+        bg = g;
+      }
+    }
+    this.allyBack = body;
+    this.allyFace = null;
+    const clear = (p: Pt) => this.allyOpen(p.x, p.y) && !marks.some(({ m }) => inArea(m, p.x, p.y)) && !this.inBigBody(p.x, p.y);
+    const under = marks.find(({ m }) => inArea(m, c.x, c.y));
+    if (under) {
+      this.allyFace = under.r;
+      const out = exits(under.m, c, hero);
+      // a way out that does not walk through a big body first, then any clear spot
+      const through = (p: Pt) => [0.25, 0.5, 0.75, 1].some((k) => this.inBigBody(c.x + (p.x - c.x) * k, c.y + (p.y - c.y) * k, null, 0));
+      return out.find((p) => clear(p) && !through(p)) ?? out.find(clear) ?? out[0];
+    }
+    if (!body && !marks.length) {
+      this.allyStuck = 0;
+      this.allyMirror = false;
+      this.allySlide = 0;
+      return null;
+    }
+    let p: Pt = { x: tx, y: ty };
+    if (body && gapOf(body, bodyR(body), footOf(body), tx, ty) < S.ring) {
+      p = this.ringSpot(c, body, hero);
+      this.allyFace = body;
+    }
+    // a live mark keeps its spot out: it holds outside it (or steps straight out from where it stands), not round it
+    for (const { m } of marks) if (inArea(m, p.x, p.y, S.pad)) p = inArea(m, c.x, c.y, S.pad) ? pushOut(m, c, hero) : { x: c.x, y: c.y };
+    return body || p.x !== tx || p.y !== ty ? p : null;
+  }
+
+  /** playtest1s: the spacing ring spot off a big body: on the hero's side, one leg at most ALLY_SPACE.arc round the body
+   * (so it walks round it, not through it), clear of the hero's feet, walls, props, hazards and other big bodies; else
+   * the hero's heels, away from the body. */
+  private ringSpot(c: Companion, b: Roamer, hero: Pt): Pt {
+    const S = ALLY_SPACE;
+    const br = bodyR(b);
+    const bf = footOf(b);
+    const ac = Math.atan2(c.y - b.y, c.x - b.x);
+    // a hero in the body's own ground gives no side: it keeps its own
+    const heroIn = Math.hypot(hero.x - b.x, hero.y - b.y) < br + S.heroGap;
+    const d = heroIn ? 0 : wrap(sideAngle(b, c, hero, S.side, this.allyMirror) - ac);
+    const base = Math.abs(d) > S.arc ? ac + Math.sign(d) * S.arc : ac + d;
+    if (Math.abs(d) > 0.15) this.allyLean = Math.sign(d); // the side it searches first holds, so the spot does not flicker
+    const lean = this.allyLean;
+    for (const extra of [0, 8]) {
+      for (let k = 0; k <= 6; k++) {
+        for (const s of k ? [lean, -lean] : [lean]) {
+          const p = ringAt(b, br, bf, base + s * k * 0.2, S.ring + extra);
+          if (this.allyOpen(p.x, p.y) && Math.hypot(p.x - hero.x, p.y - hero.y) >= S.heroGap && !this.inBigBody(p.x, p.y, b)) return p;
+        }
+      }
+    }
+    const dh = Math.hypot(hero.x - b.x, hero.y - b.y) || 1;
+    const heel = { x: hero.x + ((hero.x - b.x) / dh) * 16, y: hero.y + ((hero.y - b.y) / dh) * 16 };
+    return this.allyOpen(heel.x, heel.y) ? heel : ringAt(b, br, bf, base);
+  }
+
+  /** playtest1s: a live mark's ground (resolveCast's shapes: a sweep for a line, a circle for the rest), or null for a
+   * cast that hits no ground (a shield, a blink, a summon). */
+  private markArea(r: Roamer): Area | null {
+    const pattern = r.pattern ?? "";
+    const tag = pattern === "nova" || pattern === "echoed" ? "ring" : r.casting === "big" ? r.bigTag : r.casting === "spam" ? r.spamTag : r.midTag;
+    if (!r.casting || tag === "shield" || tag === "blink" || tag === "summon") return null;
+    return { x0: r.x, y0: r.y, x: r.markX ?? this.px, y: r.markY ?? this.py, r: r.markR ?? 40, line: tag === "line" };
+  }
+
+  /** playtest1s: ground the companion will not stand on while it gives room: fire, a lit fuse's blast, a spike plate. */
+  private allyBad(x: number, y: number) {
+    if (this.mapId !== "dungeon") return false;
+    const traps = this.feats?.traps;
+    const tx = Math.floor(x / TILE);
+    const ty = Math.floor(y / TILE);
+    return hazardAt(this.room, traps, this.worldMs / 1000, x, y, TILE) || !!traps?.some((t) => t.kind === "spike" && t.x === tx && t.y === ty);
+  }
+
+  private allyOpen(x: number, y: number) {
+    return !this.solidAt(x, y) && !this.blockedProp(x, y) && !this.allyBad(x, y);
+  }
+
+  /** playtest1s: is a spot within `near` px of a fighting big body's edge (but `but`)? */
+  private inBigBody(x: number, y: number, but: Roamer | null = null, near: number = ALLY_SPACE.near) {
+    return this.roamers.some((r) => r !== but && this.liveFoe(r) && !!r.aggro && footOf(r).rx > 0 && gapOf(r, bodyR(r), footOf(r), x, y) < near);
+  }
+
+  /** playtest1s: the companion's step while it gives room: as tryBody, but round bad ground (allyBad) if it can, and
+   * blocked head-on (a tree, a wall corner) it slides along it to one side, the side kept until a straight step goes. */
+  private allyStep(c: Companion, sx: number, sy: number) {
+    const ox = c.x;
+    const oy = c.y;
+    const len = Math.hypot(sx, sy);
+    const h = Math.SQRT1_2;
+    const s = this.allySlide || this.allyLean;
+    const ways: [number, number, number][] = this.allyBad(c.x + sx, c.y + sy) && !this.allyBad(c.x, c.y) ? [] : [[sx, sy, 0]];
+    ways.push([(sx - s * sy) * h, (sy + s * sx) * h, s], [-s * sy, s * sx, s], [(sx + s * sy) * h, (sy - s * sx) * h, -s], [s * sy, -s * sx, -s]);
+    for (const [ax, ay, side] of ways) {
+      if (side && this.allyBad(c.x + ax, c.y + ay)) continue;
+      c.x = ox;
+      c.y = oy;
+      this.tryBody(c, ax, ay);
+      if (Math.hypot(c.x - ox, c.y - oy) > len * 0.35) {
+        this.allySlide = side;
+        return;
+      }
+    }
+    c.x = ox;
+    c.y = oy;
+    this.tryBody(c, ways[0][0], ways[0][1]);
   }
 
   /** In camp they pace the fire and the tent. They do not glue to your heels. */

@@ -8,7 +8,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 ## Run it
 - Use Node 22, and `npm install` (the lockfile is out of sync with `npm ci`).
 - `npm run dev` starts the dev server. `npm run build` builds; serve the playable build from a site root.
-- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 941 as of playtest1r), and `node tools/map-writer/check_map_writer.mjs`.
+- Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:game` (the main game check, 955 as of playtest1s), and `node tools/map-writer/check_map_writer.mjs`.
 - Art writers are in `tools/`: sprite-writer, pixel-writer, spell-writer, brileta-sprites and map-writer. They need Python 3 with Pillow.
 
 ## Owner's standing preferences (Bill Weathersbee)
@@ -23,7 +23,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - Before any push: scan the files and history for secrets. `src/lib/auth/preview.ts` reads `PREVIEW_CLIENT_SECRET` from env in this repo, and the template's hard-coded value must never be committed.
 - Keep `CHANGELOG.md` and this file current, and use descriptive commits.
 
-## Current state (2026-10-04, playtest1r)
+## Current state (2026-10-04, playtest1s)
 - The feature list is done, festivals are done for all four seasons, map writer phases 1–3 are done (the 128x120 vale), and graphics pass rounds 1–3 and art audits 1–2 are done.
 - Screen and display settings are done (screen1), and a true 320×240 Retro mode is done (retro1, an owner-approved exception).
 - playtest1e–1g: the bigger world and edge border, wayrift portals, swamp paths, and biome trail art.
@@ -39,6 +39,7 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses] (Bill, 2026-10-04 01:10 ET): hand-laid back and side walk views (`tools/sprite-writer/views_writer.py`; the `-dirs` sheets are 96 tall with west as its own row), and big bosses (`src/game/bigboss.ts`, `tools/sprite-writer/boss_writer.py`, 108 sheets in `public/art/sprites/big/`) with hurtbox, foot, cleared arenas and a camera that frames the boss and the hero together. sim, draw, facing, fightlights, three writer files, the `-dirs` sheets and the owner notes frozen as 1o under `scripts/frozen/playtest1p/`.
 - playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label] (Bill, 2026-10-04 05:43 ET): the big sheets drawn in detail at full size by `boss_writer.py` (same alpha as 1p, so bodies, feet and hitboxes did not move), every human back is hair or hat only (`views_writer.py` `back_head()`; the wizard's skin patch is gone), and a boss's name is placed clear of the DOM HUD (`src/game/hudsafe.ts`). draw, the two writers, the back-row sheets, the big sheets and the owner notes frozen as 1p under `scripts/frozen/playtest1q/`.
 - playtest1r [OWNER-APPROVED 2026-10-04 09:00 ET: playtest1r fully reshaped big bosses] (Bill, 2026-10-04 09:00 ET): every big boss, mini and rare has its own silhouette. `boss_writer.py` is a rig renderer in a 24s x 36s cell, and it measures each sheet into `src/game/bigshapes.ts` (top, reach, hurt radius, foot), which `bigboss.ts` reads for hits, feet, arenas, the name, lights, flash, focus corners and the camera. bigboss, draw, fight lights, sim, the boss writer, the big sheets and the owner notes are frozen as 1q under `scripts/frozen/playtest1r/`, and groups 1p and 1q play on that frozen game (`pt1qGame`). Fail-proofs 235/235 caught; the 7 seen only by a live pin are playtest1q's 7 (eight more were tightened into behaviour checks: `qa/playtest1r/tighten*.py`).
+- playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss] [OWNER-APPROVED 2026-10-04 14:08 ET: playtest1s big sprite audit] (Bill, 2026-10-04 13:42 and 14:08 ET): when a boss, mini or rare walks up to the companion it backs off to a ring 22 px past the body's own edge on the hero's side, walking round the body, sliding along a tree or corner it is pinned on, keeping off bad ground, and stepping out of live marks (`src/game/allyspace.ts` `ALLY_SPACE`, `sim.ts` `allyStep`; `draw.ts` faces it to the body); orders keep their meaning (Focus attacks from the ring, Taunt holds). Every cell of the 54 big sheets audits clean (`qa/playtest1s/sheet_audit.py`; 1r had 1148 faults: pinholes, crumbs, Krampus's loose chain, floating horse hooves, ghost eyes blinking off, a squeezed mimic profile and floating lid, the ghoul's popping claws, weapons swapping hands facing west), fixed in `boss_writer.py`. sim, draw, the owner notes, the boss writer, `bigshapes.ts` and the 108 big sheets frozen as 1r under `scripts/frozen/playtest1s/`. Fail-proofs 245/245 caught; the 7 seen only by a live pin are playtest1q's 7 (nine more were tightened into behaviour checks: `qa/playtest1s/tighten*.py`).
 - **BOSS SCALE RULE (keep it; `src/game/bigboss.ts` `BIG`):** boss 5x, mini 3x (a remnant), rare 2x (a Stalker leader, a mimic, a naughty-list name), everyone else 1x, linear against the hero's 16x32 cell. A new boss, mini or rare needs its design in `boss_writer.py` (its sheet and its measured shape in `bigshapes.ts`, both written by the writer; never edit `bigshapes.ts` by hand), and its foot plus `DODGE` 48 px of open ground wherever it is met (run `qa/playtest1p/arena.mjs`). Summons and trophy ghosts stay people scale. See `AGENTS.project.md` ## playtest1p.
 ## Known issues
 - test1 skips 7 app-template tests while `.grok/` builder files, `server/` and `migrations/` are absent (see playtest1m in the CHANGELOG).
@@ -48,8 +49,9 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - A 960x540 desktop window at zoom 4 (a 135 px high view) cannot show the taller 5x bosses (up to 159 px since playtest1r) whole; Retro and Phone landscape can. (On Phone a boss's name now moves clear of the log: playtest1q.)
 - Reshaped bosses (playtest1r) are 5x by the linear rule, but many stand shorter than 1q's 152 px block and wider (ghoul 101, rat 85, cat 112, wolf 125 px tall; the hero is about 30). If bosses should be 5x the hero's height, the designs need to grow.
 - On an iPhone-SE-size landscape view (188 px high), a ghost boss's name can't sit over its head with the hero just below it, so it is moved into view.
-- A companion on Focus doesn't back off when a boss walks up to it; it stays just outside the body.
-- After changing a boss design, re-run `boss_writer.py` (sheets and `bigshapes.ts`) and `qa/playtest1p/arena.mjs`.
+- With the hero-side ring blocked (e.g. by a tree), a companion backing off a boss waits at the hero's heels instead (playtest1s fallback).
+- A big body's hit flash is the game's white hit-box frame (hurt radius by 92% of its height), the same style as small foes, not a silhouette flash.
+- After changing a boss design, re-run `boss_writer.py` (sheets and `bigshapes.ts`), `qa/playtest1s/sheet_audit.py` (0 faults), `qa/playtest1s/contact.py` and `qa/playtest1p/arena.mjs` (BIG SPRITE AUDIT RULE in `AGENTS.project.md` ## playtest1s).
 
 ## Next steps
 1. Owner decisions: whether to also fade bounty, rift and dungeon foes (festival foes are done in fade2); touch input on the 16:9 and 4:3 bars. Deferred: auto-pause in portrait, and pad buttons for specials 1–4.
