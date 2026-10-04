@@ -83,6 +83,7 @@ import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing
 import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
+import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, headroom, scaleOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -562,7 +563,7 @@ export class Game {
   bossDead: Record<string, number> = {};
   floor = 1;
   dungeon = "";
-  floors: Record<string, { tiles: Uint8Array<ArrayBufferLike>; w: number; h: number; fog: Uint8Array<ArrayBufferLike>; feats?: FloorFeats; gen?: MapResult }> = {};
+  floors: Record<string, { tiles: Uint8Array<ArrayBufferLike>; w: number; h: number; fog: Uint8Array<ArrayBufferLike>; feats?: FloorFeats; gen?: MapResult; hall?: { x: number; y: number; w: number; h: number } }> = {}; // playtest1p: hall, a boss floor's hall
   /** Rune door and secret wall on this floor, if it has them. Read by draw.ts. */
   feats: FloorFeats | null = null;
   /** Glyphs lit so far on this floor's brazier door, in the order lit. */
@@ -1073,7 +1074,7 @@ export class Game {
     if ((id === "harvest" || id === "krampus") && !this.festivalBossDown(id) && !this.roamers.some((r) => r.festival === id) && this.pending?.festival !== id) {
       const def = FESTIVAL_BOSSES.find((b) => b.id === (id === "harvest" ? "pumpkinlord" : "krampus"))!;
       const at = id === "harvest" ? HARVEST.lord : KRAMPUSNACHT.spot;
-      const spot = this.openNear(at.x * TILE + 8, at.y * TILE + 8);
+      const spot = this.roomyNear(at.x * TILE + 8, at.y * TILE + 8, arenaR({ boss: true })); // playtest1p: where a 5x boss has its dodge room
       this.roamers.push({ id: def.id, x: spot.x, y: spot.y, family: def.family, tint: def.tint, boss: true, def: def.id, level: Math.max(at.lv, zoneLevel(at.x, at.y, this.level)), ang: 0, festival: id, name: def.name });
       this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; // fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts
     }
@@ -2175,7 +2176,9 @@ export class Game {
     if (last && def?.boss) {
       const dead = !!(this.bossDead[def.boss] && this.worldMs < this.bossDead[def.boss]);
       const boss = monsterById(def.boss);
-      const spot = findOpen(this.tiles, this.w, this.h, this.w - 4, this.feats?.hidden);
+      const hall = this.floors[`${this.dungeon}:${this.floor}`]?.hall; // playtest1p: the boss waits in the middle of its hall
+      const mid = hall ? { x: hall.x + Math.floor(hall.w / 2), y: hall.y + Math.floor(hall.h / 2) } : null;
+      const spot = mid && !this.solidAt(mid.x * TILE + 8, mid.y * TILE + 8) ? mid : findOpen(this.tiles, this.w, this.h, this.w - 4, this.feats?.hidden);
       this.roamers.push({
         id: def.boss,
         x: spot.x * TILE + 8,
@@ -2256,8 +2259,11 @@ export class Game {
   private placeBosses() {
     const spots = WORLD_BOSSES;
     this.roamers = [];
+    // playtest1p: a lair is a clearing a 5x boss can be fought in (bigboss.ts ARENA), the festival bosses' spots too
+    for (const at of [HARVEST.lord, KRAMPUSNACHT.spot]) this.clearLair(at.x, at.y);
     for (const s of spots) {
       this.clearStamp(s.tx, s.ty);
+      this.clearLair(s.tx, s.ty);
       const dead = !!(this.bossDead[s.id] && this.worldMs < this.bossDead[s.id]);
       const def = monsterById(s.id);
       const lv = Math.max(s.lv, zoneLevel(s.tx, s.ty, this.level));
@@ -2293,15 +2299,108 @@ export class Game {
   private tryBody(body: { x: number; y: number }, dx: number, dy: number) {
     const nx = body.x + dx;
     const ny = body.y + dy;
+    const foot = footOf(body as Ranked); // playtest1p: a big body's whole foot is stopped by walls and props, not just its middle
+    if (foot.rx) {
+      if (this.footClear(nx, body.y, foot)) body.x = nx;
+      if (this.footClear(body.x, ny, foot)) body.y = ny;
+      return;
+    }
     if (!this.solidAt(nx, body.y) && !this.blockedProp(nx, body.y)) body.x = nx;
     if (!this.solidAt(body.x, ny) && !this.blockedProp(body.x, ny)) body.y = ny;
   }
 
+  /** playtest1p: is a foot's middle and rim all on open ground? */
+  private footClear(x: number, y: number, foot: { rx: number; ry: number }) {
+    return footPoints(x, y, foot).every(([fx, fy]) => !this.solidAt(fx, fy) && !this.blockedProp(fx, fy));
+  }
+
   private freeBody(body: { x: number; y: number }) {
+    const foot = footOf(body as Ranked);
+    if (foot.rx) {
+      // playtest1p: a big body whose foot is in a wall steps to the nearest spot its whole foot fits (or keeps its spot)
+      if (this.footClear(body.x, body.y, foot)) return;
+      const spot = this.openFoot(body.x, body.y, foot);
+      if (spot) {
+        body.x = spot.x;
+        body.y = spot.y;
+        return;
+      }
+    }
     if (!this.solidAt(body.x, body.y) && !this.blockedProp(body.x, body.y)) return;
     const spot = this.openNear(body.x, body.y);
     body.x = spot.x;
     body.y = spot.y;
+  }
+
+  /** playtest1p: how far open ground runs round a spot on every side (4 px steps, the ground's 3/4 depth), up to cap. */
+  openRadius(x: number, y: number, cap = 200) {
+    let best = 0;
+    for (let r = 0; r <= cap; r += 4) {
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r * 0.75;
+        if (this.solidAt(px, py) || this.blockedProp(px, py)) return best;
+      }
+      best = r;
+    }
+    return best;
+  }
+
+  /** playtest1p: the nearest spot (rings 8 px apart, out to 128 px) with need px of open ground round it, or the
+   * nearest open spot as before. */
+  private roomyNear(x: number, y: number, need: number) {
+    for (let r = 0; r <= 128; r += 8) {
+      for (let i = 0; i < (r ? 16 : 1); i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const nx = x + Math.cos(a) * r;
+        const ny = y + Math.sin(a) * r;
+        if (this.openRadius(nx, ny, need + 4) >= need) return { x: nx, y: ny };
+      }
+    }
+    return this.openNear(x, y);
+  }
+
+  /** playtest1p: the nearest spot (rings 4 px apart, out to 96 px) a big foot fits whole, or null. */
+  private openFoot(x: number, y: number, foot: { rx: number; ry: number }) {
+    for (let r = 4; r <= 96; r += 4) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const nx = x + Math.cos(a) * r;
+        const ny = y + Math.sin(a) * r;
+        if (this.footClear(nx, ny, foot)) return { x: nx, y: ny };
+      }
+    }
+    return null;
+  }
+
+  /** playtest1p: the hero may not step deeper into a fighting big body's foot (stepping out is always free). */
+  private intoBigFoot(ox: number, oy: number) {
+    for (const r of this.roamers) {
+      if (!r.aggro || (r.hp ?? 0) <= 0) continue;
+      const foot = footOf(r);
+      if (!foot.rx) continue;
+      const now = footDepth(r.x, r.y, foot, this.px, this.py);
+      if (now < 1 && now < footDepth(r.x, r.y, foot, ox, oy)) return true;
+    }
+    return false;
+  }
+
+  /** playtest1p: where the camera leans in a fight with a big body (its middle), or null: the nearest fighting boss or
+   * mini in reach. The draw and the tap aim both read it through cameraFor. */
+  get camFocus(): { x: number; y: number; rx: number; ry: number } | null {
+    let best: { x: number; y: number; rx: number; ry: number } | null = null;
+    let bd: number = CAM.near;
+    for (const r of this.roamers) {
+      if (!r.aggro || (r.hp ?? 0) <= 0 || !(r.boss || r.mini)) continue;
+      const mid = { x: r.x, y: r.y - headroom(scaleOf(r)) / 2, rx: 8 * scaleOf(r), ry: headroom(scaleOf(r)) / 2 }; // its middle and half-size
+      const d = Math.hypot(mid.x - this.px, mid.y - this.py);
+      if (d < bd) {
+        bd = d;
+        best = mid;
+      }
+    }
+    return best;
   }
 
   private nudge(body: { x: number; y: number } | "hero", dx: number, dy: number) {
@@ -2399,6 +2498,20 @@ export class Game {
         n.moving = true;
         n.x = nx;
         n.y = ny;
+      }
+    }
+  }
+
+  /** playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: the clearing round a lair, LAIR tiles out (an ellipse, the ground's 3/4 depth): the trees,
+   * rocks, pumpkins, water, ice and graves in it go back to the biome's ground, as the old 5x5 stamp did. */
+  private clearLair(tx: number, ty: number) {
+    for (let y = ty - LAIR.ry; y <= ty + LAIR.ry; y++) {
+      for (let x = tx - LAIR.rx; x <= tx + LAIR.rx; x++) {
+        if (x < 2 || y < 2 || x >= this.w - 2 || y >= this.h - 2) continue; // the vale's two-deep forest edge band stays
+        if (((x - tx) / (LAIR.rx + 0.5)) ** 2 + ((y - ty) / (LAIR.ry + 0.5)) ** 2 > 1) continue;
+        const i = y * this.w + x;
+        const t = this.tiles[i];
+        if (t === T.tree || t === T.rock || t === T.pump || t === T.water || t === T.pool || t === T.ice || t === T.grave) this.tiles[i] = biomeTile(x, y);
       }
     }
   }
@@ -2505,8 +2618,9 @@ export class Game {
     const focus = this.focusFoe();
     if (focus) {
       const d = Math.hypot(focus.x - c.x, focus.y - c.y) || 1;
-      tx = d > 20 ? focus.x - ((focus.x - c.x) / d) * 18 : c.x;
-      ty = d > 20 ? focus.y - ((focus.y - c.y) / d) * 18 : c.y;
+      const edge = bodyR(focus); // playtest1p: it stands at a big body's edge, not in it
+      tx = d > 20 + edge ? focus.x - ((focus.x - c.x) / d) * (18 + edge) : c.x;
+      ty = d > 20 + edge ? focus.y - ((focus.y - c.y) / d) * (18 + edge) : c.y;
     } else if (this.guardUntil > this.worldMs) {
       const near = this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - this.px, r.y - this.py) < 96);
       const d = near ? Math.hypot(near.x - this.px, near.y - this.py) || 1 : 1;
@@ -2571,7 +2685,7 @@ export class Game {
     if ((c.cool ?? 0) > 0) return;
     // playtest1k: "Focus my target" puts the companion on that foe (it walks over in followCompanion).
     const focus = this.focusFoe();
-    const foe = focus ? (Math.hypot(focus.x - c.x, focus.y - c.y) < 64 ? focus : undefined) : this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - c.x, r.y - c.y) < 48);
+    const foe = focus ? (Math.hypot(focus.x - c.x, focus.y - c.y) < 64 ? focus : undefined) : this.roamers.find((r) => this.liveFoe(r) && Math.hypot(r.x - c.x, r.y - c.y) < 48 + bodyR(r));
     const art = this.allyArt(c, foe);
     if (art) {
       this.castAlly(c, art, foe);
@@ -2579,7 +2693,7 @@ export class Game {
       c.cool = 0.8;
       return;
     }
-    if (!foe || Math.hypot(foe.x - c.x, foe.y - c.y) > 28) return;
+    if (!foe || Math.hypot(foe.x - c.x, foe.y - c.y) > 28 + bodyR(foe)) return; // playtest1p: to the body's edge
     c.cool = 1.1;
     c.act = "swing";
     c.actFor = 0.28;
@@ -3210,9 +3324,9 @@ export class Game {
     const ox = this.px;
     const oy = this.py;
     this.px += dx;
-    if (this.solidFeet()) this.px = ox;
+    if (this.solidFeet() || this.intoBigFoot(ox, oy)) this.px = ox; // playtest1p: or into a fighting big body's foot
     this.py += dy;
-    if (this.solidFeet()) this.py = oy;
+    if (this.solidFeet() || this.intoBigFoot(this.px, oy)) this.py = oy;
     this.slideOffProps();
     if (this.solidFeet()) {
       this.px = ox;
@@ -3662,14 +3776,14 @@ export class Game {
       if (r.boss || r.mini) {
         const gap = Math.abs(r.level - this.level) / Math.max(8, r.level);
         const rad = (1 - Math.min(1, gap)) * 64 + 16;
-        if (Math.hypot(r.x - this.px, r.y - this.py) < rad) this.touchFoe(r);
+        if (Math.hypot(r.x - this.px, r.y - this.py) < rad + bodyR(r)) this.touchFoe(r); // playtest1p: from its edge
       } else {
         r.ang += Math.sin(this.frame / 20 + r.x) * 0.02;
         const nx = r.x + Math.cos(r.ang) * 18 * dt;
         const ny = r.y + Math.sin(r.ang) * 14 * dt;
         const beforeX = r.x;
         const beforeY = r.y;
-        if (this.solidAt(nx, ny) || this.blockedProp(nx, ny)) {
+        if (this.solidAt(nx, ny) || this.blockedProp(nx, ny) || (footOf(r).rx > 0 && !this.footClear(nx, ny, footOf(r)))) { // playtest1p: a big wanderer's whole foot
           r.ang += 1.8;
           r.stuck = (r.stuck ?? 0) + dt;
           if ((r.stuck ?? 0) > 1.1) {
@@ -3695,7 +3809,7 @@ export class Game {
             }
           }
         }
-        if (Math.hypot(r.x - this.px, r.y - this.py) < 12) this.touchFoe(r);
+        if (Math.hypot(r.x - this.px, r.y - this.py) < 12 + bodyR(r)) this.touchFoe(r);
       }
     }
   }
@@ -5710,10 +5824,11 @@ export class Game {
       const dx = r.x - this.px;
       const dy = r.y - this.py;
       const dist = Math.hypot(dx, dy);
-      if (dist > reach || dist < 0.01) continue;
+      const br = bodyR(r); // playtest1p: the swing reaches the body's edge; a wide body fills more of the arc
+      if (dist > reach + br || dist < 0.01) continue;
       let diff = Math.abs(Math.atan2(dy, dx) - aim);
       if (diff > Math.PI) diff = Math.PI * 2 - diff;
-      if (diff > half) continue;
+      if (diff > half + (br ? Math.atan2(br, dist) : 0)) continue;
       const crit = dmg > this.atk;
       if (verb === "slash") this.fx.slash(r.x, r.y - 10, aim, boneKin(r), crit);
       this.hurtFoe(r, Math.max(1, dmg - (r.ac ?? 0)), verb);
@@ -6108,7 +6223,7 @@ export class Game {
         const ex = esc.x - r.x;
         const ey = esc.y - r.y;
         const ed = Math.hypot(ex, ey) || 1;
-        if (ed > 16) this.tryBody(r, (ex / ed) * 36 * (r.affix === "fast" ? 1.25 : 1) * dt, (ey / ed) * 36 * (r.affix === "fast" ? 1.25 : 1) * dt);
+        if (ed > 16 + bodyR(r)) this.tryBody(r, (ex / ed) * 36 * (r.affix === "fast" ? 1.25 : 1) * dt, (ey / ed) * 36 * (r.affix === "fast" ? 1.25 : 1) * dt);
       } else this.stepFoe(r, dx / dist, dy / dist, dist, dt);
       r.moving = Math.hypot(r.x - ox, r.y - oy) > 0.2;
       r.cool = (r.cool ?? 0) - dt;
@@ -6116,7 +6231,7 @@ export class Game {
       if (r.boss && r.big && this.wantBig(r)) this.beginCast(r, "big", r.big, r.bigTag ?? "ring", 1);
       else if ((r.boss || r.mini) && r.mid && (r.age ?? 0) > 3.2) this.beginCast(r, "mid", r.mid, r.midTag ?? "ring", 0.5);
       // A mimic only bites from inside its own mark's reach; it walks in first. Other rares are unchanged.
-      else if (r.rare && (!r.mimic || dist < 40)) this.beginCast(r, "spam", r.spam ?? "swipe", r.spamTag ?? "melee", 0.35);
+      else if (r.rare && (!r.mimic || dist < 40 + bodyR(r))) this.beginCast(r, "spam", r.spam ?? "swipe", r.spamTag ?? "melee", 0.35);
       else if (this.swingAtEscort(r, dist)) {
         // One swing in ESCORT.escortEvery with the captive in reach went to them.
       } else if (this.inReach(r, dist)) this.landSpam(r, dist);
@@ -6143,7 +6258,7 @@ export class Game {
   }
 
   private inReach(r: Roamer, dist: number) {
-    return (r.spamTag === "bolt" ? dist < 120 : dist < 22);
+    return (r.spamTag === "bolt" ? dist < 120 : dist < 22) || dist - bodyR(r) < 22; // playtest1p: a big body swings from its edge
   }
 
   private stepFoe(r: Roamer, ux: number, uy: number, dist: number, dt: number) {
@@ -6166,7 +6281,7 @@ export class Game {
       if (out && dist > 80) r.hits = 0;
       return;
     }
-    if (dist > 16) step(ux * (p === "zealot" ? 46 : 36) * fast * dt, uy * (p === "zealot" ? 46 : 36) * fast * dt);
+    if (dist > 16 + bodyR(r)) step(ux * (p === "zealot" ? 46 : 36) * fast * dt, uy * (p === "zealot" ? 46 : 36) * fast * dt); // playtest1p: stops at its edge
   }
 
   private beginCast(r: Roamer, slot: "mid" | "big" | "spam", name: string, tag: string, seconds: number) {
@@ -6185,7 +6300,7 @@ export class Game {
       if (pat === "nova") {
         r.markX = r.x;
         r.markY = r.y;
-        r.markR = PHASE.novaR;
+        r.markR = PHASE.novaR + bodyR(r); // playtest1p: the nova rings the body, so it grows past the body's edge
         tag = "ring";
       }
       r.pattern = pat === "aim" ? "" : pat;
@@ -6247,7 +6362,9 @@ export class Game {
       return;
     }
     if (tag === "blink") {
-      const spot = this.openNear(this.px - 18, this.py);
+      const gap = bodyR(r) * SPAWN_GAP; // playtest1p: a big body steps through to its own edge's distance, its foot on open ground
+      const near = this.openNear(this.px - 18 - gap, this.py);
+      const spot = footOf(r).rx && !this.footClear(near.x, near.y, footOf(r)) ? this.openFoot(near.x, near.y, footOf(r)) ?? near : near;
       r.x = spot.x;
       r.y = spot.y;
       this.logLine = `${r.name ?? "It"} steps through you.`;
@@ -6263,13 +6380,14 @@ export class Game {
       const dx = r.x - this.px;
       const dy = r.y - this.py;
       const d = Math.hypot(dx, dy) || 1;
-      this.try((dx / d) * 36, (dy / d) * 36);
+      const pull = footOf(r).rx ? Math.min(36, Math.max(0, d - bodyR(r) - 8)) : 36; // playtest1p: a big body pulls you to its edge, not into it
+      this.try((dx / d) * pull, (dy / d) * pull);
     }
     const hit =
       tag === "line"
         ? this.nearLine(ox, oy, mx, my)
         : tag === "cone"
-          ? dist < 80 && inside
+          ? dist < 80 + bodyR(r) && inside
           : inside;
     // playtest1k: a mark aimed at a taunting companion lands on it if it stands there (it does not dodge).
     const ally = this.tauntOf(r);
@@ -6295,6 +6413,10 @@ export class Game {
   private placeFloorRoom(seedKey: string) {
     const tiles = Uint8Array.from(this.tiles);
     for (const i of this.hidden) if (tiles[i] !== T.chest) tiles[i] = T.wall; // a secret room is rock; its chest still keeps props off
+    // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a boss's hall stays bare
+    // (no prop in a 5x boss's dodge room): to the room placer it is rock
+    const hall = this.mapId === "dungeon" ? this.floors[`${this.dungeon}:${this.floor}`]?.hall : undefined;
+    if (hall) for (let y = hall.y; y < hall.y + hall.h; y++) for (let x = hall.x; x < hall.x + hall.w; x++) if (tiles[y * this.w + x] === T.floor || tiles[y * this.w + x] === T.road) tiles[y * this.w + x] = T.wall;
     const up = findTile(this.tiles, this.w, T.stairU) ?? findTile(this.tiles, this.w, T.floor) ?? { x: 2, y: 2 };
     this.room = placeRoom(tiles, this.w, this.h, seedKey, this.floor, featSpots(this.feats), stepOff(this.tiles, this.w, this.h, up.x, up.y));
   }
@@ -6793,7 +6915,9 @@ export class Game {
     const link = this.worldMs;
     foes.forEach((f, i) => {
       const ang = (i / Math.max(1, foes.length)) * Math.PI * 2;
-      const spot = this.openNear(this.px + Math.cos(ang) * 28, this.py + Math.sin(ang) * 18);
+      const gap = bodyR(f) * SPAWN_GAP; // playtest1p: a big body steps in clear of the hero, its whole foot on open ground
+      const near = this.openNear(this.px + Math.cos(ang) * (28 + gap), this.py + Math.sin(ang) * (18 + gap));
+      const spot = footOf(f).rx ? (this.footClear(near.x, near.y, footOf(f)) ? near : this.openFoot(near.x, near.y, footOf(f)) ?? near) : near;
       const kit = (f.boss || f.mini) && BOSS_KITS[f.id] ? BOSS_KITS[f.id] : FAMILY_KITS[f.family] ?? FAMILY_KITS[f.id] ?? FAMILY_KITS.zombie;
       const bossKit = !!(f.boss || f.mini) && !!BOSS_KITS[f.id];
       this.roamers.push({
@@ -8086,6 +8210,11 @@ export function migrateWorldSave(raw: SaveBlob): SaveBlob {
 }
 
 /** World bosses and where they stand. A slain one leaves its remnant here for two day-night cycles. */
+/** playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a world lair's clearing (tiles, an ellipse) and a boss's
+ * hall on its last floor (tiles): both give a 5x boss's foot plus the dodge room (bigboss.ts arenaR) on every side. */
+const LAIR = { rx: 6, ry: 5 } as const;
+const HALL = { w: 12, h: 10 } as const;
+
 const WORLD_BOSSES = [
   { id: "bride", tx: 32, ty: 84, lv: 14 },
   { id: "shade", tx: 28, ty: 72, lv: 18 },
@@ -8527,6 +8656,27 @@ function carveFloor(dungeon: string, floor: number, floors: number, pocket: bool
       y += Math.sign(ty - y);
     }
   }
+  // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a boss's last floor has
+  // a hall at its east end a 5x boss is fought in (HALL, the boss stands in its middle), joined to the rooms. Carved
+  // after the rooms and corridors (the rooms keep their spots) and before the stairs, the pool, the chest and the
+  // secrets, which all go where they would have.
+  const hall = !pocket && floor >= floors && !!dungeonById(dungeon)?.boss ? { x: w - 2 - HALL.w, y: Math.floor((h - HALL.h) / 2), w: HALL.w, h: HALL.h } : null;
+  if (hall) {
+    for (let y = hall.y; y < hall.y + hall.h; y++) for (let x = hall.x; x < hall.x + hall.w; x++) tiles[y * w + x] = T.floor;
+    const near = rooms[rooms.length - 1];
+    let x = Math.min(w - 2, near.x + 1);
+    const y0 = Math.min(h - 2, near.y + 1);
+    const hy = hall.y + Math.floor(hall.h / 2);
+    let y = y0;
+    while (y !== hy) {
+      tiles[y * w + x] = T.floor;
+      y += Math.sign(hy - y);
+    }
+    while (x < hall.x) {
+      tiles[y * w + x] = T.floor;
+      x += 1;
+    }
+  }
   const left = rooms[0];
   const right = rooms[rooms.length - 1];
   const upX = Math.min(w - 2, left.x + 1);
@@ -8563,7 +8713,7 @@ function carveFloor(dungeon: string, floor: number, floors: number, pocket: bool
   const mimic = mimicChest(tiles, w, dungeon, floor, floors, pocket, feats);
   if (mimic) feats.mimic = mimic;
   const fog = new Uint8Array(w * h);
-  return { tiles, w, h, fog, feats };
+  return { tiles, w, h, fog, feats, hall: hall ?? undefined };
 }
 
 /** Map writer: one generated floor, with the game's own secrets, traps, captive, and mimic placed on it. */

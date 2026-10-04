@@ -14,6 +14,14 @@ it always has and only changes the sheet and the row. The profile families (hors
 facing right, so both rows are their one frame. Feet stay on row 28 (outline 29), palette locked, hard alpha.
 
     python3 tools/sprite-writer/dirs_writer.py      (make_gravewake.py runs it too)
+
+playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: the views are laid by hand
+(views_writer.py: a true profile with a stride and swinging arms, the back of the head and body), and a third row:
+
+    row 2 (y 64..95): west — walking left, its own drawing: the hands keep what they hold (facing east the weapon
+                      hand is the far one, facing west the near one), so it is not the east row in a mirror. Drawn
+                      creatures and the swim, slide and fish moves have no hand to keep: their west row is the east
+                      row turned over.
 """
 
 from __future__ import annotations
@@ -29,7 +37,7 @@ import sprite_writer as sw
 from palette_locked import LOCKED
 from sprite_writer import MOVES, POSES, creature, festival_boss, human, human_move, strip
 
-VIEWS = ("back", "side")
+VIEWS = ("back", "side", "west")  # playtest1p: the west row
 EM_COLOURS = ("#f4e27a", "#fff8e0", "#e0a040")  # the pixel writer's glow-mask colours (pixel-writer make_gravewake.EM_COLOURS)
 EM_SOURCES = ("foes", "pumpkin-lord", "krampus")
 
@@ -62,8 +70,8 @@ def em_mask(src: Image.Image) -> Image.Image:
 
 
 def _check(name: str, im: Image.Image, width: int) -> None:
-    if im.size != (width, 64):
-        raise SystemExit(f"{name}: size {im.size}, expected {(width, 64)}")
+    if im.size != (width, 32 * len(VIEWS)):
+        raise SystemExit(f"{name}: size {im.size}, expected {(width, 32 * len(VIEWS))}")
     data = im.convert("RGBA").tobytes()
     bad = set()
     for i in range(0, len(data), 4):
@@ -94,7 +102,8 @@ def main(out: Path | None = None) -> dict[str, Image.Image]:
     rows: dict[str, list[Image.Image]] = {}
     try:
         for view in VIEWS:
-            sw.VIEW = view
+            sw.VIEW = "side" if view == "west" else view
+            sw.WEST = view == "west"
             for name, sprites in bodies(m).items():
                 if name in ("people", "foes", "mimic", "krampus", "pumpkin-lord"):
                     # a standing body keeps its feet on row 28, outline 29, in every view (the shade and the
@@ -110,12 +119,14 @@ def main(out: Path | None = None) -> dict[str, Image.Image]:
                 rows.setdefault(name, []).append(strip(sprites))
     finally:
         sw.VIEW = "front"
+        sw.WEST = False
     made: dict[str, Image.Image] = {}
-    for name, (back, side) in rows.items():
+    for name, (back, side, west) in rows.items():
         src = Image.open(out / f"{name}.png")
-        sheet = Image.new("RGBA", (src.width, 64), (0, 0, 0, 0))
+        sheet = Image.new("RGBA", (src.width, 32 * len(VIEWS)), (0, 0, 0, 0))
         sheet.alpha_composite(_mirror_back(name, back.convert("RGBA"), m), (0, 0))
         sheet.alpha_composite(side.convert("RGBA"), (0, 32))
+        sheet.alpha_composite(west.convert("RGBA"), (0, 64))
         _check(f"{name}-dirs.png", sheet, src.width)
         made[f"{name}-dirs.png"] = sheet
     for name in EM_SOURCES:

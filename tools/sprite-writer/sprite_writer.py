@@ -46,6 +46,9 @@ VIEW = "front"
 SIDE_NATIVE = ("horse", "cat", "rat")
 # Chest-front details a back view does not show.
 FRONT_ONLY = ("vest", "jabot", "bowtie", "badge", "tape", "furchest", "stole", "mask", "specs", "gem")
+# playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: with VIEW == "side", WEST draws the body facing left (views_writer.py
+# lays the profile by hand, the hands keep what they hold; drawn creatures are turned over). The front never reads it.
+WEST = False
 
 
 def _rgba(color: str) -> tuple[int, int, int, int]:
@@ -1439,6 +1442,10 @@ PEOPLE_BOB = {"walk0": 1, "walk2": 1}
 
 
 def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str, bob: bool = False) -> Sprite:
+    if VIEW == "side":
+        import views_writer  # playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: the hand-laid profile
+
+        return views_writer.person_side(spec, pose, rank, sash, seed, bob, west=WEST)
     ux, uy, hdy, legs, larm, rarm = BODY[pose]
     if bob:
         uy += PEOPLE_BOB.get(pose, 0)
@@ -1548,6 +1555,10 @@ def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str, bob: 
     elif staffy:
         _weapon_rest(s, spec, rhx, rhy)
     _rank_marks(s, spec, rank, hx, hy, x0, x1, ay)
+    if VIEW == "back":
+        import views_writer  # playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: the back of the head and body
+
+        views_writer.back_details(s, spec, ux, uy, hx, hy, pose)
     s.outline()
     # light and trails are drawn after the outline so they read as motion, not as a body
     if pose == "cast0":
@@ -1589,6 +1600,13 @@ MOVE_BODY = {
 
 def human_move(role: str, move: str, variant: int = 0) -> Sprite:
     """A move pose for a person: the same body, head and kit as the eleven frames."""
+    global WEST
+    if VIEW == "side" and WEST:
+        WEST = False  # playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a swim, slide or cast line has no hand to keep: the east view turned over
+        try:
+            return _turned(human_move(role, move, variant))
+        finally:
+            WEST = True
     spec = dict(folk_spec(role, variant))
     spec["_person"] = True
     base, (larm, rarm), legs, drop = MOVE_BODY[move]
@@ -1633,6 +1651,13 @@ def human_move(role: str, move: str, variant: int = 0) -> Sprite:
             s.set(hx + i, hy - (i * (hy - tip_y)) // max(1, 15 - hx), ROD[0])
         s.rect(15, tip_y + 1, 1, 4 if move == "fish0" else 5, ROD[1])
     return s
+
+
+def _turned(s: Sprite) -> Sprite:
+    """playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a sprite turned over left to right (pixels moved, never resampled)."""
+    out = Sprite(s.w, s.h)
+    out.p = [list(reversed(row)) for row in s.p]
+    return out
 
 
 def role_long_beard(spec: dict) -> bool:
@@ -2572,7 +2597,7 @@ def _drawn(kind: str, pose: str, rank: str) -> Sprite:
         _glow(s, top_x, max(2, top_y - 2), 3, core, ring)
     elif pose == "cast2":
         _scatter(s, core, ring, kind, max(0, top_y - 4))
-    return s
+    return _turned(s) if VIEW == "side" and WEST else s
 
 
 def festival_boss(kind: str, pose: str) -> Sprite:
@@ -2590,7 +2615,7 @@ def festival_boss(kind: str, pose: str) -> Sprite:
         _glow(s, top_x, max(2, top_y - 2), 3, core, ring)
     elif pose == "cast2":
         _scatter(s, core, ring, kind, max(0, top_y - 4))
-    return s
+    return _turned(s) if VIEW == "side" and WEST else s
 
 
 def creature(kind: str, pose: str | int = "stand", rank: str = "mob") -> Sprite:

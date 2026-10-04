@@ -11,6 +11,7 @@
 import { LIGHT, bucket, type RGB } from "./light";
 import { NEON_LIGHT } from "./looks";
 import { MARK_NEON, markSlot, tellProgress, type MarkSlot } from "./telegraph";
+import { bodyR, footOf, headroom, scaleOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
 export const FIGHT = {
   /** Fight lamps per frame, at most (the pool's size). */
@@ -65,7 +66,7 @@ function lamp(x: number, y: number, r: number, c: RGB, flick: boolean, seed = 0)
 }
 
 export type FightView = {
-  roamers: readonly { x: number; y: number; tell?: number; tellMax?: number; casting?: string; markX?: number; markY?: number; markR?: number; boss?: boolean; phase?: number; flash?: number; act?: string }[];
+  roamers: readonly { x: number; y: number; tell?: number; tellMax?: number; casting?: string; markX?: number; markY?: number; markR?: number; boss?: boolean; phase?: number; flash?: number; act?: string; mini?: boolean; rare?: boolean; naughty?: string; mimic?: boolean }[];
   spells: readonly { x: number; y: number; tx: number; ty: number; kind: string; color: string; life: number; max?: number }[];
   ashes: readonly { x: number; y: number; tell: number }[];
   plates: readonly { tell: number }[];
@@ -94,9 +95,13 @@ export function fightLights(
       const c = NEON_LIGHT[SLOT_NEON[markSlot(r.casting)]];
       const p = tellProgress(r.tell, r.tellMax);
       push(lamp(r.markX, r.markY, Math.max(40, (r.markR ?? 40) * (1 + 0.5 * p)), c, false, 1));
-      if (!dark(r.x, r.y)) push(lamp(r.x, r.y - 10, FIGHT.windLight, c, true, 2));
+      // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a big body's wind-up and
+      // roar light from its middle and reach as far past it as a people-scale body's do past theirs
+      const s = scaleOf(r);
+      if (!dark(r.x, r.y)) push(lamp(r.x, r.y - (s > 1 ? Math.round(headroom(s) / 2) : 10), FIGHT.windLight + bodyR(r) * 2, c, true, 2));
     } else if (r.boss && (r.phase ?? 1) >= 2 && (r.flash ?? 0) > 0 && r.act === "cast" && !dark(r.x, r.y)) {
-      push(lamp(r.x, r.y - 16, FIGHT.roarLight, NEON_LIGHT.red, true, 3));
+      const s = scaleOf(r);
+      push(lamp(r.x, r.y - (s > 1 ? Math.round(headroom(s) * 0.6) : 16), FIGHT.roarLight + bodyR(r) * 2, NEON_LIGHT.red, true, 3));
     }
   }
   for (const s of v.spells) {
@@ -187,8 +192,8 @@ export function paintTellLane(ctx: CanvasRenderingContext2D, x0: number, y0: num
 }
 
 /** The wind-up glow: a pulsing ring round the casting foe's feet (and a wider one on a boss). */
-export function paintWindup(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, frame: number, boss: boolean) {
-  const r = (boss ? FIGHT.windR + 6 : FIGHT.windR) + (Math.floor(frame / 4) % 2);
+export function paintWindup(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, frame: number, boss: boolean, foot = 0) {
+  const r = (boss ? FIGHT.windR + 6 : FIGHT.windR) + foot + (Math.floor(frame / 4) % 2); // playtest1p: round a big body's foot
   paintTellMark(ctx, x, y, r, color, 0);
 }
 
@@ -206,7 +211,7 @@ export function paintTells(ctx: CanvasRenderingContext2D, v: TellView, white: bo
     const p = tellProgress(r.tell, r.tellMax);
     if ((r.markR ?? 40) === 18) paintTellLane(ctx, r.x, r.y, r.markX, r.markY, half, col(s), p, rimOnly);
     else paintTellMark(ctx, r.markX, r.markY, r.markR ?? 40, col(s), p, rimOnly);
-    paintWindup(ctx, r.x, r.y, col(s), v.frame, !!r.boss);
+    paintWindup(ctx, r.x, r.y, col(s), v.frame, !!r.boss, footOf(r).rx); // playtest1p
   }
   v.traps.forEach((t, i) => {
     const tell = v.plates[i]?.tell ?? 0;

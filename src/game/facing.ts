@@ -8,7 +8,8 @@
  * walked backwards half the time. The sprite writer now draws every body from behind and from the side
  * (tools/sprite-writer/dirs_writer.py, the -dirs sheets: row 0 back, row 2 side facing right; same columns as the strip).
  *
- * Faces use draw.ts's old numbers: 0 south (front), 1 east, 2 north (back), 3 west (the side view mirrored).
+ * Faces use draw.ts's old numbers: 0 south (front), 1 east, 2 north (back), 3 west (playtest1p: its own row 4, drawn facing
+ * left, so the sword stays in the same hand; 1o mirrored the side view).
  * The hero faces the way the game says (g.facing, which also aims the swing). Everyone else faces the way they
  * moved since the last frame drawn; a body standing still keeps its facing, a foe in a fight and a townsperson the
  * hero walks up to turn to the hero. Diagonals take the stronger axis, as the hero's own facing does, with a little
@@ -16,7 +17,7 @@
  */
 export type Face = 0 | 1 | 2 | 3;
 const S = "/art/sprites/";
-/** Each body strip and its -dirs sheet (back row 0, side row 2 in 16 px rows). */
+/** Each body strip and its -dirs sheet (back row 0, east row 2, west row 4 in 16 px rows; playtest1p added west). */
 export const DIRS: Record<string, string> = Object.fromEntries(
   ["people", "allies", "folk-variants", "moves", "foes", "mimic", "krampus", "pumpkin-lord"].map((n) => [`${S}${n}.png`, `${S}${n}-dirs.png`]),
 );
@@ -32,7 +33,9 @@ export const FACE = { move: 0.05, hold: 1.15, jump: 24, near: 40 } as const;
 export function viewOf(face: number): { dirs: boolean; row: number; flip: boolean } {
   if (face === 2) return { dirs: true, row: 0, flip: false };
   if (face === 1) return { dirs: true, row: 2, flip: false };
-  if (face === 3) return { dirs: true, row: 2, flip: true };
+  // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: west is its own drawing
+  // (row 4: the weapon stays in the same hand, the light stays on the same side), not the side view mirrored.
+  if (face === 3) return { dirs: true, row: 4, flip: false };
   return { dirs: false, row: 0, flip: false };
 }
 

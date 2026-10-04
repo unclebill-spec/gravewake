@@ -142,8 +142,15 @@ function pt1mView(f) { return PT1N_FROZEN.includes(f) ? `scripts/frozen/playtest
 // as pushed at 1ce6277), and the new files (blocking, facing, loot; the back and side sheets; the loot sheet; their writers)
 // are not in any older "every other file" digest.
 const PT1O_FROZEN = { "src/game/sim.ts": "sim.ts", "src/game/draw.ts": "draw.ts", "src/game/Gravewake.tsx": "Gravewake.tsx", "tools/pixel-writer/make_gravewake.py": "pixel-writer.make_gravewake.py", "tools/sprite-writer/make_gravewake.py": "sprite-writer.make_gravewake.py", "tools/sprite-writer/sprite_writer.py": "sprite_writer.py", "AGENTS.project.md": "AGENTS.project.md" };
-function pt1nView(f) { return f in PT1O_FROZEN ? `scripts/frozen/playtest1o/${PT1O_FROZEN[f]}.txt` : f; }
+function pt1nView(f) { return f in PT1O_FROZEN ? `scripts/frozen/playtest1o/${PT1O_FROZEN[f]}.txt` : pt1oView(f); }
 function pt1oNew(f) { return ["src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py", "public/art/writer/loot.png", "public/art/writer/cave-ore.png", "public/art/sprites/people-dirs.png", "public/art/sprites/allies-dirs.png", "public/art/sprites/folk-variants-dirs.png", "public/art/sprites/moves-dirs.png", "public/art/sprites/foes-dirs.png", "public/art/sprites/mimic-dirs.png", "public/art/sprites/krampus-dirs.png", "public/art/sprites/pumpkin-lord-dirs.png", "public/art/sprites/foes-dirs_em.png", "public/art/sprites/krampus-dirs_em.png", "public/art/sprites/pumpkin-lord-dirs_em.png"].includes(f); }
+// playtest1p (2026-10-04, [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]): the sim, the draw,
+// facing, the fight lights, the sprite writers, the eleven back-and-side sheets and the owner notes moved, so every older group reads them as
+// playtest1o left them (scripts/frozen/playtest1p/, as pushed at 9d87b3f), and the new files (bigboss.ts, the views and boss writers,
+// public/art/sprites/big/) are not in any older "every other file" digest.
+const PT1P_FROZEN = {"src/game/sim.ts": "sim.ts", "src/game/draw.ts": "draw.ts", "src/game/facing.ts": "facing.ts", "src/game/fightlights.ts": "fightlights.ts", "tools/sprite-writer/dirs_writer.py": "dirs_writer.py", "tools/sprite-writer/sprite_writer.py": "sprite_writer.py", "tools/sprite-writer/make_gravewake.py": "sprite-writer.make_gravewake.py", "AGENTS.project.md": "AGENTS.project.md", "public/art/sprites/people-dirs.png": "people-dirs.png", "public/art/sprites/allies-dirs.png": "allies-dirs.png", "public/art/sprites/folk-variants-dirs.png": "folk-variants-dirs.png", "public/art/sprites/moves-dirs.png": "moves-dirs.png", "public/art/sprites/foes-dirs.png": "foes-dirs.png", "public/art/sprites/mimic-dirs.png": "mimic-dirs.png", "public/art/sprites/krampus-dirs.png": "krampus-dirs.png", "public/art/sprites/pumpkin-lord-dirs.png": "pumpkin-lord-dirs.png", "public/art/sprites/foes-dirs_em.png": "foes-dirs_em.png", "public/art/sprites/krampus-dirs_em.png": "krampus-dirs_em.png", "public/art/sprites/pumpkin-lord-dirs_em.png": "pumpkin-lord-dirs_em.png"};
+function pt1oView(f) { return f in PT1P_FROZEN ? `scripts/frozen/playtest1p/${PT1P_FROZEN[f]}.txt` : f; }
+function pt1pNew(f) { return ["src/game/bigboss.ts", "tools/sprite-writer/views_writer.py", "tools/sprite-writer/boss_writer.py"].includes(f) || f.startsWith("public/art/sprites/big/"); }
 function pt1nNew(f) { return ["src/game/room.ts", "src/game/roomdraw.ts", "public/art/writer/room-props.png", "public/art/writer/room-props_em.png", "public/art/writer/room-fire.png", "public/art/writer/room-oil.png"].includes(f); }
 const PT1M_GONE = JSON.parse(readTop("scripts/frozen/playtest1m/removed-art.json", "utf8")).removed;
 const pt1mWalk = (walk, d) => [...walk(d), ...Object.keys(PT1M_GONE).filter((g) => g.startsWith(`${d}/`) && !existsTop(g))];
@@ -218,7 +225,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "src/game/bigboss.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o); playtest1p adds bigboss.ts (the big bodies' scale, feet and arenas, group playtest1p)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -3909,7 +3916,7 @@ if (on("festival")) {
     const mouths = Object.keys(k.entrances).map((e) => e.split(",").map(Number));
     const spots = [...simSrc.slice(simSrc.indexOf("const WORLD_BOSSES = ["), simSrc.indexOf("];", simSrc.indexOf("const WORLD_BOSSES = ["))).matchAll(/tx: (\d+), ty: (\d+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
     const clearOk = mouths.length >= 4 && spots.length === 9 && [H.lord, K.spot].every((s) => mouths.every(([x, y]) => Math.hypot(x - s.x, y - s.y) >= WS * 6) && spots.every(([x, y]) => Math.hypot(x - s.x, y - s.y) >= WS * 8));
-    check("festival", "the Lord stands in the Cinder patch (26,52 on the old plan; 52,104 on the twice-size vale) at L max(10, zone), Krampus in the Winter hollow (12,11; now 24,22) at L max(16, zone); both clear of every dungeon mouth (6+ old tiles) and world boss spot (8+); once down, neither comes back that night", clearOk && at === `${WS * 26},${WS * 52} L${Math.max(10, zoneLevel(WS * 26, WS * 52, 8))}` && !g.roamers.some((r) => r.festival) && !!kr && Math.floor(kr.x / TILE) === WS * 12 && Math.floor(kr.y / TILE) === WS * 11 && kr.level === Math.max(16, zoneLevel(WS * 12, WS * 11, 8)), `${at} | ${kr ? `${Math.floor(kr.x / TILE)},${Math.floor(kr.y / TILE)} L${kr.level}` : "none"}`);
+    check("festival", "the Lord stands in the Cinder patch (26,52 on the old plan; 52,104 on the twice-size vale) at L max(10, zone), Krampus in the Winter hollow (12,11; now 24,22) at L max(16, zone) (playtest1p: within a tile, where a 5x body has its dodge room); both clear of every dungeon mouth (6+ old tiles) and world boss spot (8+); once down, neither comes back that night", clearOk && !!lord && Math.abs(Math.floor(lord.x / TILE) - WS * 26) <= 1 && Math.abs(Math.floor(lord.y / TILE) - WS * 52) <= 1 && lord.level === Math.max(10, zoneLevel(WS * 26, WS * 52, 8)) && !g.roamers.some((r) => r.festival) && !!kr && Math.abs(Math.floor(kr.x / TILE) - WS * 12) <= 1 && Math.abs(Math.floor(kr.y / TILE) - WS * 11) <= 1 && kr.level === Math.max(16, zoneLevel(WS * 12, WS * 11, 8)), `${at} | ${kr ? `${Math.floor(kr.x / TILE)},${Math.floor(kr.y / TILE)} L${kr.level}` : "none"}`);
   }
   {
     // Harvest Moon in town: Hessa's stall at nightfall, the carving, the judge.
@@ -4983,7 +4990,10 @@ if (on("mapwriter2")) {
   // playtest1e [OWNER-APPROVED 2026-10-02: playtest1e bigger world]: the vale was relaid at twice the size by the map
   // writer's phase 3, so the grid, zone, reach and lair pins below are the playtest1e grid's (qa/playtest1e/pins.json);
   // what they prove is unchanged: one fixed grid, every place on it reachable, the skin looks only.
-  check("mapwriter2", "the vale's tile grid is one fixed grid (playtest1f: 128x120 with the wayrifts' clearings, FNV b516448f; playtest1e's was 90207da9; it was 64x60, FNV 84f128a8): every tree, rock, pump, road, door, stair, the lake, the ice, and the reserved boss, merchant, and rift spots", w === 128 && h === 120 && fnv(tiles) === "b516448f" && fnv(vale().tiles) === "b516448f", fnv(tiles));
+  // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: every world boss lair and the
+  // Pumpkin Lord's and Krampus's spots are cleared to an ellipse LAIR tiles out (6x5, inside the two-deep edge band) so a 5x boss
+  // has its dodge room; the grid, reach, save and trace pins below are re-pinned on that grid (it was b516448f, 13674/64f5b1da).
+  check("mapwriter2", "the vale's tile grid is one fixed grid (playtest1p: with the lairs' clearings, FNV 318770ac; playtest1f: 128x120 with the wayrifts' clearings, FNV b516448f; playtest1e's was 90207da9; it was 64x60, FNV 84f128a8): every tree, rock, pump, road, door, stair, the lake, the ice, and the reserved boss, merchant, and rift spots", w === 128 && h === 120 && fnv(tiles) === "318770ac" && fnv(vale().tiles) === "318770ac", fnv(tiles));
   const zones = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) zones.push(zoneLevel(x, y, 20));
   check("mapwriter2", "zone levels are the rectangle rule (playtest1e: at twice the size): every vale tile's zoneLevel at hero level 20 hashes to the pin (FNV e712a8dd; was ca551b7e)", fnv(zones) === "e712a8dd", fnv(zones));
@@ -5020,7 +5030,7 @@ if (on("mapwriter2")) {
     for (const [kind, list] of [["naughty", n.naughtyTonight()], ["court", n.courtTonight()], ["sideshow", n.sideshowTonight()], ["bloom", n.bloomsTonight()]]) for (const c of list) if (c && Number.isFinite(c.x)) { festNights.push(c.y * w + c.x); festKinds.add(kind); }
   }
   const lost = [...spots, ...festNights].filter((i) => !seen[i]);
-  check("mapwriter2", `reachability (the game's solidAt for the hero, props blocked): from the town gate the same ${reached.length} tiles are reachable (playtest1f pin 13674, FNV 64f5b1da: the wayrifts' standing stones are solid and their clearings open; playtest1e's 13711, e93d21cb; before the bigger vale 3688, f09dd9ac), and every road, door, stair, rift mouth, merchant and watch post, boss spot, festival lair, and 120 nights of Krampus, court, sideshow, and bloom spots is among them`, reached.length === 13674 && fnv(reached) === "64f5b1da" && !lost.length && festKinds.size === 4 && lairs.length > 20, `${reached.length} ${fnv(reached)} lost ${lost.slice(0, 5).join(",")} spots ${spots.length} fest ${festNights.length} ${[...festKinds]}`);
+  check("mapwriter2", `reachability (the game's solidAt for the hero, props blocked): from the town gate the same ${reached.length} tiles are reachable (playtest1p pin 13731, FNV 364ce321, with the lairs' clearings; playtest1f pin 13674, FNV 64f5b1da: the wayrifts' standing stones are solid and their clearings open; playtest1e's 13711, e93d21cb; before the bigger vale 3688, f09dd9ac), and every road, door, stair, rift mouth, merchant and watch post, boss spot, festival lair, and 120 nights of Krampus, court, sideshow, and bloom spots is among them`, reached.length === 13731 && fnv(reached) === "364ce321" && !lost.length && festKinds.size === 4 && lairs.length > 20, `${reached.length} ${fnv(reached)} lost ${lost.slice(0, 5).join(",")} spots ${spots.length} fest ${festNights.length} ${[...festKinds]}`);
   check("mapwriter2", "festival lairs are one fixed list (they are picked from the grid; playtest1f 10762 lairs, FNV 1704534f, none within 4 tiles of a wayrift; playtest1e 11031, 68478901; before the bigger vale 2055, 5844b4ec)", lairs.length === 10762 && fnv(lairs) === "1704534f", `${lairs.length} ${fnv(lairs)}`);
   // Real walks across five borders: snow/vale on the road and off it, waste/vale on the road, swamp/vale on the road, cinder/vale off it.
   const crossings = [];
@@ -5106,7 +5116,7 @@ if (on("mapwriter2")) {
     const keys = Object.keys(slot ?? {});
     const b = fresh();
     b.loadSlot(0);
-    check("mapwriter2", "saves: a save on a border tile has the same 56 keys (plus playtest1e's worldV), none for the skin, and loads back onto the same spot in the same grid", keys.filter((k) => k !== "worldV").length === 56 && !keys.some((k) => /skin|blend|biome|fringe/i.test(k)) && b.mapId === "world" && Math.floor(b.px / TILE) === WS * 20 && Math.floor(b.py / TILE) === WS * 16 && fnv(b.tiles) === "b516448f", `${keys.length} keys, ${b.mapId} ${Math.floor(b.px / TILE)},${Math.floor(b.py / TILE)}`);
+    check("mapwriter2", "saves: a save on a border tile has the same 56 keys (plus playtest1e's worldV), none for the skin, and loads back onto the same spot in the same grid", keys.filter((k) => k !== "worldV").length === 56 && !keys.some((k) => /skin|blend|biome|fringe/i.test(k)) && b.mapId === "world" && Math.floor(b.px / TILE) === WS * 20 && Math.floor(b.py / TILE) === WS * 16 && fnv(b.tiles) === "318770ac", `${keys.length} keys, ${b.mapId} ${Math.floor(b.px / TILE)},${Math.floor(b.py / TILE)}`);
   }
   // Art: the fringe masks.
   {
@@ -5575,14 +5585,14 @@ if (on("gfx2")) {
     const B = D.BLOB;
     const calls = [
       "fn: () => { blobShadow(ctx, g, n.x, n.y - 2); draw(ctx); }",
-      "if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);\n        else blobShadow(ctx, g, r.x, r.y - 2);\n        body(ctx);",
+      "if (sc > 1) blobShadow(ctx, g, r.x, r.y - 2 - footOf(r).ry / 4, 2 * footOf(r).rx + 8, 2 * footOf(r).ry + 4); // playtest1p: the foot's shadow\n        else if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);\n        else blobShadow(ctx, g, r.x, r.y - 2);\n        body(ctx);", // playtest1p: a big body gets its foot's shadow
       "blobShadow(ctx, g, c.x, c.y - 2, BLOB.smallW, BLOB.smallH);\n        monsterSprite(ctx, c.x, c.y",
       "fn: () => { blobShadow(ctx, g, ally.x, ally.y - 2); draw(ctx); }",
       'if (esc.state !== "down") blobShadow(ctx, g, esc.x, esc.y - 2);\n          if (esc.state === "down" && sheetCell',
       'if (pose !== "wade" && pose !== "slide" && pose !== "fish") blobShadow(ctx, g, g.px, g.py - 2);\n      person(ctx, g.px, g.py, role',
     ];
     const missing = calls.filter((c) => !draw.includes(c));
-    check("gfx2", "draw: blob shadows (doc section 7) go under every actor before its body in the same y-sorted step: townsfolk, foes (a boss gets the wide one), critters (the small one), the companion, the captive (not when downed), the hero (not wading, sliding or fishing); the actor closures the light layer re-draws stay body-only", !missing.length && (draw.match(/blobShadow\(ctx, g,/g) || []).length === 7 && !/actor: \(c[^\n]*blobShadow/.test(draw) && /actor: draw \}/.test(draw), missing.join(" | "));
+    check("gfx2", "draw: blob shadows (doc section 7) go under every actor before its body in the same y-sorted step: townsfolk, foes (a boss gets the wide one; playtest1p: a big body its foot's), critters (the small one), the companion, the captive (not when downed), the hero (not wading, sliding or fishing); the actor closures the light layer re-draws stay body-only", !missing.length && (draw.match(/blobShadow\(ctx, g,/g) || []).length === 8 && !/actor: \(c[^\n]*blobShadow/.test(draw) && /actor: draw \}/.test(draw), missing.join(" | "));
     const blobSrc = draw.slice(draw.indexOf("export const BLOB"), draw.indexOf("// C5 moving lights (gfx2)"));
     check("gfx2", "draw: a blob shadow is a hard-edged ellipse of whole pixels (no gradient, no blur), multiplied to 45%, 10x4 (20x6 a boss, 8x3 a critter), baked once per size and cached, pinned to the pixel grid, and skipped on water, pools and ice", B.k === 0.45 && B.w === 10 && B.h === 4 && B.bossW === 20 && B.bossH === 6 && B.smallW === 8 && B.smallH === 3 && /const hit = blobCache\.get\(key\);\n {2}if \(hit\) return hit;/.test(blobSrc) && /blobCache\.set\(key, c\);/.test(blobSrc) && /x\.fillStyle = rgbCss\(\[1, 1, 1\], BLOB\.k\);/.test(blobSrc) && /if \(\(\(i \+ 0\.5 - w \/ 2\) \/ \(w \/ 2\)\) \*\* 2 \+ \(\(j \+ 0\.5 - h \/ 2\) \/ \(h \/ 2\)\) \*\* 2 <= 1\) x\.fillRect\(i, j, 1, 1\);/.test(blobSrc) && /ctx\.globalCompositeOperation = "multiply";\n {2}ctx\.drawImage\(spr, Math\.round\(x - w \/ 2\), Math\.round\(footY - h \/ 2\)\);/.test(blobSrc) && /const NO_SHADOW: ReadonlySet<number> = new Set\(\[T\.water, T\.pool, T\.ice\]\);/.test(blobSrc) && /NO_SHADOW\.has\(g\.tiles\[ty \* g\.w \+ tx\]\)\) return;/.test(blobSrc) && !/Gradient|filter\s*=|shadowBlur|Math\.random|Date\.now/.test(draw.slice(draw.indexOf("// Core Keeper-style graphics pass, batch 2"), draw.indexOf("export function drawWorld"))));
   }
@@ -5621,11 +5631,11 @@ if (on("gfx2")) {
     if (g.fog) g.roamers.forEach((r) => (g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] = 2));
     const fl = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
     const foe = fl.find((l) => l.x === g.px + 24), boss = fl.find((l) => l.x === g.px - 40), rat = fl.find((l) => l.x === g.px + 30);
-    const lit = !!foe && foe.r === 56 && foe.y === g.py - 12 && foe.flick && JSON.stringify(foe.c) === JSON.stringify(D.LIGHTS.pumpkin) && !!boss && boss.r === 72 && boss.y === g.py - 22 && boss.flick && JSON.stringify(boss.c) === JSON.stringify(D.LIGHTS.pumpkin) && !rat;
+    const lit = !!foe && foe.r === 56 && foe.y === g.py - 12 && foe.flick && JSON.stringify(foe.c) === JSON.stringify(D.LIGHTS.pumpkin) && !!boss && boss.r === 144 && boss.y === g.py - 72 && boss.flick && JSON.stringify(boss.c) === JSON.stringify(D.LIGHTS.pumpkin) && !rat;
     let dark = false;
     if (g.fog) { g.fog[Math.floor(g.py / TILE) * g.w + Math.floor((g.px + 24) / TILE)] = 0; dark = !D.sceneLights(g, g.px - 120, g.py - 80, 240, 160).some((l) => l.x === g.px + 24); }
     const ids = readFileSync("src/game/content.ts", "utf8");
-    check("gfx2", "C5: flame foes carry a flickering pumpkin light (Lantern Man 56 px at the head, a flame boss 72 px higher up), other foes none, and a flame foe on unexplored rock lights nothing (it never gives itself away); the four ids are real foes", lit && dark && [...D.FLAME_FOES].sort().join() === "horseman,lanternking,pumpkin,pumpkinlord" && ['id: "pumpkin", name: "Lantern Man"', 'id: "lanternking"', 'id: "pumpkinlord"'].every((s) => ids.includes(s)) && /\bhorseman: \{/.test(readFileSync("src/game/sim.ts", "utf8")), JSON.stringify({ foe, boss, rat, dark }));
+    check("gfx2", "C5: flame foes carry a flickering pumpkin light (Lantern Man 56 px at the head, a flame boss 72 px higher up; playtest1p: a 5x boss's from its middle, 72 up, and twice as wide), other foes none, and a flame foe on unexplored rock lights nothing (it never gives itself away); the four ids are real foes", lit && dark && [...D.FLAME_FOES].sort().join() === "horseman,lanternking,pumpkin,pumpkinlord" && ['id: "pumpkin", name: "Lantern Man"', 'id: "lanternking"', 'id: "pumpkinlord"'].every((s) => ids.includes(s)) && /\bhorseman: \{/.test(readFileSync("src/game/sim.ts", "utf8")), JSON.stringify({ foe, boss, rat, dark }));
   }
 
   // Nothing in play changed.
@@ -5737,11 +5747,11 @@ if (on("gfx3")) {
     const ls = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
     const find = (dx) => ls.filter((l) => l.x === g.px + dx);
     const [mob] = find(24), [boss] = find(-40);
-    const ok = !!mob && mob.r === 40 && mob.y === g.py - 12 && !mob.flick && same(mob.c, D.LIGHTS.ghost) && !!boss && boss.r === 56 && boss.y === g.py - 22 && !boss.flick && same(boss.c, D.LIGHTS.ghost) && !find(30).length && !find(-20).length && ls[0].r === L.hero && find(24).length === 1;
+    const ok = !!mob && mob.r === 40 && mob.y === g.py - 12 && !mob.flick && same(mob.c, D.LIGHTS.ghost) && !!boss && boss.r === 112 && boss.y === g.py - 72 && !boss.flick && same(boss.c, D.LIGHTS.ghost) && !find(30).length && !find(-20).length && ls[0].r === L.hero && find(24).length === 1;
     let dark = false;
     if (g.fog) { g.fog[Math.floor(g.py / TILE) * g.w + Math.floor((g.px + 24) / TILE)] = 0; dark = !D.sceneLights(g, g.px - 120, g.py - 80, 240, 160).some((l) => l.x === g.px + 24); }
     const ids = readFileSync("src/game/content.ts", "utf8");
-    check("gfx3", "C5: ghosts carry a cold, steady ghost light (a Ghost 40 px at the head, a ghost boss 56 px higher up, no flicker), the Death Shade none (shades are negative light), other foes none, none on unexplored rock; the hero's torch stays first", ok && dark && ['id: "ghost", name: "Ghost", family: "ghost"', 'id: "shade", name: "Death Shade", family: "ghost"', 'id: "bride", name: "Gallows Bride", family: "ghost"'].every((s) => ids.includes(s)) && /if \(r\.family !== "ghost" \|\| r\.def === "shade"\) continue;/.test(draw), JSON.stringify(ls.slice(0, 5).map((l) => [Math.round(l.x - g.px), Math.round(l.y - g.py), l.r, l.flick])));
+    check("gfx3", "C5: ghosts carry a cold, steady ghost light (a Ghost 40 px at the head, a ghost boss 56 px higher up, no flicker; playtest1p: a 5x boss's from its middle, 72 up, and twice as wide), the Death Shade none (shades are negative light), other foes none, none on unexplored rock; the hero's torch stays first", ok && dark && ['id: "ghost", name: "Ghost", family: "ghost"', 'id: "shade", name: "Death Shade", family: "ghost"', 'id: "bride", name: "Gallows Bride", family: "ghost"'].every((s) => ids.includes(s)) && /if \(r\.family !== "ghost" \|\| r\.def === "shade"\) continue;/.test(draw), JSON.stringify(ls.slice(0, 5).map((l) => [Math.round(l.x - g.px), Math.round(l.y - g.py), l.r, l.flick])));
   }
 
   // The Deathbolt's light matches its purple (C11).
@@ -5797,7 +5807,7 @@ if (on("gfx3")) {
     const made = py("import json, hashlib\nfrom PIL import Image\nimport make_gravewake as m\nprint(json.dumps({n: hashlib.md5(m.em_mask(Image.open(f'../../public/art/sprites/{n}.png')).tobytes()).hexdigest() == hashlib.md5(Image.open(f'../../public/art/sprites/{n}_em.png').convert('RGBA').tobytes()).hexdigest() for n in m.EM_SOURCES}))");
     check("gfx3", "art: each glow mask is exactly what the pixel writer's em_mask makes from its sheet today (re-derived, pixel for pixel), so no mask was hand-painted or left stale", !made.error && same(Object.keys(made), ["foes", "pumpkin-lord", "krampus"]) && Object.values(made).every((v) => v === true), made.error || JSON.stringify(made));
     const sc = draw.slice(draw.indexOf("function sheetCell("), draw.indexOf("ctx.drawImage(im, col * stride", draw.indexOf("function sheetCell(")));
-    const loop = draw.slice(draw.indexOf("for (const r of g.roamers) {\n    const sc = scaleFor"), draw.indexOf("for (const c of g.critters) {"));
+    const loop = draw.slice(draw.indexOf("for (const r of g.roamers) {\n    const sc = scaleOf"), draw.indexOf("for (const c of g.critters) {"));
     check("gfx3", "draw: in the glow pass sheetCell draws a sheet's mask instead (or nothing, never a painted body); each foe drawn from a masked sheet pushes its body to the full-light glow list, not on unexplored rock, and the pass is always switched off again; masks are preloaded with the sheets", /if \(emPass\) \{\n[^\n]*\n {4}const em = EM_SHEETS\[url\];\n {4}if \(!em\) return true;\n {4}url = em;\n {2}\}/.test(sc) && /if \(!im\.complete \|\| im\.naturalWidth === 0\) return emPass;/.test(sc) && /if \(hasGlowMask\(r\.family\) && !\(g\.fog && g\.fog\[Math\.floor\(r\.y \/ TILE\) \* g\.w \+ Math\.floor\(r\.x \/ TILE\)\] === 0\)\) \{\n {6}glow\.push\(\(c\) => \{\n {8}emPass = true;\n {8}try \{\n {10}body\(c\);\n {8}\} finally \{\n {10}emPass = false;\n {8}\}/.test(loop) && (draw.match(/emPass = true/g) || []).length === 1 && draw.includes("...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), "));
     const fams = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
     check("gfx3", "draw: only foes whose body comes off a masked sheet glow: the 17 foes.png families, the Pumpkin Lord and Krampus; never the mimic or a painted fallback family", fams.every((f) => D.hasGlowMask(f)) && D.hasGlowMask("pumpkinlord") && D.hasGlowMask("krampus") && !D.hasGlowMask("mimic") && !D.hasGlowMask("imp") && !D.hasGlowMask("spider") && /const families = FOE_FAMILIES;/.test(draw));
@@ -6474,7 +6484,9 @@ if (on("fade2")) {
     // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks] re-pinned krampus's end (aca95fb8… under playtest1f): Krampus
     // drops under half HP tonight, so he roars into phase two and his big moves come quicker and in patterns; his spawn
     // log is unchanged, and the other three nights are unchanged byte for byte. Group playtest1j re-runs this night.
-    const GOLD = { harvest: ["7110f4056d74d30486c4727580f673fc", "1c816d68cd08d02e0ec5c515bea3325e"], krampus: ["2a6c6350026d89d97f89d0005876d40c", "8bf641d73f3ee80cfae007db61644dcf"], bloom: ["22b38e1989c73ab6e21b4accff61f304", "93f5773647b3a6e29c9789f2fbafcc5f"], ashen: ["a141f9d205f9a1ea46fda7939672e752", "d4ce705477525ce7a9ba7a86c380a2cf"] };
+    // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: re-pinned on the lairs' clearings, with the 5x bodies' feet and rings
+    // (playtest1f's were harvest 7110f405/1c816d68, krampus 2a6c6350/8bf641d7, bloom 22b38e19/93f57736, ashen a141f9d2/...).
+    const GOLD = { harvest: ["03d9d3f9feb745c7ad69b077a56afac0", "ec078bc6b3e1f9fc940045096d0d1aab"], krampus: ["31f228b31949e3220f58fdd6918fade7", "7bb40afb8ec17776bc903f36d815dad7"], bloom: ["c087538963b6ee7e9a9a5d32dbfe8acc", "9fe7f6653f45251103a8ab32a51adde8"], ashen: ["7df70d282ac608650448e6adf180bda6", "bbb476c91ad1ead17650c7557fd615fe"] };
     const night = (fid, drawn) => seeded(2026, () => {
       const g = new X.Game();
       g.start("warrior", "str", "A");
@@ -6613,7 +6625,7 @@ if (on("fade2")) {
     let box = null;
     for (let k = 0; k < 8; k++) { g.worldMs += k ? 80 : 20; const clips = frame(); ramp.push([Math.round(g.worldMs - lord.spawnAt), clips > 0]); if (k === 3) box = [cell[0] - Math.round(lord.x), cell[1] - Math.round(lord.y), cell[2] - Math.round(lord.x), cell[3] - Math.round(lord.y)]; }
     const puffs = g.fx.count(2);
-    check("fade2", `the scene clock runs on frames with no foe on screen: after 1.5 s of an empty vale the Pumpkin Lord's own spawn dissolves in with its mist puff, through a dither box scaled to its sprite (${JSON.stringify(box)} around its feet; playtest1c draws bosses at 1x, so it is fade1's 1x box [-16,-40,16,8], where the 2x boss's was [-32,-80,32,16]) (at 20 ms it is not drawn yet; ${ramp.map(([a, c]) => `${a}ms:${c ? "dither" : "solid"}`).join(" ")})`, !!lord && lord.spawnAt !== undefined && ramp.slice(1, 6).every(([, c]) => c) && !ramp[6][1] && !ramp[7][1] && puffs === 6 && JSON.stringify(box) === JSON.stringify([-16, -40, 16, 8]), JSON.stringify(ramp));
+    check("fade2", `the scene clock runs on frames with no foe on screen: after 1.5 s of an empty vale the Pumpkin Lord's own spawn dissolves in with its mist puff, through a dither box scaled to its sprite (${JSON.stringify(box)} around its feet; playtest1p draws bosses at 5x, so it is fade1's box at 5x, [-80,-200,80,40]; playtest1c's 1x box was [-16,-40,16,8], the 2x boss's [-32,-80,32,16]) (at 20 ms it is not drawn yet; ${ramp.map(([a, c]) => `${a}ms:${c ? "dither" : "solid"}`).join(" ")})`, !!lord && lord.spawnAt !== undefined && ramp.slice(1, 6).every(([, c]) => c) && !ramp[6][1] && !ramp[7][1] && puffs === 6 && JSON.stringify(box) === JSON.stringify([-80, -200, 80, 40]), JSON.stringify(ramp));
   }
   // playtest1c: bosses now draw at 1x, so the vale run above only ever sees k = 1; the box's k scale (kept for any
   // future 2x foe) is checked straight on dissolve, mid-hide where its first rect is the whole box.
@@ -6649,7 +6661,7 @@ if (on("fade2")) {
     const old = JSON.parse(fixture)[0];
     // playtest1e: the save gains worldV, and the old vale position is migrated onto the twice-size vale (state re-pinned).
     const sameKeys = JSON.stringify(Object.keys(again).filter((k) => k !== "worldV").sort()) === JSON.stringify(Object.keys(old).sort()) && again.worldV === 2;
-    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game loads every time (state after 5 s matches the pin byte for byte, tag aside; playtest1e moved the hero onto the bigger vale; playtest1f re-pinned with the wayrifts, was f0233b75…), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "6dbb6b987f4ce4a16f3177754922495a" && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
+    check("fade2", "an old (fade1) save on a Harvest Moon night loads cleanly: no error, the same game loads every time (state after 5 s matches the pin byte for byte, tag aside; playtest1e moved the hero onto the bigger vale; playtest1f re-pinned with the wayrifts, was f0233b75…; playtest1p with the lairs' clearings, was 6dbb6b98…), the Pumpkin Lord spawned on load draws solid on every frame, and saving again writes the same fields (no spawnAt)", !threw && md5s(st) === "6c99ac6ae9b59601cb216e800a15db6b" /* playtest1p: the Lord stands where his 5x body has room; was 6dbb6b98 */ && g.festivalId() === "harvest" && g.roamers.some((r) => r.festival === "harvest" && r.spawnAt !== undefined) && clips.every((n) => n === 0) && solid && sameKeys && !/spawnAt/.test(localStorage.getItem("gravewake-saves-v1")), `${threw} ${md5s(st)} ${clips.join("")} ${sameKeys}`);
   }
 }
 
@@ -7325,7 +7337,7 @@ if (on("playtest1b")) {
     const world = md5b(g.tiles); // playtest1e: the owner-approved twice-size vale (it was f513d4b0 on 64x60)
     g.enterCamp();
     const camp = md5b(g.tiles);
-    check("playtest1b", "placement is untouched: the town and the camp grids hash exactly as on playtest1's sim, and the vale as on playtest1f's grid (playtest1e's twice-size grid with the wayrifts' clearings; every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "0117539b673bd63ee9073c90c3a15625" && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
+    check("playtest1b", "placement is untouched: the town and the camp grids hash exactly as on playtest1's sim, and the vale as on playtest1p's grid (playtest1e's twice-size grid with the wayrifts' and, since playtest1p, the lairs' clearings; every fence, sign, label, decor piece and furnishing is drawn over them, never written into them)", town === "97eba70494609f82f52aba7ef9520392" && world === "24ada992f1f1cb9bbffedd75c0706be3" /* playtest1p: the lairs' clearings; was 0117539b673bd63ee9073c90c3a15625 */ && camp === "473ec695434a42b84ca15da06822ea7c", `${town} ${world} ${camp}`);
   }
 
   // 9. The notes.
@@ -7964,6 +7976,7 @@ if (on("playtest1f")) {
     const okTiles = R.every((r) => [...fp(r), [r.x + 1, r.y + 2]].every(([x, y]) => ground.has(tiles[y * w + x])));
     const inside = R.every((r) => r.x >= 2 && r.y >= 4 && r.x + 3 <= w - 2 && r.y + 3 <= h - 2);
     const apart = R.every((a, i) => R.every((b, j) => i === j || a.x + 3 + 1 <= b.x || b.x + 3 + 1 <= a.x || a.y + 3 <= b.y - 2 || b.y + 3 <= a.y - 2));
+    const simSrc1p = readFileSync("src/game/sim.ts", "utf8"); // playtest1p
     check("playtest1f", "every footprint (3x2 tiles; the art 48x64, 3x4 tiles) sits inside the vale's edge band on open biome ground, front included, and no two rifts' art overlap", okTiles && inside && apart);
     const solidOk = R.every((r) => fp(r).every(([x, y]) => g.solidAt(x * TILE + 8, y * TILE + 8, true) === !(x === r.x + 1 && y === r.y + 1)) && !g.solidAt((r.x + 1) * TILE + 8, (r.y + 2) * TILE + 8, true));
     const old = new P.Game(); old.start("warrior", "str", "Q"); old.enterWorld(64 * TILE + 8, 93 * TILE + 8);
@@ -7973,8 +7986,11 @@ if (on("playtest1f")) {
     for (let i = 0; i < tiles.length; i++) if (tiles[i] !== old.tiles[i]) diff.push(i);
     const inClear = (i) => { const x = i % w, y = (i / w) | 0; return R.some((r) => x >= r.x - 1 && x <= r.x + 3 && y >= r.y - 2 && y <= r.y + 2); };
     const props = new Set([TT.tree, TT.rock, TT.pump]);
-    const cleared = diff.every((i) => inClear(i) && props.has(old.tiles[i]) && ground.has(tiles[i]));
-    check("playtest1f", `the grid is playtest1e's but for the rifts' clearings: ${diff.length} tiles change, each a tree, rock or pump in a rift's footprint, front or art rows, now its biome's ground; no road, trail, door, stair or cache moved`, diff.length > 0 && diff.length <= 40 && cleared && W.stampWayrifts.length === 6, `${diff.length} changed`);
+    const LAIRS1P = [...[...simSrc1p.slice(simSrc1p.indexOf("const WORLD_BOSSES = ["), simSrc1p.indexOf("];", simSrc1p.indexOf("const WORLD_BOSSES = ["))).matchAll(/tx: (\d+), ty: (\d+)/g)].map((m) => [Number(m[1]), Number(m[2])]), [WS * 26, WS * 52], [WS * 12, WS * 11]];
+    const inLair = (i) => { const x = i % w, y = (i / w) | 0; return LAIRS1P.some(([lx, ly]) => ((x - lx) / 6.5) ** 2 + ((y - ly) / 5.5) ** 2 <= 1); }; // playtest1p: the lairs' clearings (group playtest1p pins them)
+    const lairDiff = diff.filter((i) => !inClear(i) && inLair(i)), riftDiff = diff.filter((i) => !lairDiff.includes(i));
+    const cleared = riftDiff.every((i) => inClear(i) && props.has(old.tiles[i]) && ground.has(tiles[i])) && lairDiff.every((i) => ground.has(tiles[i]));
+    check("playtest1f", `the grid is playtest1e's but for the rifts' clearings: ${riftDiff.length} tiles change, each a tree, rock or pump in a rift's footprint, front or art rows, now its biome's ground; no road, trail, door, stair or cache moved (playtest1p: and ${lairDiff.length} in the lairs' clearings, now ground)`, riftDiff.length > 0 && riftDiff.length <= 40 && cleared && W.stampWayrifts.length === 6, `${diff.length} changed`);
     const prop = new Set([TT.tree, TT.rock, TT.pump, TT.grave]);
     const pass = (x, y) => !g.solidAt(x * TILE + 8, y * TILE + 8, true) && !prop.has(tiles[y * w + x]);
     const seen = new Uint8Array(w * h);
@@ -8503,7 +8519,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8812,7 +8828,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9098,7 +9114,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9124,7 +9140,8 @@ if (on("playtest1j")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const dir = mkd(join(tmpdir(), "gravewake-"));
   const root = process.cwd();
-  writeFileSync(join(dir, "pt1j.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport * as FL from "${root}/src/game/fightlights.ts";\nexport { NEON_LIGHT } from "${root}/src/game/looks.ts";\nexport { LIGHT } from "${root}/src/game/light.ts";\n`);
+  for (const [m, f] of [["sim", "sim.ts"], ["draw", "draw.ts"], ["fightlights", "fightlights.ts"], ["facing", "facing.ts"]]) writeFileSync(join(dir, `${m}1o.ts`), readFileSync(`scripts/frozen/playtest1p/${f}.txt`, "utf8").replace(/from "\.\/(sim|draw|fightlights|facing)"/g, 'from "./$11o.ts"').replace(/from "\.\/(?!(?:sim|draw|fightlights|facing)1o\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`)); // playtest1p: the fight as playtest1o left it (the 5x boss, its foot and its wider rings are group playtest1p's)
+  writeFileSync(join(dir, "pt1j.ts"), `export * from "${dir}/sim1o.ts";\nexport * from "${dir}/draw1o.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport * as FL from "${dir}/fightlights1o.ts";\nexport { NEON_LIGHT } from "${root}/src/game/looks.ts";\nexport { LIGHT } from "${root}/src/game/light.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1j.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1j.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   writeFileSync(join(dir, "sim1i.ts"), readFileSync("scripts/frozen/playtest1j/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
   execFileSync("npx", ["esbuild", join(dir, "sim1i.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1i.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -9273,7 +9290,7 @@ if (on("playtest1j")) {
     const shade = watch("shade", 0.4, 30).filter((c) => c.s === "big");
     const ok1 = one.length >= 3 && one.every((c) => c.p === "" && c.onHero) && gaps(one, 8).every((d) => d === 1);
     const ok2 = bigs2.length >= 4 && bigs2.every((c, i) => c.p === (i % 2 ? "echo" : "nova")) && bigs2.filter((c) => c.p === "nova").every((c) => c.onBoss && c.r === 52 && near(c.max, 0.9)) && bigs2.filter((c) => c.p === "echo").every((c) => c.onHero && near(c.max, 0.8)) && gaps(bigs2, 6).every((d) => d === 1) && echoes.length === bigs2.filter((c) => c.p === "echo").length && echoes.every((c) => c.s === "mid" && c.onHero && c.r === 40 && near(c.max, 0.74));
-    check("playtest1j", "patterns: phase one's big always aims at the hero, one in each 8 s cycle; phase two's comes in each 6 s cycle (never skipping one) and alternates the nova (a 52 px ring round the boss itself, 0.9 s: get away from it) and an aimed 0.8 s mark followed by its echo (a 0.74 s ring where the hero stands next); a summon big (Shade) keeps its one form", ok1 && ok2 && shade.length >= 3 && shade.every((c) => c.p === "") && TG.bigPattern(2, 0, "summon") === "aim" && TG.bigPattern(2, 0, "shield") === "aim" && TG.bigPattern(2, 0, "blink") === "aim" && TG.bigPattern(1, 1, "ring") === "aim", JSON.stringify({ one: gaps(one, 8), two: bigs2.map((c) => c.p + "@" + c.at), echoes: echoes.length, shade: shade.map((c) => c.p) }));
+    check("playtest1j", "patterns (playtest1p: on the game as playtest1o left it): phase one's big always aims at the hero, one in each 8 s cycle; phase two's comes in each 6 s cycle (never skipping one) and alternates the nova (a 52 px ring round the boss itself, 0.9 s: get away from it) and an aimed 0.8 s mark followed by its echo (a 0.74 s ring where the hero stands next); a summon big (Shade) keeps its one form", ok1 && ok2 && shade.length >= 3 && shade.every((c) => c.p === "") && TG.bigPattern(2, 0, "summon") === "aim" && TG.bigPattern(2, 0, "shield") === "aim" && TG.bigPattern(2, 0, "blink") === "aim" && TG.bigPattern(1, 1, "ring") === "aim", JSON.stringify({ one: gaps(one, 8), two: bigs2.map((c) => c.p + "@" + c.at), echoes: echoes.length, shade: shade.map((c) => c.p) }));
   }
 
   // 6. The nova hits beside the boss and misses away from it; Smite still breaks a big (the nova too) but not an echo.
@@ -9307,7 +9324,7 @@ if (on("playtest1j")) {
     };
     const sN = smite("nova");
     const sE = smite("echoed");
-    check("playtest1j", "the nova lands on a hero 20 px from the boss and misses one 60 px out; Smite still breaks a big tell (a nova too) and cannot break an echo (it is a mid mark)", nearN.pat === "nova" && nearN.landed && farN.pat === "nova" && !farN.landed && sN.before.casting === "big" && sN.after === "" && sE.before.pattern === "echoed" && sE.after === "mid", JSON.stringify({ nearN, farN, sN, sE }));
+    check("playtest1j", "(playtest1p: on the game as playtest1o left it) the nova lands on a hero 20 px from the boss and misses one 60 px out; Smite still breaks a big tell (a nova too) and cannot break an echo (it is a mid mark)", nearN.pat === "nova" && nearN.landed && farN.pat === "nova" && !farN.landed && sN.before.casting === "big" && sN.after === "" && sE.before.pattern === "echoed" && sE.after === "mid", JSON.stringify({ nearN, farN, sN, sE }));
   }
 
   // 7. Elsewhere unchanged: a fixed-seed trash and rare fight plays the same on the frozen playtest1i sim and the live one.
@@ -9380,7 +9397,7 @@ if (on("playtest1j")) {
     const drawSrc = readFileSync("src/game/draw.ts", "utf8");
     const main = drawSrc.indexOf("paintTells(ctx, tellView(g), false, TILE, LINE_HALF);");
     const okDraw = !!bigMark && bigMark.c.ctx.fillStyle === "#ff3a4f" && Math.round(bigMark.dx) === Math.round(big.b.markX) - 40 && ring.length >= 1 && ring.every((d) => d.c.ctx.fillStyle === "#ff3a4f") && !!hotMark && hotMark.c !== bigMark.c && mid.m.some((d) => d.c.width === 81 && d.c.ctx.fillStyle === "#b07aff") && !!laneEnd && lane.dots > 20 && big.dots === 0 && reused && again === before && before <= FL.FIGHT.cacheMax && main > 0 && main < drawSrc.indexOf("props.sort((a, b) => a.y - b.y);\n  for (const d of props) d.fn();", main) && /paintLightless\([^;]*\);[\s\S]{0,600}paintTells\(ctx, tellView\(g\), false, TILE, LINE_HALF, true\)/.test(drawSrc) && !/paintMark\(ctx,/.test(drawSrc.replace(/export function paintMark[\s\S]*?\n}\n/, ""));
-    check("playtest1j", "marks: a big is a red #ff3a4f ellipse sprite on its spot (violet #b07aff for a mid, a dotted lane for a line), filling in 8 steps and doubling its rim when hot, with a wind-up ring at the foe's feet; drawn under the props and actors, rims only over the Lightless dark; a repeat frame blits the same baked sprites (cache bounded)", okDraw, JSON.stringify({ big: bigMark && size(bigMark), ring: ring.map(size), hot: !!hotMark, mid: mid.m.map(size), lane: lane.m.map(size), dots: [lane.dots, big.dots], reused, before, again, main }));
+    check("playtest1j", "marks (playtest1p: through the draw as playtest1o left it): a big is a red #ff3a4f ellipse sprite on its spot (violet #b07aff for a mid, a dotted lane for a line), filling in 8 steps and doubling its rim when hot, with a wind-up ring at the foe's feet; drawn under the props and actors, rims only over the Lightless dark; a repeat frame blits the same baked sprites (cache bounded)", okDraw, JSON.stringify({ big: bigMark && size(bigMark), ring: ring.map(size), hot: !!hotMark, mid: mid.m.map(size), lane: lane.m.map(size), dots: [lane.dots, big.dots], reused, before, again, main }));
   }
 
   // 10. Fight lights: pooled, budgeted, neon by element and slot, at the mark, the foe and each spell's head.
@@ -9412,7 +9429,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9442,7 +9459,9 @@ if (on("playtest1k")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const dir = mkd(join(tmpdir(), "gravewake-"));
   const root = process.cwd();
-  writeFileSync(join(dir, "pt1k.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as CB from "${root}/src/game/combos.ts";\nexport * as CM from "${root}/src/game/commands.ts";\nexport { HERO_SPELLS, KITS, T } from "${root}/src/game/content.ts";\n`);
+  for (const [m, f] of [["sim", "sim.ts"], ["draw", "draw.ts"], ["fightlights", "fightlights.ts"], ["facing", "facing.ts"]]) writeFileSync(join(dir, `${m}1o.ts`), readFileSync(`scripts/frozen/playtest1p/${f}.txt`, "utf8").replace(/from "\.\/(sim|draw|fightlights|facing)"/g, 'from "./$11o.ts"').replace(/from "\.\/(?!(?:sim|draw|fightlights|facing)1o\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`)); // playtest1p: the fight as playtest1o left it (the 5x boss, its foot and its wider rings are group playtest1p's)
+  const LIVE1K = process.env.GW_PT1K_LIVE === "1"; // playtest1p: group playtest1p runs this group a second time on the live game
+  writeFileSync(join(dir, "pt1k.ts"), (LIVE1K ? `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\n` : `export * from "${dir}/sim1o.ts";\nexport * from "${dir}/draw1o.ts";\n`) + `export * as CB from "${root}/src/game/combos.ts";\nexport * as CM from "${root}/src/game/commands.ts";\nexport { HERO_SPELLS, KITS, T } from "${root}/src/game/content.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1k.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1k.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   writeFileSync(join(dir, "sim1j.ts"), readFileSync("scripts/frozen/playtest1k/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
   execFileSync("npx", ["esbuild", join(dir, "sim1j.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1j.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -9518,6 +9537,7 @@ if (on("playtest1k")) {
     }
     // SHATTER: a foe standing on ice (chilled) then Earthshatter (lightning).
     {
+      const rnd = Math.random; seed(1017); // playtest1p: the crit roll seeded (it flaked unseeded), restored below
       const g = mk(X, "warrior");
       const a = foe(g, 20);
       a.st = { chill: CB.STATUS.linger };
@@ -9525,11 +9545,13 @@ if (on("playtest1k")) {
       cast(g, "Earthshatter");
       const plain = (() => { const h = mk(X, "warrior"); h.specials = [...ALL]; const c = foe(h, 20); cast(h, "Earthshatter"); return 400 - c.hp; })();
       res.shatter = { took: ha - a.hp, plain, pop: g.pops.map((p) => p.text).join(), ring: g.spells.some((s) => s.kind === "ring" && s.color === CB.COMBO_COLOR.shatter), spent: a.st.chill === 0 };
+      Math.random = rnd;
       res.shatterOk = res.shatter.took === res.shatter.plain + Math.max(1, Math.round(res.shatter.plain * 0.6)) && /SHATTER/.test(res.shatter.pop) && res.shatter.ring && res.shatter.spent;
     }
     // CHAIN: Grave Nova (lightning, 72 px round you) on one wet foe arcs to the two nearest of three wet foes past its reach
     //        (within 56 px of the first), never the third.
     {
+      const rnd = Math.random; seed(1019); // playtest1p: the crit roll seeded, restored below
       const g = mk(X, "wizard"); g.specials = [...ALL];
       const a = foe(g, 30);
       const others = [foe(g, 85, 0), foe(g, 75, 30), foe(g, 78, -25)];
@@ -9541,6 +9563,7 @@ if (on("playtest1k")) {
       const plain = 400 - a.hp;
       res.chain = { hit, plain, each: others.map((o, i) => hb[i] - o.hp), pop: g.pops.map((p) => p.text).join(), arcs: g.spells.filter((s) => s.kind === "bolt" && s.color === CB.COMBO_COLOR.chain).length };
       res.chain.log = g.logLine;
+      Math.random = rnd;
       res.chainOk = /CHAIN/.test(res.chain.pop) && /^Grave Nova\. CHAIN!$/.test(g.logLine) && hit === 2 && res.chain.arcs === 2 && res.chain.each.filter((d) => d > 0).every((d) => d === Math.max(1, Math.round(plain * 0.4)));
     }
     check("playtest1k", "in the field each reaction lands from a real spell: Envenom then Tripwire is a VENOM BLAST (+50% on the target, 30% splash in 32 px, a red nova, the poison spent), Tripwire on a lantern a WILDFIRE, Earthshatter on a chilled foe a SHATTER (+60%, a blue ring, the chill spent), lightning on a wet foe a CHAIN of gold arcs to at most 2 others; each with its name pop and log (an area spell's log names its combos)", res.blastOk && res.wildOk && res.shatterOk && res.chainOk, JSON.stringify(res));
@@ -9625,7 +9648,8 @@ if (on("playtest1k")) {
     };
     const a = play(Z, still); const b = play(X, still);
     const c = play(Z, wetMs); const d = play(X, wetMs);
-    check("playtest1k", "nothing else moves: with no spell and no order, a fixed-seed field fight (trash, a rare, a healer companion) plays frame for frame the same on the frozen playtest1j sim and the live one, dry and in the rain", a === b && c === d && a.length > 1000, `${a.length} ${b.length} ${c.length} ${d.length}`);
+    if (LIVE1K) check("playtest1k", "(live pass, playtest1p) these checks fight on the live sim and draw (the game with the 5x bosses' camera focus), not the frozen playtest1o one; the frame-for-frame match with the playtest1j sim is the frozen pass's (a rare is 2x on the live game)", "camFocus" in X.Game.prototype);
+    else check("playtest1k", "nothing else moves: with no spell and no order, a fixed-seed field fight (trash, a rare, a healer companion) plays frame for frame the same on the frozen playtest1j sim and the live one, dry and in the rain", a === b && c === d && a.length > 1000, `${a.length} ${b.length} ${c.length} ${d.length}`);
   }
 
   // 7. Taunt: foes near the companion turn on it for 4 s (6 with a taunting art, a boss half), swing at it and mark it; the
@@ -9851,7 +9875,7 @@ if (on("playtest1k")) {
   // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -10124,7 +10148,7 @@ if (on("playtest1l")) {
   //     the frozen playtest1k shell, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1l", "looks only: every other source file (sim, draw, screen settings, saves, HUD, the service worker and manifest in public/), the map writer and sprite writer are playtest1k's byte for byte (beside the two new modules, postfx.ts and FxOptions.tsx)", rest === "48a91245db9da25edb2663ccf0101ac7", rest);
     const sim = readFileSync("src/game/sim.ts", "utf8") + readFileSync("src/game/draw.ts", "utf8") + readFileSync("src/game/screen.ts", "utf8");
     check("playtest1l", "the build, base path and offline cache are untouched (vite.config.ts, package.json and vercel.json as playtest1k shipped them), and nothing in the sim, the draw or the screen settings reads the layer", md5f("vite.config.ts") === "7e3cef5ab1d7501c86890c4608e3ff28" && md5f("package.json") === "681fd1e5f320944b44e762cb01eb0c02" && md5f("vercel.json") === "c4ec4b6c370869f73641d08a0655721a" && !/postfx|FxOptions/.test(sim), "");
@@ -10185,7 +10209,7 @@ if (on("playtest1m")) {
     const csOk = fz("client.server.ts").replace('    } catch {}\n  }\n  return createHash("sha256")', '    } catch {\n      // An unreadable token falls through to the plain token hash below.\n    }\n  }\n  return createHash("sha256")') === readFileSync("src/lib/app-data/client.server.ts", "utf8");
     const cuOk = fz("use-current-user.ts").replace("  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime\n", "  // authEnabled is constant for the app's lifetime, so this hook call keeps a stable order.\n") === readFileSync("src/lib/auth/use-current-user.ts", "utf8");
     check("playtest1m", "no gameplay change: sim.ts, the shell, client.server.ts and use-current-user.ts are their frozen playtest1l copies (scripts/frozen/playtest1m/, as pushed at 121dbc1) plus only the lint edit", simOk && uiOk && csOk && cuOk && md5f("scripts/frozen/playtest1m/sim.ts.txt") === "d52ddac1d0e38c429c2d0fcbff81f62c" && md5f("scripts/frozen/playtest1m/Gravewake.tsx.txt") === "8ab3379a9a8868799ddfeaaac3c29dbf" && md5f("scripts/frozen/playtest1m/client.server.ts.txt") === "345eb9b87cabf2a6afd322dbd7b6feb4" && md5f("scripts/frozen/playtest1m/use-current-user.ts.txt") === "740f77dcf0c45b8919dd6304bdc6291e", `${simOk} ${uiOk} ${csOk} ${cuOk}`);
-    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1oNew(f) && !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
+    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
     check("playtest1m", "every other source file, public file (counting the removed art at its playtest1l md5s), map writer and sprite writer file is playtest1l's byte for byte", rest === "fe4ef0a4eefd74370570ff89e43c4614", rest);
     const me = readFileSync("scripts/gravewake-check.mjs", "utf8");
     check("playtest1m", "the older groups read playtest1l's files: pt1kView falls through to pt1lView, group playtest1l's shell text, tags and live pin read pt1lView, and all six older rest digests walk and hash through pt1mWalk and pt1mMd5", me.includes(": pt1lView(f); }") && (me.match(/\.flatMap\(\(d\) => pt1mWalk\(walk, d\)\)/g) ?? []).length === 7 && (me.match(/\$\{pt1mMd5\(md5f, f, pt1[g-l]View\)\}/g) ?? []).length === 6 && /md5f\(pt1lView\(f\)\) !== hh/.test(me) && me.includes('readFileSync(pt1lView("src/game/Gravewake.tsx"), "utf8"); // playtest1m'));
@@ -10590,7 +10614,7 @@ if (on("playtest1n")) {
     const added = live.split("\n").filter((l) => !fd.split("\n").includes(l));
     const back = live.split("\n").filter((l) => !/\/\/ playtest1n/.test(l) || /^import \{ fightLights/.test(l)).join("\n") === fd;
     check("playtest1n", "only the fight moved: the frozen references (scripts/frozen/playtest1n/) are playtest1m's sim and draw byte for byte (as pushed at e47342c); the live draw is that plus exactly four tagged lines (the import, roomLights, roomScene, roomRims); every older view, rest digest and live pin reads the frozen copies (pt1mView under pt1lView, pt1nNew out of all seven rest digests)", md5f("scripts/frozen/playtest1n/sim.ts.txt") === "96ff3576076a7f9fa15d8d4567df5cf7" && md5f("scripts/frozen/playtest1n/draw.ts.txt") === "d118165d8af0411153f865b9cc3bfb6e" && added.length === 4 && added.every((l) => /\/\/ playtest1n/.test(l)) && back && cs.includes(': pt1mView(f); }') && pt1mView("src/game/sim.ts") === "scripts/frozen/playtest1n/sim.ts.txt" && pt1mView("src/game/draw.ts") === "scripts/frozen/playtest1n/draw.ts.txt" && pt1mView("src/game/room.ts") === "src/game/room.ts" && (cs.match(/!pt1nNew\(f\) && /g) ?? []).length >= 7 && cs.includes('"src/game/room.ts", "src/game/roomdraw.ts"]); // playtest1c adds'), `${added.length} ${back}`);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !pt1oNew(f) && !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1nView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1nView)}`).join("\n")).digest("hex");
     check("playtest1n", "every other source file, public file, map writer and sprite writer file is playtest1m's byte for byte (beside the two new modules, room.ts and roomdraw.ts, and the four room sheets)", rest === "08a6f0edf537ad995c93f06f31f7bf92", rest);
   }
 
@@ -10686,9 +10710,9 @@ if (on("playtest1o")) {
   {
     const D8 = [["N", 0, -1], ["NE", 1, -1], ["E", 1, 0], ["SE", 1, 1], ["S", 0, 1], ["SW", -1, 1], ["W", -1, 0], ["NW", -1, -1]];
     const got = D8.map(([, dx, dy]) => F.axisFace(dx, dy)).join("");
-    const views = [0, 1, 2, 3].map((f) => F.viewOf(f)).map((v) => `${v.dirs ? "d" : "f"}${v.row}${v.flip ? "m" : ""}`).join(" ");
+    const views = [0, 1, 2, 3].map((f) => F.viewOf(f)).map((v) => `${v.dirs ? "d" : "f"}${v.row}${v.flip ? "m" : ""}`).join(" "); // playtest1p: west is its own row 4 (was d2m)
     const hold = F.axisFace(1, 1.1, 1) === 1 && F.axisFace(1.1, 1, 0) === 0 && F.axisFace(1, 1.2, 1) === 0;
-    check("playtest1o", `the facing rules: a step faces its stronger axis (N NE E SE S SW W NW -> ${got}: 0 front, 1 side right, 2 back, 3 side mirrored), within 1.15x of a diagonal the old face holds, an exact diagonal goes up or down; the back is the -dirs sheet's row 0, the side its row 2 (mirrored for west), the front the strip itself`, got === "22100032" && views === "f0 d2 d0 d2m" && hold && F.FACE.hold === 1.15 && F.FACE.jump === 24 && F.FACE.near === 40, `${got} | ${views} | ${hold}`);
+    check("playtest1o", `the facing rules: a step faces its stronger axis (N NE E SE S SW W NW -> ${got}: 0 front, 1 side right, 2 back, 3 side mirrored), within 1.15x of a diagonal the old face holds, an exact diagonal goes up or down; the back is the -dirs sheet's row 0, the side its row 2 (playtest1p: west its own row 4, drawn, not mirrored), the front the strip itself`, got === "22100032" && views === "f0 d2 d0 d4" && hold && F.FACE.hold === 1.15 && F.FACE.jump === 24 && F.FACE.near === 40, `${got} | ${views} | ${hold}`);
   }
 
   // 2. A body's face follows its own steps: it turns as it walks, keeps its face standing, ignores a teleport (a door or
@@ -10727,7 +10751,7 @@ if (on("playtest1o")) {
       for (const [d, dx, dy] of D8) {
         n++;
         const c = cellOf(b, dx, dy, 3, true)[0];
-        const want = side ? { u: base(front.u), sy: front.sy, flip: dx < 0 } : d === "E" ? { u: base(F.DIRS[front.u]), sy: 32, flip: false } : d === "W" ? { u: base(F.DIRS[front.u]), sy: 32, flip: true } : dy < 0 ? { u: base(F.DIRS[front.u]), sy: 0, flip: false } : { u: base(front.u), sy: front.sy, flip: false };
+        const want = side ? { u: base(front.u), sy: front.sy, flip: dx < 0 } : d === "E" ? { u: base(F.DIRS[front.u]), sy: 32, flip: false } : d === "W" ? { u: base(F.DIRS[front.u]), sy: 64, flip: false } : dy < 0 ? { u: base(F.DIRS[front.u]), sy: 0, flip: false } : { u: base(front.u), sy: front.sy, flip: false };
         if (!c || base(c.u) !== want.u || c.sy !== want.sy || c.flip !== want.flip) bad.push(`${name} ${d} ${c ? `${base(c.u)}:${c.sy}${c.flip ? ":m" : ""}` : "none"}`);
         const cols = new Set([0, 1, 2, 3, 4, 5, 6, 7].map((fr) => cellOf(b, dx, dy, fr, true)[0]?.sx));
         if (cols.size > 1) frames++;
@@ -10735,7 +10759,7 @@ if (on("playtest1o")) {
       }
     }
     const climb = cellOf({ kind: "person", look: "warrior", cast: "hero", pose: "climb" }, 0, 1, 0, true)[0];
-    check("playtest1o", `every body in 8 directions through the game's draw (${bodies.length} bodies: 8 heroes, 16 townsfolk, 11 companions, the swimmer, 20 foe families and a boss; ${n} views): up shows the back (the -dirs row 0), sideways the side (row 2, mirrored west), down the face; horse, cat and rat only mirror; a climb is the back (${bad.length} wrong)`, bad.length === 0 && climb && base(climb.u) === "moves-dirs.png" && climb.sy === 0, bad.slice(0, 6).join(", "));
+    check("playtest1o", `every body in 8 directions through the game's draw (${bodies.length} bodies: 8 heroes, 16 townsfolk, 11 companions, the swimmer, 20 foe families and a boss; ${n} views): up shows the back (the -dirs row 0), sideways the side (row 2; playtest1p: west its own row 4, not mirrored), down the face; horse, cat and rat only mirror; a climb is the back (${bad.length} wrong)`, bad.length === 0 && climb && base(climb.u) === "moves-dirs.png" && climb.sy === 0, bad.slice(0, 6).join(", "));
     check("playtest1o", `no moonwalk and no float: walking, every body's cell steps through its walk frames in every view (${frames}/${n} views animate; the ghost-like hoverers excepted as drawn), and each view stands on the same foot line as the front (${floats} off)`, frames >= n - 8 * 4 && floats === 0, `${frames} ${floats}`);
   }
 
@@ -10748,7 +10772,7 @@ if (on("playtest1o")) {
     g.npcs = [n]; g.px = n.x + 200; g.py = n.y + 200;
     const step = (dx, dy, k = 4) => { for (let i = 0; i < k; i++) { n.x += dx; n.y += dy; n.moving = true; g.frame++; draws = []; X.drawWorld(mock(), g, 960, 640, 3); } return draws.filter((d) => base(d.u).startsWith("folk-variants")); };
     const east = step(1, 0), north = step(0, -1), west = step(-1, 0);
-    const kind = (ds) => ds.map((d) => `${base(d.u).includes("-dirs") ? (d.sy === 32 ? "side" : "back") : "front"}${d.flip ? "m" : ""}`).join(",");
+    const kind = (ds) => ds.map((d) => `${base(d.u).includes("-dirs") ? (d.sy === 32 || d.sy === 64 ? "side" : "back") : "front"}${d.flip ? "m" : ""}`).join(",");
     const c = mk(); c.enterTown(); c.npcs = []; c.roamers = []; c.critters = [{ x: c.px + 30, y: c.py, kind: "rat", vx: 18 }];
     const ratCols = new Set(); for (let i = 0; i < 8; i++) { c.critters[0].x += 1.5; c.frame++; draws = []; X.drawWorld(mock(), c, 960, 640, 3); for (const d of draws) if (base(d.u) === "foes.png" && d.sw <= 16) ratCols.add(d.sx); }
     const standCols = new Set(); { const s0 = mk(); s0.enterTown(); s0.npcs = []; s0.roamers = []; s0.critters = [{ x: s0.px + 30, y: s0.py, kind: "rat", vx: 0 }]; for (let i = 0; i < 8; i++) { s0.frame++; draws = []; X.drawWorld(mock(), s0, 960, 640, 3); for (const d of draws) if (base(d.u) === "foes.png" && d.sw <= 16) standCols.add(d.sx); } }
@@ -10756,7 +10780,7 @@ if (on("playtest1o")) {
     const k0 = mk(); k0.enterTown(); k0.npcs = []; k0.roamers = []; k0.critters = [{ x: k0.px + 40, y: k0.py, kind: "cat", vx: -18 }];
     const catCells = []; for (let i = 0; i < 6; i++) { k0.critters[0].x -= 1.5; k0.critters[0].y -= 0.4; k0.frame++; draws = []; X.drawWorld(mock(), k0, 960, 640, 3); catCells.push(...draws.filter((d) => /^foes(-dirs)?\.png$/.test(base(d.u)) && d.sw <= 16).map((d) => `${base(d.u)}${d.flip ? ":m" : ""}`)); }
     check("playtest1o", `the critters run on their walk frames and face their run: a running rat shows ${walkOnly} cells a standing rat never does (stand ${standCols.size}, run ${ratCols.size}); a cat running west (a little uphill) is its own profile strip, mirrored once it runs, never a back or side sheet (${[...new Set(catCells)].join() || "none"})`, walkOnly >= 1 && catCells.length > 0 && catCells.every((x) => x.startsWith("foes.png")) && catCells[catCells.length - 1] === "foes.png:m", `${[...standCols]} | ${[...ratCols]} | ${[...new Set(catCells)]}`);
-    check("playtest1o", `in the town a townsperson (${n.id}) walking east is drawn from its side (${kind(east)}), north from its back (${kind(north)}), west from its side mirrored (${kind(west)}); a rat running across steps through its walk frames (${ratCols.size} cells), not sliding in its stand pose`, kind(east) === "side" && kind(north) === "back" && kind(west) === "sidem" && ratCols.size >= 2, `${kind(east)} | ${kind(north)} | ${kind(west)} | ${ratCols.size}`);
+    check("playtest1o", `in the town a townsperson (${n.id}) walking east is drawn from its side (${kind(east)}), north from its back (${kind(north)}), west from its own west side (${kind(west)}; playtest1p: drawn, not mirrored); a rat running across steps through its walk frames (${ratCols.size} cells), not sliding in its stand pose`, kind(east) === "side" && kind(north) === "back" && kind(west) === "side" && ratCols.size >= 2, `${kind(east)} | ${kind(north)} | ${kind(west)} | ${ratCols.size}`);
   }
 
   // 5. The back and side sheets: one per body strip, as wide as it, 64 tall (back 0-31, side 32-63), hard pixels; the
@@ -10764,7 +10788,7 @@ if (on("playtest1o")) {
   //    every one byte for byte from the shipped strips, and its front output is unchanged.
   {
     const bad = [];
-    for (const [s, d] of Object.entries(F.DIRS)) { const a = readPng(`public${s}`), b = readPng(`public${d}`); if (a.pw !== b.pw || b.ph !== 64 || b.soft) bad.push(base(d)); }
+    for (const [s, d] of Object.entries(F.DIRS)) { const a = readPng(`public${s}`), b = readPng(`public${d}`); if (a.pw !== b.pw || b.ph !== 96 || b.soft) bad.push(base(d)); /* playtest1p: back 0-31, east 32-63, west 64-95 */ }
     const EM = ["#f4e27a", "#fff8e0", "#e0a040"];
     for (const [s, e] of Object.entries(F.DIRS_EM)) {
       const a = readPng(`public${s}`), b = readPng(`public${e}`); let kept = 0, wrong = 0, miss = 0;
@@ -10776,7 +10800,7 @@ if (on("playtest1o")) {
     let made = "";
     try { made = execFileSync("python3", ["-c", `import sys; sys.path.insert(0, "tools/sprite-writer"); from pathlib import Path; import dirs_writer; print(" ".join(sorted(dirs_writer.main(Path("${tmp}")))))`], { encoding: "utf8" }).trim(); } catch (e) { made = `error ${String(e).slice(0, 80)}`; }
     const same = made.split(" ").filter((f) => f.endsWith(".png")).filter((f) => md5f(join(tmp, f)) === md5f(`public/art/sprites/${f}`)).length;
-    check("playtest1o", `the back and side sheets: ${Object.keys(F.DIRS).length} -dirs sheets, each as wide as its strip and 64 tall, hard pixels; the 3 foe sheets' glow masks hold only the flame and eye colours and every such pixel (EM_SHEETS still the gfx3 three); dirs_writer.py rebuilds all ${made.split(" ").length} byte for byte from the shipped strips`, bad.length === 0 && Object.keys(F.DIRS).length === 8 && Object.keys(F.DIRS_EM).length === 3 && Object.keys(X.EM_SHEETS).length === 3 && same === 11, `${bad.join(", ")} | ${made} | ${same}`);
+    check("playtest1o", `the back and side sheets: ${Object.keys(F.DIRS).length} -dirs sheets, each as wide as its strip and 96 tall (playtest1p: back, east, west; was 64), hard pixels; the 3 foe sheets' glow masks hold only the flame and eye colours and every such pixel (EM_SHEETS still the gfx3 three); dirs_writer.py rebuilds all ${made.split(" ").length} byte for byte from the shipped strips`, bad.length === 0 && Object.keys(F.DIRS).length === 8 && Object.keys(F.DIRS_EM).length === 3 && Object.keys(X.EM_SHEETS).length === 3 && same === 11, `${bad.join(", ")} | ${made} | ${same}`);
     check("playtest1o", "the draw reads them: sheetCell takes a strip's -dirs cell while the body's view is set (the front stands in while that sheet loads), and in the glow pass a back or side view draws its own mask or nothing; the -dirs sheets, their masks, the loot and the ore are preloaded", /if \(faceView && row === 0 && DIRS\[url\]\) \{/.test(draw) && /const mask = DIRS_EM\[DIRS\[url\]\];/.test(draw) && /for \(const url of \[\.\.\.DIRS_SHEETS, LOOT_SHEET, ORE_SHEET\]\)/.test(draw) && F.DIRS_SHEETS.length === 11);
     NOTREADY.add("/art/sprites/folk-variants-dirs.png");
     draws = []; X.bodyPreview(mock(), { kind: "person", look: "smith", cast: "npc", seed: "smith-1" }, 100, 100, 1, 0, 3, true);
@@ -10944,17 +10968,313 @@ if (on("playtest1o")) {
     check("playtest1o", "the frozen references (scripts/frozen/playtest1o/) are playtest1n's sim, draw, shell, the three writer files and the owner notes byte for byte (as pushed at 1ce6277), the new modules and writers carry the request tag and AGENTS.project.md its ## playtest1o; every older group, view, rest digest and live pin reads them (pt1nView under pt1mView; groups 1b and 1i bundle the 1n draw; group 1m reads the 1n shell)", JSON.stringify(fz) === '{"sim.ts":"e4ff28d93acc7a3214131ed475dd144d","draw.ts":"e8d23687274f3f98d0b5de67cdae2f85","Gravewake.tsx":"a15ddc44f9f389017aac4a40a763c73d","pixel-writer.make_gravewake.py":"d017892689e677d51042e864a16af8db","sprite-writer.make_gravewake.py":"f3a23a6eadb0b2cfa81906036b369dd6","sprite_writer.py":"8d050a094dd99da99d8dfe0e14ef8d9e","AGENTS.project.md":"dbc1895b92ceca139ecfcf3f3d6d750a"}' && ["src/game/facing.ts", "src/game/blocking.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py"].every((f) => readFileSync(f, "utf8").includes(TAG)) && readFileSync("AGENTS.project.md", "utf8").includes(`## playtest1o (sprite motion, collision, art consistency, signs) — ${TAG}`) && /function pt1nView\(f\) \{ return f in PT1O_FROZEN/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")), JSON.stringify(fz));
     const NEW = new Set(["src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py", "public/art/writer/loot.png", "public/art/writer/cave-ore.png", ...Object.values(F.DIRS).map((u) => `public${u}`), ...Object.values(F.DIRS_EM).map((u) => `public${u}`)]);
     const MOVED = new Set(["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx", "tools/pixel-writer/make_gravewake.py", "tools/sprite-writer/make_gravewake.py", "tools/sprite-writer/sprite_writer.py"]);
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !NEW.has(f) && !MOVED.has(f)).sort();
-    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !NEW.has(f) && !MOVED.has(f) && !pt1pNew(f)).sort();
+    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1oView(f))}`).join("\n")).digest("hex"); // playtest1p: the moved files as playtest1o left them
     check("playtest1o", "every other source file, public file and writer file is playtest1n's byte for byte (beside the three new modules, the two new writers, the 13 new sheets, and the six moved files)", rest === "24fac7811ac469fd6e30d377fc11ff1a", rest);
     const LIVE = {"src/game/sim.ts": "53818e62dee77f19b591806bd9a2f37d", "src/game/draw.ts": "9010f54b7aa9ab93eb8339d41c03dd8f", "src/game/Gravewake.tsx": "e5ed3f7d8ca72282b3c35a7041ce2261", "src/game/facing.ts": "6d072d081a82aefd540cb1d33f85857f", "src/game/blocking.ts": "431f7741f7746341edf57a802dd6efcf", "src/game/loot.ts": "d0ff098d5f8cd2da93888dba5257deef", "tools/sprite-writer/dirs_writer.py": "737b593acb669b8793b8159ccb16f34d", "tools/sprite-writer/sprite_writer.py": "6763fc75fc356d4e71d76fd8e592f8c9", "tools/sprite-writer/make_gravewake.py": "e446539538c1af315e3bb7f36df9c278", "tools/pixel-writer/loot_writer.py": "37b7a8ba09326e28c0c283da07ab6eb8", "tools/pixel-writer/make_gravewake.py": "d6108841b06aa28b42c88529aaedd46d", "public/art/writer/loot.png": "e5e3705996a079d08eb5ade1f461cacf", "public/art/writer/cave-ore.png": "59905e9d6cbf1d943793a16ab8a79343", "AGENTS.project.md": "c4c3c2a6bf949bf286b4155e51b02f9b", "public/art/sprites/allies-dirs.png": "b2c7eee97c2a3e33cd8f2f433b303e22", "public/art/sprites/foes-dirs.png": "a15b42924e8891306b84b7df9316acde", "public/art/sprites/foes-dirs_em.png": "ed1c1c19a6a2be8f6c79c12f4b4f62d2", "public/art/sprites/folk-variants-dirs.png": "5e1bd2fad0a4c6f66c8dbfdd58433c1d", "public/art/sprites/krampus-dirs.png": "87ab9b7149351443b6e6b12d6ec64c6f", "public/art/sprites/krampus-dirs_em.png": "903f422553657b0b872126952453a086", "public/art/sprites/mimic-dirs.png": "6829bbbcfb6ba6f79be4bd7ca07a3f56", "public/art/sprites/moves-dirs.png": "a129c9d8ae45fcf4ed9a28af634a769e", "public/art/sprites/people-dirs.png": "e628090b27abf03efce07010629573d3", "public/art/sprites/pumpkin-lord-dirs.png": "b4f09b69d0eab04c18ffb1d608c5a5e9", "public/art/sprites/pumpkin-lord-dirs_em.png": "43195b77250e0f72d46f9964acefaa01"};
-    const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
+    const live = Object.entries(LIVE).filter(([f, h]) => md5f(pt1oView(f)) !== h).map(([f]) => f); // playtest1p: as playtest1o left them
     check("playtest1o", "the live files are byte for byte playtest1o's (sim, draw, shell, facing, blocking, loot, the writers, the new sheets, the owner note)", Object.keys(LIVE).length > 0 && live.length === 0, live.map((f) => `${f}=${md5f(f)}`).join(", "));
   }
   globalThis.Image = had.Image; globalThis.document = had.document; globalThis.localStorage = had.ls;
 }
+// playtest1p (2026-10-04, [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]): Bill asked for
+// hand-polished back and side walk views, and bosses at least 5x the player's size with minis and rares 2 to 3x. The -dirs
+// sheets gain a west row of their own (views_writer.py lays every profile and back by hand); bosses, minis and rares draw
+// from their own big sheets (boss_writer.py, public/art/sprites/big/) and fight as big bodies (bigboss.ts: a hurtbox, a
+// foot walls stop, lairs and halls with dodge room, a camera that frames the body and the hero). Nothing saved.
+if (on("playtest1p")) {
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd, copyFileSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const { inflateSync } = await import("node:zlib");
+  const readPng = (f) => {
+    const b = readFileSync(f);
+    let o = 8, pw = 0, ph = 0;
+    const idat = [];
+    while (o < b.length) {
+      const len = b.readUInt32BE(o);
+      const kind = b.toString("ascii", o + 4, o + 8);
+      const data = b.subarray(o + 8, o + 8 + len);
+      if (kind === "IHDR") { pw = data.readUInt32BE(0); ph = data.readUInt32BE(4); if (data[9] !== 6 || data[8] !== 8) throw new Error(`${f} png type`); }
+      if (kind === "IDAT") idat.push(data);
+      o += 12 + len;
+    }
+    const raw = inflateSync(Buffer.concat(idat));
+    const stride = pw * 4, px = Buffer.alloc(pw * ph * 4);
+    for (let y = 0; y < ph; y++) {
+      const f0 = raw[y * (stride + 1)];
+      for (let x = 0; x < stride; x++) {
+        const v = raw[y * (stride + 1) + 1 + x];
+        const a = x >= 4 ? px[y * stride + x - 4] : 0, up = y > 0 ? px[(y - 1) * stride + x] : 0, c = x >= 4 && y > 0 ? px[(y - 1) * stride + x - 4] : 0;
+        let p = v;
+        if (f0 === 1) p = v + a; else if (f0 === 2) p = v + up; else if (f0 === 3) p = v + ((a + up) >> 1);
+        else if (f0 === 4) { const qq = a + up - c; const pa = Math.abs(qq - a), pb = Math.abs(qq - up), pc = Math.abs(qq - c); p = v + (pa <= pb && pa <= pc ? a : pb <= pc ? up : c); }
+        px[y * stride + x] = p & 255;
+      }
+    }
+    const at = (x, y) => { const k = (y * pw + x) * 4; return px[k + 3] ? `#${[0, 1, 2].map((j) => px[k + j].toString(16).padStart(2, "0")).join("")}` : null; };
+    let soft = 0;
+    for (let k = 0; k < px.length; k += 4) if (px[k + 3] && px[k + 3] !== 255) soft++;
+    return { pw, ph, at, soft, px };
+  };
+  const TAG = "[OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1p.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as BB from "${root}/src/game/bigboss.ts";\nexport * as F from "${root}/src/game/facing.ts";\nexport * as FE from "${root}/src/game/festivals.ts";\nexport * as SC from "${root}/src/game/screen.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport { DUNGEONS, dungeonById } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1p.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1p.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
+  const NOTREADY = new Set();
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return !NOTREADY.has(this._s); } set src(u) { this._s = u; } get src() { return this._s; } };
+  let draws = [];
+  // A canvas that records each image draw: its source cell, where it lands, the scale it is drawn under, smoothing.
+  const mock = (off = null) => {
+    let k = 1, flip = false; const stack = [];
+    const o = {
+      imageSmoothingEnabled: true,
+      save() { stack.push([k, flip]); }, restore() { [k, flip] = stack.length ? stack.pop() : [1, false]; }, scale(a, b) { if (a < 0) flip = !flip; k *= Math.abs(b ?? a); }, setTransform() { k = 1; flip = false; }, resetTransform() { k = 1; flip = false; },
+      getTransform() { return { a: flip ? -k : k, d: k }; },
+      drawImage(im, ...a) { if (off) return; const [cx, cy, sw, sh, dx, dy, dw, dh] = a.length >= 8 ? a : [0, 0, 0, 0, a[0], a[1], 0, 0]; draws.push({ u: im && im._s, sx: cx, sy: cy, sw, sh, dx, dy, dw, dh, k, flip, smooth: o.imageSmoothingEnabled }); },
+    };
+    return new Proxy(o, { get: (t, kk) => (kk in t ? t[kk] : kk === "getImageData" || kk === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : kk === "measureText" ? () => ({ width: 1 }) : kk === "createLinearGradient" || kk === "createRadialGradient" || kk === "createPattern" ? () => ({ addColorStop() {} }) : () => {}), set: (t, kk, v) => { t[kk] = v; return true; } });
+  };
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= mock(c)); } }; return c; } };
+  const store = {};
+  globalThis.localStorage = { getItem: (kk) => (kk in store ? store[kk] : null), setItem: (kk, v) => { store[kk] = String(v); }, removeItem: (kk) => { delete store[kk]; } };
+  const X = await import(pathToFileURL(join(dir, "pt1p.mjs")).href);
+  const { BB, F, FE, SC, TG } = X;
+  const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const base = (u) => (u || "").split("/").pop();
+  const mk = (cls = "warrior") => { const g = new X.Game(); g.start(cls, "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = 5 * 60 * 1000; return g; };
+  const vale = () => { const g = mk(); g.enterWorld(64 * TILE + 8, 90 * TILE + 8); g.mode = "play"; g.level = 60; return g; };
+  const tick = (g, s, each = () => {}) => { for (let t = 0; t < s - 1e-9; t += 1 / 60) { g.update(1 / 60); each(); } };
+  const FAMS = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+  const SHEETS = [...FAMS.flatMap((f) => ["boss", "mini", "rare"].map((r) => `${f}-${r}.png`)), "mimic-rare.png", "pumpkin-lord-boss.png", "krampus-boss.png"];
+
+  // 1. The scale rule: a boss is 5x the hero, a mini 3x, a rare 2x (linear), everyone else 1x; the vale's world bosses are
+  //    bosses, a remnant a mini, a Stalker pack's leader, a mimic and a naughty-list name rares.
+  {
+    const ranks = [BB.rankOf({ boss: true }), BB.rankOf({ mini: true }), BB.rankOf({ rare: true }), BB.rankOf({ naughty: "x" }), BB.rankOf({ mimic: true }), BB.rankOf({}), BB.rankOf({ boss: true, mini: true })].join();
+    const cells = [5, 3, 2, 1].map((s) => BB.cellAt(s)).map((c) => `${c.w}x${c.h}`).join();
+    const g = vale();
+    const bosses = g.roamers.filter((r) => r.boss);
+    const ok = JSON.stringify(BB.BIG) === JSON.stringify({ boss: 5, mini: 3, rare: 2, mob: 1 }) && ranks === "boss,mini,rare,rare,rare,mob,boss" && cells === "80x160,48x96,32x64,16x32" && BB.scaleOf({ boss: true }) >= 5 && [BB.scaleOf({ mini: true }), BB.scaleOf({ rare: true })].every((s) => s >= 2 && s <= 3) && bosses.length >= 9 && bosses.every((r) => BB.scaleOf(r) === 5) && X.peopleScale(true, false) === 1;
+    check("playtest1p", `the scale rule (bigboss.ts BIG, Bill: bosses at least 5x the player, minis and rares 2-3x): boss 5, mini 3, rare 2 (a Stalker, a mimic, a naughty-list name), everyone else 1; cells ${cells} against the hero's 16x32; the vale's ${bosses.length} world bosses all rank boss; a summon and a trophy ghost keep the people's scale`, ok, `${ranks} ${cells} ${bosses.map((r) => BB.scaleOf(r)).join("")}`);
+  }
+
+  // 2. The big sheets: 54 sheets and their 54 glow masks, each eleven poses across and four views down at its scale, hard
+  //    pixels; each big cell is its 1x cell's silhouette at that scale; boss_writer.py rebuilds all 108 byte for byte.
+  {
+    const files = readdirSync("public/art/sprites/big").sort();
+    const want = [...SHEETS, ...SHEETS.map((n) => n.replace(/\.png$/, "_em.png"))].sort();
+    const bad = [];
+    const foes = readPng("public/art/sprites/foes.png"), fdirs = readPng("public/art/sprites/foes-dirs.png");
+    const bbox = (P, x0, y0, w, h) => { let a = w, b = h, c = -1, d = -1; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (P.at(x0 + x, y0 + y)) { a = Math.min(a, x); b = Math.min(b, y); c = Math.max(c, x); d = Math.max(d, y); } return c < 0 ? null : [a, b, c, d]; };
+    let cellsSeen = 0;
+    for (const n of SHEETS) {
+      const s = /-boss\.png$/.test(n) ? 5 : /-mini\.png$/.test(n) ? 3 : 2;
+      const P = readPng(`public/art/sprites/big/${n}`), M = readPng(`public/art/sprites/big/${n.replace(/\.png$/, "_em.png")}`);
+      if (P.pw !== 11 * 16 * s || P.ph !== 4 * 32 * s || P.soft || M.pw !== P.pw || M.ph !== P.ph || M.soft) { bad.push(`${n} size`); continue; }
+      for (let k = 0; k < M.px.length; k += 4) if (M.px[k + 3] && (P.px[k + 3] === 0 || M.px[k] !== P.px[k] || M.px[k + 1] !== P.px[k + 1] || M.px[k + 2] !== P.px[k + 2])) { bad.push(`${n} mask`); break; }
+      const fam = n.replace(/-(boss|mini|rare)\.png$/, ""), rank = n.match(/-(boss|mini|rare)\.png$/)[1];
+      const fi = FAMS.indexOf(fam);
+      if (fi < 0) continue;
+      // the 1x cells this sheet was made from: the front strip's and the -dirs back, east, west rows
+      for (let v = 0; v < 4; v++) for (let p = 0; p < 11; p++) {
+        const col = (fi * 4 + ["mob", "boss", "mini", "rare"].indexOf(rank)) * 11 + p;
+        const one = v === 0 ? bbox(foes, col * 16, 0, 16, 32) : bbox(fdirs, col * 16, (v - 1) * 32, 16, 32);
+        const big = bbox(P, p * 16 * s, v * 32 * s, 16 * s, 32 * s);
+        cellsSeen++;
+        if (!one || !big || big.some((q, i) => Math.abs(q - (i < 2 ? one[i] * s : one[i] * s + s - 1)) > s)) { bad.push(`${n} v${v} p${p}`); break; }
+      }
+    }
+    const tmp = mkd(join(tmpdir(), "gw1p-big-"));
+    for (const f of ["foes", "foes-dirs", "mimic", "mimic-dirs", "pumpkin-lord", "pumpkin-lord-dirs", "krampus", "krampus-dirs"]) copyFileSync(`public/art/sprites/${f}.png`, join(tmp, `${f}.png`));
+    let made = "";
+    try { made = execFileSync("python3", ["-c", `import sys; sys.path.insert(0, "tools/sprite-writer"); from pathlib import Path; import boss_writer; print(len(boss_writer.main(Path("${tmp}"))))`], { encoding: "utf8" }).trim(); } catch (e) { made = `error ${String(e).slice(0, 80)}`; }
+    const same = made === "108" && want.every((n) => md5f(join(tmp, "big", n)) === md5f(`public/art/sprites/big/${n}`));
+    check("playtest1p", `the big sheets (public/art/sprites/big/): ${files.length} files = 54 sheets (17 foe families x boss, mini, rare; the mimic; the Pumpkin Lord and Krampus as bosses) and their glow masks, each 11 poses x 4 views (front, back, east, west) at 16s x 32s, hard pixels, a mask only the sheet's own glow pixels; every big cell (${cellsSeen} family cells) is its 1x cell's silhouette at its scale (bounding box within a block); boss_writer.py rebuilds all ${made} byte for byte`, JSON.stringify(files) === JSON.stringify(want) && bad.length === 0 && same, bad.slice(0, 6).join(", ") + ` made ${made} same ${same}`);
+  }
+
+  // 3. The draw: a fighting boss is drawn from its big sheet, the cell of the way it faces (front, back, east, west; no
+  //    mirror), 80x160 on whole pixels with smoothing off, its feet on the 1x foot line; a mini 48x96, a rare 32x64, a
+  //    mob still its 1x foes.png cell. While a big sheet loads, the 1x cell is drawn whole-pixel scaled up.
+  {
+    const g = vale(); const b0 = g.roamers.find((r) => r.id === "bride"); g.px = b0.x - 40; g.py = b0.y; g.touchFoe(b0); const b = g.roamers.find((r) => r.boss && r.aggro); g.roamers = [b]; b.x = Math.round(b.x); b.y = Math.round(b.y);
+    if (g.fog) g.fog.fill(2);
+    const at = (dx, dy) => { g.px = b.x + dx; g.py = b.y + dy; draws = []; X.drawWorld(mock(), g, 960, 640, 3); X.drawWorld(mock(), g, 960, 640, 3); return draws.filter((d) => /\/big\//.test(d.u || "")); };
+    const rows = [[0, 60], [0, -60], [60, 0], [-60, 0]].map(([dx, dy]) => at(dx, dy)).map((ds) => ds.filter((d) => !/_em\.png$/.test(d.u)));
+    const views = rows.map((ds) => (ds.length ? `${base(ds[0].u)}:${ds[0].sy / 160}:${ds[0].sw}x${ds[0].sh}` : "none")).join(" ");
+    const whole = rows.every((ds) => ds.length && ds.every((d) => !d.flip && d.smooth === false && d.k === 1 && d.sw === 80 && d.sh === 160 && d.dw === 80 && d.dh === 160 && Number.isInteger(d.dx) && Number.isInteger(d.dy) && d.sx % 80 === 0));
+    const feet = rows[0].length && rows[0][0].dy === b.y - 152 && rows[0][0].dx === b.x - 40; // playtest1p: the 80x160 cell's top 152 px over its feet (row 149 = the 1x foot row 29, two px up), as numbers, not cellAt's
+    // a mini (a remnant) and a rare (a mimic)
+    b.boss = false; b.mini = true; const mini = at(60, 0).filter((d) => !/_em\.png$/.test(d.u));
+    b.mini = false; b.rare = true; const rare = at(60, 0).filter((d) => !/_em\.png$/.test(d.u));
+    b.rare = false; const mob = at(60, 0); const mobFoes = draws.filter((d) => base(d.u) === "foes.png");
+    b.boss = true;
+    NOTREADY.add("/art/sprites/big/ghost-boss.png"); at(60, 0); const fb = draws.filter((d) => base(d.u) === "foes.png" || base(d.u) === "foes-dirs.png"); NOTREADY.delete("/art/sprites/big/ghost-boss.png");
+    const ok = views === "ghost-boss.png:0:80x160 ghost-boss.png:1:80x160 ghost-boss.png:2:80x160 ghost-boss.png:3:80x160" && whole && feet && mini.length && mini.every((d) => base(d.u) === "ghost-mini.png" && d.sw === 48 && d.sh === 96) && rare.length && rare.every((d) => base(d.u) === "ghost-rare.png" && d.sw === 32 && d.sh === 64) && mob.length === 0 && mobFoes.length > 0 && mobFoes.every((d) => d.sw === 16 && d.k === 1) && fb.some((d) => d.k === 5 && d.sw === 16 && d.sh === 32) && fb.every((d) => d.smooth === false && (d.k === 5 || d.k === 1)) && !draws.some((d) => /\/big\/ghost-boss\.png$/.test(d.u || ""));
+    check("playtest1p", `a fighting boss (the Gallows Bride) is drawn from its big sheet in the view it faces with the hero south, north, east, west of it (${views}), whole pixels, smoothing off, no mirror, its feet on the 1x foot line (the cell's top 152 px over them); a remnant (mini) from ghost-mini.png 48x96, a rare from ghost-rare.png 32x64, a mob still its 1x foes.png cell; while the big sheet loads the 1x cell stands in, whole-pixel scaled 5x (drawn under a x${fb.find((d) => d.k > 1)?.k ?? 0} scale)`, ok, `${views} whole ${whole} feet ${feet} mini ${mini.length} rare ${rare.length} mob ${mob.length}/${mobFoes.length} fb ${fb.map((d) => `${base(d.u)}:${d.k}:${d.sw}x${d.sh}:${d.smooth}`).join()} mobk ${mobFoes.map((d) => d.k).join()}`);
+  }
+
+  // 4. The big body fights as big as it looks: the hero's swing reaches its edge (BODY 22 px past its feet for a boss), the
+  //    same blow at that distance misses a mob; its foot stops at walls; the hero cannot walk into a fighting boss's foot
+  //    but always steps out; the nova rings the body (52 + 22 px).
+  {
+    const g = vale(); const b0 = g.roamers.find((r) => r.id === "bride"); g.px = b0.x - 40; g.py = b0.y; g.touchFoe(b0); const b = g.roamers.find((r) => r.boss && r.aggro); g.roamers = [b]; b.x = Math.round(b.x); b.y = Math.round(b.y); g.facing = "e";
+    const swing = (body, d) => { body.x = g.px + d; body.y = g.py; const hp = body.hp; g.strikeCone(0.6, 24, 10, "smite"); const hit = body.hp < hp; body.hp = hp; return hit; };
+    const bossNear = swing(b, 24 + 18), bossFar = swing(b, 24 + 22 + 6);
+    b.boss = false; const mobNear = swing(b, 24 + 18); b.boss = true;
+    // foot at walls: push the boss at the nearest wall for 3 s; its whole foot stays on open ground
+    const w = mk(); w.enterDungeon("harrow"); w.mode = "play";
+    let wall = null;
+    for (let y = 3; y < w.h - 3 && !wall; y++) for (let x = 3; x < w.w - 6 && !wall; x++) if ([0, 1, 2, 3].every((i) => !w.solidAt((x + i) * TILE + 8, y * TILE + 8)) && w.solidAt((x + 4) * TILE + 8, y * TILE + 8) && !w.solidAt((x + 1) * TILE + 8, (y - 1) * TILE + 8) && !w.solidAt((x + 1) * TILE + 8, (y + 1) * TILE + 8)) wall = { x, y };
+    const body = { x: wall.x * TILE + 8, y: wall.y * TILE + 8, boss: true };
+    let inWall = 0, moved = 0;
+    for (let i = 0; i < 180; i++) { const ox = body.x; w.tryBody(body, 1.5, 0); moved += body.x - ox; if (!w.footClear(body.x, body.y, BB.footOf(body))) inWall++; }
+    const reachWall = (w.solidAt(body.x + BB.FOOT.boss.rx + 3, body.y) || w.solidAt(body.x + BB.FOOT.boss.rx + 3, body.y - 2)) && moved > 0;
+    // the hero and the foot
+    const h = vale(); const hb0 = h.roamers.find((r) => r.id === "bride"); h.px = hb0.x - 40; h.py = hb0.y; h.touchFoe(hb0); const hb = h.roamers.find((r) => r.boss && r.aggro); h.roamers = [hb];
+    // walked 1 px at a time from 24 px east: at no step is the hero inside the boss's 18x8 foot (as numbers), and it stops 18 px from the feet point
+    h.px = hb.x + 24; h.py = hb.y; let depth = Infinity;
+    for (let i = 0; i < 60; i++) { h.try(-1, 0); depth = Math.min(depth, BB.footDepth(hb.x, hb.y, { rx: 18, ry: 8 }, h.px, h.py)); }
+    const stop = h.px - hb.x;
+    h.px = hb.x + 6; h.py = hb.y; const ox = h.px; h.try(1, 0); const out = h.px > ox;
+    // the companion told to Focus the boss stands at its edge (18 + BODY 22 px), not in it
+    seed(17);
+    const cg = vale(); const cb0 = cg.roamers.find((r) => r.id === "bride"); cg.px = cb0.x - 60; cg.py = cb0.y; cg.touchFoe(cb0); const cb = cg.roamers.find((r) => r.boss && r.aggro); cg.roamers = [cb];
+    cg.companion = { id: "a", name: "Bren", kit: "witch", sourceId: "witch", look: "priest", coat: "#000", focus: "heal", hp: cg.companionMax(), equip: {}, x: cg.px - 16, y: cg.py };
+    cg.hurtFoe(cb, 1); cg.order("focus");
+    const allyD = []; tick(cg, 3, () => { cg.hp = cg.maxHp; if (cg.companion) cg.companion.hp = cg.companionMax(); allyD.push(Math.hypot(cg.companion.x - cb.x, cg.companion.y - cb.y)); });
+    const allyMin = Math.min(...allyD.slice(90)), allyEnd = allyD[allyD.length - 1];
+    // the nova: phase two's ring round the boss is PHASE.novaR + BODY
+    seed(13);
+    const n = vale(); const nb = n.roamers.find((r) => r.id === "bride"); n.roamers = [nb]; n.touchFoe(nb);
+    const nb2 = n.roamers.find((r) => r.boss && r.aggro) ?? nb;
+    nb2.hp = Math.floor((nb2.max ?? nb2.hp) * 0.4); nb2.phase = 2; nb2.bigs = 0; nb2.age = 6.05; nb2.wave = 0; nb2.cool = 0;
+    let novaR = 0;
+    for (let i = 0; i < 400 && !novaR; i++) { n.hp = n.maxHp; n.update(1 / 60); if (nb2.pattern === "nova" && nb2.markR) novaR = nb2.markR; }
+    Math.random = had.random;
+    const ok = bossNear && !bossFar && !mobNear && inWall === 0 && reachWall && depth >= 1 && stop >= 18 && stop < 19.5 && out && cg.allyFocus === cb && allyMin >= 34 && allyEnd <= 48 && novaR === TG.PHASE.novaR + BB.BODY.boss;
+    check("playtest1p", `a big body fights as big as it looks: a swing 42 px out reaches a boss (BODY ${BB.BODY.boss} px past its feet) but not a mob, and misses the boss 52 px out; pushed at a dungeon wall for 3 s the boss's whole foot stays on open ground (it walks up to the wall); the hero walking into a fighting boss never steps into its 18x8 foot (least depth ${depth.toFixed(2)}), stops ${stop.toFixed(1)} px from its feet and steps out of it freely; a companion told to Focus it stands at its edge (${allyMin.toFixed(1)}-${allyEnd.toFixed(1)} px from its feet, 18 + BODY), not in it; phase two's nova rings the body (${novaR} = ${TG.PHASE.novaR} + ${BB.BODY.boss})`, ok, `${bossNear} ${bossFar} ${mobNear} inWall ${inWall} reach ${reachWall} depth ${depth} stop ${stop} out ${out} ally ${cg.allyFocus === cb} ${allyMin} ${allyEnd} nova ${novaR}`);
+  }
+
+  // 5. Arena fit: every world boss's lair, both festival bosses' spots and every boss dungeon's last floor give the 5x body
+  //    its foot plus the dodge room (arenaR) of open ground; the last floor's 12x10 hall is bare and the boss waits in its
+  //    middle; a 6 s fight at each world lair never puts the foot in a wall.
+  {
+    const bad = [], spots = [];
+    const need = BB.arenaR({ boss: true });
+    const g = vale();
+    for (const r of g.roamers.filter((q) => q.boss)) { const o = g.openRadius(r.x, r.y, need + 8); spots.push(`${r.id}:${o}`); if (o < need) bad.push(`${r.id} ${o}`); }
+    for (const [name, at] of [["lord", FE.HARVEST.lord], ["krampus", FE.KRAMPUSNACHT.spot]]) { const sp = g.roomyNear(at.x * TILE + 8, at.y * TILE + 8, need); const o = g.openRadius(sp.x, sp.y, need + 8); spots.push(`${name}:${o}`); if (o < need || Math.hypot(sp.x - (at.x * TILE + 8), sp.y - (at.y * TILE + 8)) > 24) bad.push(`${name} ${o}`); }
+    let halls = 0;
+    for (const d of X.DUNGEONS.filter((q) => q.boss && !q.gen)) {
+      const h = mk(); h.enterDungeon(d.id); if (h.dungeon !== d.id) h.dungeon = d.id; h.floor = d.floors; h.loadFloor("down"); h.mode = "play";
+      const hall = h.floors[`${d.id}:${d.floors}`]?.hall;
+      const boss = h.roamers.find((r) => r.boss);
+      if (!hall || hall.w !== 12 || hall.h !== 10 || !boss) { bad.push(`${d.id} hall ${JSON.stringify(hall)} boss ${!!boss}`); continue; }
+      halls++;
+      const o = h.openRadius(boss.x, boss.y, need + 8);
+      const mid = Math.floor(boss.x / TILE) === hall.x + 6 && Math.floor(boss.y / TILE) === hall.y + 5;
+      let props = 0; for (let y = hall.y; y < hall.y + hall.h; y++) for (let x = hall.x; x < hall.x + hall.w; x++) if (h.blockedProp(x * TILE + 8, y * TILE + 8)) props++;
+      spots.push(`${d.id}:${o}`);
+      if (o < need || !mid || props) bad.push(`${d.id} open ${o} mid ${mid} props ${props}`);
+    }
+    let inWall = 0;
+    for (const id of ["bride", "saint", "queen"]) {
+      const f = vale(); const b = f.roamers.find((r) => r.id === id); f.roamers = [b]; f.px = b.x - 40; f.py = b.y; f.touchFoe(b);
+      const big = f.roamers.find((r) => r.boss && r.aggro); if (!big) { bad.push(`${id} no fight`); continue; }
+      tick(f, 6, () => { f.hp = f.maxHp; f.iframe = 1; if (!f.footClear(big.x, big.y, BB.footOf(big))) inWall++; });
+    }
+    check("playtest1p", `arena fit: every world lair, both festival spots and ${halls} boss dungeons' last floors give a 5x boss its foot plus the dodge room (3 tiles, DODGE 48: ${need} px open round it: ${spots.join(" ")}); each last floor's 12x10 hall is bare and the boss waits in its middle; 6 s fights at three lairs never put the foot in a wall`, bad.length === 0 && halls >= 5 && inWall === 0 && BB.DODGE === 48 && need === BB.FOOT.boss.rx + 48, bad.join(", ") + ` inWall ${inWall}`);
+  }
+
+  // 6. On screen: in a fight with a big body the camera frames the body and the hero together; on Retro (320x240) and on
+  //    a phone in landscape (844x390, 3x) a 5x boss's whole body, its name and the hero are in view with the hero level
+  //    with it on either side or a little below it; out of a fight the camera is the hero-centred one as before.
+  {
+    const S = { preset: "phone", aspect: "fit", cap: 1, tipShown: true };
+    const views = { retro: SC.computeView({ cssW: 960, cssH: 720, dpr: 1, zoom: 4, s: { ...S, preset: "retro", cap: 2 }, coarse: false }), phone: SC.computeView({ cssW: 844, cssH: 390, dpr: 3, zoom: 4, s: S, coarse: true }), phoneSE: SC.computeView({ cssW: 667, cssH: 375, dpr: 2, zoom: 4, s: S, coarse: true }) };
+    const g = vale(); const b0 = g.roamers.find((r) => r.id === "bride"); g.px = b0.x - 40; g.py = b0.y; g.touchFoe(b0); const b = g.roamers.find((r) => r.boss && r.aggro); g.roamers = [b]; b.x = Math.round(b.x); b.y = Math.round(b.y);
+    const bad = [];
+    for (const [name, v] of Object.entries(views)) {
+      const W = v.bufW / v.k, H = v.bufH / v.k;
+      for (const [dx, dy] of [[-60, 0], [60, 0], [-50, 10], [50, 10], ...(name === "retro" ? [[-50, 30], [50, 30], [0, 50]] : [])]) {
+        g.px = b.x + dx; g.py = b.y + dy;
+        const c = X.cameraFor(g, v.bufW, v.bufH, v.k);
+        const top = b.y - BB.headroom(5) - 6 - 6; // its name over its head
+        const inView = (x0, y0, x1, y1) => x0 >= c.x && y0 >= c.y && x1 <= c.x + W && y1 <= c.y + H;
+        if (!inView(b.x - 40, top, b.x + 40, b.y + 4) || !inView(g.px - 8, g.py - 28 - BB.CAM.edge + 1, g.px + 8, g.py + 2 + BB.CAM.edge - 1)) bad.push(`${name} ${dx},${dy}`);
+      }
+    }
+    g.roamers = []; g.px = b.x + 60; g.py = b.y;
+    const v = views.phone, c0 = X.cameraFor(g, v.bufW, v.bufH, v.k);
+    const centred = c0.x === Math.round(g.px - v.bufW / v.k / 2) && c0.y === Math.round(g.py - v.bufH / v.k / 2) && g.camFocus === null;
+    check("playtest1p", `on screen: on Retro (${views.retro.bufW / views.retro.k}x${views.retro.bufH / views.retro.k} game px) and a phone in landscape (${Math.round(views.phone.bufW / views.phone.k)}x${Math.round(views.phone.bufH / views.phone.k)}; an SE ${Math.round(views.phoneSE.bufH / views.phoneSE.k)} high) a fighting 5x boss's whole body and name and the hero (kept ${BB.CAM.edge} px in) are in view with the hero level with it either side or 10 px below (on Retro 30 px below, or 50 px straight below); out of a fight the camera centres the hero as before`, bad.length === 0 && centred, bad.join(", ") + ` centred ${centred}`);
+  }
+
+  // 6b. Group playtest1k's combos, statuses, taunts, pops and orders hold on the live game too (group playtest1k fights on
+  //     the frozen 1o game since playtest1p; its live pass, GW_PT1K_LIVE=1, runs the same checks on the live sim and draw).
+  {
+    let outK = "";
+    try { outK = execFileSync(process.execPath, ["scripts/gravewake-check.mjs", "playtest1k"], { env: { ...process.env, GW_PT1K_LIVE: "1" }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); } catch (e) { outK = String(e.stdout ?? "") + "\nthrew"; }
+    const okK = (outK.match(/^ok {2}playtest1k /gm) || []).length, failK = outK.split("\n").filter((l) => l.startsWith("FAIL"));
+    check("playtest1p", `group playtest1k's elemental combos, statuses, taunts, combo pops and companion orders hold on the live game: its live pass (GW_PT1K_LIVE=1) is ${okK} of 20 green on the live sim and draw (the frame-for-frame match with the 1j sim stays the frozen pass's)`, okK === 20 && !failK.length && /\(live pass, playtest1p\)/.test(outK) && !/threw$/.test(outK), failK.slice(0, 3).join(" | ").slice(0, 400));
+  }
+
+  // 7. The views: every -dirs sheet is back (0-31), east (32-63) and west (64-95); people, allies and townsfolk walk west in
+  //    a drawing of their own (the hands keep what they hold), drawn creatures and the swim/slide/fish moves turn the east
+  //    row over; the backs and sides are new drawings (none is playtest1o's), the fronts untouched; west draws its own row.
+  {
+    const bad = [];
+    const counts = {};
+    for (const [s, d] of Object.entries(F.DIRS)) {
+      const P = readPng(`public${d}`), Fr = readPng(`public${s}`), O = readPng(pt1oView(`public${d}`));
+      const n = Math.floor(P.pw / 16);
+      let own = 0, turned = 0, newBack = 0, newSide = 0, empty = 0;
+      const cell = (Q, c, y0) => { const o = []; for (let y = 0; y < 32; y++) for (let x = 0; x < 16; x++) o.push(Q.at(c * 16 + x, y0 + y) ?? "."); return o; };
+      for (let c = 0; c < n; c++) {
+        const east = cell(P, c, 32), west = cell(P, c, 64), back = cell(P, c, 0);
+        const mir = []; for (let y = 0; y < 32; y++) for (let x = 0; x < 16; x++) mir.push(east[y * 16 + 15 - x]);
+        if (west.every((p) => p === ".") || back.every((p) => p === ".") || east.every((p) => p === ".")) empty++;
+        if (west.join() === mir.join()) turned++; else own++;
+        if (back.join() !== cell(O, c, 0).join()) newBack++;
+        if (east.join() !== cell(O, c, 32).join()) newSide++;
+      }
+      counts[base(d)] = `${n}:${own}/${turned}:${newBack}/${newSide}`;
+      const hands = /people|allies|folk-variants/.test(d);
+      if (P.ph !== 96 || P.pw !== Fr.pw || P.soft || empty) bad.push(`${base(d)} size/empty`);
+      if (hands ? own !== n : /moves|mimic|krampus|pumpkin/.test(d) ? turned !== n : own === 0 || turned === 0) bad.push(`${base(d)} west ${own}/${turned}`);
+      if (hands && (newBack !== n || newSide < n * 0.9)) bad.push(`${base(d)} not redrawn ${newBack}/${newSide}`);
+    }
+    const fronts = Object.keys(F.DIRS).every((s) => md5f(`public${s}`) === md5f(pt1oView(`public${s}`)));
+    const v = [0, 1, 2, 3].map((f) => F.viewOf(f)).map((q) => `${q.dirs ? "d" : "f"}${q.row}${q.flip ? "m" : ""}`).join(" ");
+    // the hero walking west is drawn from row 4 (y 64) of its -dirs sheet, not mirrored
+    const g = mk(); g.enterTown(); g.mode = "play"; g.facing = "w"; g.moving = true; draws = []; X.drawWorld(mock(), g, 960, 640, 3);
+    const hero = draws.filter((d) => base(d.u) === "people-dirs.png");
+    check("playtest1p", `the walk views: each -dirs sheet is back, east and west rows (96 tall, as wide as its strip, hard pixels, no empty cell); people, allies and townsfolk walk west in their own drawing, drawn creatures and the swim, slide and fish moves turn the east row over; every person's back and side is a new drawing, the fronts are playtest1o's byte for byte; faces S E N W read ${v}; the hero walking west draws row 4 unmirrored (${hero.length} draws)`, bad.length === 0 && fronts && v === "f0 d2 d0 d4" && hero.length > 0 && hero.every((d) => d.sy === 64 && !d.flip), bad.join(", ") + ` fronts ${fronts} ${JSON.stringify(counts)}`);
+  }
+
+  // 8. Only these moved: the frozen copies are playtest1o's files as pushed at 9d87b3f; every other file is 1o's.
+  {
+    const FZ = Object.fromEntries(Object.values(PT1P_FROZEN).map((k) => [k, ""]));
+    const fz = Object.fromEntries(Object.keys(FZ).sort().map((k) => [k, md5f(`scripts/frozen/playtest1p/${k}.txt`)]));
+    const NEWF = ["src/game/bigboss.ts", "tools/sprite-writer/views_writer.py", "tools/sprite-writer/boss_writer.py"];
+    check("playtest1p", "the frozen references (scripts/frozen/playtest1p/) are playtest1o's sim, draw, facing, fight lights, the three sprite-writer files, the eleven -dirs sheets and the owner notes byte for byte (as pushed at 9d87b3f), the new modules and writers carry the request tag and AGENTS.project.md its ## playtest1p with the scale rule; every older group, view, rest digest and live pin reads them (pt1oView under pt1nView; groups 1j and 1k fight on the frozen 1o game)", JSON.stringify(fz) === '{"AGENTS.project.md":"c4c3c2a6bf949bf286b4155e51b02f9b","allies-dirs.png":"b2c7eee97c2a3e33cd8f2f433b303e22","dirs_writer.py":"737b593acb669b8793b8159ccb16f34d","draw.ts":"9010f54b7aa9ab93eb8339d41c03dd8f","facing.ts":"6d072d081a82aefd540cb1d33f85857f","fightlights.ts":"9f81aedf78bef6883d282afc8da09ef9","foes-dirs.png":"a15b42924e8891306b84b7df9316acde","foes-dirs_em.png":"ed1c1c19a6a2be8f6c79c12f4b4f62d2","folk-variants-dirs.png":"5e1bd2fad0a4c6f66c8dbfdd58433c1d","krampus-dirs.png":"87ab9b7149351443b6e6b12d6ec64c6f","krampus-dirs_em.png":"903f422553657b0b872126952453a086","mimic-dirs.png":"6829bbbcfb6ba6f79be4bd7ca07a3f56","moves-dirs.png":"a129c9d8ae45fcf4ed9a28af634a769e","people-dirs.png":"e628090b27abf03efce07010629573d3","pumpkin-lord-dirs.png":"b4f09b69d0eab04c18ffb1d608c5a5e9","pumpkin-lord-dirs_em.png":"43195b77250e0f72d46f9964acefaa01","sim.ts":"53818e62dee77f19b591806bd9a2f37d","sprite-writer.make_gravewake.py":"e446539538c1af315e3bb7f36df9c278","sprite_writer.py":"6763fc75fc356d4e71d76fd8e592f8c9"}' && NEWF.every((f) => readFileSync(f, "utf8").includes(TAG)) && readFileSync("AGENTS.project.md", "utf8").includes(`## playtest1p (view polish, big bosses) — ${TAG}`) && /BOSS SCALE RULE \(src\/game\/bigboss\.ts BIG; keep it\): boss 5, mini 3 \(a remnant\), rare 2/.test(readFileSync("AGENTS.project.md", "utf8")) && /function pt1nView\(f\) \{ return f in PT1O_FROZEN \? `scripts\/frozen\/playtest1o\/\$\{PT1O_FROZEN\[f\]\}\.txt` : pt1oView\(f\); \}/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")), JSON.stringify(fz));
+    const MOVED = new Set(Object.keys(PT1P_FROZEN));
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1pNew(f) && !MOVED.has(f)).sort();
+    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1p", "every other source file, public file and writer file is playtest1o's byte for byte (beside bigboss.ts, the views and boss writers, the 108 big sheets, and the moved files)", rest === "d59bad7891ea477f5f7eb8272199071b", rest);
+    const LIVE = {"AGENTS.project.md": "16a3dc66f6b2be1ff11312db42284d2b", "public/art/sprites/allies-dirs.png": "26ff75cc84976e7e90a155dffd0bcc0b", "public/art/sprites/foes-dirs.png": "0c0a6f1e2c48e0095410bca15bd74163", "public/art/sprites/foes-dirs_em.png": "cd3ded0cccff59eb297c39abdf0bcc97", "public/art/sprites/folk-variants-dirs.png": "255d5323fb27ac2a07bdc87e565ed8e1", "public/art/sprites/krampus-dirs.png": "757f6daf176c580bf61775d2e12d4929", "public/art/sprites/krampus-dirs_em.png": "77373a1e603edcd2012bceedf55e35ae", "public/art/sprites/mimic-dirs.png": "24f0b59d6b2eecca46c7e13d4cefbe44", "public/art/sprites/moves-dirs.png": "680c437495731378e20cd0a40918e3e7", "public/art/sprites/people-dirs.png": "3ac0ab395c900c6e4a0bab25226e42b8", "public/art/sprites/pumpkin-lord-dirs.png": "4390516f0a983bc4240e8a5cf0aa7d2c", "public/art/sprites/pumpkin-lord-dirs_em.png": "3dd8f8e65ea8ffb801c66f1766478b4a", "src/game/bigboss.ts": "b0aac5118b527777ad53d4d827396bf0", "src/game/draw.ts": "5017e352da3d3f7a97a9914d1b11e420", "src/game/facing.ts": "c0100b11f668614488339b27f3734880", "src/game/fightlights.ts": "01811408cca94b8679464316e226c4de", "src/game/sim.ts": "d05a16da2bc21da4e8260d949134ef4f", "tools/sprite-writer/boss_writer.py": "1ddf079b1cb615a86821ef4fbe9ac68f", "tools/sprite-writer/dirs_writer.py": "4086f8ed084cb8a5ac38f667bbd87042", "tools/sprite-writer/make_gravewake.py": "2df470b098d2e343f190f2a85f6ec029", "tools/sprite-writer/sprite_writer.py": "ebc111eae7e1da8798d4f681be83c46f", "tools/sprite-writer/views_writer.py": "b9c1a903c3ce88afa2a073ffe359676b", "public/art/sprites/big/bat-boss.png": "4b4b65830ecb7d5def109ebabab5e584", "public/art/sprites/big/bat-boss_em.png": "3a4ee26b76e24765194b064227cbcf0c", "public/art/sprites/big/bat-mini.png": "9a3e8791d90224a24bc7f3ab2046f84c", "public/art/sprites/big/bat-mini_em.png": "d69bc09bd04f56ed8b1a1df9ca5a89f6", "public/art/sprites/big/bat-rare.png": "5ff5830dbe0898279edaa00980cd5ec5", "public/art/sprites/big/bat-rare_em.png": "dc26f25913fba74c3c510e35e06e897f", "public/art/sprites/big/cat-boss.png": "bfe920b442686b6b5b7a8fa7db263466", "public/art/sprites/big/cat-boss_em.png": "bbdea5c03a66663274dd2da5d2cb7b47", "public/art/sprites/big/cat-mini.png": "11c2965faf64669be37c518ac75dc3c0", "public/art/sprites/big/cat-mini_em.png": "81a71abd81dca415d732420b973f78dd", "public/art/sprites/big/cat-rare.png": "229aa0027baa1c0b9a8c7d0480199408", "public/art/sprites/big/cat-rare_em.png": "88527bc884132479fcfcfc3f0840b27f", "public/art/sprites/big/ghost-boss.png": "a6ad4bbded616d1ff4d3b565a3669f34", "public/art/sprites/big/ghost-boss_em.png": "95739ae87a00ee96b9b79d3efa87920a", "public/art/sprites/big/ghost-mini.png": "a706b4a67c9eb5af1afc5dfa31d7b7cd", "public/art/sprites/big/ghost-mini_em.png": "2912f3419ebb1a7b40c2dac0bcd73222", "public/art/sprites/big/ghost-rare.png": "497fb9f5c399a68e348805a64c8b1c1d", "public/art/sprites/big/ghost-rare_em.png": "2619766f2ccd4f59c2d419b8cce6ae1e", "public/art/sprites/big/ghoul-boss.png": "8d3e7ef0c291705d93634beb95c344a6", "public/art/sprites/big/ghoul-boss_em.png": "ed5d01cad71a341a13695cfd7845b664", "public/art/sprites/big/ghoul-mini.png": "56dd774c052423268f85eb08d771a378", "public/art/sprites/big/ghoul-mini_em.png": "9e3d282b274accb8883710fb6c881740", "public/art/sprites/big/ghoul-rare.png": "aef1cd677fa933ab9676eeb402aa428f", "public/art/sprites/big/ghoul-rare_em.png": "a0ae867ec6fe16c679980756c77d8696", "public/art/sprites/big/goblin-boss.png": "82ffc55bfda4354732a97dda5f5cc73e", "public/art/sprites/big/goblin-boss_em.png": "e58a866b1ce256ea8b14581f17219e0c", "public/art/sprites/big/goblin-mini.png": "a74f1838cc11ef6646d6caa08c28b4d6", "public/art/sprites/big/goblin-mini_em.png": "60d3234799685932e7bc8198a27d6871", "public/art/sprites/big/goblin-rare.png": "f626259438d6c7a8f35e5ee4cd80e9f9", "public/art/sprites/big/goblin-rare_em.png": "2bae4f096d86e63b2db33f5d0872bcbb", "public/art/sprites/big/horse-boss.png": "64d38f5247f63bdedc5f59a53405baa5", "public/art/sprites/big/horse-boss_em.png": "07ab0ed37e7e2d353d3866647a6bc2ad", "public/art/sprites/big/horse-mini.png": "8f08284b17404b64b5374cecb16d0906", "public/art/sprites/big/horse-mini_em.png": "b8dd775495ef462c91a71f0c52159fe4", "public/art/sprites/big/horse-rare.png": "dce7de4da2f31f1f9df022597a08432c", "public/art/sprites/big/horse-rare_em.png": "51b5d264aa9814b07d4b0ca5a8900884", "public/art/sprites/big/krampus-boss.png": "de95f8234dc6db4850556a49c532d4e9", "public/art/sprites/big/krampus-boss_em.png": "7c5d6d0956590fd6cea41aebaa45ea7d", "public/art/sprites/big/lantern-boss.png": "8c53358c4a8ff009c1d8ad0556cb7816", "public/art/sprites/big/lantern-boss_em.png": "f3c693045632ca0a192619a878835c03", "public/art/sprites/big/lantern-mini.png": "d11b1d324a8f03084d6392f068244fa9", "public/art/sprites/big/lantern-mini_em.png": "f2278fa0035e24e4b3dc69f0a59a1d0b", "public/art/sprites/big/lantern-rare.png": "a5f17e43ee04759b8a143042fd2f4144", "public/art/sprites/big/lantern-rare_em.png": "5241f5d94be3373d34d811a505c127b6", "public/art/sprites/big/lich-boss.png": "da9aec3ab7480b979747717bddfaf4dc", "public/art/sprites/big/lich-boss_em.png": "4ab7a92bc262252a3f4d42925e2db147", "public/art/sprites/big/lich-mini.png": "b78f774ed9d39f539301ed5577238cf2", "public/art/sprites/big/lich-mini_em.png": "efa60e9c494ebecdb8d2ed7a33f6bda0", "public/art/sprites/big/lich-rare.png": "d53d0863594d9363784163a3db7732dc", "public/art/sprites/big/lich-rare_em.png": "b7ca3569406e0aee06365acf577e6ec1", "public/art/sprites/big/mimic-rare.png": "73af863006e9848cf900ead3e8dd06b7", "public/art/sprites/big/mimic-rare_em.png": "e4aaf76df8330f308d2681fc79f5e22a", "public/art/sprites/big/mummy-boss.png": "c9520098a6cee1342813f8ef126abdb5", "public/art/sprites/big/mummy-boss_em.png": "8902ff1f5f1f0a7afae94ba3d4c8c25b", "public/art/sprites/big/mummy-mini.png": "a72c1bbc38e1945bc56aad9a018d98d7", "public/art/sprites/big/mummy-mini_em.png": "a9cfb4d432e9287758c66da2b4430ddd", "public/art/sprites/big/mummy-rare.png": "2e2172d43173ee9b6236d8e03c49a632", "public/art/sprites/big/mummy-rare_em.png": "c208d6bb389725a275f274d5587f0404", "public/art/sprites/big/pumpkin-lord-boss.png": "e418d3dc2b4aa85a2f42ac254e8ae165", "public/art/sprites/big/pumpkin-lord-boss_em.png": "fc6cf2a320048a71963926c7702e5acd", "public/art/sprites/big/rat-boss.png": "3af48ca93d6359cf5906f7d89dd0330d", "public/art/sprites/big/rat-boss_em.png": "a2c55e9257252c2275c7755adf4a398f", "public/art/sprites/big/rat-mini.png": "d48b2b474332dcc5eb604ffb69ab9dea", "public/art/sprites/big/rat-mini_em.png": "8bb47b745cd6a45c24407b7dc6e226b2", "public/art/sprites/big/rat-rare.png": "42b71db8af763533955c7eff952f59b7", "public/art/sprites/big/rat-rare_em.png": "a20fdc2ab2602425b4394bcc08f0fc6c", "public/art/sprites/big/scarecrow-boss.png": "40692c95acdb56c233a0aa640c164211", "public/art/sprites/big/scarecrow-boss_em.png": "27f34196231cbf205ac9affa13c12daa", "public/art/sprites/big/scarecrow-mini.png": "d7c2d8e8636fb95e931253a842c682d8", "public/art/sprites/big/scarecrow-mini_em.png": "9604e227fb5f3f9d5272df775cdaaf3c", "public/art/sprites/big/scarecrow-rare.png": "d20deb68e6119d672064b1b834cc81f8", "public/art/sprites/big/scarecrow-rare_em.png": "0633982a8590337a22d9fbd994ef0a34", "public/art/sprites/big/skeleton-boss.png": "7f222d593ab11717ca2e463040dd9907", "public/art/sprites/big/skeleton-boss_em.png": "e3aab566d15185446b0a47c9cc9d1ff1", "public/art/sprites/big/skeleton-mini.png": "2da8b37c670966dfaa3e400e75a640be", "public/art/sprites/big/skeleton-mini_em.png": "18d65ce962f9c1313dfc485018b03df0", "public/art/sprites/big/skeleton-rare.png": "b32bcb77aaf6d1c5049ccea3d9cec12d", "public/art/sprites/big/skeleton-rare_em.png": "d9f1f4244a32d0da888da5e08d4d9da7", "public/art/sprites/big/tree-boss.png": "0a76d0bfff3aada8c62ba058824ab1ea", "public/art/sprites/big/tree-boss_em.png": "155dd89902d217213e84ac79a707b50b", "public/art/sprites/big/tree-mini.png": "7542e84f9356fbbfc78ef8bcf24234ad", "public/art/sprites/big/tree-mini_em.png": "cf9f6575e5fe70804aac8d4aa2355f84", "public/art/sprites/big/tree-rare.png": "a29292973683f5167110f7e74d7b2eb6", "public/art/sprites/big/tree-rare_em.png": "ac9a618ffe4ec028365de0a301da065c", "public/art/sprites/big/vampire-boss.png": "faae88e472044efccf5c857cde1a091f", "public/art/sprites/big/vampire-boss_em.png": "705124f64049bd33cbf792710c69e001", "public/art/sprites/big/vampire-mini.png": "9b06798b9012480d81cc961fadc41f34", "public/art/sprites/big/vampire-mini_em.png": "a8d3f3ea2625a5dee716319c65bf7584", "public/art/sprites/big/vampire-rare.png": "cf69285340f87e9f9805442e72c812cc", "public/art/sprites/big/vampire-rare_em.png": "7e7dce00e6cdd38019156027dc35208d", "public/art/sprites/big/witch-boss.png": "519775d763dbc9e981d1d73b6caca5b8", "public/art/sprites/big/witch-boss_em.png": "511a0edcf6d03466019f5bb6e86a7967", "public/art/sprites/big/witch-mini.png": "8c85b6bcb46c568d93a3503734893d9d", "public/art/sprites/big/witch-mini_em.png": "f717038b39c759607b4b11adf4be6cfb", "public/art/sprites/big/witch-rare.png": "5ccac540d0845d3c09e48df388333e8d", "public/art/sprites/big/witch-rare_em.png": "ad5e3d51ca91331d2809af89ea30add5", "public/art/sprites/big/wolf-boss.png": "a073b8ab6310454e2217cb1849ad7937", "public/art/sprites/big/wolf-boss_em.png": "c6afff17a524400ea6cf6da040f4197f", "public/art/sprites/big/wolf-mini.png": "ac71f8439237e0cdbdc8e7db3a583ddb", "public/art/sprites/big/wolf-mini_em.png": "29d128352da7ca8ae43ce0e2412ddcd3", "public/art/sprites/big/wolf-rare.png": "396bc8daf92d8d646e35a95e2bfdb871", "public/art/sprites/big/wolf-rare_em.png": "e4de19140660931cedd44a876cb94818", "public/art/sprites/big/zombie-boss.png": "473916201305aa7752b6e333ebe81903", "public/art/sprites/big/zombie-boss_em.png": "3f1e73df656d7f0015d25abf08be98cb", "public/art/sprites/big/zombie-mini.png": "bd5357e7b9c4881400d6f4b4b8a1453a", "public/art/sprites/big/zombie-mini_em.png": "a8d3f3ea2625a5dee716319c65bf7584", "public/art/sprites/big/zombie-rare.png": "52d826f425751781a8b3cd186ad3b164", "public/art/sprites/big/zombie-rare_em.png": "7e7dce00e6cdd38019156027dc35208d"};
+    const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
+    check("playtest1p", "the live files are byte for byte playtest1p's (sim, draw, facing, fight lights, bigboss, the writers, the -dirs sheets, the owner note)", Object.keys(LIVE).length > 0 && live.length === 0, live.map((f) => `${f}=${md5f(f)}`).join(", "));
+  }
+  globalThis.Image = had.Image; globalThis.document = had.document; globalThis.localStorage = had.ls; Math.random = had.random;
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

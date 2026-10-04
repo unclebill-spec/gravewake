@@ -181,3 +181,7 @@ if __name__ == "__main__":
     import dirs_writer
 
     dirs_writer.main()
+    # playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: bosses 5x, minis 3x, rares 2x (boss_writer.py)
+    import boss_writer
+
+    boss_writer.main()

@@ -23,6 +23,7 @@ import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_write
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
+import { BIG, CAM, bigMask, bigRow, bigSheet, cellAt, footOf, headroom, scaleOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
@@ -1318,9 +1319,11 @@ function person(
   if (!FOLK.includes(role)) role = FOLK[8 + (strHash(seed || role) % 16)]!;
   const step = pose === "walk" ? Math.floor(frame / 6) % 2 : 0;
   const o = outfit(role, coat);
-  const flip = facing === 3;
-  // playtest1o: the face picks the view (front, back, side; west is the side view mirrored). A climber shows its back.
+  // playtest1o: the face picks the view (front, back, side). A climber shows its back. playtest1p [OWNER-APPROVED
+  // 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: west reads its own row (viewOf), no mirror; a climber
+  // facing west still mirrors its back, as before.
   const view = viewOf(pose === "climb" ? 2 : facing);
+  const flip = pose === "climb" ? facing === 3 : view.flip;
   faceView = view.dirs ? view : null;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
@@ -1495,6 +1498,35 @@ export function hasGlowMask(family: string): boolean {
   return FOE_FAMILIES.includes(family);
 }
 
+/**
+ * playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: one cell of a big sheet
+ * (bigboss.ts: four views down, eleven poses across, 16s x 32s each), its feet on the 1x foot line; in the glow pass its
+ * _em mask. False while the sheet loads (the caller draws the 1x cell scaled instead).
+ */
+function bigBody(ctx: CanvasRenderingContext2D, x: number, y: number, family: string, rank: string, col: number, row: number): boolean {
+  if (typeof Image === "undefined" || !(rank in BIG)) return false;
+  const s = BIG[rank as BigRank];
+  const url = bigSheet(family, rank as BigRank);
+  if (!url || s <= 1) return false;
+  const load = (u: string) => {
+    let im = landSheet[u];
+    if (!im) {
+      im = new Image();
+      im.src = u;
+      landSheet[u] = im;
+    }
+    return im.complete && im.naturalWidth > 0 ? im : null;
+  };
+  const body = load(url);
+  if (!body) return false;
+  const im = emPass ? load(bigMask(url)) : body;
+  if (!im) return true; // the glow mask still loading: no glow this frame (the body is drawn)
+  const c = cellAt(s);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, col * c.w, row * c.h, c.w, c.h, Math.round(x) + c.dx, Math.round(y) + c.dy, c.w, c.h);
+  return true;
+}
+
 function monsterSprite(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -1532,6 +1564,8 @@ function paintMonster(
 ) {
   const ink = INK;
   const step = moving ? Math.floor(frame / 6) % 2 : 0;
+  // playtest1p: a boss, a mini or a rare draws from its own big sheet (boss_writer.py), its view's row, its pose's column.
+  if (pixelScale > 1 && bigBody(ctx, x, y, family, rank, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), SIDE_NATIVE.has(family) ? (side === 3 ? 3 : 2) : bigRow(facing))) return;
   // playtest1o: a foe faces the way it walks (front, back, side). A horse, cat or rat is drawn side-on already: it only mirrors.
   const view = SIDE_NATIVE.has(family) ? { dirs: false, row: 0, flip: side === 3 } : viewOf(facing);
   faceView = view.dirs ? view : null;
@@ -1539,6 +1573,7 @@ function paintMonster(
   ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(x), Math.round(y));
   if (view.flip) ctx.scale(-1, 1);
+  if (pixelScale > 1) ctx.translate(0, 2 * pixelScale - 2); // playtest1p: while its big sheet loads, the 1x cell whole-pixel scaled, feet on the foot line
   ctx.scale(pixelScale, pixelScale);
   ctx.translate(-8, -20);
   const families = FOE_FAMILIES;
@@ -1767,6 +1802,31 @@ function scaleFor(boss?: boolean, mini?: boolean): number {
   if (boss) return 1;
   if (mini) return 1;
   return 1;
+}
+/** playtest1p: the people-scale bodies (a summon, a ghost of a boss on a trophy) keep scaleFor; a fighting rank reads BIG. */
+export const peopleScale = scaleFor;
+/** playtest1p: a big body's own light reaches a quarter further per step of scale (1 for the people's scale). */
+const bigLight = (r: { boss?: boolean; mini?: boolean; rare?: boolean; naughty?: string; mimic?: boolean }) => 1 + (scaleOf(r) - 1) / 4;
+/** playtest1p: the cold-fire ring under a big boss: the 32x16 ring whole-pixel scaled round its feet (3x for a 5x boss). */
+function bigAura(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number, sc: number, em: boolean) {
+  const k = Math.max(1, Math.round(sc * 0.6));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y) - 4);
+  ctx.scale(k, k);
+  sheetCell(ctx, em ? BOSS_AURA_EM : BOSS_AURA, Math.floor(frame / 2) % AURA_FRAMES, 0, -16, -8, 2, 1, 32);
+  ctx.restore();
+}
+/** playtest1p: the hit flash's box round a big body (the 1x box, 14x14 round the body's middle, grown with it). */
+function flashBox(ctx: CanvasRenderingContext2D, x: number, y: number, sc: number) {
+  const w = 14 * sc;
+  const top = Math.round(y) - 2 - 18 * sc;
+  const bot = Math.round(y) - 2 - 4 * sc;
+  const x0 = Math.round(x) - 7 * sc;
+  px(ctx, x0, top, w, 1, "#f4f0ea");
+  px(ctx, x0, bot, w, 1, "#f4f0ea");
+  px(ctx, x0, top, 1, bot - top, "#f4f0ea");
+  px(ctx, x0 + w - 1, top, 1, bot - top, "#f4f0ea");
 }
 
 /**
@@ -2524,7 +2584,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
     if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
-    out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.flameBoss : LIGHT.flameFoe, c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true });
+    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(headroom(scaleOf(r)) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.flameBoss : LIGHT.flameFoe) * bigLight(r)), c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true }); // playtest1p: from a big body's middle, wider
   }
   // gfx3: ghosts glow cold and steady (ghost light, no flicker), bigger on a boss; none on unexplored rock.
   // The Death Shade stays lightless (the law: shades are negative light).
@@ -2533,7 +2593,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
     if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
-    out.push({ x: r.x, y: r.y - (r.boss ? 22 : 12), r: r.boss ? LIGHT.ghostBoss : LIGHT.ghost, c: LIGHTS.ghost, seed: 0, flick: false });
+    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(headroom(scaleOf(r)) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.ghostBoss : LIGHT.ghost) * bigLight(r)), c: LIGHTS.ghost, seed: 0, flick: false }); // playtest1p
   }
   // playtest1j: the fight's moving lights (fightlights.ts, a fixed pool): marks, wind-ups, a boss's roar, each spell's neon
   // core and impact flash, ash fire and live plates, in Bill's neon. They share the budget below.
@@ -2868,7 +2928,7 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   for (const r of g.roamers) {
     if (!r.boss || !r.name) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
-    drawLabel(ctx, r.name, r.x, r.y - LABEL.lift - 4, "red"); // playtest1c: over a people-scale boss
+    drawLabel(ctx, r.name, r.x, r.y - (scaleOf(r) > 1 ? headroom(scaleOf(r)) + 6 : LABEL.lift + 4), "red"); // playtest1c: over a people-scale boss; playtest1p: over its big body
   }
   if (g.mapId === "world") {
     // playtest1f: a wayrift's name (where it leads) when you stand near its mouth
@@ -2900,9 +2960,22 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
  * the view (the camp, a room, the town on a wide screen) sits centred and the border pass paints past its edge. The tap
  * scheme reads the same camera (Gravewake.tsx), so a tap still lands where it was aimed.
  */
-export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h">, viewW: number, viewH: number, zoom: number) {
+export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null }, viewW: number, viewH: number, zoom: number) {
   const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(0, Math.min(size - view, hero - view / 2))));
-  return { x: axis(g.px, viewW / zoom, g.w * TILE), y: axis(g.py, viewH / zoom, g.h * TILE) };
+  // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: in a fight with a big body the
+  // camera frames the big body (sim.ts camFocus: its middle and half-size) and the hero together, the hero's own body kept
+  // CAM.edge inside the view (bigboss.ts CAM). The tap aim reads the same.
+  const f = g.camFocus;
+  if (!f) return { x: axis(g.px, viewW / zoom, g.w * TILE), y: axis(g.py, viewH / zoom, g.h * TILE) };
+  const frame = (hero: number, lo: number, hi: number, at: number, half: number, view: number) => {
+    const m = Math.min(CAM.edge, view / 8);
+    const want = (Math.min(hero + lo, at - half) + Math.max(hero + hi, at + half)) / 2;
+    return Math.max(hero + hi + m - view / 2, Math.min(hero + lo - m + view / 2, want));
+  };
+  return {
+    x: axis(frame(g.px, -CAM.heroW, CAM.heroW, f.x, f.rx ?? 0, viewW / zoom), viewW / zoom, g.w * TILE),
+    y: axis(frame(g.py, -CAM.heroUp, 2, f.y, f.ry ?? 0, viewH / zoom), viewH / zoom, g.h * TILE),
+  };
 }
 
 /** playtest1e: what lies past a map's edge: deep forest on the vale, the camp and the town (on the edge tile's own
@@ -3257,7 +3330,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     props.push({ y: n.y, fn: () => { blobShadow(ctx, g, n.x, n.y - 2); draw(ctx); }, actor: draw });
   }
   for (const r of g.roamers) {
-    const sc = scaleFor(r.boss, r.mini);
+    const sc = scaleOf(r); // playtest1p: boss 5, mini 3, rare 2 (bigboss.ts BIG); scaleFor stays the people's 1 for the rest
     // playtest1o: a foe faces its walk; standing in a fight (or swinging) it faces its target; a shove or stun holds its face.
     const foeAt = (r.taunt ?? 0) > g.worldMs && g.companion ? g.companion : r.atEscort && g.escort ? g.escort : hero;
     const rv = faceOf(r, r.x, r.y, !!r.moving, r.aggro || (r.actFor ?? 0) > 0 ? foeAt : null, (r.shoveT ?? 0) > 0 || (r.stun ?? 0) > 0);
@@ -3267,11 +3340,14 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       actor: body,
       fn: () => {
         // playtest1c: a boss stands in its cold-fire ring (under its shadow and body)
-        if (r.boss) sheetCell(ctx, BOSS_AURA, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32);
-        if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);
+        if (r.boss && sc > 1) bigAura(ctx, r.x, r.y, g.frame, sc, false); // playtest1p: the ring grows with the body
+        else if (r.boss) sheetCell(ctx, BOSS_AURA, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32);
+        if (sc > 1) blobShadow(ctx, g, r.x, r.y - 2 - footOf(r).ry / 4, 2 * footOf(r).rx + 8, 2 * footOf(r).ry + 4); // playtest1p: the foot's shadow
+        else if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);
         else blobShadow(ctx, g, r.x, r.y - 2);
         body(ctx);
-        if ((r.flash ?? 0) > 0) {
+        if ((r.flash ?? 0) > 0 && sc > 1) flashBox(ctx, r.x, r.y, sc);
+        else if ((r.flash ?? 0) > 0) {
           px(ctx, r.x - 7, r.y - 20, 14, 1, "#f4f0ea");
           px(ctx, r.x - 7, r.y - 6, 14, 1, "#f4f0ea");
           px(ctx, r.x - 7, r.y - 20, 1, 14, "#f4f0ea");
@@ -3281,7 +3357,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     });
     // gfx3 glow mask: the eyes, lantern face and sparks stay lit in the dark. Not on unexplored rock.
     const glowFrom = glow.length;
-    if (r.boss && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) glow.push((c) => void sheetCell(c, BOSS_AURA_EM, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32));
+    if (r.boss && sc > 1 && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) glow.push((c) => bigAura(c, r.x, r.y, g.frame, sc, true));
+    else if (r.boss && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) glow.push((c) => void sheetCell(c, BOSS_AURA_EM, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32));
     if (hasGlowMask(r.family) && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) {
       glow.push((c) => {
         emPass = true;
@@ -3520,7 +3597,7 @@ function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
     if (!r.aggro || (r.hp ?? 0) <= 0) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
     const st = r.st;
-    const top = Math.round(r.y) - (r.boss ? 44 : 28);
+    const top = Math.round(r.y) - (scaleOf(r) > 1 ? headroom(scaleOf(r)) + 14 : r.boss ? 44 : 28); // playtest1p: over a big body
     const kinds = [(st?.poison ?? 0) > 0 && "poison", (st?.wet ?? 0) > 0 && "wet", (st?.chill ?? 0) > 0 && "chill", g.oiled(r) && "oil"].filter(Boolean) as (keyof typeof STATUS_MOTE)[];
     let x = Math.round(r.x) - kinds.length * 2;
     kinds.forEach((k, i) => {
@@ -3535,9 +3612,10 @@ function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
   }
   const t = g.allyFocus;
   if (t && g.focusUntil > g.worldMs && (t.hp ?? 0) > 0) {
-    const x0 = Math.round(t.x) - 9;
-    const y0 = Math.round(t.y) - (t.boss ? 36 : 22);
-    const x1 = Math.round(t.x) + 8;
+    const ts = scaleOf(t); // playtest1p: the focus corners round a big body
+    const x0 = Math.round(t.x) - (ts > 1 ? 8 * ts + 1 : 9);
+    const y0 = Math.round(t.y) - (ts > 1 ? headroom(ts) + 2 : t.boss ? 36 : 22);
+    const x1 = Math.round(t.x) + (ts > 1 ? 8 * ts : 8);
     const y1 = Math.round(t.y) + 3;
     for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
       px(ctx, sx > 0 ? cx : cx - 2, cy, 3, 1, "#b07aff");
