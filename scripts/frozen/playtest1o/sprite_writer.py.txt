@@ -38,15 +38,6 @@ INK = "#140c10"
 _SORTED = sorted(LOCKED)
 _CORE = sorted(SPRITE_CORE & LOCKED)
 
-# playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]: which way a body faces. "front" faces the camera (every
-# older strip, unchanged), "back" walks up the screen (no face: hair, hood, helm or cape behind) and "side" walks
-# right (the game mirrors it for left). dirs_writer.py sets it and draws the -dirs sheets.
-VIEW = "front"
-# Drawn in profile already, facing right: their back and side views are the same frame (the game mirrors for left).
-SIDE_NATIVE = ("horse", "cat", "rat")
-# Chest-front details a back view does not show.
-FRONT_ONLY = ("vest", "jabot", "bowtie", "badge", "tape", "furchest", "stole", "mask", "specs", "gem")
-
 
 def _rgba(color: str) -> tuple[int, int, int, int]:
     h = color.lstrip("#")
@@ -474,18 +465,14 @@ def _torso(s: Sprite, spec: dict, ux: int, uy: int, legs: str, pose: str) -> tup
         s.set(8 + ux, 21 + uy, spec["trim"])
     # collar and chest trim
     s.rect(6 + ux, ay, 4, 1, spec["trim"])
-    if VIEW != "back":
-        s.set(7 + ux, ay + 1, spec["trim"])
-        s.set(8 + ux, ay + 1, spec["trim"])
+    s.set(7 + ux, ay + 1, spec["trim"])
+    s.set(8 + ux, ay + 1, spec["trim"])
     # belt
     if not spec["robe"] or "stole" in spec["extra"]:
         by = 20 + uy
         s.rect(x0, by, w, 1, spec["belt"])
-        if VIEW == "side":
-            s.set(x1 - 1, by, spec["metal"] if spec["metal"] else GOLD)
-        elif VIEW == "front":
-            s.set(7 + ux, by, spec["metal"] if spec["metal"] else GOLD)
-            s.set(8 + ux, by, lt(spec["metal"]))
+        s.set(7 + ux, by, spec["metal"] if spec["metal"] else GOLD)
+        s.set(8 + ux, by, lt(spec["metal"]))
     else:
         s.rect(x0 + 1, 20 + uy, w - 2, 1, spec["trim"])  # a cord at the waist
     return x0, x1
@@ -525,7 +512,7 @@ def _head(s: Sprite, spec: dict, hx: int, hy: int, pose: str) -> None:
     x = FACE_X + hx
     kind = spec.get("head", "human")
     if kind != "human":
-        _view_head(s, spec, x, hy, pose, HEADS[kind])
+        HEADS[kind](s, spec, x, hy, pose)
         return
     s.rect(x, hy, 8, 8, skin)
     for cx, cy in ((x, hy), (x + 7, hy), (x, hy + 7), (x + 7, hy + 7)):
@@ -539,11 +526,6 @@ def _head(s: Sprite, spec: dict, hx: int, hy: int, pose: str) -> None:
     s.rect(x + 3, hy + 8, 2, 1, dk(skin))
     # face
     ey = hy + 4
-    if VIEW == "back":
-        return
-    if VIEW == "side":
-        _face_side(s, spec, x, hy, pose, faceless)
-        return
     if faceless:
         s.rect(x + 1, hy + 2, 6, 5, "#101820")
         if pose != "idle":
@@ -588,143 +570,6 @@ def _head(s: Sprite, spec: dict, hx: int, hy: int, pose: str) -> None:
         s.rect(x + 3, my, 2, 1, MOUTH)
 
 
-def _face_side(s: Sprite, spec: dict, x: int, hy: int, pose: str, faceless: bool) -> None:
-    """playtest1o: the face turned to the right: one eye near the front, the nose past the cheek, an ear behind."""
-    skin = spec["skin"]
-    ey = hy + 4
-    s.set(x + 8, hy + 4, skin)  # the nose
-    s.pts([(x + 3, hy + 4), (x + 3, hy + 5)], dk(skin))  # the ear
-    if faceless:
-        s.rect(x + 3, hy + 2, 5, 5, "#101820")
-        s.set(x + 8, hy + 4, None)
-        if pose != "idle":
-            s.set(x + 6, ey, spec["eyes"])
-        return
-    brow = dk(spec["hair"]) if spec["hairstyle"] != "bald" else dk(skin, 2)
-    if spec["hat"] in ("hood", "cowl"):
-        brow = dk(skin, 2)
-    if pose == "idle":
-        s.set(x + 6, ey + 1, dk(skin, 2))
-    else:
-        s.rect(x + 6, ey, 1, 2, INK)
-        if spec["eyes"] != INK:
-            s.set(x + 6, ey, spec["eyes"])
-    if pose in ("swing0", "swing1", "cast1"):
-        s.pts([(x + 5, ey - 2), (x + 6, ey - 1)], brow)
-    else:
-        s.pts([(x + 5, ey - 1), (x + 6, ey - 1), (x + 7, ey - 1)], brow)
-    s.set(x + 7, ey + 1, dk(skin))
-    my = hy + 6
-    m = spec["mouth"]
-    if m == "gape":
-        s.rect(x + 6, my, 2, 2 if pose in ("swing1", "cast1", "idle") else 1, "#3a2830")
-    elif pose in ("swing1", "cast1"):
-        s.rect(x + 6, my, 2, 1, "#6a2030")
-    elif m == "fangs":
-        s.rect(x + 6, my, 2, 1, "#6a2030")
-        s.set(x + 7, my + 1, BONE)
-    elif m == "hag":
-        s.rect(x + 6, my, 2, 1, "#3a2830")
-        s.set(x + 8, hy + 5, dk(skin))
-    elif m == "grim":
-        s.rect(x + 5, my, 3, 1, dk(skin, 2))
-    else:
-        s.rect(x + 6, my, 2, 1, MOUTH)
-
-
-def _view_head(s: Sprite, spec: dict, x: int, hy: int, pose: str, fn) -> None:
-    """playtest1o: a monster's own head (skull, pumpkin, wolf, mummy, goblin, ghoul) from behind or from the side.
-    Its face is every pixel in the face box that is not the head's own colour or one step of it: from behind the face
-    is filled with the head's colour; from the side the face's front half moves a pixel forward and the rest goes."""
-    if VIEW == "front":
-        fn(s, spec, x, hy, pose)
-        return
-    h = Sprite()
-    fn(h, spec, x, hy, pose)
-    base = spec["skin"]
-    ramp = {base, dk(base), lt(base)}
-    top = hy if VIEW == "back" else hy + 1
-    feats = {}
-    for j in range(top, hy + 8):
-        for i in range(x + 1, x + 7):
-            if 0 <= j < h.h and 0 <= i < h.w and h.p[j][i] and h.p[j][i] not in ramp:
-                feats[(i, j)] = h.p[j][i]
-    if spec.get("head") == "wolf":
-        for j in range(max(0, hy - 2), hy + 1):
-            for i in range(x, x + 8):
-                if 0 <= i < h.w and h.p[j][i] == "#8a5840":
-                    feats[(i, j)] = h.p[j][i]
-    for (i, j) in feats:
-        h.p[j][i] = base
-    if VIEW == "side":
-        for (i, j), c in feats.items():
-            if i >= x + 4 and i + 1 <= x + 7 and h.p[j][i + 1]:
-                h.p[j][i + 1] = c
-    for j in range(h.h):
-        for i in range(h.w):
-            if h.p[j][i]:
-                s.p[j][i] = h.p[j][i]
-
-
-# Per drawn family: its face colours (keys of its colours, or literal colours) and how many rows from the top of the
-# body its face can sit in. INK is a face colour only inside the body (the outline is drawn after).
-DRAWN_FACE = {
-    "ghost": (("eye", "mouth"), 16),
-    "bat": (("eye",), 32),
-    "scarecrow": ((INK, "#3a2830"), 14),
-    "tree": (("eye", INK), 32),
-    "mimic": (("eye", "maw", "tooth", "tongue"), 32),
-    "krampus": (("eye", "brow", "tongue", "tongue_hi"), 17),
-    "pumpkinlord": (("glow", "core", INK), 12),
-}
-
-
-def _view_body(s: Sprite, kind: str, C: dict) -> None:
-    """playtest1o: a drawn creature from behind (its face filled with the body around it) or from the side (the face's
-    front half a pixel forward, the back half gone). Profile families (SIDE_NATIVE) keep their one frame."""
-    if VIEW == "front" or kind in SIDE_NATIVE or kind not in DRAWN_FACE:
-        return
-    keys, rows = DRAWN_FACE[kind]
-    cols = {C.get(k, k) for k in keys}
-    top = next((y for y in range(s.h) if any(s.p[y])), 0)
-    feats = {(i, j): s.p[j][i] for j in range(top, min(s.h, top + rows)) for i in range(s.w) if s.p[j][i] in cols}
-    if not feats:
-        return
-    orig = dict(feats)
-    def fill(i, j):
-        near = {}
-        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
-            ii, jj = i + di, j + dj
-            if 0 <= ii < s.w and 0 <= jj < s.h and s.p[jj][ii] and (ii, jj) not in feats:
-                near[s.p[jj][ii]] = near.get(s.p[jj][ii], 0) + 1
-        return max(sorted(near), key=lambda c: near[c]) if near else None
-    left = dict(feats)
-    for _ in range(6):
-        if not left:
-            break
-        done = {}
-        for (i, j) in left:
-            c = fill(i, j)
-            if c:
-                done[(i, j)] = c
-        for (i, j), c in done.items():
-            s.p[j][i] = c
-            del left[(i, j)]
-            feats.pop((i, j), None)
-    if VIEW == "side":
-        cx = (min(i for (i, _) in orig) + max(i for (i, _) in orig)) / 2
-        for (i, j), c in orig.items():
-            if i < cx:
-                continue
-            if i + 1 < s.w and s.p[j][i + 1] and (i + 1, j) not in orig:
-                s.p[j][i + 1] = c
-            elif i + 1 < s.w and (i + 1, j) in orig:
-                s.p[j][i + 1] = c
-            else:
-                s.p[j][i] = c
-    return
-
-
 def _hair(s: Sprite, spec: dict, hx: int, hy: int) -> None:
     st = spec["hairstyle"]
     h = spec["hair"]
@@ -750,9 +595,6 @@ def _hair(s: Sprite, spec: dict, hx: int, hy: int) -> None:
         s.rect(x, hy + 3, 1, 2, h)
         s.rect(x + 7, hy + 3, 1, 2, h)
         return
-    if VIEW == "back":
-        _hair_back(s, spec, x, hy, st, h, d, li)
-        return
     s.rect(x + 1, hy - 1, 6, 1, h)
     s.rect(x, hy, 8, 2, h)
     s.rect(x, hy + 2, 1, 3, d)
@@ -766,16 +608,7 @@ def _hair(s: Sprite, spec: dict, hx: int, hy: int) -> None:
         s.rect(x + 1, hy + 2, 2, 1, h)  # fringe
         s.set(x + 5, hy + 2, h)
         s.set(x + 6, hy + 2, h)
-    if VIEW == "side":
-        # the back of the head (the left, facing right) is hair; the front keeps its fringe
-        s.rect(x, hy + 2, 3, 4, h)
-        s.rect(x, hy + 2, 1, 4, d)
-        s.set(x + 2, hy + 5, d)
-    if st == "long" and VIEW == "side":
-        s.rect(x - 1, hy + 1, 1, 9, d)
-        s.rect(x, hy + 5, 3, 5, h)
-        s.rect(x, hy + 6, 1, 4, d)
-    elif st == "long":
+    if st == "long":
         s.rect(x - 1, hy + 1, 1, 9, d)
         s.rect(x + 8, hy + 1, 1, 9, h)
         s.rect(x, hy + 5, 1, 5, h)
@@ -783,72 +616,24 @@ def _hair(s: Sprite, spec: dict, hx: int, hy: int) -> None:
     elif st == "bun":
         s.rect(x + 2, hy - 3, 4, 2, h)
         s.set(x + 4, hy - 3, li)
-    elif st == "pony" and VIEW == "side":
-        s.rect(x - 1, hy + 1, 1, 6, d)
-        s.set(x - 2, hy + 6, d)
     elif st == "pony":
         s.rect(x + 8, hy + 1, 1, 6, h)
         s.set(x + 9, hy + 6, d)
     elif st == "curly":
         s.pts([(x, hy - 1), (x + 2, hy - 2), (x + 4, hy - 2), (x + 6, hy - 2), (x + 7, hy - 1)], h)
         s.rect(x - 1, hy + 1, 1, 3, d)
-        if VIEW != "side":
-            s.rect(x + 8, hy + 1, 1, 3, h)
+        s.rect(x + 8, hy + 1, 1, 3, h)
     elif st == "spiky" or st == "wild":
         s.pts([(x + 1, hy - 2), (x + 3, hy - 3), (x + 4, hy - 2), (x + 6, hy - 2), (x + 7, hy - 2)], h)
         if st == "wild":
             s.pts([(x - 1, hy + 1), (x - 1, hy + 2), (x + 8, hy), (x + 8, hy + 1)], h)
 
 
-def _hair_back(s: Sprite, spec: dict, x: int, hy: int, st: str, h: str, d: str, li: str) -> None:
-    """playtest1o: the back of the head, all hair down to the nape (the neck shows below)."""
-    s.rect(x + 1, hy - 1, 6, 1, h)
-    s.rect(x, hy, 8, 7, h)
-    s.rect(x, hy + 1, 1, 6, d)
-    s.rect(x + 1, hy + 6, 6, 1, d)
-    s.rect(x + 4, hy, 3, 1, li)
-    s.set(x + 6, hy + 2, li)
-    if st == "long":
-        s.rect(x - 1, hy + 1, 1, 9, d)
-        s.rect(x + 8, hy + 1, 1, 9, h)
-        s.rect(x, hy + 7, 8, 3, h)
-        s.rect(x, hy + 7, 1, 3, d)
-        s.rect(x + 1, hy + 9, 6, 1, d)
-    elif st == "bun":
-        s.rect(x + 2, hy - 3, 4, 2, h)
-        s.set(x + 4, hy - 3, li)
-        s.rect(x + 3, hy + 1, 2, 2, d)
-    elif st == "pony":
-        s.rect(x + 3, hy + 7, 2, 4, h)
-        s.set(x + 3, hy + 10, d)
-    elif st == "curly":
-        s.pts([(x, hy - 1), (x + 2, hy - 2), (x + 4, hy - 2), (x + 6, hy - 2), (x + 7, hy - 1)], h)
-        s.rect(x - 1, hy + 1, 1, 3, d)
-        s.rect(x + 8, hy + 1, 1, 3, h)
-    elif st in ("spiky", "wild"):
-        s.pts([(x + 1, hy - 2), (x + 3, hy - 3), (x + 4, hy - 2), (x + 6, hy - 2), (x + 7, hy - 2)], h)
-        if st == "wild":
-            s.pts([(x - 1, hy + 1), (x - 1, hy + 2), (x + 8, hy), (x + 8, hy + 1)], h)
-    elif st == "slick":
-        s.rect(x + 3, hy + 5, 2, 1, d)
-
-
 def _beard(s: Sprite, spec: dict, hx: int, hy: int, long: bool) -> None:
     b = spec["beard"]
-    if not b or VIEW == "back":
+    if not b:
         return
     x = FACE_X + hx
-    if VIEW == "side":
-        s.rect(x + 3, hy + 6, 2, 1, b)
-        s.rect(x + 3, hy + 7, 5, 1, b)
-        s.set(x + 3, hy + 6, dk(b))
-        s.set(x + 7, hy + 7, dk(b))
-        if long:
-            s.rect(x + 4, hy + 8, 4, 3, b)
-            s.rect(x + 5, hy + 11, 2, 2, b)
-            s.set(x + 7, hy + 8, lt(b))
-            s.set(x + 4, hy + 10, dk(b))
-        return
     s.rect(x, hy + 4, 1, 3, b)
     s.rect(x + 7, hy + 4, 1, 3, b)
     s.pts([(x + 1, hy + 6), (x + 2, hy + 6), (x + 5, hy + 6), (x + 6, hy + 6)], b)
@@ -885,15 +670,6 @@ def _hat(s: Sprite, spec: dict, hx: int, hy: int) -> None:
             s.set(x + 5, hy - 4, pl)
             s.set(x + 6, hy - 3, dk(pl))
             s.set(x + 4, hy - 4, lt(pl))
-        if VIEW == "back":
-            s.rect(x, hy - 1, 8, 7, c)
-            s.rect(x, hy - 1, 1, 7, d)
-            s.rect(x + 1, hy + 5, 6, 1, d)
-            s.rect(x + 5, hy - 1, 1, 3, li)
-        elif VIEW == "side":
-            s.rect(x, hy + 2, 4, 4, c)
-            s.rect(x, hy + 2, 1, 4, d)
-            s.set(x + 3, hy + 5, d)
     elif hat == "kettle":
         s.rect(x + 1, hy - 2, 6, 1, c)
         s.rect(x + 1, hy - 1, 6, 2, c)
@@ -964,10 +740,6 @@ def _hat(s: Sprite, spec: dict, hx: int, hy: int) -> None:
         s.rect(x + 5, hy + 1, 2, 1, "#9ec4e0")
         s.pts([(x, hy + 1), (x + 3, hy + 1), (x + 4, hy + 1), (x + 7, hy + 1)], "#c4b48a")
         s.set(x + 6, hy + 1, "#e8f2f8")
-        if VIEW == "back":
-            s.rect(x + 1, hy + 1, 6, 1, "#c4b48a")
-        elif VIEW == "side":
-            s.rect(x + 1, hy + 1, 3, 1, "#c4b48a")
     elif hat == "kerchief":
         s.rect(x, hy - 1, 8, 3, c)
         s.rect(x + 1, hy - 2, 6, 1, c)
@@ -1028,10 +800,6 @@ def _hat(s: Sprite, spec: dict, hx: int, hy: int) -> None:
         s.rect(x + 1, hy + 1, 2, 1, "#9ec060")
         s.rect(x + 5, hy + 1, 2, 1, "#9ec060")
         s.set(x + 6, hy + 1, "#e8f2f8")
-        if VIEW == "back":
-            s.rect(x, hy + 1, 8, 1, "#3a2418")
-        elif VIEW == "side":
-            s.rect(x, hy + 1, 5, 1, "#3a2418")
     elif hat == "mitre":
         s.rect(x + 3, hy - 5, 2, 1, c)
         s.rect(x + 2, hy - 4, 4, 1, c)
@@ -1195,13 +963,7 @@ def _details(s: Sprite, spec: dict, x0: int, x1: int, ux: int, uy: int, sash: st
     ay = 14 + uy
     ex = spec["extra"]
     tr = spec["trim"]
-    if VIEW == "back":
-        # playtest1o: from behind, no chest pieces; an apron is its waist tie
-        ex = tuple(e for e in ex if e not in FRONT_ONLY)
-        if spec["apron"]:
-            s.rect(x0, 20 + uy, x1 - x0 + 1, 1, spec["apron"])
-            s.pts([(7 + ux, 21 + uy), (8 + ux, 21 + uy)], dk(spec["apron"]))
-    if spec["apron"] and VIEW != "back":
+    if spec["apron"]:
         a = spec["apron"]
         bottom = 24 if not spec["robe"] else 25
         s.rect(x0 + 1, ay + 3, x1 - x0 - 1, bottom - ay - 2, a)
@@ -1454,13 +1216,10 @@ def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str, bob: 
     if staffy and pose == "cast2":
         rarm = "down"
     s = Sprite()
-    if VIEW != "back":
-        _back_layer(s, spec, ux, uy, pose)
+    _back_layer(s, spec, ux, uy, pose)
     _legs(s, spec, legs, uy, spec["robe"])
     x0, x1 = _torso(s, spec, ux, uy, legs, pose)
     _details(s, spec, x0, x1, ux, uy, sash, pose)
-    if VIEW == "back":
-        _back_layer(s, spec, ux, uy, pose)  # playtest1o: seen from behind, the cape, pack or quiver covers the back
     _, _, alx, arx = BUILD[spec["build"]]
     ay = 14 + uy
     lhx, lhy = _arm(s, spec, larm, alx + ux, ay, True)
@@ -1483,29 +1242,12 @@ def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str, bob: 
     _head(s, spec, hx, hy, pose)
     _hair(s, spec, hx, hy)
     _beard(s, spec, hx, hy, long=role_long_beard(spec))
-    if "mask" in spec["extra"] and VIEW == "side":
-        s.rect(FACE_X + hx + 4, hy + 5, 4, 3, spec["hatc"])
-        s.set(FACE_X + hx + 7, hy + 5, lt(spec["hatc"]))
-    elif "mask" in spec["extra"] and VIEW == "front":
+    if "mask" in spec["extra"]:
         s.rect(FACE_X + hx + 1, hy + 5, 6, 3, spec["hatc"])
         s.set(FACE_X + hx + 5, hy + 5, lt(spec["hatc"]))
-    gem = "gem" in spec["extra"] and VIEW != "back"
+    gem = "gem" in spec["extra"]
     _hat(s, spec, hx, hy)
-    if spec["hat"] in ("hood", "cowl") and VIEW == "side":
-        # playtest1o: the hood's opening turned to the right, one eye in it
-        face = Sprite()
-        _head(face, spec, hx, hy, pose)
-        _beard(face, spec, hx, hy, long=role_long_beard(spec))
-        if "mask" in spec["extra"]:
-            face.rect(FACE_X + hx + 4, hy + 5, 4, 3, spec["hatc"])
-        for yy in range(hy + 2, hy + 8):
-            for xx in range(FACE_X + hx + 3, FACE_X + hx + 9):
-                if 0 <= yy < 32 and 0 <= xx < 16 and face.get(xx, yy):
-                    s.p[yy][xx] = face.p[yy][xx]
-        s.rect(FACE_X + hx + 3, hy + 2, 5, 1, dk(spec["skin"]) if "faceless" not in spec["extra"] else "#101820")
-    elif spec["hat"] in ("hood", "cowl") and VIEW == "back":
-        pass  # playtest1o: from behind the hood is whole
-    elif spec["hat"] in ("hood", "cowl"):
+    if spec["hat"] in ("hood", "cowl"):
         # repaint the face inside the hood, a shade deeper at the top
         face = Sprite()
         _head(face, spec, hx, hy, pose)
@@ -1521,17 +1263,11 @@ def _person(spec: dict, pose: str, rank: str, sash: str | None, seed: str, bob: 
         if "faceless" not in spec["extra"] and pose != "idle":
             s.set(FACE_X + hx + 2, hy + 4, spec["eyes"])
             s.set(FACE_X + hx + 5, hy + 4, spec["eyes"])
-    if gem and VIEW == "side":
-        s.rect(FACE_X + hx + 5, hy - 1, 2, 2, "#9ec4e0")
-        s.set(FACE_X + hx + 6, hy - 1, "#e8f2f8")
-        s.pts([(FACE_X + hx + 4, hy), (FACE_X + hx + 7, hy)], GOLD)
-    elif gem:
+    if gem:
         s.rect(FACE_X + hx + 3, hy - 1, 2, 2, "#9ec4e0")
         s.set(FACE_X + hx + 4, hy - 1, "#e8f2f8")
         s.pts([(FACE_X + hx + 2, hy), (FACE_X + hx + 5, hy)], GOLD)
-    if "specs" in spec["extra"] and VIEW == "side":
-        s.pts([(FACE_X + hx + 5, hy + 4), (FACE_X + hx + 7, hy + 4)], GOLD)
-    elif "specs" in spec["extra"] and VIEW == "front":
+    if "specs" in spec["extra"]:
         s.pts([(FACE_X + hx + 3, hy + 4), (FACE_X + hx + 4, hy + 4)], GOLD)
         s.pts([(FACE_X + hx + 1, hy + 4), (FACE_X + hx + 6, hy + 4)], GOLD)
     rhx, rhy = _arm(s, spec, rarm, arx + ux, ay, False)
@@ -2563,7 +2299,6 @@ def _drawn(kind: str, pose: str, rank: str) -> Sprite:
         s.set(top_x + 1, cy + 1, MINI_RED)
     elif rank == "rare":
         _affix(s)
-    _view_body(s, kind, C)
     s.outline()
     core, ring = CAST[kind]
     if pose == "cast0":
@@ -2581,7 +2316,6 @@ def festival_boss(kind: str, pose: str) -> Sprite:
     C = dict(FAMILY_COLORS[kind])
     s = Sprite()
     top_x, top_y = DRAWN[kind](s, pose, C, 1)
-    _view_body(s, kind, C)
     s.outline()
     core, ring = CAST[kind]
     if pose == "cast0":

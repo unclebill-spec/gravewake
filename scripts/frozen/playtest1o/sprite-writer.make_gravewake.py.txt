@@ -177,7 +177,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    # playtest1o: the back and side views of every strip (dirs_writer.py), drawn from the same bodies.
-    import dirs_writer
-
-    dirs_writer.main()

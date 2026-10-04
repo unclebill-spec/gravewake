@@ -1,6 +1,3 @@
-import { yardPieces } from "./blocking";
-import { LOOT_SHEET, ORE_SHEET, lootCell } from "./loot";
-import { DIRS, DIRS_EM, DIRS_SHEETS, FACE, SIDE_NATIVE, axisFace, faceOf, heroFace, nearestOf, viewOf, type Face } from "./facing";
 import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worldBiome, type Item, type Tile } from "./content";
 import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
@@ -9,7 +6,7 @@ import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
-import { roomNameOf, townRoomAt } from "./sim";
+import { townRoomAt } from "./sim";
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
@@ -85,12 +82,6 @@ const landSheet: Partial<Record<string, HTMLImageElement>> = {};
 export const EM_SHEETS: Record<string, string> = { "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
 export const EM_COLOURS = ["#f4e27a", "#fff8e0", "#e0a040"] as const;
 let emPass = false;
-/**
- * playtest1o (Bill, 2026-10-03 19:49 ET: "walk the right directions"): the view the body being drawn faces (facing.ts
- * viewOf), set by person() and paintMonster(). While it is set, a body strip's cell is read from the strip's -dirs
- * sheet (the same column, the back or side row); the front cell stands in while that sheet loads.
- */
-let faceView: { row: number } | null = null;
 // Load the crowd looks up front so a town NPC never starts on look 0 and then swaps.
 if (typeof Image !== "undefined") {
   const crowd = new Image();
@@ -109,21 +100,6 @@ function sheetCell(
   stride = 16,
 ): boolean {
   if (typeof Image === "undefined") return false;
-  if (faceView && row === 0 && DIRS[url]) {
-    const v = faceView;
-    faceView = null;
-    let drawn: boolean;
-    if (emPass) {
-      // the glow pass: a back or side view draws its own mask (facing.ts DIRS_EM, kept out of EM_SHEETS), or nothing
-      const mask = DIRS_EM[DIRS[url]];
-      const was = emPass;
-      emPass = false;
-      drawn = mask ? sheetCell(ctx, mask, col, v.row, dx, dy, w, h, stride) : true;
-      emPass = was;
-    } else drawn = sheetCell(ctx, DIRS[url], col, v.row, dx, dy, w, h, stride);
-    faceView = v;
-    if (drawn) return true;
-  }
   if (emPass) {
     // gfx3 glow masks: draw the sheet's emissive mask instead, or nothing; never fall back to a painted body.
     const em = EM_SHEETS[url];
@@ -140,13 +116,6 @@ function sheetCell(
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(im, col * stride, row * stride, w * 16, h * 16, dx, dy, w * 16, h * 16);
   return true;
-}
-if (typeof Image !== "undefined") {
-  for (const url of [...DIRS_SHEETS, LOOT_SHEET, ORE_SHEET]) {
-    const im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
 }
 
 /**
@@ -465,8 +434,7 @@ function paintCaveFloor(ctx: CanvasRenderingContext2D, x: number, y: number, the
     if ((x * 3 + y) % 5 === 0) px(ctx, gx + 9, gy + 8, 4, 2, shade(p.floor, -16));
   }
   const ore = (x * 13 + y * 7) % 19;
-  // playtest1o: the ore is the loot writer's crystal cell (cave-ore.png, the same four colours); the blob is its fallback.
-  if ((ore === 0 || ore === 1) && !sheetCell(ctx, ORE_SHEET, (x + y) % 4, 0, gx, gy)) {
+  if (ore === 0 || ore === 1) {
     const gem = ["#5a48c8", "#3a78c8", "#c84848", "#48a060"][(x + y) % 4];
     px(ctx, gx + 5, gy + 6, 5, 4, shade(gem, -30));
     px(ctx, gx + 6, gy + 5, 3, 3, gem);
@@ -1319,9 +1287,6 @@ function person(
   const step = pose === "walk" ? Math.floor(frame / 6) % 2 : 0;
   const o = outfit(role, coat);
   const flip = facing === 3;
-  // playtest1o: the face picks the view (front, back, side; west is the side view mirrored). A climber shows its back.
-  const view = viewOf(pose === "climb" ? 2 : facing);
-  faceView = view.dirs ? view : null;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(x), Math.round(y));
@@ -1507,11 +1472,8 @@ function monsterSprite(
   moving = false,
   rank: "mob" | "boss" | "mini" | "rare" = "mob",
   phase = 1,
-  facing: Face = 0,
-  side: 1 | 3 = 1,
 ) {
-  paintMonster(ctx, x, y, family, tint, pixelScale, frame, pose, moving, rank, phase, facing, side);
-  faceView = null;
+  paintMonster(ctx, x, y, family, tint, pixelScale, frame, pose, moving, rank, phase);
 }
 
 /** Opaque monster body. Families that used to read as see-through are solid pixels here. */
@@ -1527,18 +1489,12 @@ function paintMonster(
   moving = false,
   rank: "mob" | "boss" | "mini" | "rare" = "mob",
   phase = 1,
-  facing: Face = 0,
-  side: 1 | 3 = 1,
 ) {
   const ink = INK;
   const step = moving ? Math.floor(frame / 6) % 2 : 0;
-  // playtest1o: a foe faces the way it walks (front, back, side). A horse, cat or rat is drawn side-on already: it only mirrors.
-  const view = SIDE_NATIVE.has(family) ? { dirs: false, row: 0, flip: side === 3 } : viewOf(facing);
-  faceView = view.dirs ? view : null;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(x), Math.round(y));
-  if (view.flip) ctx.scale(-1, 1);
   ctx.scale(pixelScale, pixelScale);
   ctx.translate(-8, -20);
   const families = FOE_FAMILIES;
@@ -1867,9 +1823,35 @@ function paintTownFootprint(ctx: CanvasRenderingContext2D, tile: Tile, x: number
   seasonCell(ctx, "town-grass", TOWN_GRASS, Math.abs(x * 3 + y * 5) % 7, gx, gy);
 }
 
-// playtest1o (Bill, 2026-10-03 19:49 ET: "All the graphics in the entire game are upgraded to the same level?"): the old
-// painted yard fence (1 px rails round every building's footprint, trades too, looks only) is gone. The writer's picket
-// yards (yardFences, blocking.ts) ring the homes one tile out and are the fence that stops you.
+/** Yard fence around the footprint, same posts and rails as the town fences, open at the door. */
+function paintYardFence(ctx: CanvasRenderingContext2D, b: TownBuilding) {
+  const post = "#6a5038";
+  const cap = "#3a2820";
+  const rail = "#8a6848";
+  const isDoor = (tx: number, ty: number) => tx === b.doorX && ty === b.doorY;
+  for (let tx = b.x; tx < b.x + b.w; tx++) {
+    for (const ty of [b.y, b.y + b.h - 1]) {
+      if (isDoor(tx, ty)) continue;
+      const gx = tx * TILE;
+      const gy = ty * TILE;
+      px(ctx, gx, gy + 5, TILE, 1, rail);
+      px(ctx, gx, gy + 9, TILE, 1, post);
+      px(ctx, gx + 7, gy + 2, 2, 10, post);
+      px(ctx, gx + 6, gy + 2, 4, 2, cap);
+    }
+  }
+  for (let ty = b.y; ty < b.y + b.h; ty++) {
+    for (const tx of [b.x, b.x + b.w - 1]) {
+      if (isDoor(tx, ty)) continue;
+      const gx = tx * TILE + (tx === b.x ? 1 : TILE - 3);
+      const gy = ty * TILE;
+      px(ctx, gx, gy, 1, TILE, rail);
+      px(ctx, gx + 1, gy, 1, TILE, post);
+      px(ctx, gx, gy + 2, 2, 10, post);
+      px(ctx, gx - 1, gy + 2, 4, 2, cap);
+    }
+  }
+}
 
 /** playtest1b: every room door in town (a building can hold two: Noll's cottage and the South Croft share one), cached. */
 const roomDoorCache = new WeakMap<object, { x: number; y: number; bx: number; room: { id: string; name: string; kind: string } }[]>();
@@ -1890,17 +1872,6 @@ function roomDoors(g: Game) {
   return out;
 }
 
-/**
- * playtest1o: where the inside sign hangs: the plain back-wall tile in the middle (x 7: windows are on x 2, 6, 10, sconces
- * on 4, 8, 12, the shelf on 9, the guild board on 5). In the croft, a sixth boss trophy takes slot 7; the sign then hangs
- * on the plain tile at x 13. The name sits under it.
- */
-export const INSIDE_SIGN = { x: 7, croftAlt: 13, label: 25 } as const;
-function insideSignSpot(g: Game): { x: number; y: number } {
-  const taken = g.inside === "croft" && g.bossTrophies().some((t) => t.slot === INSIDE_SIGN.x);
-  return { x: (taken ? INSIDE_SIGN.croftAlt : INSIDE_SIGN.x) * TILE, y: 0 };
-}
-
 /** Home kinds that keep a fenced yard: cottages, crofts, and any house with no trade behind its door. */
 const YARD_KINDS = new Set(["cottage", "croft"]);
 const yardCache = new WeakMap<object, { x: number; y: number; cell: number }[]>();
@@ -1908,9 +1879,27 @@ const yardCache = new WeakMap<object, { x: number; y: number; cell: number }[]>(
 export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
   const hit = yardCache.get(g.tiles);
   if (hit) return hit;
-  // playtest1o: the pieces come from blocking.ts, so the fence the town draws is the fence that stops you (and the lane
-  // along the next row of houses stays open: it used to shut in the inn's and the shop's doors).
-  const out = yardPieces(g.w, g.h, g.tiles, T.wall, T.door, T.grass, townRoomAt, YARD_KINDS);
+  const out: { x: number; y: number; cell: number }[] = [];
+  const taken = new Set<number>();
+  for (const b of townBuildings(g)) {
+    const room = b.doorX >= 0 ? townRoomAt(b.doorX, b.doorY) : undefined;
+    if (room && !YARD_KINDS.has(room.kind)) continue;
+    const x0 = b.x - 1, y0 = b.y - 1, x1 = b.x + b.w, y1 = b.y + b.h;
+    const southDoor = b.doorY === b.y + b.h - 1;
+    const doors = roomDoors(g).filter((d) => d.bx === b.x && d.y >= b.y && d.y < b.y + b.h);
+    const gap = (tx: number, ty: number) => (southDoor ? ty === y1 && (tx === b.doorX || doors.some((d) => d.x === tx)) : b.doorX >= 0 && Math.abs(tx - b.doorX) + Math.abs(ty - b.doorY) === 1);
+    const open = (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < g.w && ty < g.h && g.tiles[ty * g.w + tx] === T.grass;
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        const edge = ty === y0 || ty === y1 || tx === x0 || tx === x1;
+        if (!edge || !open(tx, ty) || gap(tx, ty) || taken.has(ty * g.w + tx)) continue;
+        const nextToGap = gap(tx - 1, ty) || gap(tx + 1, ty);
+        const side = (tx === x0 || tx === x1) && ty !== y0 && ty !== y1;
+        taken.add(ty * g.w + tx);
+        out.push({ x: tx, y: ty, cell: nextToGap ? 2 : side ? 1 : 0 });
+      }
+    }
+  }
   yardCache.set(g.tiles, out);
   return out;
 }
@@ -1919,6 +1908,7 @@ export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
 const signFrameOf = (frame: number, seed: number) => (Math.floor(frame / 3) + seed * 7) % 11 === 0;
 
 function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuilding, em = false) {
+  if (!em) paintYardFence(ctx, b);
   if (typeof Image === "undefined") return;
   let im = landSheet[b.file];
   if (!im) {
@@ -2879,12 +2869,6 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
       drawLabel(ctx, wayLabel(w, season), m.x * TILE + 8, (w.y - 2) * TILE - 2, wayAwake(w, season) ? "violet" : "bone");
     }
   }
-  // playtest1o: inside, the building's name in gold under its sign on the back wall.
-  const here = g.mapId === "inside" ? roomNameOf(g.inside) : undefined;
-  if (here) {
-    const at = insideSignSpot(g);
-    drawLabel(ctx, here.name, at.x + 8, at.y + INSIDE_SIGN.label, "gold");
-  }
   if (g.mapId === "town") {
     for (const d of roomDoors(g)) {
       if (Math.hypot(d.x * TILE + 8 - g.px, (d.y + 1) * TILE + 8 - g.py) > 3 * TILE) continue;
@@ -3225,14 +3209,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     }
     // playtest1i: the trade furniture (counters, shelves, pews and altar, forge and anvil, card table, cauldron, orrery,
     // nets, crates, strongbox, mannequin, rack), y-sorted with the folk; its glowing parts go to the light layer.
-    // playtest1o (Bill, 2026-10-03 19:49 ET: "signs to designate what buildings are"): the trade's neon sign hangs on the back
-    // wall inside too (the same sign as over its door), with the building's name in gold under it (paintLabels).
-    const here = roomNameOf(g.inside);
-    if (here) {
-      const at = insideSignSpot(g);
-      props.push({ y: 15, fn: () => void drawSign(ctx, here.kind, at.x, at.y, g.frame, 7) });
-      glow.push((c) => void drawSign(c, here.kind, at.x, at.y, g.frame, 7, true));
-    }
     for (const p of roomFurniture(g.inside)) {
       const anim = FURN_ANIM[p.k];
       const k = anim && Math.floor(g.frame / 3) % 2 === 1 ? anim : p.k;
@@ -3248,20 +3224,13 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       glow.push((c) => void drawTownIcon(c, d.x, d.y, g.frame, true));
     }
   }
-  // playtest1o (Bill, 2026-10-03 19:49 ET: "walk the right directions"): every body faces the way it walks (facing.ts),
-  // worked out once a frame here so its glow mask matches. A townsperson the hero walks up to turns to the hero.
-  const hero = { x: g.px, y: g.py };
   for (const n of g.npcs) {
-    const nf = faceOf(n, n.x, n.y, !!n.moving, Math.hypot(n.x - g.px, n.y - g.py) < FACE.near ? hero : null).face;
-    const draw = (c: CanvasRenderingContext2D) => person(c, n.x, n.y, n.look ?? n.role, n.coat, nf, g.frame, 1, g.poseFor(n.x, n.y, !!n.moving, false), "npc", 1, n.id);
+    const draw = (c: CanvasRenderingContext2D) => person(c, n.x, n.y, n.look ?? n.role, n.coat, 0, g.frame, 1, g.poseFor(n.x, n.y, !!n.moving, false), "npc", 1, n.id);
     props.push({ y: n.y, fn: () => { blobShadow(ctx, g, n.x, n.y - 2); draw(ctx); }, actor: draw });
   }
   for (const r of g.roamers) {
     const sc = scaleFor(r.boss, r.mini);
-    // playtest1o: a foe faces its walk; standing in a fight (or swinging) it faces its target; a shove or stun holds its face.
-    const foeAt = (r.taunt ?? 0) > g.worldMs && g.companion ? g.companion : r.atEscort && g.escort ? g.escort : hero;
-    const rv = faceOf(r, r.x, r.y, !!r.moving, r.aggro || (r.actFor ?? 0) > 0 ? foeAt : null, (r.shoveT ?? 0) > 0 || (r.stun ?? 0) > 0);
-    const body = (c: CanvasRenderingContext2D) => monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
+    const body = (c: CanvasRenderingContext2D) => monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0));
     props.push({
       y: r.y,
       actor: body,
@@ -3301,20 +3270,16 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     }
   }
   for (const c of g.critters) {
-    // playtest1o: a cat, rat or bat runs on its walk frames (it used to glide in its stand pose) and faces its run.
-    const runs = Math.abs(c.vx) > 0.01;
-    const cv = faceOf(c, c.x, c.y, runs);
     props.push({
       y: c.y,
       fn: () => {
         blobShadow(ctx, g, c.x, c.y - 2, BLOB.smallW, BLOB.smallH);
-        monsterSprite(ctx, c.x, c.y, c.kind === "rat" ? "rat" : c.kind === "cat" ? "cat" : "bat", "#2a2a2e", 1, g.frame, "", runs, "mob", 1, cv.face, cv.side);
+        monsterSprite(ctx, c.x, c.y, c.kind === "rat" ? "rat" : c.kind === "cat" ? "cat" : "bat", "#2a2a2e", 1, g.frame);
       },
     });
   }
   if (g.companion) {
     const ally = g.companion;
-    const af = faceOf(ally, ally.x, ally.y, !!ally.moving, (ally.actFor ?? 0) > 0 ? nearestOf(g.roamers, ally.x, ally.y) : null).face; // playtest1o
     const draw = (c: CanvasRenderingContext2D) =>
         person(
           c,
@@ -3322,7 +3287,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
           ally.y,
           ally.look,
           ally.coat,
-          af,
+          0,
           g.frame,
           ally.hp > 0 ? 1 : 0.8,
           (ally.actFor ?? 0) > 0 ? (ally.act === "cast" ? "cast" : "swing") : g.poseFor(ally.x, ally.y, !!ally.moving, ally.equip.feet?.special === "Waterwalk"),
@@ -3335,7 +3300,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   const esc = g.mapId === "dungeon" ? g.escort : null;
   const who = esc ? rescueFor(g.dungeon) : undefined;
   if (esc && who) {
-    const ef = faceOf(esc, esc.x, esc.y, esc.state === "follow" && !!esc.moving).face; // playtest1o
     const ti = Math.floor(esc.y / TILE) * g.w + Math.floor(esc.x / TILE);
     if (esc.state === "follow" || !g.fog || g.fog[ti] !== 0) {
       props.push({
@@ -3343,7 +3307,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         fn: () => {
           if (esc.state !== "down") blobShadow(ctx, g, esc.x, esc.y - 2);
           if (esc.state === "down" && sheetCell(ctx, ESCORT_DOWN, Math.max(0, RESCUES.indexOf(who)) * 2, 0, Math.round(esc.x) - 16, Math.round(esc.y) - 12, 2, 1)) return;
-          person(ctx, esc.x, esc.y, who.body, "#888888", ef, g.frame, 1, esc.state === "follow" ? g.poseFor(esc.x, esc.y, !!esc.moving, false) : "stand", "npc", 1, who.seed);
+          person(ctx, esc.x, esc.y, who.body, "#888888", 0, g.frame, 1, esc.state === "follow" ? g.poseFor(esc.x, esc.y, !!esc.moving, false) : "stand", "npc", 1, who.seed);
           if ((esc.flash ?? 0) > 0) {
             px(ctx, esc.x - 7, esc.y - 20, 14, 1, "#f4f0ea");
             px(ctx, esc.x - 7, esc.y - 6, 14, 1, "#f4f0ea");
@@ -3365,7 +3329,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     y: g.py,
     fn: () => {
       const role = g.cls;
-      const face = heroFace(g.facing); // playtest1o: the game's facing (it aims the swing too)
+      const face = g.facing === "n" ? 2 : g.facing === "w" ? 3 : g.facing === "e" ? 1 : 0;
       const acting = g.mode === "fish" ? "fish" : g.actFor > 0 ? g.actPose : "";
       const onLadder = g.climbUntil > g.worldMs;
       const pose = acting === "swing" || acting === "cast" || acting === "fish" ? acting : g.wading ? "wade" : g.sliding ? "slide" : onLadder ? "climb" : g.moving ? "walk" : "stand";
@@ -3936,12 +3900,6 @@ function paintWhirlRings(ctx: CanvasRenderingContext2D, g: Game) {
 function paintDrop(ctx: CanvasRenderingContext2D, x: number, y: number, silver: number, item: Item | null, frame: number) {
   const ox = Math.round(x) - 4;
   const oy = Math.round(y) - 8;
-  // playtest1o (Bill, 2026-10-03 19:49 ET: "all the graphics ... upgraded to the same level?"): the drop is the loot
-  // writer's cell (loot.ts), its foot on the ground; the painted shapes below are only the not-loaded fallback.
-  if (sheetCell(ctx, LOOT_SHEET, lootCell(item, silver), 0, Math.round(x) - 8, Math.round(y) - 14)) {
-    sparkle(ctx, ox, oy - 3, silver > 0 || !item ? 3 : item.rank, frame);
-    return;
-  }
   if (silver > 0 || !item) {
     px(ctx, ox + 1, oy + 3, 6, 5, "#8a8680");
     px(ctx, ox + 2, oy + 2, 4, 5, "#d4d0c8");
@@ -4161,7 +4119,7 @@ export function drawBattle(ctx: CanvasRenderingContext2D, g: Game, viewW: number
     const step = fx?.who === "foe" && (fx.foe === i || fx.foe < 0) ? stepOf("foe") : 0;
     const sc = f.boss ? 4 : f.mini ? 3 : 2;
     const foePose = fx && fx.who === "foe" && (fx.foe === i || fx.foe < 0) ? (fx.kind === "spell" || fx.kind === "heal" || fx.kind === "buff" ? "cast" : fx.kind === "swing" || fx.kind === "shot" ? "swing" : "") : "";
-    monsterSprite(ctx, at.x + step, at.y, f.family, f.tint, sc, g.frame, foePose, false, f.boss ? "boss" : f.mini ? "mini" : f.rare ? "rare" : "mob", beat, 3, 3); // playtest1o: the foe faces the hero (side view, mirrored)
+    monsterSprite(ctx, at.x + step, at.y, f.family, f.tint, sc, g.frame, foePose, false, f.boss ? "boss" : f.mini ? "mini" : f.rare ? "rare" : "mob", beat);
     const bw = 36;
     ctx.fillStyle = "#140e12";
     ctx.fillRect(at.x - 18, at.y + 8, bw, 4);
@@ -4432,23 +4390,4 @@ function miniFrame(ctx: CanvasRenderingContext2D, size: number) {
     ctx.fillStyle = "#e7f4ff";
     ctx.fillRect(x + 2, y + 2, 1, 1);
   }
-}
-
-/**
- * playtest1o: one body as the world draws it, walking (dx, dy) or standing, for the direction contact sheet and its
- * check. Drawing only; the game never calls it.
- */
-export function bodyPreview(
-  ctx: CanvasRenderingContext2D,
-  body: { kind: "person"; look: string; cast: "npc" | "hero" | "ally"; seed?: string; pose?: "stand" | "walk" | "wade" | "slide" | "swing" | "cast" | "fish" | "climb" } | { kind: "foe"; family: string; rank?: "mob" | "boss" | "mini" | "rare" },
-  x: number,
-  y: number,
-  dx: number,
-  dy: number,
-  frame: number,
-  moving: boolean,
-): void {
-  const face = axisFace(dx, dy);
-  if (body.kind === "person") person(ctx, x, y, body.look, "#888888", face, frame, 1, body.pose ?? (moving ? "walk" : "stand"), body.cast, 1, body.seed ?? "");
-  else monsterSprite(ctx, x, y, body.family, "#2a2a2e", 1, frame, "", moving, body.rank ?? "mob", 1, face, dx < 0 ? 3 : 1);
 }

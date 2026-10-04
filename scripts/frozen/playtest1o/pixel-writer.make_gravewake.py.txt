@@ -760,15 +760,5 @@ def playtest1i(out: Path = OUT) -> dict:
     return made
 
 
-
-def playtest1o(out: Path = OUT) -> dict:
-    """playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]: the loot icons
-    (loot_writer.py): the ground drops and the Pack's slots, which were the last painted art."""
-    import loot_writer
-
-    return {"loot.png": loot_writer.main(out), "cave-ore.png": loot_writer.ore(out)}
-
-
 if __name__ == "__main__":
     main()
-    playtest1o()

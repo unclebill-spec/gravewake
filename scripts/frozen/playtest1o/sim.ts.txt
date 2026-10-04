@@ -82,7 +82,6 @@ import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // p
 import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing, patchAt, placeRoom, propLive, roomBusy, wary, type Fall, type RoomProp, type RoomState } from "./room"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
-import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -3156,9 +3155,7 @@ export class Game {
         this.goal = null;
         this.slideX = 0;
         this.slideY = 0;
-        // playtest1o (Bill, 2026-10-03 19:49 ET: "have the correct collision"): only a hero wedged fast (no step free any
-        // way) is lifted out. Leaning on a wall, a bed or a counter used to hop the hero 18 px off it after 0.8 s.
-        if (this.wedged()) this.nudge("hero", Math.sign(wishX) || 1, Math.sign(wishY) || 0);
+        this.nudge("hero", Math.sign(wishX) || 1, Math.sign(wishY) || 0);
       }
     } else this.stuckT = 0;
     if (this.wading && !this.notedWade) {
@@ -3219,21 +3216,6 @@ export class Game {
       this.py = oy;
     }
     this.barHome();
-  }
-
-  /** playtest1o: no 1 px step is free in any of the four ways. */
-  private wedged() {
-    const ox = this.px;
-    const oy = this.py;
-    let stuck = true;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      this.px = ox + dx;
-      this.py = oy + dy;
-      if (!this.solidFeet()) stuck = false;
-    }
-    this.px = ox;
-    this.py = oy;
-    return stuck;
   }
 
   private solidFeet() {
@@ -3301,24 +3283,9 @@ export class Game {
     if (this.mapId === "dungeon" && this.room.solid.has(ty * this.w + tx)) return true; // playtest1n: a standing room prop
     // Item 10: bought furniture stands in the croft and stops everyone, like any furnishing.
     if (this.mapId === "inside" && this.inside === "croft" && this.decorAt(tx, ty)) return true;
-    // playtest1o (Bill, 2026-10-03 19:49 ET: "have the correct collision"): a room's furniture and a home's yard fence stop
-    // everyone where they are drawn (blocking.ts); they were looks only, so the hero walked through beds and fences.
-    // The chapel's hearth tile (the way down to the Hearth, under the altar's front) stays a way through.
-    if (this.mapId === "inside" && t !== T.hearth && furnitureAt(this.inside, this.theme, px, py)) return true;
-    if (this.mapId === "town" && this.yardFences().has(ty * this.w + tx)) return true;
     /** The hero may enter. Townsfolk, critters, and roamers may not. */
     if (t === T.water || t === T.pool || t === T.ice) return !hero;
     return false;
-  }
-
-  /** playtest1o: the town's yard fence tiles (the ones the town draws), worked out once per town grid. */
-  private yardFences(): Set<number> {
-    let hit = fenceCache.get(this.tiles);
-    if (!hit) {
-      hit = yardFenceTiles(this.w, this.h, this.tiles, T.wall, T.door, T.grass, townRoomAt);
-      fenceCache.set(this.tiles, hit);
-    }
-    return hit;
   }
 
   /** Trees, rocks, pumps, and graves push the hero out. They are not whole solid tiles. */
@@ -8213,15 +8180,6 @@ export const MANA = { pool: 2.5, regen: 3 } as const;
 export const WADE_LINE = "You sink in. Swimming is half speed.";
 export const DRY_LINE = "You climb out onto dry ground.";
 
-const fenceCache = new WeakMap<object, Set<number>>(); // playtest1o
-/**
- * playtest1o (Bill, 2026-10-03 19:49 ET: "there's signs to designate what buildings are?"): the name and trade of the room
- * you stand in, for its sign on the back wall and the HUD's place line. Picture only.
- */
-export function roomNameOf(id: string | null | undefined): { name: string; kind: string } | undefined {
-  const r = ROOMS.find((q) => q.id === id);
-  return r ? { name: r.name, kind: r.kind } : undefined;
-}
 export function townRoomAt(x: number, y: number): { id: string; name: string; kind: string } | undefined {
   const r = roomByDoor(x, y);
   return r ? { id: r.id, name: r.name, kind: r.kind } : undefined;
