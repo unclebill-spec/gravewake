@@ -23,7 +23,7 @@ import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_write
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
-import { BIG, CAM, bigMask, bigRow, bigSheet, cellAt, footOf, headroom, scaleOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
+import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, scaleOf, topOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
@@ -1819,12 +1819,14 @@ function bigAura(ctx: CanvasRenderingContext2D, x: number, y: number, frame: num
   sheetCell(ctx, em ? BOSS_AURA_EM : BOSS_AURA, Math.floor(frame / 2) % AURA_FRAMES, 0, -16, -8, 2, 1, 32);
   ctx.restore();
 }
-/** playtest1p: the hit flash's box round a big body (the 1x box, 14x14 round the body's middle, grown with it). */
-function flashBox(ctx: CanvasRenderingContext2D, x: number, y: number, sc: number) {
-  const w = 14 * sc;
-  const top = Math.round(y) - 2 - 18 * sc;
+/** playtest1p: the hit flash's box round a big body (the 1x box, 14x14 round the body's middle, grown with it).
+ * playtest1r: round its own shape (its hurt radius across, its top to a little over its feet). */
+function flashBox(ctx: CanvasRenderingContext2D, x: number, y: number, sc: number, r?: { boss?: boolean; mini?: boolean; rare?: boolean; family?: string }) {
+  const half = r ? bodyR(r) + 2 : 7 * sc;
+  const w = 2 * half;
+  const top = Math.round(y) - 2 - (r ? Math.round(topOf(r) * 0.92) : 18 * sc);
   const bot = Math.round(y) - 2 - 4 * sc;
-  const x0 = Math.round(x) - 7 * sc;
+  const x0 = Math.round(x) - half;
   px(ctx, x0, top, w, 1, "#f4f0ea");
   px(ctx, x0, bot, w, 1, "#f4f0ea");
   px(ctx, x0, top, 1, bot - top, "#f4f0ea");
@@ -2586,7 +2588,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
     if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
-    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(headroom(scaleOf(r)) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.flameBoss : LIGHT.flameFoe) * bigLight(r)), c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true }); // playtest1p: from a big body's middle, wider
+    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(topOf(r) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.flameBoss : LIGHT.flameFoe) * bigLight(r)), c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true }); // playtest1p: from a big body's middle, wider
   }
   // gfx3: ghosts glow cold and steady (ghost light, no flicker), bigger on a boss; none on unexplored rock.
   // The Death Shade stays lightless (the law: shades are negative light).
@@ -2595,7 +2597,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
     if (g.fog && g.fog[ti] === 0) continue;
     if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
-    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(headroom(scaleOf(r)) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.ghostBoss : LIGHT.ghost) * bigLight(r)), c: LIGHTS.ghost, seed: 0, flick: false }); // playtest1p
+    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(topOf(r) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.ghostBoss : LIGHT.ghost) * bigLight(r)), c: LIGHTS.ghost, seed: 0, flick: false }); // playtest1p
   }
   // playtest1j: the fight's moving lights (fightlights.ts, a fixed pool): marks, wind-ups, a boss's roar, each spell's neon
   // core and impact flash, ash fire and live plates, in Bill's neon. They share the budget below.
@@ -2933,7 +2935,7 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   for (const r of g.roamers) {
     if (!r.boss || !r.name) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
-    const above = r.y - (scaleOf(r) > 1 ? headroom(scaleOf(r)) + 6 : LABEL.lift + 4);
+    const above = r.y - (scaleOf(r) > 1 ? topOf(r) + 6 : LABEL.lift + 4); // playtest1r: over its own shape's top
     const hud = cam ? hudBoxes(ctx.canvas, g.frame) : [];
     const lw = hud.length ? labelCanvas(r.name, "red")?.width ?? 0 : 0;
     const sc = scaleOf(r);
@@ -3359,7 +3361,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         else if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);
         else blobShadow(ctx, g, r.x, r.y - 2);
         body(ctx);
-        if ((r.flash ?? 0) > 0 && sc > 1) flashBox(ctx, r.x, r.y, sc);
+        if ((r.flash ?? 0) > 0 && sc > 1) flashBox(ctx, r.x, r.y, sc, r);
         else if ((r.flash ?? 0) > 0) {
           px(ctx, r.x - 7, r.y - 20, 14, 1, "#f4f0ea");
           px(ctx, r.x - 7, r.y - 6, 14, 1, "#f4f0ea");
@@ -3611,7 +3613,7 @@ function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
     if (!r.aggro || (r.hp ?? 0) <= 0) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
     const st = r.st;
-    const top = Math.round(r.y) - (scaleOf(r) > 1 ? headroom(scaleOf(r)) + 14 : r.boss ? 44 : 28); // playtest1p: over a big body
+    const top = Math.round(r.y) - (scaleOf(r) > 1 ? topOf(r) + 14 : r.boss ? 44 : 28); // playtest1p: over a big body (playtest1r: its shape's top)
     const kinds = [(st?.poison ?? 0) > 0 && "poison", (st?.wet ?? 0) > 0 && "wet", (st?.chill ?? 0) > 0 && "chill", g.oiled(r) && "oil"].filter(Boolean) as (keyof typeof STATUS_MOTE)[];
     let x = Math.round(r.x) - kinds.length * 2;
     kinds.forEach((k, i) => {
@@ -3627,9 +3629,9 @@ function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
   const t = g.allyFocus;
   if (t && g.focusUntil > g.worldMs && (t.hp ?? 0) > 0) {
     const ts = scaleOf(t); // playtest1p: the focus corners round a big body
-    const x0 = Math.round(t.x) - (ts > 1 ? 8 * ts + 1 : 9);
-    const y0 = Math.round(t.y) - (ts > 1 ? headroom(ts) + 2 : t.boss ? 36 : 22);
-    const x1 = Math.round(t.x) + (ts > 1 ? 8 * ts : 8);
+    const x0 = Math.round(t.x) - (ts > 1 ? halfOf(t) + 1 : 9); // playtest1r: round its own shape
+    const y0 = Math.round(t.y) - (ts > 1 ? topOf(t) + 2 : t.boss ? 36 : 22);
+    const x1 = Math.round(t.x) + (ts > 1 ? halfOf(t) : 8);
     const y1 = Math.round(t.y) + 3;
     for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
       px(ctx, sx > 0 ? cx : cx - 2, cy, 3, 1, "#b07aff");

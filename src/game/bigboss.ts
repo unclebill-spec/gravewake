@@ -18,6 +18,8 @@
  * Aimed marks keep their size (they are on the hero's spot: walking out of one takes as long as before); a nova round
  * the body grows by its BODY, and its tell grows with the radius (telegraph.ts tellFor), so it can still be walked out of.
  */
+import { BIG_SHAPES, type BigShape } from "./bigshapes"; // playtest1r [OWNER-APPROVED 2026-10-04 09:00 ET: playtest1r fully reshaped big bosses]
+
 export const BIG = { boss: 5, mini: 3, rare: 2, mob: 1 } as const;
 export type BigRank = keyof typeof BIG;
 export const BODY: Record<BigRank, number> = { boss: 22, mini: 11, rare: 5, mob: 0 };
@@ -32,15 +34,44 @@ export const SPAWN_GAP = 1.6;
  * halfway to its middle cut up to 20 px off its head with the hero level with it.) */
 export const CAM = { near: 260, edge: 12, heroUp: 28, heroW: 8 } as const;
 
-export type Ranked = { boss?: boolean; mini?: boolean; rare?: boolean; naughty?: string; mimic?: boolean };
+export type Ranked = { boss?: boolean; mini?: boolean; rare?: boolean; naughty?: string; mimic?: boolean; family?: string };
 export function rankOf(r: Ranked): BigRank {
   return r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty || r.mimic ? "rare" : "mob";
 }
 export const scaleOf = (r: Ranked): number => BIG[rankOf(r)];
-export const bodyR = (r: Ranked): number => BODY[rankOf(r)];
-export const footOf = (r: Ranked): { rx: number; ry: number } => FOOT[rankOf(r)];
+/**
+ * playtest1r [OWNER-APPROVED 2026-10-04 09:00 ET: playtest1r fully reshaped big bosses]: every big body has its own shape now (the
+ * Vampire Queen's gown is wide at the hem, the Wolfman hunches, the bat hangs in the air), measured from its sheet by the
+ * writer (bigshapes.ts). A body whose family has a sheet takes its hurt radius, its foot (and so its shadow, its wall
+ * stops, its wind-up ring and its arena), the height its label, health bar and lights hang at, and the half-width the
+ * camera frames, from its shape; one without (a rank given with no family) takes the rank's BODY and FOOT as before,
+ * and the arena the worst foot of its rank.
+ */
+export function shapeOf(r: Ranked): BigShape | null {
+  const rank = rankOf(r);
+  if (rank === "mob" || !r.family) return null;
+  const url = bigSheet(r.family, rank);
+  if (!url) return null;
+  return BIG_SHAPES[url.slice(SHEET.length, -4)] ?? null;
+}
+export const bodyR = (r: Ranked): number => shapeOf(r)?.body ?? BODY[rankOf(r)];
+export const footOf = (r: Ranked): { rx: number; ry: number } => shapeOf(r)?.foot ?? FOOT[rankOf(r)];
+/** The widest foot of a rank's shapes (a spot chosen before its body is known must fit any of them). */
+export function widestFoot(rank: BigRank): number {
+  if (rank === "mob") return 0;
+  let w = FOOT[rank].rx;
+  for (const [k, s] of Object.entries(BIG_SHAPES)) if (k.endsWith(`-${rank}`)) w = Math.max(w, s.foot.rx);
+  return w;
+}
 /** The open radius a fight with this body needs round its feet. */
-export const arenaR = (r: Ranked): number => (rankOf(r) === "mob" ? 0 : FOOT[rankOf(r)].rx + DODGE);
+export const arenaR = (r: Ranked): number => (rankOf(r) === "mob" ? 0 : (r.family && shapeOf(r) ? footOf(r).rx : widestFoot(rankOf(r))) + DODGE);
+/** How high a big body's top stands over its feet (its label, health bar, status motes and focus corners go over it). */
+export const topOf = (r: Ranked): number => {
+  const s = shapeOf(r);
+  return s ? s.top + 3 : headroom(scaleOf(r));
+};
+/** How far a big body reaches either side of its feet (the camera's frame, the focus corners, the hit flash). */
+export const halfOf = (r: Ranked): number => shapeOf(r)?.half ?? 8 * scaleOf(r);
 
 /** How far into a foot ellipse a point is: under 1 is inside. */
 export function footDepth(fx: number, fy: number, foot: { rx: number; ry: number }, x: number, y: number): number {
@@ -72,7 +103,9 @@ export function bigSheet(family: string, rank: BigRank): string | null {
 export const bigMask = (url: string): string => url.replace(/\.png$/, "_em.png");
 /** The big sheet's row for a face (0 south, 1 east, 2 north, 3 west). */
 export const bigRow = (face: number): number => (face === 2 ? 1 : face === 1 ? 2 : face === 3 ? 3 : 0);
-/** Where a scale-s cell's top-left sits from the feet point: the feet stay on the 1x foot line (row 29 two px up). */
-export const cellAt = (s: number): { dx: number; dy: number; w: number; h: number } => ({ dx: -8 * s, dy: -2 - 30 * s, w: 16 * s, h: 32 * s });
+/** Where a scale-s cell's top-left sits from the feet point: the feet stay on the 1x foot line (two px under the soles).
+ * playtest1r: a big cell is 24s x 36s (the soles on its row 34s, its middle 12s across): a reshaped body's reach (a
+ * raised staff, a swung chain, a zombie's arms) did not fit the 1x cell grown. */
+export const cellAt = (s: number): { dx: number; dy: number; w: number; h: number } => ({ dx: -12 * s, dy: -2 - 34 * s, w: 24 * s, h: 36 * s });
 /** How high the top of a scale-s body stands over its feet (a label or health bar goes over it). */
 export const headroom = (s: number): number => 28 * s + 3;

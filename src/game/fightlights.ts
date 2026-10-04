@@ -11,7 +11,7 @@
 import { LIGHT, bucket, type RGB } from "./light";
 import { NEON_LIGHT } from "./looks";
 import { MARK_NEON, markSlot, tellProgress, type MarkSlot } from "./telegraph";
-import { bodyR, footOf, headroom, scaleOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
+import { bodyR, footOf, scaleOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
 export const FIGHT = {
   /** Fight lamps per frame, at most (the pool's size). */
@@ -98,10 +98,11 @@ export function fightLights(
       // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a big body's wind-up and
       // roar light from its middle and reach as far past it as a people-scale body's do past theirs
       const s = scaleOf(r);
-      if (!dark(r.x, r.y)) push(lamp(r.x, r.y - (s > 1 ? Math.round(headroom(s) / 2) : 10), FIGHT.windLight + bodyR(r) * 2, c, true, 2));
+      // playtest1r [OWNER-APPROVED 2026-10-04 09:00 ET: playtest1r fully reshaped big bosses]: from its own shape's middle (topOf)
+      if (!dark(r.x, r.y)) push(lamp(r.x, r.y - (s > 1 ? Math.round(topOf(r) / 2) : 10), FIGHT.windLight + bodyR(r) * 2, c, true, 2));
     } else if (r.boss && (r.phase ?? 1) >= 2 && (r.flash ?? 0) > 0 && r.act === "cast" && !dark(r.x, r.y)) {
       const s = scaleOf(r);
-      push(lamp(r.x, r.y - (s > 1 ? Math.round(headroom(s) * 0.6) : 16), FIGHT.roarLight + bodyR(r) * 2, NEON_LIGHT.red, true, 3));
+      push(lamp(r.x, r.y - (s > 1 ? Math.round(topOf(r) * 0.6) : 16), FIGHT.roarLight + bodyR(r) * 2, NEON_LIGHT.red, true, 3));
     }
   }
   for (const s of v.spells) {

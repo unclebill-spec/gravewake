@@ -83,7 +83,7 @@ import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing
 import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
-import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, headroom, scaleOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
+import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -1074,7 +1074,7 @@ export class Game {
     if ((id === "harvest" || id === "krampus") && !this.festivalBossDown(id) && !this.roamers.some((r) => r.festival === id) && this.pending?.festival !== id) {
       const def = FESTIVAL_BOSSES.find((b) => b.id === (id === "harvest" ? "pumpkinlord" : "krampus"))!;
       const at = id === "harvest" ? HARVEST.lord : KRAMPUSNACHT.spot;
-      const spot = this.roomyNear(at.x * TILE + 8, at.y * TILE + 8, arenaR({ boss: true })); // playtest1p: where a 5x boss has its dodge room
+      const spot = this.roomyNear(at.x * TILE + 8, at.y * TILE + 8, arenaR({ boss: true, family: def.family })); // playtest1p: where a 5x boss has its dodge room (playtest1r: its own foot's)
       this.roamers.push({ id: def.id, x: spot.x, y: spot.y, family: def.family, tint: def.tint, boss: true, def: def.id, level: Math.max(at.lv, zoneLevel(at.x, at.y, this.level)), ang: 0, festival: id, name: def.name });
       this.roamers[this.roamers.length - 1].spawnAt = this.worldMs; // fade2 (OWNER-APPROVED 2026-10-01 21:20 ET): spawn-time tag, read only by draw.ts
     }
@@ -2393,7 +2393,7 @@ export class Game {
     let bd: number = CAM.near;
     for (const r of this.roamers) {
       if (!r.aggro || (r.hp ?? 0) <= 0 || !(r.boss || r.mini)) continue;
-      const mid = { x: r.x, y: r.y - headroom(scaleOf(r)) / 2, rx: 8 * scaleOf(r), ry: headroom(scaleOf(r)) / 2 }; // its middle and half-size
+      const mid = { x: r.x, y: r.y - topOf(r) / 2, rx: halfOf(r), ry: topOf(r) / 2 }; // its middle and half-size (playtest1r: its own shape's)
       const d = Math.hypot(mid.x - this.px, mid.y - this.py);
       if (d < bd) {
         bd = d;
