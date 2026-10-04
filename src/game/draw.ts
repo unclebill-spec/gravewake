@@ -24,6 +24,8 @@ import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gr
 import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
 import { BIG, CAM, bigMask, bigRow, bigSheet, cellAt, footOf, headroom, scaleOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
+import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
+import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
@@ -2916,8 +2918,11 @@ function townDoors(g: Game): { x: number; y: number }[] {
  * companion in violet, a named boss in red wherever it is on screen. Houses show their name in gold on the sign plate
  * when you stand at the door. Picture only.
  */
+/** playtest1q: the view the labels are painted in (world px and zoom), set by drawWorld just before paintLabels, for the HUD-safe boss name. */
+let labelView: { x: number; y: number; w: number; h: number; zoom: number } | null = null;
 function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   if (g.mode === "title") return;
+  const cam = labelView;
   const near = (x: number, y: number) => Math.hypot(x - g.px, y - g.py) <= LABEL.near * TILE;
   for (const n of g.npcs) {
     if (!n.name || !near(n.x, n.y)) continue;
@@ -2928,7 +2933,15 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   for (const r of g.roamers) {
     if (!r.boss || !r.name) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
-    drawLabel(ctx, r.name, r.x, r.y - (scaleOf(r) > 1 ? headroom(scaleOf(r)) + 6 : LABEL.lift + 4), "red"); // playtest1c: over a people-scale boss; playtest1p: over its big body
+    const above = r.y - (scaleOf(r) > 1 ? headroom(scaleOf(r)) + 6 : LABEL.lift + 4);
+    const hud = cam ? hudBoxes(ctx.canvas, g.frame) : [];
+    const lw = hud.length ? labelCanvas(r.name, "red")?.width ?? 0 : 0;
+    const sc = scaleOf(r);
+    const seen = cam && r.x + 8 * sc > cam.x && r.x - 8 * sc < cam.x + cam.w && r.y > cam.y && above < cam.y + cam.h;
+    // playtest1q: with the HUD measured, the name is placed in the view clear of its panels (over the head, moved
+    // sideways, or flipped under the feet; hudsafe.ts placeLabel); with no HUD (no DOM) it is where it always was
+    const at = cam && lw && seen ? placeLabel(r.x, above, r.y, lw, 7, cam, worldBoxes(hud, cam.x, cam.y, cam.zoom)) : { cx: r.x, y: above };
+    drawLabel(ctx, r.name, at.cx, at.y, "red"); // playtest1c: over a people-scale boss; playtest1p: over its big body; playtest1q: clear of the HUD
   }
   if (g.mapId === "world") {
     // playtest1f: a wayrift's name (where it leads) when you stand near its mouth
@@ -3539,6 +3552,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
     paintLight(ctx, g, camX, camY, viewW / zoom, viewH / zoom, actors, glow);
   }
+  labelView = { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom, zoom }; // playtest1q: the view, for the HUD-safe boss name
   paintLabels(ctx, g);
   for (const n of g.nums) {
     let x = Math.round(n.x);

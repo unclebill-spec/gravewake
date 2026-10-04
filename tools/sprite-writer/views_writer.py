@@ -651,6 +651,151 @@ def _side_hat(s: Sprite, spec: dict, hx: int, hy: int) -> None:
 
 # ---------------------------------------------------------------- back
 
+TAG_1Q = "[OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]"
+
+
+def _bright(c: str) -> int:
+    return sum(int(c[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def skin_ramp(spec: dict) -> set:
+    sk = spec["skin"]
+    return {sk, dk(sk), dk(sk, 2), lt(sk)}
+
+
+def _neck_shade(s: Sprite, x: int, hy: int, neck: set, c: str) -> None:
+    """playtest1q: the neck under a head seen from behind (rows hy+8, hy+9, the middle columns) is in the hair's or the
+    hat's shadow, colour c: a bare strip of skin there, between a collar, read as a mouth at 5x. A skin pixel under
+    another skin pixel (a hand, an arm) is left alone."""
+    for yy in (hy + 8, hy + 9):
+        for xx in range(x + 1, x + 7):
+            if s.get(xx, yy) in neck and s.get(xx, yy - 1) not in neck:
+                s.set(xx, yy, c)
+
+
+def back_head(s: Sprite, spec: dict, x: int, hy: int) -> None:
+    """playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: the back of a human head is hair or hat only.
+
+    Bill (2026-10-04 05:43 ET): the wizard's back view showed a skin-coloured patch under his white hair that read as a
+    face. playtest1p's locks gave pale hair a parting, brim shadow and nape line of dk(hair, 3), which for white hair is
+    #c4a090 = dk(SKIN), and parted symmetrically at x+2 / x+5 (where the front's eyes sit), so a white-haired back was a
+    skin-toned face with two dark eyes. From behind now:
+      * every pixel of the head box (x..x+7, from the hair's top down to the nape) that is skin, a feature or a beard is
+        hair; nothing in the body's own skin ramp is left there, and the hair's shades never borrow a skin colour;
+      * the shading is the hair's own ramp, asymmetric (a crown light to the south-east, one parting slanting off the
+        middle, a darker band at the nape): no pair of dark pixels at the eye columns;
+      * a bald head shows its crown with a horseshoe of hair round the back; a stitched or tufted scalp (the zombies)
+        gets its nape band and a seam down the back of the skull, not a blank face;
+      * hats, hoods, helms and caps keep every pixel they drew."""
+    st = spec["hairstyle"]
+    hat = spec["hat"]
+    h = spec["hair"]
+    skin = skin_ramp(spec)
+    hair_ramp = [h, dk(h), dk(h, 2), dk(h, 3), lt(h), lt(h, 2), lt(h, 3)]
+    ok = [c for c in hair_ramp if c not in skin and c != INK]
+
+    def shade(*cands: str) -> str:
+        for c in cands:
+            if c in ok and c != h:
+                return c
+        return h
+
+    d = shade(dk(h), dk(h, 2))
+    dd = shade(dk(h, 2), dk(h)) if _bright(h) > 480 else d
+    li = shade(lt(h), lt(h, 2)) if _bright(h) >= 150 else shade(lt(h, 3), lt(h, 2), lt(h))
+    feats = skin | {MOUTH, spec["eyes"], "#e8e0d0", "#f4f0e8", "#3a2830", "#6a2030", "#101820"}
+    if spec.get("beard"):
+        b = spec["beard"]
+        feats |= {b, dk(b), lt(b)}
+    feats -= {h}
+    if hat in ("hood", "cowl", "helm", "aviator"):
+        # the hood or helm is the whole head from behind; a lit skin pixel left inside it is cloth or steel
+        c = spec["hatc"]
+        for yy in range(hy, hy + 8):
+            for xx in range(x, x + 8):
+                if s.get(xx, yy) in skin:
+                    s.set(xx, yy, c if hat != "aviator" else (h if yy < hy + 6 else dk(h) if dk(h) not in skin else h))
+        # the neck under it is in its shadow (a hood or cowl falls over it, a helm's guard and a cap's edge shade it)
+        nc = dk(c) if hat != "aviator" else (dk(h) if dk(h) not in skin else h)
+        _neck_shade(s, x, hy, skin | {sw.SKIN} | set(sw.SKINS), nc)
+        return
+    if st in ("none", "bald"):
+        # the crown is skin, with a horseshoe of hair (or the scalp's shade) round the back at the ears and nape
+        band = h if st == "bald" else dk(spec["skin"]) if dk(spec["skin"]) != INK else spec["skin"]
+        band_d = shade(dk(h), dk(h, 2)) if st == "bald" else band
+        for yy in range(hy + 4, hy + 7):
+            for xx in range(x, x + 8):
+                if s.get(xx, yy) in skin:
+                    s.set(xx, yy, band if yy < hy + 6 else band_d)
+        if st == "bald":
+            for xx in range(x, x + 8):
+                if s.get(xx, hy + 7) in skin and x + 1 < xx < x + 6:
+                    s.set(xx, hy + 7, band_d)
+        if s.get(x + 5, hy + 1) in skin:
+            s.set(x + 5, hy + 1, lt(spec["skin"]))   # the crown's light, off the middle
+        return
+    if st in ("tufts", "flattop"):
+        # a stitched or tufted scalp from behind: hair at the nape, a seam down the back of the skull (one column, off
+        # the middle), the tufts kept; a flattop's hair comes down the back to the ears
+        low = hy + 2 if st == "flattop" else hy + 5
+        for yy in range(low, hy + 7):
+            for xx in range(x, x + 8):
+                if s.get(xx, yy) in skin:
+                    s.set(xx, yy, h if yy < hy + 6 else d)
+        for yy in range(hy + 1, low):
+            if s.get(x + 3, yy) in skin:
+                s.set(x + 3, yy, dk(spec["skin"], 2) if dk(spec["skin"], 2) != INK else dk(spec["skin"]))
+        return
+    # haired: the hair's top row under the hat (a tall hat pushes it down)
+    top = next((yy for yy in range(max(0, hy - 2), hy + 7) if sum(1 for xx in range(x + 1, x + 7) if s.get(xx, yy) in [h] + ok + list(feats)) >= 4), hy)
+    end = hy + (9 if st == "long" else 6)
+    for yy in range(top, end + 1):
+        for xx in range(x - 1, x + 9):
+            c = s.get(xx, yy)
+            if c in feats or (c in hair_ramp and c != h and xx in range(x, x + 8)):
+                s.set(xx, yy, h)   # the face, its shades and old partings are all behind the hair
+    # the nape: the head's bottom row is the hair's shade (long hair falls on past it)
+    if st != "long":
+        for xx in range(x + 1, x + 7):
+            if s.get(xx, hy + 7) in skin:
+                s.set(xx, hy + 7, d)
+    # the neck under the hair is in the hair's shadow (a bare strip of skin there, between a collar, read as a mouth
+    # under the vampire's black hair once the boss was drawn 5x)
+    _neck_shade(s, x, hy, skin | {sw.SKIN} | set(sw.SKINS), d)   # the vampire's neck is drawn in the base SKIN under his PALE face
+    # shading in the hair's own ramp: the brim's shadow under a hat, the crown light to the south-east, one parting
+    # slanting down from just right of the middle to the left, a strand at the right edge, the nape band
+    if hat != "none":
+        for xx in range(x, x + 8):
+            if s.get(xx, top) == h:
+                s.set(xx, top, d)
+    lt_row = top + (1 if hat != "none" else 0)
+    for xx in (x + 4, x + 5):
+        if s.get(xx, lt_row) == h:
+            s.set(xx, lt_row, li)
+    if s.get(x + 6, lt_row + 1) == h:
+        s.set(x + 6, lt_row + 1, li)
+    part = [(x + 4, top + 2), (x + 3, top + 3), (x + 3, top + 4), (x + 2, top + 5)]
+    pd = li if _bright(h) < 200 else dd
+    for px_, py_ in part:
+        if py_ <= hy + 5 and s.get(px_, py_) == h:
+            s.set(px_, py_, pd)
+    if s.get(x + 6, hy + 4) == h:
+        s.set(x + 6, hy + 4, d)
+    if st == "long":
+        for yy in (hy + 7, hy + 8):
+            for xx in (x + 2, x + 5):
+                if s.get(xx, yy) == h:
+                    s.set(xx, yy, d)   # long hair falls in locks past the nape
+    else:
+        for xx in range(x + 1, x + 7):
+            if s.get(xx, hy + 6) == h:
+                s.set(xx, hy + 6, d)
+    if spec.get("beard") and st != "long":
+        for px_ in ((x - 1, hy + 5), (x + 8, hy + 5)):
+            if s.get(px_[0], px_[1]) is None:
+                s.set(px_[0], px_[1], spec["beard"])   # a beard shows at the jaw from behind
+
+
 def back_details(s: Sprite, spec: dict, ux: int, uy: int, hx: int, hy: int, pose: str) -> None:
     """playtest1p: the back of a person, before the outline: the hair in locks, the hood's seam, the helm's neck guard,
     shoulder blades, the spine seam, the cape's folds, a pack's straps. It only paints over the part it
@@ -671,58 +816,8 @@ def back_details(s: Sprite, spec: dict, ux: int, uy: int, hx: int, hy: int, pose
         if s.get(px, py) in over:
             s.set(px, py, color)
 
-    if head == "human" and st not in ("none", "bald", "tufts", "flattop") and hat not in ("hood", "cowl", "helm", "aviator"):
-        # locks: the hair's rows found on the sprite (a tall hat pushes them down), the front's eye and mouth rows the
-        # old back left as dark bars cleared, then two partings falling outward, a lit crown and a nape line, so the
-        # back of the head never reads as a blank face or a face in shadow
-        d = dk(h)
-        if sum(int(h[i:i + 2], 16) for i in (1, 3, 5)) > 480:
-            d = dk(h, 3)   # pale hair needs a deeper parting or the back of the head reads as a blank egg
-        li = lt(h) if lt(h) != h else h
-        if sum(int(h[i:i + 2], 16) for i in (1, 3, 5)) < 150:
-            li = lt(h, 3)   # black hair gets a sheen on the crown, or the head sinks into a dark cape
-        shade = (dk(h), dk(h, 2))
-        rows = [yy for yy in range(max(0, hy - 2), hy + 12) if sum(1 for xx in range(x + 1, x + 7) if s.get(xx, yy) in (h,) + shade) >= 4]
-        if rows:
-            r0, r1 = rows[0], rows[-1]
-            sk = spec["skin"]
-            feats = {MOUTH, spec["eyes"], INK, sk, dk(sk), lt(sk), "#e8e0d0", "#f4f0e8"}
-            if spec.get("beard"):
-                b = spec["beard"]
-                feats |= {b, dk(b), lt(b)}
-            for yy in rows:
-                for xx in range(x + 1, x + 7):
-                    if s.get(xx, yy) in feats:
-                        s.set(xx, yy, h)   # the front's eyes, mouth, moustache and cheeks are not seen from behind
-            for yy in range(r0, r1 + 1):
-                run = [xx for xx in range(x + 1, x + 7) if s.get(xx, yy) in shade]
-                if len(run) >= 3:
-                    for xx in run:
-                        s.set(xx, yy, h)
-            if hat not in ("none",):
-                for xx in range(x - 1, x + 9):
-                    if s.get(xx, r0) == h:
-                        s.set(xx, r0, d)   # the brim's shadow on the top row of hair under it
-            n = r1 - r0
-            pd = li if sum(int(h[i:i + 2], 16) for i in (1, 3, 5)) < 200 else d   # dark hair parts in sheen, not in black
-            for yy in range(r0 + 2, r1):
-                k = (yy - r0) * 2 // max(1, n)
-                on(x + 2 - k, yy, (h,), pd)
-                on(x + 5 + k, yy, (h,), pd)
-            on(x + 3, r0 + (1 if hat != "none" else 0), (h,), li)
-            on(x + 4, r0 + (1 if hat != "none" else 0), (h,), li)
-            if st != "long":
-                for xx in range(x + 1, x + 7):
-                    on(xx, r1, (h,), d)   # the nape line
-            else:
-                on(x + 3, r1, (h,), d)   # long hair ends in two locks
-        if spec.get("beard") and st != "long":
-            for px_ in ((x - 1, hy + 5), (x + 8, hy + 5)):
-                on(px_[0], px_[1], (None, spec["skin"]), spec["beard"])   # a beard shows at the jaw from behind
-    elif st == "bald" and head == "human":
-        on(x + 2, hy + 6, (spec["skin"], dk(spec["skin"])), dk(spec["skin"], 2) if dk(spec["skin"], 2) != INK else dk(spec["skin"]))
-        on(x + 5, hy + 6, (spec["skin"], dk(spec["skin"])), dk(spec["skin"], 2) if dk(spec["skin"], 2) != INK else dk(spec["skin"]))
-        on(x + 2, hy + 1, (spec["skin"],), lt(spec["skin"]))
+    if head == "human":
+        back_head(s, spec, x, hy)
     if hat in ("hood", "cowl"):
         c = spec["hatc"]
         for yy in range(hy - 1, hy + 8):

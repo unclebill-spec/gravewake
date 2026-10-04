@@ -149,7 +149,14 @@ function pt1oNew(f) { return ["src/game/blocking.ts", "src/game/facing.ts", "src
 // playtest1o left them (scripts/frozen/playtest1p/, as pushed at 9d87b3f), and the new files (bigboss.ts, the views and boss writers,
 // public/art/sprites/big/) are not in any older "every other file" digest.
 const PT1P_FROZEN = {"src/game/sim.ts": "sim.ts", "src/game/draw.ts": "draw.ts", "src/game/facing.ts": "facing.ts", "src/game/fightlights.ts": "fightlights.ts", "tools/sprite-writer/dirs_writer.py": "dirs_writer.py", "tools/sprite-writer/sprite_writer.py": "sprite_writer.py", "tools/sprite-writer/make_gravewake.py": "sprite-writer.make_gravewake.py", "AGENTS.project.md": "AGENTS.project.md", "public/art/sprites/people-dirs.png": "people-dirs.png", "public/art/sprites/allies-dirs.png": "allies-dirs.png", "public/art/sprites/folk-variants-dirs.png": "folk-variants-dirs.png", "public/art/sprites/moves-dirs.png": "moves-dirs.png", "public/art/sprites/foes-dirs.png": "foes-dirs.png", "public/art/sprites/mimic-dirs.png": "mimic-dirs.png", "public/art/sprites/krampus-dirs.png": "krampus-dirs.png", "public/art/sprites/pumpkin-lord-dirs.png": "pumpkin-lord-dirs.png", "public/art/sprites/foes-dirs_em.png": "foes-dirs_em.png", "public/art/sprites/krampus-dirs_em.png": "krampus-dirs_em.png", "public/art/sprites/pumpkin-lord-dirs_em.png": "pumpkin-lord-dirs_em.png"};
-function pt1oView(f) { return f in PT1P_FROZEN ? `scripts/frozen/playtest1p/${PT1P_FROZEN[f]}.txt` : f; }
+function pt1oView(f) { return f in PT1P_FROZEN ? `scripts/frozen/playtest1p/${PT1P_FROZEN[f]}.txt` : pt1pView(f); }
+// playtest1q (2026-10-04, [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]): the draw (the
+// boss name's HUD-safe spot), the views and boss writers, five back-and-side sheets and foes-dirs_em (the backs: hair, not a face), the
+// 108 big sheets (drawn in detail at their size) and the owner notes moved, so every older group reads them as playtest1p left them
+// (scripts/frozen/playtest1q/, as pushed at c2b2d40), and the new module (hudsafe.ts) is not in any older "every other file" digest.
+const PT1Q_FROZEN = {"src/game/draw.ts": "draw.ts", "tools/sprite-writer/boss_writer.py": "boss_writer.py", "tools/sprite-writer/views_writer.py": "views_writer.py", "AGENTS.project.md": "AGENTS.project.md", "public/art/sprites/allies-dirs.png": "allies-dirs.png", "public/art/sprites/foes-dirs.png": "foes-dirs.png", "public/art/sprites/foes-dirs_em.png": "foes-dirs_em.png", "public/art/sprites/folk-variants-dirs.png": "folk-variants-dirs.png", "public/art/sprites/moves-dirs.png": "moves-dirs.png", "public/art/sprites/people-dirs.png": "people-dirs.png"};
+function pt1pView(f) { return f in PT1Q_FROZEN ? `scripts/frozen/playtest1q/${PT1Q_FROZEN[f]}.txt` : f.startsWith("public/art/sprites/big/") ? `scripts/frozen/playtest1q/big/${f.slice(23)}.txt` : f; }
+function pt1qNew(f) { return ["src/game/hudsafe.ts"].includes(f); }
 function pt1pNew(f) { return ["src/game/bigboss.ts", "tools/sprite-writer/views_writer.py", "tools/sprite-writer/boss_writer.py"].includes(f) || f.startsWith("public/art/sprites/big/"); }
 function pt1nNew(f) { return ["src/game/room.ts", "src/game/roomdraw.ts", "public/art/writer/room-props.png", "public/art/writer/room-props_em.png", "public/art/writer/room-fire.png", "public/art/writer/room-oil.png"].includes(f); }
 const PT1M_GONE = JSON.parse(readTop("scripts/frozen/playtest1m/removed-art.json", "utf8")).removed;
@@ -225,7 +232,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "src/game/bigboss.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o); playtest1p adds bigboss.ts (the big bodies' scale, feet and arenas, group playtest1p)
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "src/game/bigboss.ts", "src/game/hudsafe.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o); playtest1p adds bigboss.ts (the big bodies' scale, feet and arenas, group playtest1p); playtest1q adds hudsafe.ts (a boss name clear of the HUD, group playtest1q)
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -8519,7 +8526,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8828,7 +8835,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9114,7 +9121,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9429,7 +9436,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9875,7 +9882,7 @@ if (on("playtest1k")) {
   // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -10148,7 +10155,7 @@ if (on("playtest1l")) {
   //     the frozen playtest1k shell, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1l", "looks only: every other source file (sim, draw, screen settings, saves, HUD, the service worker and manifest in public/), the map writer and sprite writer are playtest1k's byte for byte (beside the two new modules, postfx.ts and FxOptions.tsx)", rest === "48a91245db9da25edb2663ccf0101ac7", rest);
     const sim = readFileSync("src/game/sim.ts", "utf8") + readFileSync("src/game/draw.ts", "utf8") + readFileSync("src/game/screen.ts", "utf8");
     check("playtest1l", "the build, base path and offline cache are untouched (vite.config.ts, package.json and vercel.json as playtest1k shipped them), and nothing in the sim, the draw or the screen settings reads the layer", md5f("vite.config.ts") === "7e3cef5ab1d7501c86890c4608e3ff28" && md5f("package.json") === "681fd1e5f320944b44e762cb01eb0c02" && md5f("vercel.json") === "c4ec4b6c370869f73641d08a0655721a" && !/postfx|FxOptions/.test(sim), "");
@@ -10209,7 +10216,7 @@ if (on("playtest1m")) {
     const csOk = fz("client.server.ts").replace('    } catch {}\n  }\n  return createHash("sha256")', '    } catch {\n      // An unreadable token falls through to the plain token hash below.\n    }\n  }\n  return createHash("sha256")') === readFileSync("src/lib/app-data/client.server.ts", "utf8");
     const cuOk = fz("use-current-user.ts").replace("  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime\n", "  // authEnabled is constant for the app's lifetime, so this hook call keeps a stable order.\n") === readFileSync("src/lib/auth/use-current-user.ts", "utf8");
     check("playtest1m", "no gameplay change: sim.ts, the shell, client.server.ts and use-current-user.ts are their frozen playtest1l copies (scripts/frozen/playtest1m/, as pushed at 121dbc1) plus only the lint edit", simOk && uiOk && csOk && cuOk && md5f("scripts/frozen/playtest1m/sim.ts.txt") === "d52ddac1d0e38c429c2d0fcbff81f62c" && md5f("scripts/frozen/playtest1m/Gravewake.tsx.txt") === "8ab3379a9a8868799ddfeaaac3c29dbf" && md5f("scripts/frozen/playtest1m/client.server.ts.txt") === "345eb9b87cabf2a6afd322dbd7b6feb4" && md5f("scripts/frozen/playtest1m/use-current-user.ts.txt") === "740f77dcf0c45b8919dd6304bdc6291e", `${simOk} ${uiOk} ${csOk} ${cuOk}`);
-    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
+    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
     check("playtest1m", "every other source file, public file (counting the removed art at its playtest1l md5s), map writer and sprite writer file is playtest1l's byte for byte", rest === "fe4ef0a4eefd74370570ff89e43c4614", rest);
     const me = readFileSync("scripts/gravewake-check.mjs", "utf8");
     check("playtest1m", "the older groups read playtest1l's files: pt1kView falls through to pt1lView, group playtest1l's shell text, tags and live pin read pt1lView, and all six older rest digests walk and hash through pt1mWalk and pt1mMd5", me.includes(": pt1lView(f); }") && (me.match(/\.flatMap\(\(d\) => pt1mWalk\(walk, d\)\)/g) ?? []).length === 7 && (me.match(/\$\{pt1mMd5\(md5f, f, pt1[g-l]View\)\}/g) ?? []).length === 6 && /md5f\(pt1lView\(f\)\) !== hh/.test(me) && me.includes('readFileSync(pt1lView("src/game/Gravewake.tsx"), "utf8"); // playtest1m'));
@@ -10614,7 +10621,7 @@ if (on("playtest1n")) {
     const added = live.split("\n").filter((l) => !fd.split("\n").includes(l));
     const back = live.split("\n").filter((l) => !/\/\/ playtest1n/.test(l) || /^import \{ fightLights/.test(l)).join("\n") === fd;
     check("playtest1n", "only the fight moved: the frozen references (scripts/frozen/playtest1n/) are playtest1m's sim and draw byte for byte (as pushed at e47342c); the live draw is that plus exactly four tagged lines (the import, roomLights, roomScene, roomRims); every older view, rest digest and live pin reads the frozen copies (pt1mView under pt1lView, pt1nNew out of all seven rest digests)", md5f("scripts/frozen/playtest1n/sim.ts.txt") === "96ff3576076a7f9fa15d8d4567df5cf7" && md5f("scripts/frozen/playtest1n/draw.ts.txt") === "d118165d8af0411153f865b9cc3bfb6e" && added.length === 4 && added.every((l) => /\/\/ playtest1n/.test(l)) && back && cs.includes(': pt1mView(f); }') && pt1mView("src/game/sim.ts") === "scripts/frozen/playtest1n/sim.ts.txt" && pt1mView("src/game/draw.ts") === "scripts/frozen/playtest1n/draw.ts.txt" && pt1mView("src/game/room.ts") === "src/game/room.ts" && (cs.match(/!pt1nNew\(f\) && /g) ?? []).length >= 7 && cs.includes('"src/game/room.ts", "src/game/roomdraw.ts"]); // playtest1c adds'), `${added.length} ${back}`);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !pt1pNew(f) && !pt1oNew(f) && !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1nView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1nView)}`).join("\n")).digest("hex");
     check("playtest1n", "every other source file, public file, map writer and sprite writer file is playtest1m's byte for byte (beside the two new modules, room.ts and roomdraw.ts, and the four room sheets)", rest === "08a6f0edf537ad995c93f06f31f7bf92", rest);
   }
 
@@ -10968,7 +10975,7 @@ if (on("playtest1o")) {
     check("playtest1o", "the frozen references (scripts/frozen/playtest1o/) are playtest1n's sim, draw, shell, the three writer files and the owner notes byte for byte (as pushed at 1ce6277), the new modules and writers carry the request tag and AGENTS.project.md its ## playtest1o; every older group, view, rest digest and live pin reads them (pt1nView under pt1mView; groups 1b and 1i bundle the 1n draw; group 1m reads the 1n shell)", JSON.stringify(fz) === '{"sim.ts":"e4ff28d93acc7a3214131ed475dd144d","draw.ts":"e8d23687274f3f98d0b5de67cdae2f85","Gravewake.tsx":"a15ddc44f9f389017aac4a40a763c73d","pixel-writer.make_gravewake.py":"d017892689e677d51042e864a16af8db","sprite-writer.make_gravewake.py":"f3a23a6eadb0b2cfa81906036b369dd6","sprite_writer.py":"8d050a094dd99da99d8dfe0e14ef8d9e","AGENTS.project.md":"dbc1895b92ceca139ecfcf3f3d6d750a"}' && ["src/game/facing.ts", "src/game/blocking.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py"].every((f) => readFileSync(f, "utf8").includes(TAG)) && readFileSync("AGENTS.project.md", "utf8").includes(`## playtest1o (sprite motion, collision, art consistency, signs) — ${TAG}`) && /function pt1nView\(f\) \{ return f in PT1O_FROZEN/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")), JSON.stringify(fz));
     const NEW = new Set(["src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py", "public/art/writer/loot.png", "public/art/writer/cave-ore.png", ...Object.values(F.DIRS).map((u) => `public${u}`), ...Object.values(F.DIRS_EM).map((u) => `public${u}`)]);
     const MOVED = new Set(["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx", "tools/pixel-writer/make_gravewake.py", "tools/sprite-writer/make_gravewake.py", "tools/sprite-writer/sprite_writer.py"]);
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !NEW.has(f) && !MOVED.has(f) && !pt1pNew(f)).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !NEW.has(f) && !MOVED.has(f) && !pt1pNew(f) && !pt1qNew(f)).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1oView(f))}`).join("\n")).digest("hex"); // playtest1p: the moved files as playtest1o left them
     check("playtest1o", "every other source file, public file and writer file is playtest1n's byte for byte (beside the three new modules, the two new writers, the 13 new sheets, and the six moved files)", rest === "24fac7811ac469fd6e30d377fc11ff1a", rest);
     const LIVE = {"src/game/sim.ts": "53818e62dee77f19b591806bd9a2f37d", "src/game/draw.ts": "9010f54b7aa9ab93eb8339d41c03dd8f", "src/game/Gravewake.tsx": "e5ed3f7d8ca72282b3c35a7041ce2261", "src/game/facing.ts": "6d072d081a82aefd540cb1d33f85857f", "src/game/blocking.ts": "431f7741f7746341edf57a802dd6efcf", "src/game/loot.ts": "d0ff098d5f8cd2da93888dba5257deef", "tools/sprite-writer/dirs_writer.py": "737b593acb669b8793b8159ccb16f34d", "tools/sprite-writer/sprite_writer.py": "6763fc75fc356d4e71d76fd8e592f8c9", "tools/sprite-writer/make_gravewake.py": "e446539538c1af315e3bb7f36df9c278", "tools/pixel-writer/loot_writer.py": "37b7a8ba09326e28c0c283da07ab6eb8", "tools/pixel-writer/make_gravewake.py": "d6108841b06aa28b42c88529aaedd46d", "public/art/writer/loot.png": "e5e3705996a079d08eb5ade1f461cacf", "public/art/writer/cave-ore.png": "59905e9d6cbf1d943793a16ab8a79343", "AGENTS.project.md": "c4c3c2a6bf949bf286b4155e51b02f9b", "public/art/sprites/allies-dirs.png": "b2c7eee97c2a3e33cd8f2f433b303e22", "public/art/sprites/foes-dirs.png": "a15b42924e8891306b84b7df9316acde", "public/art/sprites/foes-dirs_em.png": "ed1c1c19a6a2be8f6c79c12f4b4f62d2", "public/art/sprites/folk-variants-dirs.png": "5e1bd2fad0a4c6f66c8dbfdd58433c1d", "public/art/sprites/krampus-dirs.png": "87ab9b7149351443b6e6b12d6ec64c6f", "public/art/sprites/krampus-dirs_em.png": "903f422553657b0b872126952453a086", "public/art/sprites/mimic-dirs.png": "6829bbbcfb6ba6f79be4bd7ca07a3f56", "public/art/sprites/moves-dirs.png": "a129c9d8ae45fcf4ed9a28af634a769e", "public/art/sprites/people-dirs.png": "e628090b27abf03efce07010629573d3", "public/art/sprites/pumpkin-lord-dirs.png": "b4f09b69d0eab04c18ffb1d608c5a5e9", "public/art/sprites/pumpkin-lord-dirs_em.png": "43195b77250e0f72d46f9964acefaa01"};
@@ -11263,18 +11270,295 @@ if (on("playtest1p")) {
     const NEWF = ["src/game/bigboss.ts", "tools/sprite-writer/views_writer.py", "tools/sprite-writer/boss_writer.py"];
     check("playtest1p", "the frozen references (scripts/frozen/playtest1p/) are playtest1o's sim, draw, facing, fight lights, the three sprite-writer files, the eleven -dirs sheets and the owner notes byte for byte (as pushed at 9d87b3f), the new modules and writers carry the request tag and AGENTS.project.md its ## playtest1p with the scale rule; every older group, view, rest digest and live pin reads them (pt1oView under pt1nView; groups 1j and 1k fight on the frozen 1o game)", JSON.stringify(fz) === '{"AGENTS.project.md":"c4c3c2a6bf949bf286b4155e51b02f9b","allies-dirs.png":"b2c7eee97c2a3e33cd8f2f433b303e22","dirs_writer.py":"737b593acb669b8793b8159ccb16f34d","draw.ts":"9010f54b7aa9ab93eb8339d41c03dd8f","facing.ts":"6d072d081a82aefd540cb1d33f85857f","fightlights.ts":"9f81aedf78bef6883d282afc8da09ef9","foes-dirs.png":"a15b42924e8891306b84b7df9316acde","foes-dirs_em.png":"ed1c1c19a6a2be8f6c79c12f4b4f62d2","folk-variants-dirs.png":"5e1bd2fad0a4c6f66c8dbfdd58433c1d","krampus-dirs.png":"87ab9b7149351443b6e6b12d6ec64c6f","krampus-dirs_em.png":"903f422553657b0b872126952453a086","mimic-dirs.png":"6829bbbcfb6ba6f79be4bd7ca07a3f56","moves-dirs.png":"a129c9d8ae45fcf4ed9a28af634a769e","people-dirs.png":"e628090b27abf03efce07010629573d3","pumpkin-lord-dirs.png":"b4f09b69d0eab04c18ffb1d608c5a5e9","pumpkin-lord-dirs_em.png":"43195b77250e0f72d46f9964acefaa01","sim.ts":"53818e62dee77f19b591806bd9a2f37d","sprite-writer.make_gravewake.py":"e446539538c1af315e3bb7f36df9c278","sprite_writer.py":"6763fc75fc356d4e71d76fd8e592f8c9"}' && NEWF.every((f) => readFileSync(f, "utf8").includes(TAG)) && readFileSync("AGENTS.project.md", "utf8").includes(`## playtest1p (view polish, big bosses) — ${TAG}`) && /BOSS SCALE RULE \(src\/game\/bigboss\.ts BIG; keep it\): boss 5, mini 3 \(a remnant\), rare 2/.test(readFileSync("AGENTS.project.md", "utf8")) && /function pt1nView\(f\) \{ return f in PT1O_FROZEN \? `scripts\/frozen\/playtest1o\/\$\{PT1O_FROZEN\[f\]\}\.txt` : pt1oView\(f\); \}/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")), JSON.stringify(fz));
     const MOVED = new Set(Object.keys(PT1P_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1pNew(f) && !MOVED.has(f)).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1qNew(f) && !pt1pNew(f) && !MOVED.has(f)).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
     check("playtest1p", "every other source file, public file and writer file is playtest1o's byte for byte (beside bigboss.ts, the views and boss writers, the 108 big sheets, and the moved files)", rest === "d59bad7891ea477f5f7eb8272199071b", rest);
     const LIVE = {"AGENTS.project.md": "16a3dc66f6b2be1ff11312db42284d2b", "public/art/sprites/allies-dirs.png": "26ff75cc84976e7e90a155dffd0bcc0b", "public/art/sprites/foes-dirs.png": "0c0a6f1e2c48e0095410bca15bd74163", "public/art/sprites/foes-dirs_em.png": "cd3ded0cccff59eb297c39abdf0bcc97", "public/art/sprites/folk-variants-dirs.png": "255d5323fb27ac2a07bdc87e565ed8e1", "public/art/sprites/krampus-dirs.png": "757f6daf176c580bf61775d2e12d4929", "public/art/sprites/krampus-dirs_em.png": "77373a1e603edcd2012bceedf55e35ae", "public/art/sprites/mimic-dirs.png": "24f0b59d6b2eecca46c7e13d4cefbe44", "public/art/sprites/moves-dirs.png": "680c437495731378e20cd0a40918e3e7", "public/art/sprites/people-dirs.png": "3ac0ab395c900c6e4a0bab25226e42b8", "public/art/sprites/pumpkin-lord-dirs.png": "4390516f0a983bc4240e8a5cf0aa7d2c", "public/art/sprites/pumpkin-lord-dirs_em.png": "3dd8f8e65ea8ffb801c66f1766478b4a", "src/game/bigboss.ts": "b0aac5118b527777ad53d4d827396bf0", "src/game/draw.ts": "5017e352da3d3f7a97a9914d1b11e420", "src/game/facing.ts": "c0100b11f668614488339b27f3734880", "src/game/fightlights.ts": "01811408cca94b8679464316e226c4de", "src/game/sim.ts": "d05a16da2bc21da4e8260d949134ef4f", "tools/sprite-writer/boss_writer.py": "1ddf079b1cb615a86821ef4fbe9ac68f", "tools/sprite-writer/dirs_writer.py": "4086f8ed084cb8a5ac38f667bbd87042", "tools/sprite-writer/make_gravewake.py": "2df470b098d2e343f190f2a85f6ec029", "tools/sprite-writer/sprite_writer.py": "ebc111eae7e1da8798d4f681be83c46f", "tools/sprite-writer/views_writer.py": "b9c1a903c3ce88afa2a073ffe359676b", "public/art/sprites/big/bat-boss.png": "4b4b65830ecb7d5def109ebabab5e584", "public/art/sprites/big/bat-boss_em.png": "3a4ee26b76e24765194b064227cbcf0c", "public/art/sprites/big/bat-mini.png": "9a3e8791d90224a24bc7f3ab2046f84c", "public/art/sprites/big/bat-mini_em.png": "d69bc09bd04f56ed8b1a1df9ca5a89f6", "public/art/sprites/big/bat-rare.png": "5ff5830dbe0898279edaa00980cd5ec5", "public/art/sprites/big/bat-rare_em.png": "dc26f25913fba74c3c510e35e06e897f", "public/art/sprites/big/cat-boss.png": "bfe920b442686b6b5b7a8fa7db263466", "public/art/sprites/big/cat-boss_em.png": "bbdea5c03a66663274dd2da5d2cb7b47", "public/art/sprites/big/cat-mini.png": "11c2965faf64669be37c518ac75dc3c0", "public/art/sprites/big/cat-mini_em.png": "81a71abd81dca415d732420b973f78dd", "public/art/sprites/big/cat-rare.png": "229aa0027baa1c0b9a8c7d0480199408", "public/art/sprites/big/cat-rare_em.png": "88527bc884132479fcfcfc3f0840b27f", "public/art/sprites/big/ghost-boss.png": "a6ad4bbded616d1ff4d3b565a3669f34", "public/art/sprites/big/ghost-boss_em.png": "95739ae87a00ee96b9b79d3efa87920a", "public/art/sprites/big/ghost-mini.png": "a706b4a67c9eb5af1afc5dfa31d7b7cd", "public/art/sprites/big/ghost-mini_em.png": "2912f3419ebb1a7b40c2dac0bcd73222", "public/art/sprites/big/ghost-rare.png": "497fb9f5c399a68e348805a64c8b1c1d", "public/art/sprites/big/ghost-rare_em.png": "2619766f2ccd4f59c2d419b8cce6ae1e", "public/art/sprites/big/ghoul-boss.png": "8d3e7ef0c291705d93634beb95c344a6", "public/art/sprites/big/ghoul-boss_em.png": "ed5d01cad71a341a13695cfd7845b664", "public/art/sprites/big/ghoul-mini.png": "56dd774c052423268f85eb08d771a378", "public/art/sprites/big/ghoul-mini_em.png": "9e3d282b274accb8883710fb6c881740", "public/art/sprites/big/ghoul-rare.png": "aef1cd677fa933ab9676eeb402aa428f", "public/art/sprites/big/ghoul-rare_em.png": "a0ae867ec6fe16c679980756c77d8696", "public/art/sprites/big/goblin-boss.png": "82ffc55bfda4354732a97dda5f5cc73e", "public/art/sprites/big/goblin-boss_em.png": "e58a866b1ce256ea8b14581f17219e0c", "public/art/sprites/big/goblin-mini.png": "a74f1838cc11ef6646d6caa08c28b4d6", "public/art/sprites/big/goblin-mini_em.png": "60d3234799685932e7bc8198a27d6871", "public/art/sprites/big/goblin-rare.png": "f626259438d6c7a8f35e5ee4cd80e9f9", "public/art/sprites/big/goblin-rare_em.png": "2bae4f096d86e63b2db33f5d0872bcbb", "public/art/sprites/big/horse-boss.png": "64d38f5247f63bdedc5f59a53405baa5", "public/art/sprites/big/horse-boss_em.png": "07ab0ed37e7e2d353d3866647a6bc2ad", "public/art/sprites/big/horse-mini.png": "8f08284b17404b64b5374cecb16d0906", "public/art/sprites/big/horse-mini_em.png": "b8dd775495ef462c91a71f0c52159fe4", "public/art/sprites/big/horse-rare.png": "dce7de4da2f31f1f9df022597a08432c", "public/art/sprites/big/horse-rare_em.png": "51b5d264aa9814b07d4b0ca5a8900884", "public/art/sprites/big/krampus-boss.png": "de95f8234dc6db4850556a49c532d4e9", "public/art/sprites/big/krampus-boss_em.png": "7c5d6d0956590fd6cea41aebaa45ea7d", "public/art/sprites/big/lantern-boss.png": "8c53358c4a8ff009c1d8ad0556cb7816", "public/art/sprites/big/lantern-boss_em.png": "f3c693045632ca0a192619a878835c03", "public/art/sprites/big/lantern-mini.png": "d11b1d324a8f03084d6392f068244fa9", "public/art/sprites/big/lantern-mini_em.png": "f2278fa0035e24e4b3dc69f0a59a1d0b", "public/art/sprites/big/lantern-rare.png": "a5f17e43ee04759b8a143042fd2f4144", "public/art/sprites/big/lantern-rare_em.png": "5241f5d94be3373d34d811a505c127b6", "public/art/sprites/big/lich-boss.png": "da9aec3ab7480b979747717bddfaf4dc", "public/art/sprites/big/lich-boss_em.png": "4ab7a92bc262252a3f4d42925e2db147", "public/art/sprites/big/lich-mini.png": "b78f774ed9d39f539301ed5577238cf2", "public/art/sprites/big/lich-mini_em.png": "efa60e9c494ebecdb8d2ed7a33f6bda0", "public/art/sprites/big/lich-rare.png": "d53d0863594d9363784163a3db7732dc", "public/art/sprites/big/lich-rare_em.png": "b7ca3569406e0aee06365acf577e6ec1", "public/art/sprites/big/mimic-rare.png": "73af863006e9848cf900ead3e8dd06b7", "public/art/sprites/big/mimic-rare_em.png": "e4aaf76df8330f308d2681fc79f5e22a", "public/art/sprites/big/mummy-boss.png": "c9520098a6cee1342813f8ef126abdb5", "public/art/sprites/big/mummy-boss_em.png": "8902ff1f5f1f0a7afae94ba3d4c8c25b", "public/art/sprites/big/mummy-mini.png": "a72c1bbc38e1945bc56aad9a018d98d7", "public/art/sprites/big/mummy-mini_em.png": "a9cfb4d432e9287758c66da2b4430ddd", "public/art/sprites/big/mummy-rare.png": "2e2172d43173ee9b6236d8e03c49a632", "public/art/sprites/big/mummy-rare_em.png": "c208d6bb389725a275f274d5587f0404", "public/art/sprites/big/pumpkin-lord-boss.png": "e418d3dc2b4aa85a2f42ac254e8ae165", "public/art/sprites/big/pumpkin-lord-boss_em.png": "fc6cf2a320048a71963926c7702e5acd", "public/art/sprites/big/rat-boss.png": "3af48ca93d6359cf5906f7d89dd0330d", "public/art/sprites/big/rat-boss_em.png": "a2c55e9257252c2275c7755adf4a398f", "public/art/sprites/big/rat-mini.png": "d48b2b474332dcc5eb604ffb69ab9dea", "public/art/sprites/big/rat-mini_em.png": "8bb47b745cd6a45c24407b7dc6e226b2", "public/art/sprites/big/rat-rare.png": "42b71db8af763533955c7eff952f59b7", "public/art/sprites/big/rat-rare_em.png": "a20fdc2ab2602425b4394bcc08f0fc6c", "public/art/sprites/big/scarecrow-boss.png": "40692c95acdb56c233a0aa640c164211", "public/art/sprites/big/scarecrow-boss_em.png": "27f34196231cbf205ac9affa13c12daa", "public/art/sprites/big/scarecrow-mini.png": "d7c2d8e8636fb95e931253a842c682d8", "public/art/sprites/big/scarecrow-mini_em.png": "9604e227fb5f3f9d5272df775cdaaf3c", "public/art/sprites/big/scarecrow-rare.png": "d20deb68e6119d672064b1b834cc81f8", "public/art/sprites/big/scarecrow-rare_em.png": "0633982a8590337a22d9fbd994ef0a34", "public/art/sprites/big/skeleton-boss.png": "7f222d593ab11717ca2e463040dd9907", "public/art/sprites/big/skeleton-boss_em.png": "e3aab566d15185446b0a47c9cc9d1ff1", "public/art/sprites/big/skeleton-mini.png": "2da8b37c670966dfaa3e400e75a640be", "public/art/sprites/big/skeleton-mini_em.png": "18d65ce962f9c1313dfc485018b03df0", "public/art/sprites/big/skeleton-rare.png": "b32bcb77aaf6d1c5049ccea3d9cec12d", "public/art/sprites/big/skeleton-rare_em.png": "d9f1f4244a32d0da888da5e08d4d9da7", "public/art/sprites/big/tree-boss.png": "0a76d0bfff3aada8c62ba058824ab1ea", "public/art/sprites/big/tree-boss_em.png": "155dd89902d217213e84ac79a707b50b", "public/art/sprites/big/tree-mini.png": "7542e84f9356fbbfc78ef8bcf24234ad", "public/art/sprites/big/tree-mini_em.png": "cf9f6575e5fe70804aac8d4aa2355f84", "public/art/sprites/big/tree-rare.png": "a29292973683f5167110f7e74d7b2eb6", "public/art/sprites/big/tree-rare_em.png": "ac9a618ffe4ec028365de0a301da065c", "public/art/sprites/big/vampire-boss.png": "faae88e472044efccf5c857cde1a091f", "public/art/sprites/big/vampire-boss_em.png": "705124f64049bd33cbf792710c69e001", "public/art/sprites/big/vampire-mini.png": "9b06798b9012480d81cc961fadc41f34", "public/art/sprites/big/vampire-mini_em.png": "a8d3f3ea2625a5dee716319c65bf7584", "public/art/sprites/big/vampire-rare.png": "cf69285340f87e9f9805442e72c812cc", "public/art/sprites/big/vampire-rare_em.png": "7e7dce00e6cdd38019156027dc35208d", "public/art/sprites/big/witch-boss.png": "519775d763dbc9e981d1d73b6caca5b8", "public/art/sprites/big/witch-boss_em.png": "511a0edcf6d03466019f5bb6e86a7967", "public/art/sprites/big/witch-mini.png": "8c85b6bcb46c568d93a3503734893d9d", "public/art/sprites/big/witch-mini_em.png": "f717038b39c759607b4b11adf4be6cfb", "public/art/sprites/big/witch-rare.png": "5ccac540d0845d3c09e48df388333e8d", "public/art/sprites/big/witch-rare_em.png": "ad5e3d51ca91331d2809af89ea30add5", "public/art/sprites/big/wolf-boss.png": "a073b8ab6310454e2217cb1849ad7937", "public/art/sprites/big/wolf-boss_em.png": "c6afff17a524400ea6cf6da040f4197f", "public/art/sprites/big/wolf-mini.png": "ac71f8439237e0cdbdc8e7db3a583ddb", "public/art/sprites/big/wolf-mini_em.png": "29d128352da7ca8ae43ce0e2412ddcd3", "public/art/sprites/big/wolf-rare.png": "396bc8daf92d8d646e35a95e2bfdb871", "public/art/sprites/big/wolf-rare_em.png": "e4de19140660931cedd44a876cb94818", "public/art/sprites/big/zombie-boss.png": "473916201305aa7752b6e333ebe81903", "public/art/sprites/big/zombie-boss_em.png": "3f1e73df656d7f0015d25abf08be98cb", "public/art/sprites/big/zombie-mini.png": "bd5357e7b9c4881400d6f4b4b8a1453a", "public/art/sprites/big/zombie-mini_em.png": "a8d3f3ea2625a5dee716319c65bf7584", "public/art/sprites/big/zombie-rare.png": "52d826f425751781a8b3cd186ad3b164", "public/art/sprites/big/zombie-rare_em.png": "7e7dce00e6cdd38019156027dc35208d"};
-    const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
+    const live = Object.entries(LIVE).filter(([f, h]) => md5f(pt1pView(f)) !== h).map(([f]) => f); // playtest1q: as playtest1p left them
     check("playtest1p", "the live files are byte for byte playtest1p's (sim, draw, facing, fight lights, bigboss, the writers, the -dirs sheets, the owner note)", Object.keys(LIVE).length > 0 && live.length === 0, live.map((f) => `${f}=${md5f(f)}`).join(", "));
   }
   globalThis.Image = had.Image; globalThis.document = had.document; globalThis.localStorage = had.ls; Math.random = had.random;
 }
 
+// playtest1q (2026-10-04, [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]): Bill asked
+// for the 5x bosses and 2-3x minis and rares drawn in full detail at their real size (boss_writer.py's detail pass: the
+// same alpha, feet and sizes as playtest1p), the wizard's back without the skin patch that read as a face (views_writer.py
+// back_head, every body checked), and on Phone a boss's name kept clear of the log and the HUD (hudsafe.ts). Nothing saved.
+if (on("playtest1q")) {
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd, copyFileSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const { inflateSync } = await import("node:zlib");
+  const readPng = (f) => {
+    const b = readFileSync(f);
+    let o = 8, pw = 0, ph = 0;
+    const idat = [];
+    while (o < b.length) {
+      const len = b.readUInt32BE(o);
+      const kind = b.toString("ascii", o + 4, o + 8);
+      const data = b.subarray(o + 8, o + 8 + len);
+      if (kind === "IHDR") { pw = data.readUInt32BE(0); ph = data.readUInt32BE(4); if (data[9] !== 6 || data[8] !== 8) throw new Error(`${f} png type`); }
+      if (kind === "IDAT") idat.push(data);
+      o += 12 + len;
+    }
+    const raw = inflateSync(Buffer.concat(idat));
+    const stride = pw * 4, px = Buffer.alloc(pw * ph * 4);
+    for (let y = 0; y < ph; y++) {
+      const f0 = raw[y * (stride + 1)];
+      for (let x = 0; x < stride; x++) {
+        const v = raw[y * (stride + 1) + 1 + x];
+        const a = x >= 4 ? px[y * stride + x - 4] : 0, up = y > 0 ? px[(y - 1) * stride + x] : 0, c = x >= 4 && y > 0 ? px[(y - 1) * stride + x - 4] : 0;
+        let p = v;
+        if (f0 === 1) p = v + a; else if (f0 === 2) p = v + up; else if (f0 === 3) p = v + ((a + up) >> 1);
+        else if (f0 === 4) { const qq = a + up - c; const pa = Math.abs(qq - a), pb = Math.abs(qq - up), pc = Math.abs(qq - c); p = v + (pa <= pb && pa <= pc ? a : pb <= pc ? up : c); }
+        px[y * stride + x] = p & 255;
+      }
+    }
+    const at = (x, y) => { const k = (y * pw + x) * 4; return px[k + 3] ? `#${[0, 1, 2].map((j) => px[k + j].toString(16).padStart(2, "0")).join("")}` : null; };
+    let soft = 0;
+    for (let k = 0; k < px.length; k += 4) if (px[k + 3] && px[k + 3] !== 255) soft++;
+    return { pw, ph, at, soft, px };
+  };
+  const TAG = "[OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1q.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as BB from "${root}/src/game/bigboss.ts";\nexport * as HS from "${root}/src/game/hudsafe.ts";\nexport * as SC from "${root}/src/game/screen.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1q.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1q.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
+  const NOTREADY = new Set();
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return !NOTREADY.has(this._s); } set src(u) { this._s = u; } get src() { return this._s; } };
+  let draws = [];
+  // A canvas that records each image draw: its source cell, where it lands, the scale it is drawn under, smoothing.
+  const mock = (off = null) => {
+    let k = 1, flip = false; const stack = [];
+    const o = {
+      imageSmoothingEnabled: true,
+      save() { stack.push([k, flip]); }, restore() { [k, flip] = stack.length ? stack.pop() : [1, false]; }, scale(a, b) { if (a < 0) flip = !flip; k *= Math.abs(b ?? a); }, setTransform() { k = 1; flip = false; }, resetTransform() { k = 1; flip = false; },
+      getTransform() { return { a: flip ? -k : k, d: k }; },
+      drawImage(im, ...a) { if (off) return; const [cx, cy, sw, sh, dx, dy, dw, dh] = a.length >= 8 ? a : [0, 0, 0, 0, a[0], a[1], 0, 0]; draws.push({ im, u: im && im._s, sx: cx, sy: cy, sw, sh, dx, dy, dw, dh, k, flip, smooth: o.imageSmoothingEnabled }); },
+    };
+    return new Proxy(o, { get: (t, kk) => (kk in t ? t[kk] : kk === "getImageData" || kk === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : kk === "measureText" ? () => ({ width: 1 }) : kk === "createLinearGradient" || kk === "createRadialGradient" || kk === "createPattern" ? () => ({ addColorStop() {} }) : () => {}), set: (t, kk, v) => { t[kk] = v; return true; } });
+  };
+  globalThis.document = { createElement: () => { const c = { width: 16, height: 16, getContext() { return (c.ctx ??= mock(c)); } }; return c; } };
+  const store = {};
+  globalThis.localStorage = { getItem: (kk) => (kk in store ? store[kk] : null), setItem: (kk, v) => { store[kk] = String(v); }, removeItem: (kk) => { delete store[kk]; } };
+  const X = await import(pathToFileURL(join(dir, "pt1q.mjs")).href);
+  const { BB, HS, SC } = X;
+  const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const mk = (cls = "warrior") => { const g = new X.Game(); g.start(cls, "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = 5 * 60 * 1000; return g; };
+  const vale = () => { const g = mk(); g.enterWorld(64 * TILE + 8, 90 * TILE + 8); g.mode = "play"; g.level = 60; return g; };
+  const FAMS = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+  const SHEETS = [...FAMS.flatMap((f) => ["boss", "mini", "rare"].map((r) => `${f}-${r}.png`)), "mimic-rare.png", "pumpkin-lord-boss.png", "krampus-boss.png"];
+  const scaleN = (n) => (/-boss\.png$/.test(n) ? 5 : /-mini\.png$/.test(n) ? 3 : 2);
+  const NEON = ["#4ab8ff", "#9ae4ff", "#b07aff", "#ff3a50"];
+  const frozenBig = (n) => `scripts/frozen/playtest1q/big/${n}.txt`;
+  // the share of a sheet's fully opaque s x s blocks that are one flat colour (the 1x art blown up is mostly flat blocks)
+  const flat = (P, s) => { let t = 0, u = 0; for (let y = 0; y + s <= P.ph; y += s) for (let x = 0; x + s <= P.pw; x += s) { let all = true, same = true; const k0 = (y * P.pw + x) * 4; for (let yy = 0; yy < s && all; yy++) for (let xx = 0; xx < s; xx++) { const k = ((y + yy) * P.pw + x + xx) * 4; if (!P.px[k + 3]) { all = false; break; } if (P.px[k] !== P.px[k0] || P.px[k + 1] !== P.px[k0 + 1] || P.px[k + 2] !== P.px[k0 + 2]) same = false; } if (all) { t++; if (same) u++; } } return t ? u / t : 1; };
+
+  // 1. The big sheets drawn in detail at their size: the same 54 sheets and masks at playtest1p's sizes, every pixel's alpha
+  //    playtest1p's (silhouettes, feet and hitboxes cannot move), the masks the sheets' own glow pixels, palette v3 and hard
+  //    pixels; and detail, not the 1x art blown up: in every sheet fewer flat s x s blocks than playtest1p's, the bosses far
+  //    fewer, and every boss and mini carries a neon tube (cold-fire blue, violet or red) in its eyes, runes or glow.
+  {
+    const files = readdirSync("public/art/sprites/big").sort();
+    const want = [...SHEETS, ...SHEETS.map((n) => n.replace(/\.png$/, "_em.png"))].sort();
+    const bad = [], drops = {}, neonless = [];
+    let bossDrop = 0, bosses = 0, changed = 0, total = 0;
+    for (const n of SHEETS) {
+      const s = scaleN(n);
+      const P = readPng(`public/art/sprites/big/${n}`), O = readPng(frozenBig(n)), M = readPng(`public/art/sprites/big/${n.replace(/\.png$/, "_em.png")}`);
+      if (P.pw !== O.pw || P.ph !== O.ph || P.pw !== 11 * 16 * s || P.ph !== 4 * 32 * s || P.soft || M.soft || M.pw !== P.pw || M.ph !== P.ph) { bad.push(`${n} size`); continue; }
+      let alpha = 0;
+      for (let k = 3; k < P.px.length; k += 4) { if (P.px[k] !== O.px[k]) alpha++; if (P.px[k]) { total++; if (P.px[k - 3] !== O.px[k - 3] || P.px[k - 2] !== O.px[k - 2] || P.px[k - 1] !== O.px[k - 1]) changed++; } }
+      if (alpha) bad.push(`${n} alpha ${alpha}`);
+      for (let k = 0; k < M.px.length; k += 4) if (M.px[k + 3] && (P.px[k + 3] === 0 || M.px[k] !== P.px[k] || M.px[k + 1] !== P.px[k + 1] || M.px[k + 2] !== P.px[k + 2])) { bad.push(`${n} mask`); break; }
+      const a = flat(O, s), b = flat(P, s);
+      drops[n] = Math.round((a - b) * 1000) / 1000;
+      if (!(a - b >= 0.03)) bad.push(`${n} flat ${a.toFixed(3)}->${b.toFixed(3)}`);
+      if (s === 5) { bossDrop += a - b; bosses++; }
+      if (s >= 3) { const cols = new Set(); for (let k = 0; k < P.px.length; k += 4) if (P.px[k + 3]) cols.add(`#${[0, 1, 2].map((j) => P.px[k + j].toString(16).padStart(2, "0")).join("")}`); if (!NEON.some((c) => cols.has(c))) neonless.push(n); }
+    }
+    const pal = execFileSync("python3", ["-c", `import sys, glob, json\nsys.path.insert(0, "tools/sprite-writer")\nfrom palette_locked import LOCKED_V3\nfrom PIL import Image\nbad = []\nfor f in sorted(glob.glob("public/art/sprites/big/*.png")):\n    im = Image.open(f).convert("RGBA")\n    for c, (r, g, b, a) in im.getcolors(1 << 20):\n        if a not in (0, 255) or (a and "#%02x%02x%02x" % (r, g, b) not in LOCKED_V3):\n            bad.append(f); break\nprint(json.dumps(bad))`], { encoding: "utf8" });
+    const offPal = JSON.parse(pal);
+    const avgBoss = bosses ? bossDrop / bosses : 0;
+    check("playtest1q", `the big sheets are drawn in detail at their size: ${files.length} files (the 54 sheets and their glow masks) at playtest1p's sizes, every pixel's alpha playtest1p's (the silhouettes, feet and hitboxes do not move), masks only the sheets' own glow, palette v3, hard pixels; ${Math.round((100 * changed) / Math.max(1, total))}% of the opaque pixels repainted; every sheet has fewer flat s x s blocks than playtest1p's (the ${bosses} bosses ${avgBoss.toFixed(2)} fewer on average), and every boss and mini carries a neon tube`, JSON.stringify(files) === JSON.stringify(want) && bad.length === 0 && offPal.length === 0 && avgBoss >= 0.15 && neonless.length === 0 && changed / total >= 0.2, `${bad.slice(0, 6).join(" ")} pal ${offPal.slice(0, 3).join(" ")} neonless ${neonless.join(" ")} avg ${avgBoss.toFixed(3)}`);
+  }
+
+  // 2. Code writers only: boss_writer.py carries the request tag, imports no image generator (PIL, numpy and the writer's
+  //    own modules), and rebuilds all 108 big sheets byte for byte from the 1x sheets.
+  {
+    const bw = readFileSync("tools/sprite-writer/boss_writer.py", "utf8");
+    const imports = [...bw.matchAll(/^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))/gm)].map((m) => (m[1] || m[2]).split(".")[0]);
+    const okImp = new Set(["__future__", "pathlib", "sys", "os", "json", "hashlib", "math", "random", "typing", "numpy", "PIL", "palette_locked", "make_gravewake", "sprite_writer", "views_writer", "dirs_writer", "ramps"]);
+    const odd = [...new Set(imports)].filter((m) => !okImp.has(m));
+    const tmp = mkd(join(tmpdir(), "gw1q-big-"));
+    for (const f of ["foes", "foes-dirs", "mimic", "mimic-dirs", "pumpkin-lord", "pumpkin-lord-dirs", "krampus", "krampus-dirs"]) copyFileSync(`public/art/sprites/${f}.png`, join(tmp, `${f}.png`));
+    let made = "";
+    try { made = execFileSync("python3", ["-c", `import sys; sys.path.insert(0, "tools/sprite-writer"); from pathlib import Path; import boss_writer; print(len(boss_writer.main(Path("${tmp}"))))`], { encoding: "utf8" }).trim(); } catch (e) { made = `error ${String(e).slice(0, 80)}`; }
+    const diff = readdirSync("public/art/sprites/big").filter((n) => { try { return md5f(join(tmp, "big", n)) !== md5f(`public/art/sprites/big/${n}`); } catch { return true; } });
+    check("playtest1q", `code writers only: boss_writer.py carries the request tag and its detail pass (magnify, then detail: materials, eyes, teeth, runes), imports no image generator (${[...new Set(imports)].join(" ")}), and rebuilds the ${made} big sheets byte for byte`, bw.includes(TAG) && /def detail\(/.test(bw) && /TAG_1Q/.test(bw) && odd.length === 0 && made === "108" && diff.length === 0, `odd ${odd.join(" ")} made ${made} diff ${diff.slice(0, 4).join(" ")}`);
+  }
+
+  // 3. Backs: every human head seen from behind is hair or hat only. Through the writer's own head spots, no back cell of a
+  //    person, a townsfolk variant or a foe (1056 cells; the zombies' bald and tufted scalps aside) shows a skin pixel in the
+  //    middle of its head box or on the neck under it; playtest1p's had them (the wizard's white hair over a skin patch).
+  //    Only the back row (0-31) of the five -dirs sheets and foes-dirs_em moved; east and west are playtest1p's.
+  {
+    const code = `import sys, json, os
+R = sys.argv[1]
+sys.path.insert(0, "tools/sprite-writer")
+import sprite_writer as sw, make_gravewake as m
+from sprite_writer import POSES, human, creature
+from PIL import Image
+rec = []
+orig = sw._head
+def head(s, spec, hx, hy, pose):
+    rec.append((sw.FACE_X + hx, hy, spec)); return orig(s, spec, hx, hy, pose)
+sw._head = head
+sw.VIEW = "back"
+sheets = {}
+def px(f, x, y):
+    if f not in sheets: sheets[f] = Image.open(R + "/" + f + "-dirs.png").convert("RGBA")
+    p = sheets[f].getpixel((x, y)); return None if p[3] == 0 else "#%02x%02x%02x" % p[:3]
+bad = []; seen = [0]; wiz = [None]
+def audit(label, f, i, make):
+    for k, pose in enumerate(POSES):
+        rec.clear(); make(pose)
+        if not rec: continue
+        x, hy, spec = rec[-1]
+        if spec.get("head", "human") != "human" or spec["hairstyle"] in ("bald", "none", "tufts", "flattop"): continue
+        sk = {spec["skin"], sw.dk(spec["skin"]), sw.dk(spec["skin"], 2), sw.lt(spec["skin"]), sw.SKIN} | set(sw.SKINS)
+        h = spec["hair"]
+        if h in sk: sk -= {h, sw.dk(h), sw.dk(h, 2), sw.dk(h, 3), sw.lt(h), sw.lt(h, 2)}
+        sk -= {h, spec.get("hatc")}
+        rows = range(hy, hy + (7 if spec["hairstyle"] == "long" else 10))
+        hits = [(xx - x, yy - hy) for yy in rows for xx in (range(x + 2, x + 6) if yy < hy + 8 else range(x + 3, x + 5)) if 0 <= yy < 32 and px(f, (i * 11 + k) * 16 + xx, yy) in sk]
+        seen[0] += 1
+        if label == "wizard" and pose == "stand": wiz[0] = len(hits)
+        if hits: bad.append(label + " " + pose)
+for i, role in enumerate(m.FOLK): audit(role, "people", i, lambda p, role=role: human(role, p))
+for r, role in enumerate(m.CROWD):
+    for v in range(1, m.CROWD_VARIANTS + 1): audit(role + "/" + str(v), "folk-variants", r * m.CROWD_VARIANTS + v - 1, lambda p, role=role, v=v: human(role, p, variant=v))
+for fi, kind in enumerate(m.FAMILIES):
+    for ri, rank in enumerate(m.RANKS): audit(kind + "/" + rank, "foes", fi * 4 + ri, lambda p, kind=kind, rank=rank: creature(kind, p, rank))
+print(json.dumps({"seen": seen[0], "bad": len(bad), "wiz": wiz[0], "some": bad[:4]}))
+`;
+    const old = mkd(join(tmpdir(), "gw1q-backs-"));
+    for (const n of ["people-dirs", "folk-variants-dirs", "foes-dirs"]) copyFileSync(`scripts/frozen/playtest1q/${n}.png.txt`, join(old, `${n}.png`));
+    const run = (r) => { try { return JSON.parse(execFileSync("python3", ["-c", code, r], { encoding: "utf8" })); } catch (e) { return { error: String(e).slice(0, 120) }; } };
+    const now = run("public/art/sprites"), was = run(old);
+    const rowsBad = [];
+    for (const n of ["allies-dirs", "foes-dirs", "foes-dirs_em", "folk-variants-dirs", "moves-dirs", "people-dirs"]) {
+      const P = readPng(`public/art/sprites/${n}.png`), O = readPng(`scripts/frozen/playtest1q/${n}.png.txt`);
+      if (P.pw !== O.pw || P.ph !== O.ph || P.ph !== 96) { rowsBad.push(`${n} size`); continue; }
+      let back = 0, rest = 0;
+      for (let k = 0; k < P.px.length; k++) if (P.px[k] !== O.px[k]) { if (k < 32 * P.pw * 4) back++; else rest++; }
+      if (rest || (n !== "foes-dirs_em" && !back)) rowsBad.push(`${n} back ${back} rest ${rest}`);
+    }
+    check("playtest1q", `backs: every human head from behind is hair or hat only: ${now.seen} back cells (people, townsfolk variants, foes; through the writer's own head spots) show ${now.bad} skin pixels in the middle of the head or on the neck under it (playtest1p: ${was.bad} cells, the wizard's back ${was.wiz}, now ${now.wiz}); only the back row of the five -dirs sheets and foes-dirs_em moved`, now.seen >= 1000 && now.bad === 0 && now.wiz === 0 && was.bad > 100 && was.wiz > 0 && rowsBad.length === 0, `${JSON.stringify(now)} ${JSON.stringify(was)} ${rowsBad.join(" ")}`);
+  }
+
+  // 4. Where a boss's name goes (hudsafe.ts placeLabel), on stand-in HUD boxes: over the head when clear; moved sideways when
+  //    a panel covers that spot; flipped under the feet when the whole band over the head is covered; clamped inside the view
+  //    when nothing is clear; on 400 seeded layouts every unclamped name is inside the view and clear of every panel.
+  {
+    const view = { x: 0, y: 0, w: 280, h: 130 }, w = 41, h = 7;
+    const ov = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const boxOf = (p) => ({ x: Math.round(p.cx - w / 2), y: Math.round(p.y - h), w, h });
+    const a = HS.placeLabel(140, 40, 120, w, h, view, []);
+    const log = { x: 160, y: 0, w: 120, h: 50 };
+    const b = HS.placeLabel(200, 40, 90, w, h, view, [log]);
+    const band = { x: 0, y: 0, w: 280, h: 50 };
+    const c = HS.placeLabel(140, 40, 100, w, h, view, [band]);
+    const top = HS.placeLabel(140, 3, 100, w, h, view, []);
+    const all = HS.placeLabel(140, 40, 100, w, h, view, [{ x: 0, y: 0, w: 280, h: 130 }]);
+    seed(1404);
+    let bad = 0, n = 0, how = {};
+    for (let i = 0; i < 400; i++) {
+      const boxes = Array.from({ length: 1 + Math.floor(Math.random() * 4) }, () => ({ x: Math.floor(Math.random() * 260), y: Math.floor(Math.random() * 110), w: 10 + Math.floor(Math.random() * 90), h: 8 + Math.floor(Math.random() * 50) }));
+      const cx = 20 + Math.random() * 240, feet = 60 + Math.random() * 70, above = feet - 80 - Math.random() * 20;
+      const p = HS.placeLabel(cx, above, feet, w, h, view, boxes);
+      how[p.how] = (how[p.how] || 0) + 1;
+      const q = boxOf(p);
+      if (p.how !== "clamped") { n++; if (q.x < 1 || q.y < 1 || q.x + w > 279 || q.y + h > 129 || boxes.some((bx) => ov(q, { x: bx.x - 1, y: bx.y - 1, w: bx.w + 2, h: bx.h + 2 }))) bad++; }
+      else if (q.x < 0 || q.y < 0 || q.x + w > 280 || q.y + h > 130) bad++;
+    }
+    const wb = HS.worldBoxes([{ x: 300, y: 60, w: 90, h: 30 }], 100, 50, 3);
+    const noDom = HS.hudBoxes(null, 0).length === 0;
+    const ok = a.how === "above" && a.cx === 140 && a.y === 40 && b.how === "shift" && !ov(boxOf(b), log) && Math.abs(b.cx - 200) <= HS.HUD_SAFE.shift + Math.ceil(w / 2) && c.how === "below" && c.y === 100 + HS.HUD_SAFE.under + h && top.how !== "above" && boxOf(top).y >= 0 && all.how === "clamped" && boxOf(all).x >= 0 && boxOf(all).y >= 0 && bad === 0 && n >= 300 && JSON.stringify(wb) === JSON.stringify([{ x: 200, y: 70, w: 30, h: 10 }]) && noDom;
+    check("playtest1q", `the boss name's spot (hudsafe.ts placeLabel): over the head when clear, moved ${Math.abs(b.cx - 200)} px sideways off a log panel, flipped under the feet when the band over the head is covered, kept in the view at its top edge, clamped when the whole view is covered; ${n} of 400 seeded layouts placed clear (${Object.entries(how).map(([k, v]) => `${k} ${v}`).join(", ")}), ${bad} inside a panel or off the view; buffer boxes map to world px by the camera and zoom; with no DOM there are no boxes`, ok, `${JSON.stringify({ a, b, c, top, all, bad, n, wb })}`);
+  }
+
+  // 5. The panels it measures are the HUD the player sees: the stats card, the minimap, the log, the equip row, the
+  //    fullscreen, camp and orders buttons, the stick, the main button and every button; each selector names something the
+  //    shell draws. Measured at most every HUD_SAFE.every frames (and when the canvas changes size), so it costs nothing.
+  {
+    const shell = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const hs = readFileSync("src/game/hudsafe.ts", "utf8");
+    const missing = HS.HUD_SELECTORS.filter((sel) => { const t = sel.match(/data-testid="([^"]+)"/)?.[1]; if (t) return !shell.includes(`data-testid="${t}"`); if (sel.startsWith(".")) return !shell.includes(sel.slice(1)); return sel !== "button"; });
+    check("playtest1q", `the HUD it keeps names clear of: ${HS.HUD_SELECTORS.length} selectors (${HS.HUD_SELECTORS.join(" ")}), each one the shell draws; measured in the canvas's buffer px at most every ${HS.HUD_SAFE.every} frames or when the canvas resizes; the module carries the request tag`, missing.length === 0 && HS.HUD_SELECTORS.includes(".gw-log") && HS.HUD_SELECTORS.includes('[data-testid="hud-card"]') && HS.HUD_SELECTORS.includes('[data-testid="minimap"]') && HS.HUD_SAFE.every === 8 && HS.HUD_SAFE.pad >= 1 && hs.includes(TAG), missing.join(" "));
+  }
+
+  // 6. The draw on Phone: a 5x boss's red name, with no HUD measured (node, no DOM), is where playtest1p drew it (over the
+  //    head); with a stand-in log panel over that spot it is drawn beside it, clear; with the whole band over the head covered,
+  //    under its feet; townsfolk and companion names are where they were. The boss body is drawn the same either way.
+  {
+    const S = { preset: "phone", aspect: "fit", cap: 1, tipShown: true };
+    const v = SC.computeView({ cssW: 844, cssH: 390, dpr: 3, zoom: 4, s: S, coarse: true });
+    const g = vale(); const b0 = g.roamers.find((r) => r.id === "saint"); g.px = b0.x - 46; g.py = b0.y; g.touchFoe(b0);
+    const boss = g.roamers.find((r) => r.boss && r.aggro); g.roamers = [boss]; boss.x = Math.round(boss.x); boss.y = Math.round(boss.y);
+    const lw = boss.name.toUpperCase().length * 4 + 1;
+    const run = (boxes) => { HS.setHudBoxes(boxes); draws = []; X.drawWorld(mock(), g, v.bufW, v.bufH, v.k); HS.setHudBoxes(null); return draws; };
+    const lab = (ds) => ds.filter((d) => d.im && d.im.height === 7 && d.im.width === lw);
+    const bodyOf = (ds) => JSON.stringify(ds.filter((d) => /\/big\//.test(d.u || "")).map((d) => [d.sx, d.sy, d.dx, d.dy, d.dw, d.dh]));
+    const d0 = run(null), l0 = lab(d0);
+    const above = boss.y - (BB.headroom(5) + 6);
+    const at0 = l0[0] && l0[0].dx === Math.round(boss.x - lw / 2) && l0[0].dy === Math.round(above - 7);
+    // the camera the draw used, from the name's own spot: the buffer box over the name's playtest1p spot
+    const cam = X.cameraFor(g, v.bufW, v.bufH, v.k);
+    const z = v.k;
+    const logBox = { x: (Math.round(boss.x - lw / 2) - cam.x - 10) * z, y: 0, w: (lw + 20) * z, h: (above - cam.y + 4) * z };
+    const d1 = run([logBox]), l1 = lab(d1);
+    const wl = { x: cam.x + logBox.x / z, y: cam.y, w: logBox.w / z, h: logBox.h / z };
+    const clear1 = l1.length === 1 && !(l1[0].dx < wl.x + wl.w && wl.x < l1[0].dx + lw && l1[0].dy < wl.y + wl.h && wl.y < l1[0].dy + 7);
+    const d2 = run([{ x: 0, y: 0, w: v.bufW, h: (above - cam.y + 4) * z }]), l2 = lab(d2);
+    const under = l2.length === 1 && l2[0].dy >= boss.y;
+    const others = (ds) => JSON.stringify(ds.filter((d) => d.im && d.im.height === 7 && d.im.width !== lw).map((d) => [d.dx, d.dy]));
+    check("playtest1q", `the draw on Phone (${Math.round(v.bufW / v.k)}x${Math.round(v.bufH / v.k)} game px): the Carrion Saint's name with no HUD measured is where playtest1p drew it (over the head); with a stand-in log panel over that spot it is drawn ${l1[0] ? Math.abs(l1[0].dx - l0[0]?.dx) : "?"} px aside, clear of it; with the band over the head covered it goes under the feet; the boss body and every other name are drawn the same`, l0.length === 1 && at0 && clear1 && under && bodyOf(d0) === bodyOf(d1) && bodyOf(d0) === bodyOf(d2) && others(d0) === others(d1) && bodyOf(d0) !== "[]", `${JSON.stringify({ l0: l0.map((d) => [d.dx, d.dy]), l1: l1.map((d) => [d.dx, d.dy]), l2: l2.map((d) => [d.dx, d.dy]), above, cam })}`);
+  }
+
+  // 7. Only these moved: the frozen copies are playtest1p's files as pushed at c2b2d40; every other file is 1p's.
+  {
+    const FZ = Object.fromEntries(Object.values(PT1Q_FROZEN).map((k) => [k, ""]));
+    const fz = Object.fromEntries(Object.keys(FZ).sort().map((k) => [k, md5f(`scripts/frozen/playtest1q/${k}.txt`)]));
+    const bigFz = createHash("md5").update(readdirSync("scripts/frozen/playtest1q/big").sort().map((n) => `${n} ${md5f(`scripts/frozen/playtest1q/big/${n}`)}`).join("\n")).digest("hex");
+    const NEWF = ["src/game/hudsafe.ts"];
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    // tightened (fail-proofs 1460/1461): the view chain itself. A file playtest1q froze reads as its 1q frozen copy through
+    // pt1pView, and through pt1oView and pt1nView too unless that older view holds its own frozen copy; a big sheet likewise.
+    const viewBad = [];
+    for (const f of [...Object.keys(PT1Q_FROZEN), "public/art/sprites/big/wolf-boss.png", "public/art/sprites/big/bat-mini_em.png"]) {
+      const want = f in PT1Q_FROZEN ? `scripts/frozen/playtest1q/${PT1Q_FROZEN[f]}.txt` : `scripts/frozen/playtest1q/big/${f.slice(23)}.txt`;
+      if (pt1pView(f) !== want) viewBad.push(`1p ${f}`);
+      if (pt1oView(f) !== (f in PT1P_FROZEN ? `scripts/frozen/playtest1p/${PT1P_FROZEN[f]}.txt` : want)) viewBad.push(`1o ${f}`);
+      if (pt1nView(f) !== (f in PT1O_FROZEN ? `scripts/frozen/playtest1o/${PT1O_FROZEN[f]}.txt` : pt1oView(f))) viewBad.push(`1n ${f}`);
+    }
+    for (const f of ["src/game/hudsafe.ts", "src/game/sim.ts"]) if (pt1pView(f) !== f || (!(f in PT1P_FROZEN) && pt1oView(f) !== f)) viewBad.push(`live ${f}`);
+    check("playtest1q", "the frozen references (scripts/frozen/playtest1q/) are playtest1p's draw, views and boss writers, five -dirs sheets and foes-dirs_em, the 108 big sheets and the owner notes byte for byte (as pushed at c2b2d40); hudsafe.ts carries the request tag and AGENTS.project.md its ## playtest1q; every older group, rest digest and live pin reads them (pt1pView under pt1oView)", JSON.stringify(fz) === '{"AGENTS.project.md":"16a3dc66f6b2be1ff11312db42284d2b","allies-dirs.png":"26ff75cc84976e7e90a155dffd0bcc0b","boss_writer.py":"1ddf079b1cb615a86821ef4fbe9ac68f","draw.ts":"5017e352da3d3f7a97a9914d1b11e420","foes-dirs.png":"0c0a6f1e2c48e0095410bca15bd74163","foes-dirs_em.png":"cd3ded0cccff59eb297c39abdf0bcc97","folk-variants-dirs.png":"255d5323fb27ac2a07bdc87e565ed8e1","moves-dirs.png":"680c437495731378e20cd0a40918e3e7","people-dirs.png":"3ac0ab395c900c6e4a0bab25226e42b8","views_writer.py":"b9c1a903c3ce88afa2a073ffe359676b"}' && bigFz === "c0e15b0e03cbc3c58e268b44cf5a1b90" && NEWF.every((f) => readFileSync(f, "utf8").includes(TAG)) && agents.includes(`## playtest1q (detailed big bosses, wizard back view, Phone boss label) — ${TAG}`) && /BOSS SCALE RULE above is unchanged/.test(agents) && viewBad.length === 0, `${JSON.stringify(fz)} ${bigFz} views ${viewBad.join(" ")}`);
+    const MOVED = new Set(Object.keys(PT1Q_FROZEN));
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1qNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort();
+    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1q", "every other source file, public file and writer file is playtest1p's byte for byte (beside hudsafe.ts, the moved files and the 108 big sheets): the sim, the big bodies' scale, feet, hurtboxes, arenas and camera untouched", rest === "f311267aa05295ef39aef4bc1d01e9ee", rest);
+    const LIVE = {"AGENTS.project.md": "aa8c4565731bfd909d366c490cedef98", "public/art/sprites/allies-dirs.png": "c99fbe7f5b7f90dbe784d7f034068a96", "public/art/sprites/foes-dirs.png": "79f7c1b24cd7bddb13ccbd6069e49f89", "public/art/sprites/foes-dirs_em.png": "311ee3ddf5e9cc99d8c7bc47edae89b9", "public/art/sprites/folk-variants-dirs.png": "ea3e95a5816d624dde05fffa87dd5023", "public/art/sprites/moves-dirs.png": "45b5a33d826b3d663ab8d333b64d26b7", "public/art/sprites/people-dirs.png": "916bab56c8add30cf9ea4c2cfd525124", "src/game/draw.ts": "66cfacfad0d890d7bf00a6fa323995b0", "src/game/hudsafe.ts": "588c5e9e84430426415a38d318403eb9", "tools/sprite-writer/boss_writer.py": "f036c463ea9b3edf87ad502ca8c8375d", "tools/sprite-writer/views_writer.py": "9ae915a7b9c3f1453df662e00df0e8c0", "public/art/sprites/big/bat-boss.png": "686ec0329056700fe4877d1645db606f", "public/art/sprites/big/bat-boss_em.png": "147f19a561077c5aab4b144556885dba", "public/art/sprites/big/bat-mini.png": "0d6ec592444aee20f655f675ba903b9c", "public/art/sprites/big/bat-mini_em.png": "d0f854dc71916e4d4aa788c54944f5d1", "public/art/sprites/big/bat-rare.png": "084070673cc4bd5ea9783be57c24914a", "public/art/sprites/big/bat-rare_em.png": "eb84cf8c08a65f1940fd87b3c35064ed", "public/art/sprites/big/cat-boss.png": "39d9519807b4733572db617ed81c990d", "public/art/sprites/big/cat-boss_em.png": "fdea1b81e55f39d6e8a52adca8cb1d99", "public/art/sprites/big/cat-mini.png": "1f185c738e738e897b3da8feb87b66ff", "public/art/sprites/big/cat-mini_em.png": "a42e63296d4196386e430a629d2524f4", "public/art/sprites/big/cat-rare.png": "34206457722566e8a57cf45688a9d12e", "public/art/sprites/big/cat-rare_em.png": "8253e60b7b7f1edc78e27671e4f00644", "public/art/sprites/big/ghost-boss.png": "de1a53b13b71fb8c888f70309b12f28c", "public/art/sprites/big/ghost-boss_em.png": "11c43b0337c5826603067c69d148a72b", "public/art/sprites/big/ghost-mini.png": "d64e9d37949ea0c3f2ff070849e8fd06", "public/art/sprites/big/ghost-mini_em.png": "55988e60f7a7fa03a8f23ca9cde60b61", "public/art/sprites/big/ghost-rare.png": "ab28a114df32af9b861b2be59da01151", "public/art/sprites/big/ghost-rare_em.png": "2902d33a35fa6f35c27a69820ea11bff", "public/art/sprites/big/ghoul-boss.png": "463652f4d1a93d891e3c3ae973306bdc", "public/art/sprites/big/ghoul-boss_em.png": "2caa848b6232821d007eceed1b77878e", "public/art/sprites/big/ghoul-mini.png": "f49bd66a1d3912bce1c16de6c4750406", "public/art/sprites/big/ghoul-mini_em.png": "448adcedafe607148730c8e55565fc58", "public/art/sprites/big/ghoul-rare.png": "ba5b9b1651917ec16c413bc2d930e0b5", "public/art/sprites/big/ghoul-rare_em.png": "33d6c3e51945646c4fc23f2d67406684", "public/art/sprites/big/goblin-boss.png": "5fa4142751728f6956c81422a815fceb", "public/art/sprites/big/goblin-boss_em.png": "c64f2de9897bc39e4bd80d429fdaa438", "public/art/sprites/big/goblin-mini.png": "b8b37a666dad5cada9327fbf11a040fe", "public/art/sprites/big/goblin-mini_em.png": "7fee5cb55ebcf28a4ac994157ccb43bc", "public/art/sprites/big/goblin-rare.png": "5c2bc621511c3ff576b307f66366df8e", "public/art/sprites/big/goblin-rare_em.png": "3bcb9df1f963cdaf206c837a5586b005", "public/art/sprites/big/horse-boss.png": "ed7630becd3cca0ce4a1195eb690322e", "public/art/sprites/big/horse-boss_em.png": "9775f85185d7c507dd49e003d7090093", "public/art/sprites/big/horse-mini.png": "0dc4373d41fbe1387bbfc0f2db0a8ba8", "public/art/sprites/big/horse-mini_em.png": "4b06c24296981015317d3936350e031d", "public/art/sprites/big/horse-rare.png": "4daf8b8780668d6db94aec1c296abb8f", "public/art/sprites/big/horse-rare_em.png": "ec44f40f3f17d11493e07979617fec30", "public/art/sprites/big/krampus-boss.png": "3b0bd1c912e1e473e577fd4bccdd2f06", "public/art/sprites/big/krampus-boss_em.png": "e65cf7f4bd44bc668ddade7efb8f5aa7", "public/art/sprites/big/lantern-boss.png": "df49fa30bdbf52652009e3cc122187dd", "public/art/sprites/big/lantern-boss_em.png": "bc3b4a36dfa7ae7f2ac9f393f93f392b", "public/art/sprites/big/lantern-mini.png": "7d8ea61aaa17bab7d4055ce7432881c0", "public/art/sprites/big/lantern-mini_em.png": "82c7891c77c068ad3cd65fb839f10868", "public/art/sprites/big/lantern-rare.png": "bd81a8db44a150a0a5d5004405e9b058", "public/art/sprites/big/lantern-rare_em.png": "bcd37131a86325f925831a2e0262bf60", "public/art/sprites/big/lich-boss.png": "f86197fd9d16456ff4aa8a2eeadc5c06", "public/art/sprites/big/lich-boss_em.png": "696b45909b22a9c7788667bce01e7938", "public/art/sprites/big/lich-mini.png": "925ab1fd431e6122e3ff445e63197f22", "public/art/sprites/big/lich-mini_em.png": "7602c038f96bd7748ad56da35bcc0d89", "public/art/sprites/big/lich-rare.png": "a833137f936d7014633afd303ea0eda3", "public/art/sprites/big/lich-rare_em.png": "e220eb1bb560a1f994a40e7e5f5f34b1", "public/art/sprites/big/mimic-rare.png": "1a10c9ea67fcbaa627931b4ddb25995d", "public/art/sprites/big/mimic-rare_em.png": "ff0f05e6b8b3b8b1cb0bb3c2c64b4223", "public/art/sprites/big/mummy-boss.png": "d4880e68e8c55d32c6e11e97f8aebb25", "public/art/sprites/big/mummy-boss_em.png": "e10ad90516e73bc33c32c07b18587779", "public/art/sprites/big/mummy-mini.png": "5ae95bb5059cf3f1810c06c5431270d8", "public/art/sprites/big/mummy-mini_em.png": "3201117f9a8ee882c66094b9a6f6d5f6", "public/art/sprites/big/mummy-rare.png": "6637a7d335365a8474fcbdaf1b2e0165", "public/art/sprites/big/mummy-rare_em.png": "5f060a06ff934968aa51d15628981466", "public/art/sprites/big/pumpkin-lord-boss.png": "71104124ded568523037b75e5a9b0fbc", "public/art/sprites/big/pumpkin-lord-boss_em.png": "273c5c07ab84337ef2fd2d5b1f99715d", "public/art/sprites/big/rat-boss.png": "5f4a6536099377338316ef19b03ed6b2", "public/art/sprites/big/rat-boss_em.png": "2a7d25a1790bd370bb06eec63d6a3aa5", "public/art/sprites/big/rat-mini.png": "76be5da26f52ed5284b44c359f43a8b9", "public/art/sprites/big/rat-mini_em.png": "84838397a7aa5d5ed201ac0d86ff170d", "public/art/sprites/big/rat-rare.png": "810a3541ea921b31d287234683ca1e19", "public/art/sprites/big/rat-rare_em.png": "966c0809b4d46a9090ac35dfbb5136be", "public/art/sprites/big/scarecrow-boss.png": "c669d64752d1d5552c2f3c5c1f2e1041", "public/art/sprites/big/scarecrow-boss_em.png": "116ecdf05bec7cd1887e3dc1012ab029", "public/art/sprites/big/scarecrow-mini.png": "f672484d74f0be47675b0484bd1c63ad", "public/art/sprites/big/scarecrow-mini_em.png": "aeaf3c0052b2763f88e5544bc47ee1cc", "public/art/sprites/big/scarecrow-rare.png": "46de5b88a9796ef2991da7dcd392bfdc", "public/art/sprites/big/scarecrow-rare_em.png": "5870ff648993464e7d749227447d0978", "public/art/sprites/big/skeleton-boss.png": "51f4fe20dd516d33e70620c8770acbd0", "public/art/sprites/big/skeleton-boss_em.png": "08e50df2ad39f5264950cf3a9c220ef8", "public/art/sprites/big/skeleton-mini.png": "37bef289c7753ab38627bdf3f03ee228", "public/art/sprites/big/skeleton-mini_em.png": "135d12eb0a8c97fa0e2222d63d8ab175", "public/art/sprites/big/skeleton-rare.png": "4aa0361611f92c4c38eb4a7d770c1b7e", "public/art/sprites/big/skeleton-rare_em.png": "05217002891c112020cedac688b6eac4", "public/art/sprites/big/tree-boss.png": "99adc7e2cf5c410ae63b336680ce0cdd", "public/art/sprites/big/tree-boss_em.png": "727358034c846936adb2e999c1cddcb5", "public/art/sprites/big/tree-mini.png": "dd10226c1d784e6224a52014f9de154b", "public/art/sprites/big/tree-mini_em.png": "3020a90130df08c5282e4a11b458eafe", "public/art/sprites/big/tree-rare.png": "553f0b5f1aeaaa9b00ecc0b736753d65", "public/art/sprites/big/tree-rare_em.png": "9e3ca4d4feafcbf1ed2489678ae6ba1c", "public/art/sprites/big/vampire-boss.png": "474da833e06dcf815ce96861cf0bd846", "public/art/sprites/big/vampire-boss_em.png": "b1a4d7f75566634a1df3112bd48e2f71", "public/art/sprites/big/vampire-mini.png": "e456598f30a53fbbaf81b110bebb856c", "public/art/sprites/big/vampire-mini_em.png": "95f184962046225df77e46598b7290a5", "public/art/sprites/big/vampire-rare.png": "1ef345b9df016a576efb320c3041733c", "public/art/sprites/big/vampire-rare_em.png": "612b07b34f7acc8057af96c360815c6d", "public/art/sprites/big/witch-boss.png": "d9d895de06846638c21cfc1aaa75bdef", "public/art/sprites/big/witch-boss_em.png": "541e102b27cfb6cdacb055437fbd5268", "public/art/sprites/big/witch-mini.png": "2d41a305be9c9ca29be4f9c3c1365e02", "public/art/sprites/big/witch-mini_em.png": "a9e07217b7db242764cdbd4764e4dd1b", "public/art/sprites/big/witch-rare.png": "456f74eec70aaf798923aae71b2ce3d2", "public/art/sprites/big/witch-rare_em.png": "d2cb45528cc7c665226f0c0133d77381", "public/art/sprites/big/wolf-boss.png": "dcdcf3c5f97914cb8f2917382512e5b1", "public/art/sprites/big/wolf-boss_em.png": "a2c5f32a42612693e7b4b664415ac07e", "public/art/sprites/big/wolf-mini.png": "62d799c0a85b2f81f203e413a5230d9e", "public/art/sprites/big/wolf-mini_em.png": "326bfbc90a7886089072775da9671013", "public/art/sprites/big/wolf-rare.png": "fb1f2217c7ecdc8641da34d8f3a81bad", "public/art/sprites/big/wolf-rare_em.png": "367d3ab28faefc22403d665eb2ed4880", "public/art/sprites/big/zombie-boss.png": "9dac638d3785ef456a24f4be9432fe2d", "public/art/sprites/big/zombie-boss_em.png": "679b109c2315946bfa13885dce9b9ec2", "public/art/sprites/big/zombie-mini.png": "fc940a48f9a981eda9d0b7f9c53a8757", "public/art/sprites/big/zombie-mini_em.png": "353d573ce740c5d088e66717dc541b64", "public/art/sprites/big/zombie-rare.png": "ef87d1eb9239e29fc45a9a9190ea79d1", "public/art/sprites/big/zombie-rare_em.png": "f6f944e1dd7277f2825bd054f24b8a20"};
+    const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
+    check("playtest1q", "the live files are byte for byte playtest1q's (draw, hudsafe, the writers, the -dirs sheets, the big sheets, the owner note)", Object.keys(LIVE).length > 0 && live.length === 0, live.map((f) => `${f}=${md5f(f)}`).join(", "));
+  }
+  globalThis.Image = had.Image; globalThis.document = had.document; globalThis.localStorage = had.ls; Math.random = had.random;
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);
