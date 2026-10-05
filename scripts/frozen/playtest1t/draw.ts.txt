@@ -27,7 +27,6 @@ import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, sca
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
-import { BLDG, BLDG_SHEETS, bldgEm, bldgSheet, lotCell, townLots, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
 import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
 /**
@@ -1526,57 +1525,8 @@ function bigBody(ctx: CanvasRenderingContext2D, x: number, y: number, family: st
   if (!im) return true; // the glow mask still loading: no glow this frame (the body is drawn)
   const c = cellAt(s);
   ctx.imageSmoothingEnabled = false;
-  if (bigTint && !emPass) {
-    // playtest1t: the hit flash is the body's own silhouette (this very cell's alpha) filled with one locked colour
-    const m = tintCell(body, col * c.w, row * c.h, c.w, c.h, bigTint);
-    if (!m) return true;
-    ctx.drawImage(m, 0, 0, c.w, c.h, Math.round(x) + c.dx, Math.round(y) + c.dy, c.w, c.h);
-    bigTinted = true;
-    return true;
-  }
   ctx.drawImage(im, col * c.w, row * c.h, c.w, c.h, Math.round(x) + c.dx, Math.round(y) + c.dy, c.w, c.h);
   return true;
-}
-
-/**
- * playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t big-body silhouette hit flash]: a boss, mini or rare that is hit flashes in its own
- * silhouette, a mask of its sprite's alpha in the old flash's white (#f4f0ea), instead of the white frame round its hurt
- * box; during the phase-two roar (a flash longer than hitMax) the mask is neon red and beats on and off every `beat`
- * frames. Hard alpha: one colour per pixel, the cell's own pixels only. Small foes keep their white frame.
- */
-export const BIG_FLASH = { hit: "#f4f0ea", roar: "#ff3a50", hitMax: 0.1, beat: 4 } as const;
-let bigTint: string | null = null;
-let bigTinted = false;
-let tintCanvas: HTMLCanvasElement | null = null;
-function tintCell(src: CanvasImageSource, sx: number, sy: number, w: number, h: number, color: string): HTMLCanvasElement | null {
-  if (typeof document === "undefined") return null;
-  if (!tintCanvas) tintCanvas = document.createElement("canvas");
-  if (tintCanvas.width < w) tintCanvas.width = w;
-  if (tintCanvas.height < h) tintCanvas.height = h;
-  const t = tintCanvas.getContext("2d");
-  if (!t) return null;
-  t.globalCompositeOperation = "source-over";
-  t.clearRect(0, 0, tintCanvas.width, tintCanvas.height);
-  t.imageSmoothingEnabled = false;
-  t.drawImage(src, sx, sy, w, h, 0, 0, w, h);
-  t.globalCompositeOperation = "source-in";
-  t.fillStyle = color;
-  t.fillRect(0, 0, w, h);
-  t.globalCompositeOperation = "source-over";
-  return tintCanvas;
-}
-/** Draw a flashing big body's silhouette over it (body: its own draw). False when its sheet is not in yet. */
-function bigFlash(ctx: CanvasRenderingContext2D, flash: number, frame: number, body: (c: CanvasRenderingContext2D) => void): boolean {
-  const roar = flash > BIG_FLASH.hitMax;
-  if (roar && Math.floor(frame / BIG_FLASH.beat) % 2 === 1) return true; // the roar's off beat: the body alone
-  bigTint = roar ? BIG_FLASH.roar : BIG_FLASH.hit;
-  bigTinted = false;
-  try {
-    body(ctx);
-  } finally {
-    bigTint = null;
-  }
-  return bigTinted;
 }
 
 function monsterSprite(
@@ -2074,63 +2024,6 @@ function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuildi
   if (!src || !src.complete || src.naturalWidth === 0) return;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(src, 0, cut, im.naturalWidth, im.naturalHeight - cut, dx, dy + cut, im.naturalWidth, im.naturalHeight - cut);
-}
-
-/**
- * playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]: the town's lots (buildings.ts townLots: one per room door), worked out once per
- * town grid, and the lots inside one wall block.
- */
-const lotCache = new WeakMap<object, Lot[]>();
-export function townLotsOf(g: Game): Lot[] {
-  const hit = lotCache.get(g.tiles);
-  if (hit) return hit;
-  const out = townLots(g.w, g.h, g.tiles, T.wall, T.door, townRoomAt);
-  lotCache.set(g.tiles, out);
-  return out;
-}
-function lotsIn(g: Game, b: TownBuilding): Lot[] {
-  return townLotsOf(g).filter((l) => l.x >= b.x && l.x + l.w <= b.x + b.w && l.y >= b.y && l.y + l.h <= b.y + b.h);
-}
-/** A lot's ground shadow: south along its foot and up its east side (light from the upper left), multiplied like the blobs. */
-const lotShadowCache = new Map<string, HTMLCanvasElement>();
-export function lotShadow(w: number): HTMLCanvasElement | null {
-  if (typeof document === "undefined") return null;
-  const key = String(w);
-  const hit = lotShadowCache.get(key);
-  if (hit) return hit;
-  const S = BLDG.shadow;
-  const W = w * TILE;
-  const c = document.createElement("canvas");
-  c.width = W + S.east;
-  c.height = S.up + S.south;
-  const x = c.getContext("2d");
-  if (!x) return null;
-  x.fillStyle = rgbCss([1, 1, 1], S.k);
-  for (let j = 0; j < S.south; j++) x.fillRect(3 + j, S.up + j, W + S.east - 3 - 2 * j, 1);
-  for (let i = 0; i < S.east; i++) x.fillRect(W + i, i + 1, 1, S.up - i - 1);
-  lotShadowCache.set(key, c);
-  return c;
-}
-/** One lot's building: the shadow, then its sheet cell (or, on the glow pass, its glow mask's cell). */
-function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false) {
-  const cell = lotCell(l, seasonNow);
-  if (!cell) return;
-  const url = em ? bldgEm(l.room) : bldgSheet(l.room);
-  if (!sheetReady(url)) return;
-  const bottom = (l.y + l.h) * TILE;
-  ctx.imageSmoothingEnabled = false;
-  if (!em) {
-    const sh = lotShadow(l.w);
-    if (sh) {
-      ctx.save();
-      ctx.globalCompositeOperation = "multiply";
-      ctx.drawImage(sh, l.x * TILE, bottom - BLDG.shadow.up);
-      ctx.restore();
-    }
-  }
-  const im = landSheet[url];
-  if (!im) return;
-  ctx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
 }
 
 /**
@@ -3167,7 +3060,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
   roomStyleNow = roomStyle(g.inside); // playtest1i
   warmPt1i();
-  warmPt1t(); // playtest1t
   const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
   const cam = cameraFor(g, viewW, viewH, zoom);
   const camX = cam.x + mag;
@@ -3367,16 +3259,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // pops when its door leaves the view. Sixteen sprites; the canvas clips what is offscreen.
   if (g.theme === "town") {
     for (const b of townBuildings(g)) {
-      // playtest1t: each room's lot draws its own writer building (house_writer.py), its seeded variant in this season,
-      // on a ground shadow; the old house or cabin is only the fallback while a lot's sheet loads.
-      const lots = lotsIn(g, b);
-      if (lots.length && lots.every((l) => sheetReady(bldgSheet(l.room)) && !!lotCell(l, seasonNow))) {
-        for (const l of lots) {
-          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintLot(ctx, l) });
-          if (lit) glow.push((c) => paintLot(c, l, true));
-        }
-        continue;
-      }
       props.push({ y: (b.y + b.h) * TILE - 1, fn: () => paintTownBuilding(ctx, g, b) });
       if (lit) glow.push((c) => paintTownBuilding(c, g, b, true));
     }
@@ -3479,10 +3361,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         else if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);
         else blobShadow(ctx, g, r.x, r.y - 2);
         body(ctx);
-        // playtest1t: a big body flashes in its own silhouette; the frame is only the not-yet-loaded fallback
-        if ((r.flash ?? 0) > 0 && sc > 1) {
-          if (!bigFlash(ctx, r.flash ?? 0, g.frame, body)) flashBox(ctx, r.x, r.y, sc, r);
-        }
+        if ((r.flash ?? 0) > 0 && sc > 1) flashBox(ctx, r.x, r.y, sc, r);
         else if ((r.flash ?? 0) > 0) {
           px(ctx, r.x - 7, r.y - 20, 14, 1, "#f4f0ea");
           px(ctx, r.x - 7, r.y - 6, 14, 1, "#f4f0ea");
@@ -4096,20 +3975,6 @@ function warmPt1i() {
   if (pt1iWarm || typeof Image === "undefined") return;
   pt1iWarm = true;
   for (const url of PT1I_ART) {
-    if (landSheet[url]) continue;
-    const im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
-}
-/** playtest1t: every town building sheet and glow mask, asked for on the first frame drawn (the title's), so the town
- * is never first drawn with the old houses. */
-export const PT1T_ART = [...BLDG_SHEETS];
-let pt1tWarm = false;
-function warmPt1t() {
-  if (pt1tWarm || typeof Image === "undefined") return;
-  pt1tWarm = true;
-  for (const url of PT1T_ART) {
     if (landSheet[url]) continue;
     const im = new Image();
     im.src = url;

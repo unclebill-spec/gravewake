@@ -769,20 +769,6 @@ def playtest1o(out: Path = OUT) -> dict:
     return {"loot.png": loot_writer.main(out), "cave-ore.png": loot_writer.ore(out)}
 
 
-def playtest1t(out: Path = OUT) -> dict:
-    """playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]: every town building drawn to its own lot
-    (house_writer.py): town-bldg-<room>.png and its _em, rows = variants, columns = seasons. Runs on its own:
-    python3 -c "import make_gravewake as m; m.playtest1t()"."""
-    import house_writer as hw
-
-    made = hw.sheets()
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    return made
-
-
 if __name__ == "__main__":
     main()
     playtest1o()
-    playtest1t()
