@@ -9,8 +9,7 @@ import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
-import { roomNameOf, townRoomAt, worldHamlets } from "./sim";
-import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, hamletEm, hamletLamps, hamletSheet, type HamletLotT, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
+import { roomNameOf, townRoomAt } from "./sim";
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
@@ -2112,53 +2111,6 @@ export function lotShadow(w: number): HTMLCanvasElement | null {
   lotShadowCache.set(key, c);
   return c;
 }
-/**
- * playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: the vale's hamlets, looked up per tile. A lot's
- * tiles are wall on the grid (they stop bodies where the building is drawn); the tile loop draws the biome's ground
- * under them, then each lot's building stands as a y-sorted prop like a town lot, and the walk cells lie on the green.
- */
-type HamletIndex = { tiles: ArrayLike<number>; lot: Map<number, { m: HamletT; l: HamletLotT }>; walk: Map<number, HamletT>; list: HamletT[] };
-let hamletIx: HamletIndex | null = null;
-export function hamletIndex(g: Game): HamletIndex | null {
-  if (g.mapId !== "world") return null;
-  if (hamletIx && hamletIx.tiles === g.tiles) return hamletIx;
-  // only the hamlets laid on this grid (every lot tile a wall): a grid from before playtest1u draws none
-  const list = worldHamlets().filter((m) => m.lots.every((l) => { for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (g.tiles[y * g.w + x] !== T.wall) return false; return true; }));
-  const lot = new Map<number, { m: HamletT; l: HamletLotT }>();
-  const walk = new Map<number, HamletT>();
-  for (const m of list) {
-    for (const l of m.lots) for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (g.tiles[y * g.w + x] === T.wall) lot.set(y * g.w + x, { m, l });
-    for (const i of m.walk) walk.set(i, m);
-  }
-  hamletIx = { tiles: g.tiles, lot, walk, list };
-  return hamletIx;
-}
-/** A hamlet lot's building: the town's ground shadow, then its sheet cell (or, on the glow pass, its glow mask's). */
-function paintHamletLot(ctx: CanvasRenderingContext2D, l: HamletLotT, em = false) {
-  const cell = hamletCell(l, seasonNow);
-  if (!cell) return;
-  const url = em ? hamletEm(l.kind) : hamletSheet(l.kind);
-  if (!sheetReady(url)) return;
-  const bottom = (l.y + l.h) * TILE;
-  ctx.imageSmoothingEnabled = false;
-  if (!em) {
-    const sh = lotShadow(l.w);
-    if (sh) {
-      ctx.save();
-      ctx.globalCompositeOperation = "multiply";
-      ctx.drawImage(sh, l.x * TILE, bottom - BLDG.shadow.up);
-      ctx.restore();
-    }
-  }
-  const im = landSheet[url];
-  if (im) ctx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
-}
-/** The not-yet-loaded fallback: the lot as a plain block in its biome's roof colour (never the old grey wall). */
-function paintHamletBlock(ctx: CanvasRenderingContext2D, m: HamletT, l: HamletLotT) {
-  px(ctx, l.x * TILE, l.y * TILE - 8, l.w * TILE, l.h * TILE + 8, HAMLET_MAP[m.biome]);
-  px(ctx, l.x * TILE, (l.y + l.h) * TILE - 10, l.w * TILE, 10, "#3a2c24");
-}
-
 /** One lot's building: the shadow, then its sheet cell (or, on the glow pass, its glow mask's cell). */
 function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false) {
   const cell = lotCell(l, seasonNow);
@@ -2721,11 +2673,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
     for (const r of g.riftMouths()) out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
-    // playtest1u: each hamlet lot's lantern casts its pool (neon blue, violet or red) on the ground at night
-    for (const m of hamletIndex(g)?.list ?? []) {
-      if ((m.x + m.w) * TILE < camX - 64 || m.x * TILE > camX + vw + 64 || (m.y + m.h) * TILE < camY - 64 || m.y * TILE > camY + vh + 64) continue;
-      for (const l of hamletLamps(m)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT[l.c], seed: l.x & 3, flick: true });
-    }
     // playtest1f: an awake wayrift lights the vale cold blue at night (a light at its mouth, spilling onto the ground
     // before it; the gate's four share one a pair, wayLights); a sealed one is dark
     for (const l of wayLights(g.season(), TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
@@ -3092,7 +3039,6 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
     drawLabel(ctx, n.name, n.x, n.y - LABEL.lift, row);
   }
   if (g.companion && g.companion.name) drawLabel(ctx, g.companion.name, g.companion.x, g.companion.y - LABEL.lift, "violet");
-  const bossNames: { x: number; y: number; w: number; h: number }[] = []; // playtest1u: where the boss names went (world px)
   for (const r of g.roamers) {
     if (!r.boss || !r.name) continue;
     if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
@@ -3105,9 +3051,7 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
     // sideways, or flipped under the feet; hudsafe.ts placeLabel); with no HUD (no DOM) it is where it always was
     const at = cam && lw && seen ? placeLabel(r.x, above, r.y, lw, 7, cam, worldBoxes(hud, cam.x, cam.y, cam.zoom)) : { cx: r.x, y: above };
     drawLabel(ctx, r.name, at.cx, at.y, "red"); // playtest1c: over a people-scale boss; playtest1p: over its big body; playtest1q: clear of the HUD
-    if (lw) bossNames.push({ x: Math.round(at.cx - lw / 2), y: Math.round(at.y - 7), w: lw, h: 7 });
   }
-  paintLockLabel(ctx, g, bossNames); // playtest1u: after the boss names, clear of them and of the HUD
   if (g.mapId === "world") {
     // playtest1f: a wayrift's name (where it leads) when you stand near its mouth
     const season = g.season();
@@ -3243,7 +3187,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   const props: { y: number; fn: () => void; actor?: (c: CanvasRenderingContext2D) => void }[] = [];
   const glow: ((c: CanvasRenderingContext2D) => void)[] = [];
   const skin = valeGround(g);
-  const hix = hamletIndex(g); // playtest1u
   // gfx2: the floor kit of this dungeon floor (null elsewhere), read by drawTile; its decals go on below.
   kitNow = floorKit(g);
   // On the vale, open ground shows its skin biome; road verges read the skin too. Every other tile is as before.
@@ -3275,9 +3218,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const right = x + 1 < g.w ? at(y * g.w + x + 1) : -1;
       const n = ((x * 13 + y * 7) % 10) / 10;
       const prop = tile === T.tree || tile === T.rock || tile === T.pump || tile === T.grave;
-      // playtest1u: a hamlet lot's tiles show the biome's ground (its building stands on them as a prop), not a grey block
-      const hamletLot = !!hix && tile === T.wall && hix.lot.has(i);
-      const base = prop || hamletLot ? (skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : tile;
+      const base = prop ? (skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : tile;
       // playtest1h: a chest stands on the ground around it (floor indoors and below, the biome outside), not a flat square
       const chestOn = tile === T.chest ? (g.mapId === "inside" || g.mapId === "dungeon" ? T.floor : skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : -1;
       // playtest1g: a vale, snow, ash or sand trail tile draws its biome's ground here (no flat dirt square under it)
@@ -3294,8 +3235,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
-      const hw = hix?.walk.get(i); // playtest1u: the hamlet's walk (planks, flags, packed snow, cinder slabs) on its green
-      if (hw) sheetCell(ctx, HAMLET_WALK, Math.abs(x * 3 + y * 5) % 4, HAMLET_WALK_ROW[hw.biome], x * TILE, y * TILE);
       // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)
       if (skin && tile === T.dirt && VALE_GROUND[skin.biome[i]] === T.swamp) paintSwampPath(ctx, g, x, y);
       // playtest1g: so do the vale's, the snow's, the ash's and the sand's (worn dirt and leaf litter, packed snow,
@@ -3421,23 +3360,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
             px(ctx, x * TILE + 10, y * TILE + 7, 2, 3, "#e6dcc8");
           },
         });
-      }
-    }
-  }
-  // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: each hamlet in (or just under) the view stands
-  // its lots' buildings as y-sorted props on their ground shadows, lit windows and lanterns on the glow pass at night.
-  if (hix) {
-    for (const m of hix.list) {
-      if ((m.x + m.w) * TILE < camX - TILE || m.x * TILE > camX + viewW / zoom + TILE) continue;
-      if ((m.y + m.h) * TILE < camY - TILE || m.y * TILE - 48 > camY + viewH / zoom) continue;
-      for (const l of m.lots) {
-        if (g.fog && g.fog[l.y * g.w + l.x] === 0 && g.fog[(l.y + l.h - 1) * g.w + l.x + l.w - 1] === 0) continue;
-        if (!sheetReady(hamletSheet(l.kind))) {
-          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintHamletBlock(ctx, m, l) });
-          continue;
-        }
-        props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintHamletLot(ctx, l) });
-        if (lit) glow.push((c) => paintHamletLot(c, l, true));
       }
     }
   }
@@ -3840,7 +3762,6 @@ function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
       px(ctx, cx, sy > 0 ? cy : cy - 2, 1, 3, "#b07aff");
     }
   }
-  paintLock(ctx, g);
   const c = g.companion;
   if (c && g.mapId !== "camp") {
     const top = Math.round(c.y) - LABEL.lift - 5;
@@ -3851,71 +3772,6 @@ function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
     }
   }
   for (const p of g.pops) if (p.life > 0.3 || f % 2 === 0) drawLabel(ctx, p.text, p.x, p.y, p.row);
-}
-
-/**
- * playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]: the tapped foe's lock in neon blue: a ring
- * on the ground round its feet (its own foot for a big body) and four corner brackets round its drawn body (its shape's
- * half-width and top), pulsing a pixel; its name and HP over it go on with the labels (paintLabels).
- */
-export const LOCK_BLUE = { hi: "#4ab8ff", lo: "#1f5a8a" } as const;
-function lockOf(g: Game) {
-  const t = g.lock;
-  if (!t || (t.hp ?? 1) <= 0 || !g.roamers.includes(t)) return null;
-  if (g.fog && g.fog[Math.floor(t.y / TILE) * g.w + Math.floor(t.x / TILE)] === 0) return null;
-  return t;
-}
-function paintLock(ctx: CanvasRenderingContext2D, g: Game) {
-  const t = lockOf(g);
-  if (!t) return;
-  const big = scaleOf(t) > 1;
-  const pulse = Math.floor(g.frame / 4) % 2;
-  const ft = footOf(t);
-  const rx = (big ? ft.rx + 4 : 9) + pulse;
-  const ry = (big ? ft.ry + 2 : 4) + (pulse ? 1 : 0);
-  const cx = Math.round(t.x);
-  const cy = Math.round(t.y) + 1;
-  for (let i = 0; i < 64; i++) {
-    const a = (i / 64) * Math.PI * 2;
-    px(ctx, Math.round(cx + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), 1, 1, i % 8 < 5 ? LOCK_BLUE.hi : LOCK_BLUE.lo);
-  }
-  const x0 = cx - (big ? halfOf(t) + 2 : 10) - pulse;
-  const x1 = cx + (big ? halfOf(t) + 1 : 9) + pulse;
-  const y0 = Math.round(t.y) - (big ? topOf(t) + 3 : t.boss ? 37 : 23) - pulse;
-  const y1 = Math.round(t.y) + 4 + pulse;
-  for (const [qx, qy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
-    px(ctx, sx > 0 ? qx : qx - 3, qy, 4, 1, LOCK_BLUE.hi);
-    px(ctx, qx, sy > 0 ? qy : qy - 3, 1, 4, LOCK_BLUE.hi);
-  }
-}
-/** The lock's name and HP (blue, in the label font) with a thin HP bar: over its head, or under its feet for a boss
- * (whose red name already hangs over it). */
-function paintLockLabel(ctx: CanvasRenderingContext2D, g: Game, taken: { x: number; y: number; w: number; h: number }[] = []) {
-  const t = lockOf(g);
-  if (!t) return;
-  const big = scaleOf(t) > 1;
-  const hp = Math.max(0, Math.ceil(t.hp ?? 0));
-  const max = Math.max(1, Math.ceil(t.max ?? t.hp ?? 1));
-  const text = `${t.name ?? "Foe"} HP ${hp}`; // the font has no slash: the bar under it shows hp of max
-  let cx = t.x;
-  let y = t.boss ? Math.round(t.y) + 14 : Math.round(t.y) - (big ? topOf(t) + 8 : LABEL.lift + 6);
-  // with the HUD measured, the name and its bar (7 + 5 px) go clear of its panels and of the boss names, as a boss name
-  // does (hudsafe.ts placeLabel); with no HUD (no DOM) it is where it always was
-  const cam = labelView;
-  const hud = cam ? hudBoxes(ctx.canvas, g.frame) : [];
-  const lw = hud.length || taken.length ? labelCanvas(text, "blue")?.width ?? 0 : 0;
-  if (cam && lw) {
-    const at = placeLabel(t.x, y + 5, Math.round(t.y) + (t.boss ? 14 : 0), Math.max(lw, 26), 12, cam, [...worldBoxes(hud, cam.x, cam.y, cam.zoom), ...taken]);
-    cx = at.cx;
-    y = at.y - 5;
-  }
-  drawLabel(ctx, text, cx, y, "blue");
-  const w = 24;
-  const bx = Math.round(cx) - w / 2;
-  const by = y + 2;
-  px(ctx, bx - 1, by - 1, w + 2, 4, "#0a0e14");
-  px(ctx, bx, by, w, 2, LOCK_BLUE.lo);
-  px(ctx, bx, by, Math.max(1, Math.round((w * hp) / max)), 2, LOCK_BLUE.hi);
 }
 
 /**
@@ -4249,13 +4105,11 @@ function warmPt1i() {
 /** playtest1t: every town building sheet and glow mask, asked for on the first frame drawn (the title's), so the town
  * is never first drawn with the old houses. */
 export const PT1T_ART = [...BLDG_SHEETS];
-/** playtest1u: the hamlet sheets, glow masks and walk, warmed with the town's so a hamlet is never first drawn as a block. */
-export const PT1U_ART = [...HAMLET_SHEETS];
 let pt1tWarm = false;
 function warmPt1t() {
   if (pt1tWarm || typeof Image === "undefined") return;
   pt1tWarm = true;
-  for (const url of [...PT1T_ART, ...PT1U_ART]) {
+  for (const url of PT1T_ART) {
     if (landSheet[url]) continue;
     const im = new Image();
     im.src = url;
@@ -4711,7 +4565,6 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
   ctx.fillStyle = "#140e12";
   ctx.fillRect(0, 0, size, size);
   const span = 24;
-  const mhix = hamletIndex(g);
   const cx = Math.floor(g.px / TILE);
   const cy = Math.floor(g.py / TILE);
   const s = size / span;
@@ -4729,8 +4582,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       }
       const i = ty * g.w + tx;
       if (g.fog && g.fog[i] === 0) continue;
-      const hl = mhix?.lot.get(i); // playtest1u: a hamlet's lots show in its biome's roof colour
-      ctx.fillStyle = hl ? HAMLET_MAP[hl.m.biome] : mapColor(g.hidden.has(i) ? T.wall : g.tiles[i], g.theme, ty, tx);
+      ctx.fillStyle = mapColor(g.hidden.has(i) ? T.wall : g.tiles[i], g.theme, ty, tx);
       ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
     }
   }

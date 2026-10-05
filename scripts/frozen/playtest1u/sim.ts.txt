@@ -64,8 +64,7 @@ import { curseFloor, pickCurse, placeCaptive, rescueFor } from "./runs";
 import { mimicChest } from "./mimic";
 // OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. Generated floors and rift zones come from the fourth writer.
 import { gravewakeFloor, gravewakeRift, guardPick } from "../../tools/map-writer/gravewake";
-import { WORLD_BRIDGE, WORLD_DRESS, gravewakeHamlets, gravewakeWorld } from "../../tools/map-writer/gravewake_world";
-import { HAMLET_KINDS, type HamletBiomeId, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
+import { WORLD_BRIDGE, WORLD_DRESS, gravewakeWorld } from "../../tools/map-writer/gravewake_world";
 import { edgeBand, riftSeed, rng32, subSeed, type MapResult } from "../../tools/map-writer/map_writer";
 import { GATE, fromGate, lairTiles, nightOf, postBounty, type Posting } from "./bounty";
 import { DIG, digKey, digWakes } from "./graves";
@@ -83,7 +82,6 @@ import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // p
 import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing, patchAt, placeRoom, propLive, roomBusy, wary, type Fall, type RoomProp, type RoomState } from "./room"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES, RIMED_FAMILIES, SPELL_ELEMENT, STATUS, WET_WEATHER, artElement, comboBonus, comboSpread, reaction, type ComboId, type Element, type Status } from "./combos"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
-import { TAP, pickAttack, tapHit, type Choice } from "./tapfight"; // playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]
 import { ALLY_SPACE, exits, gapOf, inArea, pushOut, ringAt, sideAngle, wrap, type Area, type Pt } from "./allyspace"; // playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
@@ -628,19 +626,6 @@ export class Game {
   allyStayAt = "";
   allyFocus: Roamer | null = null;
   focusUntil = 0;
-  /** playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]: the foe a tap locked (tapfight.ts), what it
-   * was when last seen (so the lock rides to the body that steps in when a touch opens the fight), the walk's plan, the
-   * hand-pressed hold, the last swing and draught, and the last choice (for the HUD and the checks). Never saved. */
-  lock: Roamer | null = null;
-  lockSeen: { def: string; name: string; x: number; y: number; aggro: boolean; map: string } | null = null;
-  lockPlan: Pt | null = null;
-  lockPlanAt = -1;
-  lockHold = 0;
-  lockSwing = 0;
-  lockDrink = -1e9;
-  lockChoice: Choice | null = null;
-  lockWhy = "";
-  private lockAuto = false;
   guardUntil = 0;
   orderCool: Record<Order, number> = { taunt: 0, guard: 0, focus: 0, stay: 0 };
   /** playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]: the big body the
@@ -1720,11 +1705,7 @@ export class Game {
         ...world.npcs.map((n) => ({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE) })),
         ...WAYRIFTS.map((w) => wayMouth(w)), // playtest1f: no lair on or by a wayrift's stones
       ];
-      // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: no stalker lair (bounty, naughty list, court,
-      // sideshow, blooms) on a hamlet's green or within BOUNTY.lairClear of its box: a named pack never rises among the houses.
-      const m = BOUNTY.lairClear;
-      const near = (i: number) => worldHamlets().some((h) => { const x = i % world.w, y = Math.floor(i / world.w); return x >= h.x - m && x < h.x + h.w + m && y >= h.y - m && y < h.y + h.h + m; });
-      this.lairCache = { tiles: world.tiles, w: world.w, lairs: lairTiles(world.tiles, world.w, world.h, avoid).filter((i) => !near(i)) };
+      this.lairCache = { tiles: world.tiles, w: world.w, lairs: lairTiles(world.tiles, world.w, world.h, avoid) };
     }
     return this.lairCache;
   }
@@ -3298,7 +3279,6 @@ export class Game {
       return;
     }
     this.regen(dt);
-    this.tickLock(dt); // playtest1u: a tapped foe: walk in, fight it
     this.move(dt);
     this.tickDrops(dt);
     this.tickCritters(dt);
@@ -3497,334 +3477,6 @@ export class Game {
     }
     this.goal = { x, y };
     this.goalStuck = 0;
-  }
-
-  // ---- playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting] (tapfight.ts) ----
-
-  /** A tap (or a click) at world (x, y), slop px of touch round each foe: lock the foe under it ("lock"), let go of the
-   * locked one tapped again ("clear"), or walk there as a tap always has, letting go of any lock ("walk"). */
-  tapAt(x: number, y: number, slop: number = TAP.slop): "lock" | "clear" | "walk" | "none" {
-    if (this.mode !== "play") return "none";
-    const list = this.roamers.filter((r) => (r.hp ?? 1) > 0 && !this.fogged(r.x, r.y));
-    const i = tapHit(list, x, y, slop);
-    if (i >= 0) {
-      const r = list[i];
-      if (r === this.lock) {
-        this.clearLock("tap again");
-        return "clear";
-      }
-      this.setLock(r);
-      this.goal = null;
-      return "lock";
-    }
-    if (this.lock) this.clearLock("ground");
-    this.setGoal(x, y);
-    return "walk";
-  }
-
-  clearLock(why = "") {
-    if (this.lock && this.goal && this.lockPlan) this.goal = null;
-    this.lock = null;
-    this.lockSeen = null;
-    this.lockPlan = null;
-    this.lockChoice = null;
-    this.lockWhy = why;
-  }
-
-  private setLock(r: Roamer) {
-    this.lock = r;
-    this.lockSeen = { def: r.def, name: r.name ?? "", x: r.x, y: r.y, aggro: !!r.aggro, map: this.mapId };
-    this.lockPlan = null;
-    this.lockPlanAt = -1;
-    this.lockWhy = "";
-  }
-
-  /** A press by hand (a button, a key, the pad): it goes now, and the auto attack waits TAP.manual s. */
-  private noteManual() {
-    if (!this.lockAuto) this.lockHold = this.worldMs + TAP.manual * 1000;
-  }
-
-  private fogged(x: number, y: number) {
-    return !!this.fog && this.fog[Math.floor(y / TILE) * this.w + Math.floor(x / TILE)] === 0;
-  }
-
-  /** The live telegraphed marks (as the companion reads them, allySpace). */
-  private liveMarks(): Area[] {
-    const out: Area[] = [];
-    for (const r of this.roamers) {
-      if (!this.liveFoe(r) || !((r.tell ?? 0) > 0)) continue;
-      const m = this.markArea(r);
-      if (m) out.push(m);
-    }
-    return out;
-  }
-
-  /** The lock's foe this frame: itself; the body a touch put in its place; after it drops, the nearest other foe
-   * fighting the hero within TAP.next; else none (and the lock clears). */
-  private lockFoe(): Roamer | null {
-    const r = this.lock;
-    const seen = this.lockSeen;
-    if (!r || !seen) return null;
-    if (seen.map !== this.mapId) {
-      this.clearLock("left");
-      return null;
-    }
-    if (this.roamers.includes(r) && (r.hp ?? 1) > 0) {
-      seen.x = r.x;
-      seen.y = r.y;
-      seen.aggro = !!r.aggro;
-      return r;
-    }
-    let next: Roamer | null = null;
-    if (!seen.aggro) {
-      // the touch opened the fight: the body that stepped in for it (same kind, nearest where it stood)
-      let bd = 160;
-      for (const o of this.roamers) {
-        if (!this.liveFoe(o) || (o.def !== seen.def && o.name !== seen.name)) continue;
-        const d = Math.hypot(o.x - seen.x, o.y - seen.y);
-        if (d < bd) {
-          bd = d;
-          next = o;
-        }
-      }
-    }
-    if (!next) {
-      let bd: number = TAP.next;
-      for (const o of this.roamers) {
-        if (!this.liveFoe(o) || this.fogged(o.x, o.y)) continue;
-        const d = Math.hypot(o.x - this.px, o.y - this.py);
-        if (d < bd) {
-          bd = d;
-          next = o;
-        }
-      }
-    }
-    if (!next) {
-      this.clearLock(seen.aggro ? "down" : "gone");
-      return null;
-    }
-    this.setLock(next);
-    return next;
-  }
-
-  /** Locked: step out of a live mark, else walk in (round the tiles, never into a mark) and fight with pickAttack's choice. */
-  private tickLock(dt: number) {
-    void dt;
-    if (!this.lock) return;
-    const input = this.held.has(this.keyBind.up) || this.held.has(this.keyBind.down) || this.held.has(this.keyBind.left) || this.held.has(this.keyBind.right) || this.held.has("ArrowUp") || this.held.has("ArrowDown") || this.held.has("ArrowLeft") || this.held.has("ArrowRight") || !!this.stickX || !!this.stickY;
-    if (input) {
-      this.clearLock("move");
-      return;
-    }
-    if (this.mode !== "play" || this.fallen > 0) return;
-    const r = this.lockFoe();
-    if (!r) return;
-    const marks = this.liveMarks();
-    const hero = { x: this.px, y: this.py };
-    const under = marks.find((m) => inArea(m, hero.x, hero.y));
-    if (under) {
-      // standing in a mark: out by the nearest clear way first, as the companion does
-      const out = exits(under, hero, { x: hero.x + (hero.x - r.x), y: hero.y + (hero.y - r.y) }, TAP.pad);
-      const ok = (p: Pt) => !this.solidAt(p.x, p.y) && !this.blockedProp(p.x, p.y) && !marks.some((m) => inArea(m, p.x, p.y));
-      const p = out.find(ok) ?? out[0];
-      this.goal = { x: p.x, y: p.y };
-      this.goalStuck = 0;
-      this.lockPlan = p;
-      this.lockWhy = "mark";
-      return;
-    }
-    const dist = Math.hypot(r.x - this.px, r.y - this.py);
-    const body = bodyR(r);
-    const c = this.lockChoose(r, dist, body, marks);
-    this.lockChoice = c;
-    const inReach = c.reach === Infinity || (c.edge ? dist - body <= c.reach - 4 : dist <= c.reach - 4);
-    if (!r.aggro) {
-      // a wandering foe: walk up and touch it, so the fight opens as it always does
-      this.lockWalk(r, marks);
-      return;
-    }
-    if (c.verb !== "close" && inReach) {
-      if (this.lockPlan) {
-        this.goal = null;
-        this.lockPlan = null;
-      }
-      this.lockStrike(r, c);
-      return;
-    }
-    this.lockWalk(r, marks);
-  }
-
-  private lockChoose(r: Roamer, dist: number, body: number, marks: Area[]): Choice {
-    void marks;
-    const near = (rad: number) => this.roamers.filter((o) => this.liveFoe(o) && Math.hypot(o.x - this.px, o.y - this.py) - bodyR(o) <= rad).length;
-    const rails = Object.values(this.equip).map((it) => it?.active ?? "").filter(Boolean);
-    return pickAttack({
-      dist,
-      body,
-      hpFrac: this.hp / Math.max(1, this.maxHp),
-      potions: this.potionsCorked() ? 0 : this.potHp,
-      drinkReady: this.worldMs - this.lockDrink >= TAP.drinkGap * 1000,
-      vampire: this.cls === "vampire",
-      wizard: this.cls === "wizard",
-      stam: this.stam,
-      mana: this.energy,
-      blood: this.blood,
-      spellCool: this.spellCool,
-      arts: CLASSES[this.cls].specials.filter((n) => this.specials.includes(n)),
-      rails,
-      near,
-      bigCast: (r.tell ?? 0) > 0 && r.casting === "big",
-      smiteReady: this.worldMs >= this.smiteLock,
-      foeHpFrac: (r.hp ?? 1) / Math.max(1, r.max ?? r.hp ?? 1),
-      status: r.st ?? {},
-      oiled: this.oiled(r),
-      swingReady: this.worldMs >= this.lockSwing,
-    });
-  }
-
-  /** The choice, pressed as its own verb (the same costs, cooldowns and damage), facing the foe, the locked foe first
-   * in line so a spell's "first foe in reach" is it. A hand-pressed button holds it off TAP.manual s. */
-  private lockStrike(r: Roamer, c: Choice) {
-    const dx = r.x - this.px;
-    const dy = r.y - this.py;
-    this.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "e" : "w") : dy > 0 ? "s" : "n";
-    if (this.worldMs < this.lockHold) {
-      this.lockWhy = "hand";
-      return;
-    }
-    if (c.verb === "slash" && this.worldMs < this.lockSwing) {
-      this.lockWhy = "wait";
-      return;
-    }
-    const before = this.roamers;
-    this.roamers = [r, ...before.filter((o) => o !== r)];
-    this.lockAuto = true;
-    try {
-      if (c.verb === "potion") {
-        this.lockDrink = this.worldMs;
-        this.usePotion();
-      } else if (c.verb === "smite") this.smite();
-      else if (c.verb === "whirl") this.whirl();
-      else if (c.verb === "art" && c.name) this.castKnown(c.name);
-      else if (c.verb === "rail" && c.name) this.castRail(c.name);
-      else if (c.verb === "slash") {
-        // Main's swing without its "nothing in the cone: the context verb" fallback (a lock never opens a shop door)
-        this.actPose = "swing";
-        this.actFor = 0.22;
-        this.strikeCone((20 * Math.PI) / 180, 36, this.blow());
-        this.lockSwing = this.worldMs + TAP.swing * 1000;
-      }
-    } finally {
-      this.lockAuto = false;
-      const now = this.roamers;
-      this.roamers = [...before.filter((o) => now.includes(o)), ...now.filter((o) => !before.includes(o))];
-    }
-    this.lockWhy = c.verb === "slash" ? "swing" : c.name ?? c.verb;
-  }
-
-  /** Walk toward the foe by the tiles: a breadth-first way round walls, props and water (TAP.span tiles out), every tile
-   * a live mark covers left out; the goal is the farthest of the next few steps a straight line reaches. No way in that
-   * keeps out of the marks: it holds where it stands until they land. */
-  private lockWalk(r: Roamer, marks: Area[]) {
-    const sx = Math.floor(this.px / TILE);
-    const sy = Math.floor(this.py / TILE);
-    const tx = Math.floor(r.x / TILE);
-    const ty = Math.floor(r.y / TILE);
-    const near = Math.hypot(r.x - this.px, r.y - this.py);
-    // never through a tile that leaves the map (a door or gate, a stair, a hearth, a dungeon or rift mouth): the lock walk stays here
-    const exit = (x: number, y: number) => {
-      const t = this.tiles[y * this.w + x];
-      return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((q) => q.tx === x && q.ty === y)));
-    };
-    const free = (x: number, y: number) => {
-      const cx = x * TILE + 8;
-      const cy = y * TILE + 8;
-      if (x < 0 || y < 0 || x >= this.w || y >= this.h || exit(x, y)) return false;
-      return !this.solidAt(cx, cy) && !this.blockedProp(cx, cy) && !marks.some((m) => inArea(m, cx, cy, TAP.pad));
-    };
-    const lineFree = (x: number, y: number) => {
-      const d = Math.hypot(x - this.px, y - this.py);
-      for (let k = 4; k < d; k += 4) {
-        const qx = this.px + ((x - this.px) * k) / d;
-        const qy = this.py + ((y - this.py) * k) / d;
-        if (this.solidAt(qx, qy) || this.blockedProp(qx, qy) || exit(Math.floor(qx / TILE), Math.floor(qy / TILE)) || marks.some((m) => inArea(m, qx, qy, TAP.pad))) return false;
-      }
-      return true;
-    };
-    // close and in plain sight: straight in
-    if (near < TILE * 3 && lineFree(r.x, r.y)) {
-      this.lockGo({ x: r.x, y: r.y });
-      return;
-    }
-    if (this.worldMs - this.lockPlanAt < TAP.repath * 1000 && this.lockPlan && this.goal) return;
-    this.lockPlanAt = this.worldMs;
-    const S = TAP.span;
-    const W = 2 * S + 1;
-    const ox = sx - S;
-    const oy = sy - S;
-    const prev = new Int32Array(W * W).fill(-2);
-    const q: number[] = [];
-    const at = (x: number, y: number) => (y - oy) * W + (x - ox);
-    prev[at(sx, sy)] = -1;
-    q.push(sx, sy);
-    let hit = -1;
-    let bestD = Infinity;
-    let best = -1;
-    for (let h = 0; h < q.length; h += 2) {
-      const x = q[h];
-      const y = q[h + 1];
-      const d = Math.abs(x - tx) + Math.abs(y - ty);
-      if (d < bestD) {
-        bestD = d;
-        best = at(x, y);
-      }
-      if (d <= 1) {
-        hit = at(x, y);
-        break;
-      }
-      for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + ddx;
-        const ny = y + ddy;
-        if (nx < ox || ny < oy || nx >= ox + W || ny >= oy + W || prev[at(nx, ny)] !== -2) continue;
-        if (!free(nx, ny) && !(nx === tx && ny === ty)) continue;
-        prev[at(nx, ny)] = at(x, y);
-        q.push(nx, ny);
-      }
-    }
-    const end = hit >= 0 ? hit : best;
-    const path: number[] = [];
-    for (let k = end; k >= 0; k = prev[k]) path.push(k);
-    path.reverse();
-    if (path.length <= 1) {
-      // no way in clear of the marks (or already there): hold here until they land
-      if (marks.length) {
-        this.goal = null;
-        this.lockPlan = null;
-        this.lockWhy = "hold";
-        return;
-      }
-      this.lockGo({ x: r.x, y: r.y });
-      return;
-    }
-    let pick = path[1];
-    for (let k = Math.min(path.length - 1, 4); k >= 1; k--) {
-      const cx = (path[k] % W) + ox;
-      const cy = Math.floor(path[k] / W) + oy;
-      if (lineFree(cx * TILE + 8, cy * TILE + 8)) {
-        pick = path[k];
-        break;
-      }
-    }
-    const px = ((pick % W) + ox) * TILE + 8;
-    const py = (Math.floor(pick / W) + oy) * TILE + 8;
-    this.lockGo({ x: px, y: py });
-  }
-
-  private lockGo(p: Pt) {
-    this.goal = { x: p.x, y: p.y };
-    this.goalStuck = 0;
-    this.lockPlan = p;
-    this.lockWhy = "walk";
   }
 
   bumpZoom(dir: number) {
@@ -6059,7 +5711,6 @@ export class Game {
   /** A learned class art. Mana, or blood for a vampire. The picture matches the tree. */
   castKnown(name: string) {
     if (this.mode !== "play" || this.fallen > 0 || !name) return;
-    this.noteManual();
     const look = HERO_SPELLS[name];
     if (!look || !CLASSES[this.cls].specials.includes(name)) return;
     if (!this.specials.includes(name)) {
@@ -6208,7 +5859,6 @@ export class Game {
   /** Layout Two. Tap is Slash when a foe is in the cone. Otherwise it is the context verb. */
   slash() {
     if (this.mode !== "play" || this.fallen > 0) return;
-    this.noteManual();
     this.actPose = "swing";
     this.actFor = 0.22;
     const hit = this.strikeCone((20 * Math.PI) / 180, 36, this.blow());
@@ -6218,7 +5868,6 @@ export class Game {
   /** SEC. 18 stamina. Hits everyone at your feet. */
   whirl() {
     if (this.mode !== "play" || this.fallen > 0) return;
-    this.noteManual();
     if (!this.spend("whirl")) return;
     this.actPose = "swing";
     this.actFor = 0.22;
@@ -6231,7 +5880,6 @@ export class Game {
   /** A socketed spell on the rail. Costs 2 mana, or 2 blood. */
   castRail(name: string) {
     if (this.mode !== "play" || this.fallen > 0 || !name) return;
-    this.noteManual();
     const owned = Object.values(this.equip).some((it) => it?.active === name);
     if (!owned) return;
     if (this.cls === "vampire") {
@@ -6264,7 +5912,6 @@ export class Game {
   /** 3RD. 12 mana, or 12 blood. Breaks a telegraphed big move, then locks for 12s. */
   smite() {
     if (this.mode !== "play" || this.fallen > 0) return;
-    this.noteManual();
     if (!this.spend("smite")) return;
     this.actPose = "cast";
     this.actFor = 0.28;
@@ -8192,7 +7839,6 @@ export class Game {
   }
 
   usePotion(inBattle = false) {
-    this.noteManual();
     if (this.potionsCorked()) {
       this.logLine = "Corked. The curse holds every flask shut on this floor.";
       return;
@@ -9087,17 +8733,12 @@ const WORLD_CARTS: [number, number][] = [
  * spread through each biome, a forest band round the edge). Every place sits at twice its old tile. Built once and
  * copied: the sim stamps the world's tiles (a boss's clearing) on its own copy.
  */
-let worldMemo: { w: number; h: number; tiles: Uint8Array; entrances: Record<string, string>; npcs: Npc[]; landmarks: { x: number; y: number; kind: string }[]; caches: { x: number; y: number }[]; hamlets: HamletT[] } | null = null;
+let worldMemo: { w: number; h: number; tiles: Uint8Array; entrances: Record<string, string>; npcs: Npc[]; landmarks: { x: number; y: number; kind: string }[]; caches: { x: number; y: number }[] } | null = null;
 /** playtest1e: the vale's landmarks and caches as the map writer laid them (copies; the checks and the mini map read them). */
 export function worldPlan() {
   if (!worldMemo) worldMemo = layWorld();
   const l = worldMemo;
   return { landmarks: l.landmarks.map((m) => ({ ...m })), caches: l.caches.map((c) => ({ x: c.x, y: c.y })) };
-}
-/** playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: the vale's hamlets as the map writer laid them (the draw, the corner map and the checks read them). */
-export function worldHamlets(): HamletT[] {
-  if (!worldMemo) worldMemo = layWorld();
-  return worldMemo.hamlets;
 }
 function buildWorld() {
   if (!worldMemo) worldMemo = layWorld();
@@ -9148,44 +8789,7 @@ function layWorld() {
   // playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: the wayrifts stand on cleared ground, each front joined
   // to the road net (wayrifts.ts stampWayrifts: it cuts a trail only where the writer left none).
   stampWayrifts(tiles, w, h, { road: T.road, trail: T.dirt, tree: T.tree, rock: T.rock, pump: T.pump, water: T.water, ice: T.ice }, (x, y) => WORLD_DRESS[worldBiome(x, y)].ground, (t) => !WAY_BLOCK.has(t));
-  // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: small hamlets in the other biomes, laid last
-  // by the map writer (phase 4) on open ground, far from every lair, mouth, wayrift, festival spot, cart, watch, landmark
-  // and cache, every walkable tile still reached from the gate. Each lot is wall on the grid: it stops bodies where drawn.
-  const hamlets = layHamlets(tiles, laid.landmarks, laid.caches, npcs);
-  return { w, h, tiles, entrances, npcs, landmarks: laid.landmarks.map((l) => ({ x: l.x, y: l.y, kind: l.kind })), caches: laid.caches, hamlets };
-}
-
-/** playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: how far (tiles) a hamlet's box keeps from each kind of place. */
-/** A lair or a festival boss's spot keeps its whole clearing (LAIR, an ellipse) plus the dodge room (bigboss.ts DODGE, 48 px:
- * three tiles) free; the rest are circles. */
-export const HAMLET_KEEP = { lair: { r: 9, ry: 8 }, door: 14, mouth: 5, wayrift: 6, cart: 4, landmark: 3, cache: 2 } as const;
-function layHamlets(tiles: Uint8Array, landmarks: { x: number; y: number }[], caches: { x: number; y: number }[], npcs: Npc[]): HamletT[] {
-  const K = HAMLET_KEEP;
-  const keep: { x: number; y: number; r: number; ry?: number }[] = [];
-  for (const b of WORLD_BOSSES) keep.push({ x: b.tx, y: b.ty, ...K.lair });
-  for (const f of [HARVEST.lord, KRAMPUSNACHT.spot]) keep.push({ x: f.x, y: f.y, ...K.lair });
-  keep.push({ x: WORLD_DOOR.x, y: WORLD_DOOR.y, r: K.door });
-  for (const d of [...DUNGEONS, ...RIFTS]) if (!d.town) keep.push({ x: d.tx, y: d.ty, r: K.mouth });
-  for (const wr of WAYRIFTS) keep.push({ x: wr.x + 1, y: wr.y + 1, r: K.wayrift });
-  for (const [x, y] of WORLD_CARTS) keep.push({ x, y, r: K.cart });
-  for (const n of npcs) keep.push({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE), r: K.cart });
-  for (const l of landmarks) keep.push({ x: l.x, y: l.y, r: K.landmark });
-  for (const c of caches) keep.push({ x: c.x, y: c.y, r: K.cache });
-  const laid = gravewakeHamlets(tiles, keep, GATE);
-  tiles.set(laid.tiles);
-  const W = WORLD.w;
-  return laid.hamlets.map((m) => {
-    const biome = worldBiome(m.x, m.y) as HamletBiomeId;
-    const lots = m.lots.map((l) => ({ ...l, kind: HAMLET_KINDS[biome][l.size] }));
-    // the walk: down from each north-row door to the green's middle row, along it, and out both sides of the box
-    const north = lots.filter((l) => l.y === m.y);
-    const southTop = Math.min(...lots.filter((l) => l.y !== m.y).map((l) => l.y));
-    const mid = Math.floor((m.y + 3 + southTop - 1) / 2);
-    const walk = new Set<number>();
-    for (const l of north) for (let y = l.doorY + 1; y <= mid; y++) walk.add(y * W + l.doorX);
-    for (let x = m.x - 1; x <= m.x + m.w; x++) walk.add(mid * W + x);
-    return { x: m.x, y: m.y, w: m.w, h: m.h, biome, lots, walk: [...walk].filter((i) => tiles[i] !== T.wall).sort((a, b) => a - b) };
-  });
+  return { w, h, tiles, entrances, npcs, landmarks: laid.landmarks.map((l) => ({ x: l.x, y: l.y, kind: l.kind })), caches: laid.caches };
 }
 
 function carveFloor(dungeon: string, floor: number, floors: number, pocket: boolean) {

@@ -7,7 +7,7 @@
  * open (mouths, bosses, carts, watches, the town door) and then puts its own stairs, door and folk on the grid.
  */
 import { T, WORLD, WORLD_DOOR, worldBiome, type WorldBiome } from "../../src/game/content";
-import { writeHamlets, writeOverworld, type HamletBiome, type HamletPlan, type HamletResult, type OverworldBiome, type OverworldResult, type Spot } from "./map_writer";
+import { writeOverworld, type OverworldBiome, type OverworldResult, type Spot } from "./map_writer";
 
 export const WORLD_SEED = "gravewake-world-1e";
 /** Biome order for the writer (index = position). */
@@ -49,55 +49,5 @@ export function gravewakeWorld(sites: Spot[]): OverworldResult {
     ],
     edge: 2,
     spacing: 12,
-  });
-}
-
-// ---- playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: hamlets in the other biomes (map writer phase 4) ----
-export const HAMLET_SEED = "gravewake-hamlets-1u";
-/** The four layouts: a box of lots round a green (size 0 small 3x3, 1 mid 4x3, 2 big 5x3; door = the lot's middle column). */
-const lot = (x: number, y: number, size: number) => {
-  const w = [3, 4, 5][size];
-  return { x, y, w, h: 3, door: Math.floor(w / 2), size };
-};
-export const HAMLET_PLANS: HamletPlan[] = [
-  { w: 15, h: 10, lots: [lot(0, 0, 2), lot(6, 0, 1), lot(11, 0, 1), lot(1, 7, 0), lot(5, 7, 2), lot(11, 7, 0)] },
-  { w: 13, h: 10, lots: [lot(0, 0, 1), lot(5, 0, 0), lot(9, 0, 1), lot(1, 7, 2), lot(8, 7, 1)] },
-  { w: 11, h: 9, lots: [lot(0, 0, 2), lot(7, 0, 1), lot(2, 6, 0), lot(7, 6, 0)] },
-  { w: 9, h: 9, lots: [lot(0, 0, 1), lot(6, 0, 0), lot(3, 6, 1)] },
-  { w: 9, h: 7, lots: [lot(0, 0, 1), lot(5, 0, 0), lot(3, 4, 0)] },
-  { w: 7, h: 7, lots: [lot(0, 0, 0), lot(4, 0, 0), lot(2, 4, 0)] },
-];
-/** Hamlets per biome (WORLD_BIOMES order): none in the vale (the town is there), two to four in each other biome. */
-export const HAMLET_BIOMES: Record<WorldBiome, HamletBiome> = {
-  vale: { count: [0, 0], plans: [], variants: 2 },
-  snow: { count: [3, 4], plans: [0, 1, 2, 3], variants: 2 },
-  sand: { count: [3, 4], plans: [0, 1, 2, 3], variants: 2 },
-  ash: { count: [2, 3], plans: [0, 1, 2, 3, 4], variants: 2 },
-  swamp: { count: [2, 3], plans: [2, 3, 4, 5], variants: 2 },
-};
-/** Body-blocking tiles (sim.ts blockedProp's tile rule): what a hamlet's reach test walks round. */
-const HAMLET_BLOCK = new Set<number>([T.tree, T.rock, T.pump, T.grave, T.wall, T.water, T.pool, T.ice, T.shelf, T.cauldron, T.moon, T.door, T.chest, T.stairD]);
-const HAMLET_GROUND = new Set<number>([T.grass, T.snow, T.sand, T.ash, T.swamp]);
-/** The vale's hamlets on a laid grid (after the writer, the game's stairs, props and wayrifts): pure and seeded. */
-export function gravewakeHamlets(tiles: ArrayLike<number>, keep: (Spot & { r: number; ry?: number })[], from: Spot): HamletResult {
-  return writeHamlets({
-    seed: HAMLET_SEED,
-    w: WORLD.w,
-    h: WORLD.h,
-    tiles,
-    plans: HAMLET_PLANS,
-    biomes: WORLD_BIOMES.map((b) => HAMLET_BIOMES[b]),
-    biomeAt: (x, y) => WORLD_BIOMES.indexOf(worldBiome(x, y)),
-    solid: T.wall,
-    groundAt: (x, y) => WORLD_DRESS[worldBiome(x, y)].ground,
-    ground: (t) => HAMLET_GROUND.has(t),
-    green: (t) => HAMLET_GROUND.has(t) || t === T.dirt,
-    clear: (t) => t === T.tree || t === T.rock || t === T.pump,
-    ring: (t) => HAMLET_GROUND.has(t) || t === T.dirt || t === T.road,
-    keep,
-    walk: (t) => !HAMLET_BLOCK.has(t),
-    from,
-    edge: 4,
-    gap: 6,
   });
 }

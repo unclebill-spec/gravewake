@@ -389,56 +389,5 @@ const inRoom = (r, x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r
   check("overworld", "the edge band is dense forest except where a road runs out; the stamp (a lake) is untouched; the roads run end to end; every cache sits on a cache tile", edged === seeds.length && stamped === seeds.length && roads === seeds.length && caches === seeds.length, `edge ${edged} stamp ${stamped} roads ${roads} caches ${caches}`);
 }
 
-// ---- Hamlets (phase 4, playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]) ----
-// A synthetic 72x48 grid in two biomes (west 0, east 1): grass with tree clumps, a road across, a lake, two keep spots.
-{
-  const H = { grass: 1, tree: 2, road: 3, water: 4, wall: 5, rock: 6 };
-  const W = 72, Hh = 48;
-  const base = new Uint8Array(W * Hh).fill(H.grass);
-  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
-    const n = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
-    if (x < 2 || y < 2 || x >= W - 2 || y >= Hh - 2 || Math.abs(n) > 0.86) base[y * W + x] = H.tree;
-  }
-  for (let x = 0; x < W; x++) base[24 * W + x] = H.road;
-  for (let y = 30; y < 36; y++) for (let x = 50; x < 60; x++) base[y * W + x] = H.water;
-  const plans = [
-    { w: 9, h: 9, lots: [{ x: 0, y: 0, w: 3, h: 3, door: 1, size: 0 }, { x: 6, y: 0, w: 3, h: 3, door: 1, size: 0 }, { x: 3, y: 6, w: 3, h: 3, door: 1, size: 0 }] },
-    { w: 7, h: 7, lots: [{ x: 0, y: 0, w: 3, h: 3, door: 1, size: 0 }, { x: 4, y: 4, w: 3, h: 3, door: 1, size: 0 }] },
-  ];
-  const keep = [{ x: 14, y: 12, r: 6 }, { x: 54, y: 12, r: 5, ry: 4 }];
-  const opts = (M, seed) => ({ seed, w: W, h: Hh, tiles: base, plans, biomes: [{ count: [2, 3], plans: [0, 1], variants: 2 }, { count: [1, 2], plans: [1], variants: 2 }], biomeAt: (x) => (x < 36 ? 0 : 1), solid: H.wall, groundAt: () => H.grass, ground: (t) => t === H.grass, green: (t) => t === H.grass, clear: (t) => t === H.tree || t === H.rock, ring: (t) => t === H.grass || t === H.road, keep, walk: (t) => t !== H.tree && t !== H.water && t !== H.wall && t !== H.rock, from: { x: 30, y: 24 }, edge: 2, gap: 4 });
-  const hs = (r) => createHash("md5").update(Buffer.from(r.tiles)).update(JSON.stringify(r.hamlets)).digest("hex");
-  const seeds = ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"];
-  let same = 0, distinct = new Set(), placed = 0, legal = 0, reached = 0, keepOk = 0;
-  for (const sd of seeds) {
-    const r1 = A.writeHamlets(opts(A, sd)), r2 = B.writeHamlets(opts(B, sd));
-    if (hs(r1) === hs(r2)) same++;
-    distinct.add(hs(r1));
-    const by = [0, 0];
-    for (const m of r1.hamlets) by[m.biome]++;
-    if (by[0] >= 1 && by[1] >= 1 && by[0] <= 3 && by[1] <= 2) placed++;
-    // every lot is solid on the out grid on what was plain ground (or a cleared prop), its box in its biome, off the road
-    // and water, inside the edge, clear of each keep spot and gap tiles from the others
-    let ok = true;
-    for (const m of r1.hamlets) {
-      for (let y = m.y; y < m.y + m.h; y++) for (let x = m.x; x < m.x + m.w; x++) { const t0 = base[y * W + x]; if (t0 === H.road || t0 === H.water || (x < 36 ? 0 : 1) !== m.biome) ok = false; }
-      for (const l of m.lots) for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (r1.tiles[y * W + x] !== H.wall) ok = false;
-      for (const n of r1.hamlets) if (n !== m && Math.max(n.x - (m.x + m.w), m.x - (n.x + n.w), n.y - (m.y + m.h), m.y - (n.y + n.h), 0) < 4) ok = false;
-    }
-    if (ok) legal++;
-    if (r1.hamlets.every((m) => keep.every((k) => { for (let y = m.y; y < m.y + m.h; y++) for (let x = m.x; x < m.x + m.w; x++) if (Math.hypot((x - k.x) / k.r, (y - k.y) / (k.ry ?? k.r)) < 1) return false; return true; }))) keepOk++;
-    // reach: every walkable tile reached before is still reached (bar the lots), and every doorstep is reached
-    const flood = (t) => { const d = new Int8Array(W * Hh).fill(-1); const q = [30 + 24 * W]; d[q[0]] = 0; const wk = (v) => v !== H.tree && v !== H.water && v !== H.wall && v !== H.rock; for (let i = 0; i < q.length; i++) { const c = q[i], x = c % W, y = (c / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= Hh) continue; const j = ny * W + nx; if (d[j] < 0 && wk(t[j])) { d[j] = 0; q.push(j); } } } return d; };
-    const b0 = flood(base), b1 = flood(r1.tiles);
-    let lost = 0;
-    for (let i = 0; i < W * Hh; i++) if (b0[i] >= 0 && b1[i] < 0 && r1.tiles[i] !== H.wall) lost++;
-    const doors = r1.hamlets.flatMap((m) => m.lots).every((l) => b1[(l.doorY + 1) * W + l.doorX] >= 0);
-    if (lost === 0 && doors) reached++;
-  }
-  check("hamlets", "same options, same bytes (tiles and hamlets) across two separate loads; different seeds give different layouts", same === seeds.length && distinct.size >= seeds.length - 1, `${same}/${seeds.length} same, ${distinct.size} distinct`);
-  check("hamlets", "each biome gets between its min and max hamlets where it has room; every lot is solid on plain ground of its biome, off roads and water, gap tiles apart, clear of every keep circle and ellipse", placed === seeds.length && legal === seeds.length && keepOk === seeds.length, `placed ${placed} legal ${legal} keep ${keepOk} /${seeds.length}`);
-  check("hamlets", "a hamlet never cuts the map: every tile walkable and reached before is still reached (bar the lots themselves), and every lot's doorstep is reached", reached === seeds.length, `${reached}/${seeds.length}`);
-}
-
 console.log(`\nmap-writer checks: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

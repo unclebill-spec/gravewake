@@ -1,0 +1,86 @@
+/**
+ * playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets] (Bill, 2026-10-04 20:58 ET: "Sure add them", to
+ * small hamlets out in the desert, bog and snow areas, each with its own local style). Until 1t only the town had
+ * buildings. Now the Winter hollow, the Dry waste, the Cinder and the Scourge swamp each hold a few small hamlets, laid by
+ * the map writer (tools/map-writer/map_writer.ts writeHamlets, phase 4; the Gravewake adapter
+ * tools/map-writer/gravewake_world.ts gravewakeHamlets) on open ground, off the roads and trails, clear of every lair,
+ * dungeon mouth, wayrift, festival spot, cart, watch, landmark and cache, every walkable tile still reached.
+ *
+ * A hamlet is a few lots round a green; each lot is a building's whole solid footprint (wall tiles on the vale grid, so
+ * it stops the hero and every foe exactly where it is drawn) with a decorative, barred door on its south face. Its look
+ * is house_writer.py's (code only): one sheet per kind, hamlet-<kind>.png and its _em glow mask, rows = variants,
+ * columns = autumn, winter, spring, summer; each cell is the lot's width by its height plus the kind's headroom, standing
+ * on the lot's south edge. Each kind is its biome's own style: sandstone and mudbrick with cloth awnings and wrapped
+ * poles in the Dry waste, rotted stilt houses with reed roofs over plank walks in the swamp, steep snowy roofs, heavy
+ * timber and chimney smoke in the Winter hollow, blackened stone with ember-lit slits in the Cinder.
+ */
+import { BLDG, seasonCol } from "./buildings";
+
+/** The biomes with hamlets, in the order the writer's biome table uses (gravewake_world.ts WORLD_BIOMES). */
+export type HamletBiomeId = "snow" | "sand" | "ash" | "swamp";
+/** Per biome: its three kinds by lot size (0 small 3x3, 1 mid 4x3, 2 big 5x3). */
+export const HAMLET_KINDS: Record<HamletBiomeId, [string, string, string]> = {
+  snow: ["snow_store", "snow_hut", "snow_lodge"],
+  sand: ["sand_tower", "sand_dome", "sand_flat"],
+  ash: ["ash_kiln", "ash_hovel", "ash_forge"],
+  swamp: ["bog_shack", "bog_stilt", "bog_hut"],
+};
+/** The lot sizes (tiles) by size class. */
+export const HAMLET_SIZES: [number, number][] = [
+  [3, 3],
+  [4, 3],
+  [5, 3],
+];
+/**
+ * Per kind: headroom (px over the lot), the variants, and its lamp (px from the cell's left and its foot, the light's
+ * colour): the light pool it casts at night (draw.ts sceneLights). house_writer.py HAMLET_KINDS holds the same numbers;
+ * group playtest1u holds the two equal and the lamp on a lit pixel of the glow mask.
+ */
+export const HAMLET_DEF: Record<string, { head: number; n: number; lamp: [number, number, "blue" | "violet" | "red"] }> = {
+  snow_store: { head: 30, n: 2, lamp: [10, 22, "blue"] },
+  snow_hut: { head: 40, n: 2, lamp: [22, 22, "blue"] },
+  snow_lodge: { head: 40, n: 2, lamp: [26, 24, "violet"] },
+  sand_tower: { head: 34, n: 2, lamp: [12, 24, "red"] },
+  sand_dome: { head: 26, n: 2, lamp: [20, 22, "blue"] },
+  sand_flat: { head: 20, n: 2, lamp: [28, 24, "violet"] },
+  ash_kiln: { head: 26, n: 2, lamp: [24, 14, "red"] },
+  ash_hovel: { head: 24, n: 2, lamp: [22, 22, "red"] },
+  ash_forge: { head: 34, n: 2, lamp: [28, 24, "blue"] },
+  bog_shack: { head: 26, n: 2, lamp: [12, 24, "blue"] },
+  bog_stilt: { head: 32, n: 2, lamp: [22, 28, "violet"] },
+  bog_hut: { head: 28, n: 2, lamp: [28, 24, "blue"] },
+};
+export const HAMLET_KIND_IDS = Object.keys(HAMLET_DEF);
+export const hamletSheet = (kind: string) => `/art/writer/hamlet-${kind}.png`;
+export const hamletEm = (kind: string) => `/art/writer/hamlet-${kind}_em.png`;
+/** Each biome's walk: the writer's plank, flagstone, packed-snow or cinder path cells (hamlet-walk.png, row per biome,
+ * 4 cells), laid on the green from every north-row door to the green's middle row and along it. */
+export const HAMLET_WALK = "/art/writer/hamlet-walk.png";
+export const HAMLET_WALK_ROW: Record<HamletBiomeId, number> = { snow: 0, sand: 1, ash: 2, swamp: 3 };
+export const HAMLET_SHEETS: string[] = [...HAMLET_KIND_IDS.flatMap((k) => [hamletSheet(k), hamletEm(k)]), HAMLET_WALK];
+
+export type HamletLotT = { x: number; y: number; w: number; h: number; doorX: number; doorY: number; size: number; variant: number; kind: string };
+export type HamletT = { x: number; y: number; w: number; h: number; biome: HamletBiomeId; lots: HamletLotT[]; walk: number[] };
+
+/** Where a hamlet lot's cell is in its sheet and where it lands (world px): the cell's bottom on the lot's south edge. */
+export function hamletCell(l: HamletLotT, season: string): { sx: number; sy: number; w: number; h: number; dx: number; dy: number } | null {
+  const def = HAMLET_DEF[l.kind];
+  if (!def) return null;
+  const w = l.w * 16;
+  const h = l.h * 16 + def.head;
+  return { sx: seasonCol(season) * w, sy: (l.variant % def.n) * h, w, h, dx: l.x * 16, dy: (l.y + l.h) * 16 - h };
+}
+
+/** A hamlet's lamps (world px) and their colours: one per lot, its kind's lamp. */
+export function hamletLamps(m: HamletT): { x: number; y: number; c: "blue" | "violet" | "red" }[] {
+  return m.lots.map((l) => {
+    const d = HAMLET_DEF[l.kind];
+    return { x: l.x * 16 + d.lamp[0], y: (l.y + l.h) * 16 - d.lamp[1], c: d.lamp[2] };
+  });
+}
+
+/** The corner map's roof colour for a hamlet lot (each biome's own roof), so hamlets show on the minimap. */
+export const HAMLET_MAP: Record<HamletBiomeId, string> = { snow: "#d5e8f2", sand: "#c4a15a", ash: "#6a2030", swamp: "#5a4824" };
+/** Seasons in the sheet columns (the town's order). */
+export const HAMLET_SEASONS = BLDG.seasons;
+

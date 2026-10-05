@@ -782,21 +782,7 @@ def playtest1t(out: Path = OUT) -> dict:
     return made
 
 
-def playtest1u(out: Path = OUT) -> dict:
-    """playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: the wild hamlets' buildings, each kind drawn to its
-    own lot (house_writer.py): hamlet-<kind>.png and its _em, rows = variants, columns = seasons, and hamlet-walk.png, the
-    path cells on a hamlet's green. Runs on its own: python3 -c "import make_gravewake as m; m.playtest1u()"."""
-    import house_writer as hw
-
-    made = hw.hamlet_sheets()
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    return made
-
-
 if __name__ == "__main__":
     main()
     playtest1o()
     playtest1t()
-    playtest1u()

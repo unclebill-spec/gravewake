@@ -66,10 +66,10 @@
 
 /* screen1: a sideways phone (360-480 px tall): the HUD tightens so nothing clips. */
 @media (max-height: 500px) {
-  /* playtest1u [OWNER-APPROVED 2026-10-04 21:00 ET: playtest1u HUD declutter]: the compact panel and the log, tighter still; no Pause button */
-  .gw-card { padding: 3px 6px; font-size: 10px; line-height: 1.2; max-width: 10.5rem; }
-  .gw-card .gw-name { font-size: 12px; line-height: 1.15; }
-  .gw-log { max-width: 10rem; padding: 3px 6px; font-size: 10px; line-height: 1.2; }
+  .gw-card { padding: 4px 8px; font-size: 10px; line-height: 1.25; max-width: 12rem; }
+  .gw-card .gw-name { font-size: 13px; line-height: 1.2; }
+  .gw-card .gw-pause { margin-top: 4px; }
+  .gw-log { max-width: 12rem; padding: 4px 8px; font-size: 10px; line-height: 1.25; }
   .gw-info { max-height: calc(100dvh - 234px - var(--sat) - var(--sab)); overflow-y: auto; }
   .gw-camp { bottom: calc(7.25rem + var(--sab)) !important; }
   .gw-stick { width: 6rem; height: 6rem; bottom: calc(0.75rem + var(--sab)) !important; }

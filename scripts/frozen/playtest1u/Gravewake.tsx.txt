@@ -37,12 +37,6 @@ import {
 import { InstallButton } from "../pwa/InstallButton"; // install1
 import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
 import { FxOptions } from "./FxOptions"; // playtest1l
-import { TAP } from "./tapfight"; // playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]
-import { HUD_FADE, HUD_HIT, HUD_TAP, MINI_CSS, MINI_OPACITY, PAUSE_HINT_KEY, doubleTap } from "./hudtap"; // playtest1u [OWNER-APPROVED 2026-10-04 21:00 ET: playtest1u HUD declutter]
-/** playtest1u: the touch slop (css px) round a foe's body a tap still locks it by, and how far (css px) a finger drags
- * off a locked foe before the drag walks instead (and lets go). */
-const TAP_SLOP = 22;
-const TAP_DRAG = 24;
 import { useIosTipRequest } from "../pwa/install"; // install1
 
 /**
@@ -99,12 +93,6 @@ export function Gravewake() {
   const stickTap = useRef<{ t: number; x: number; y: number; moved: boolean; canvas: boolean } | null>(null);
   /** retro1: the pointer walking from Retro's black bars (-1: none). */
   const barAim = useRef(-1);
-  const tapFrom = useRef<{ x: number; y: number } | null>(null); // playtest1u: where the last tap went down
-  const portraitTap = useRef<{ t: number; x: number; y: number } | null>(null); // playtest1u: the panel's last tap
-  const [pauseHint, setPauseHint] = useState(false);
-  const hintAt = useRef(0);
-  const logSeen = useRef({ line: "", at: 0 });
-  const pressAt = useRef(0);
 
   /**
    * Own the game and the mixer for the life of the page. The test hook is for the smoke pass.
@@ -590,31 +578,17 @@ export function Gravewake() {
     if (!card) return;
     const r = card.getBoundingClientRect();
     const campTop = campRef.current?.getBoundingClientRect().top ?? window.innerHeight - 200;
-    const next = r.bottom + 8 + MINI_CSS <= campTop - 8 ? { x: Math.round(r.left), y: Math.round(r.bottom + 8) } : { x: Math.round(r.right + 8), y: Math.round(r.top) }; // playtest1u: the 80 px map
+    const next = r.bottom + 8 + 96 <= campTop - 8 ? { x: Math.round(r.left), y: Math.round(r.bottom + 8) } : { x: Math.round(r.right + 8), y: Math.round(r.top) };
     if (Math.abs(next.x - miniAt.x) > 1 || Math.abs(next.y - miniAt.y) > 1) setMiniAt(next);
   }, [tick, miniAt.x, miniAt.y]);
 
   const game = gameRef.current;
   void tick;
-  // playtest1u: the log's line, and when it last changed (the panel hides HUD_FADE.log ms later); the touch buttons' idle
-  const logKey = game ? `${game.combatLog ? game.logLine : ""}|${game.questLine()}` : "";
-  if (logKey !== logSeen.current.line) logSeen.current = { line: logKey, at: performance.now() };
-  const logShown = performance.now() - logSeen.current.at < HUD_FADE.log;
-  const touchIdle = performance.now() - pressAt.current > HUD_FADE.idle;
   // screen1: a press only reaches here after the loading cover lifts, so it is a fresh one.
   const unlock = () => {
     if (performance.now() >= readyAt.current) audioRef.current?.unlock();
   };
   const bump = () => setTick((n) => n + 1);
-  /** playtest1u: the one-time "Double-tap your portrait to pause" hint, put away for good once seen or used. */
-  const seenPauseHint = () => {
-    setPauseHint(false);
-    try {
-      localStorage.setItem(PAUSE_HINT_KEY, "1");
-    } catch {
-      /* private mode: it shows again next time */
-    }
-  };
 
   /** Apply a display setting at once and keep it. */
   const setScreen = (patch: Partial<ScreenSettings>) => {
@@ -679,7 +653,7 @@ export function Gravewake() {
     // A quick tap in the left third (no drag) still walks there, as a tap on the ground always has.
     const tap = stickTap.current;
     stickTap.current = null;
-    if (tap && tap.canvas && !tap.moved && performance.now() - tap.t < 250 && e.type === "pointerup") aimAt(e.clientX, e.clientY, true);
+    if (tap && tap.canvas && !tap.moved && performance.now() - tap.t < 250 && e.type === "pointerup") aimAt(e.clientX, e.clientY);
     return true;
   };
 
@@ -694,22 +668,6 @@ export function Gravewake() {
   useEffect(() => {
     if (inPlay) window.__leaveTrap?.arm();
   }, [inPlay]);
-  // playtest1u: the pause hint, once: shown when play first starts, put away after HUD_TAP.hintS s or a double tap
-  useEffect(() => {
-    if (!inPlay) return;
-    let seen = false;
-    try {
-      seen = localStorage.getItem(PAUSE_HINT_KEY) === "1";
-    } catch {
-      seen = false;
-    }
-    if (seen) return;
-    hintAt.current = performance.now();
-    setPauseHint(true);
-  }, [inPlay]);
-  useEffect(() => {
-    if (pauseHint && performance.now() - hintAt.current > HUD_TAP.hintS * 1000) seenPauseHint();
-  });
   const pausedNow = game?.mode === "pause";
   useEffect(() => {
     if (!pausedNow) setResumeTap(false);
@@ -725,12 +683,9 @@ export function Gravewake() {
     bump();
   };
 
-  const aim = (e: React.PointerEvent<HTMLCanvasElement>, tap = false) => aimAt(e.clientX, e.clientY, tap);
-  /** screen1: the point under the finger, through the frame in force (k canvas pixels per game pixel, the box offset).
-   * playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]: a fresh tap (or click) goes to tapAt, which
-   * locks the foe under it (TAP_SLOP css px of touch round its body), lets go of the locked one tapped again, or walks
-   * there; a drag keeps walking toward the finger as before (and lets go of a lock once it has moved off). */
-  function aimAt(clientX: number, clientY: number, tap = false) {
+  const aim = (e: React.PointerEvent<HTMLCanvasElement>) => aimAt(e.clientX, e.clientY);
+  /** screen1: the point under the finger, through the frame in force (k canvas pixels per game pixel, the box offset). */
+  function aimAt(clientX: number, clientY: number) {
     const g = gameRef.current;
     const canvas = canvasRef.current;
     if (!g || !canvas || g.mode !== "play") return;
@@ -740,17 +695,7 @@ export function Gravewake() {
     const zoom = viewRef.current?.k ?? g.zoom;
     // playtest1e: the draw's own camera (it stops at the map's edge), so a tap lands where it was aimed
     const cam = cameraFor(g, canvas.width, canvas.height, zoom);
-    const wx = cam.x + sx / zoom;
-    const wy = cam.y + sy / zoom;
-    if (tap) {
-      tapFrom.current = { x: clientX, y: clientY };
-      g.tapAt(wx, wy, Math.max(TAP.slop, (TAP_SLOP * canvas.width) / rect.width / zoom));
-      return;
-    }
-    const from = tapFrom.current;
-    if (g.lock && from && Math.hypot(clientX - from.x, clientY - from.y) < TAP_DRAG) return;
-    if (g.lock) g.clearLock("drag");
-    g.setGoal(wx, wy);
+    g.setGoal(cam.x + sx / zoom, cam.y + sy / zoom);
   }
 
   /** Title, HUD, and the panel for whichever mode the simulation is in. */
@@ -771,7 +716,7 @@ export function Gravewake() {
             }
             barAim.current = e.pointerId;
             (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-            aimAt(e.clientX, e.clientY, true);
+            aimAt(e.clientX, e.clientY);
           }}
           onPointerMove={(e) => {
             if (stickMove(e)) return;
@@ -809,7 +754,7 @@ export function Gravewake() {
             return;
           }
           pinchD.current = null;
-          if (pointers.current.size === 1) aim(e, true);
+          if (pointers.current.size === 1) aim(e);
         }}
         onPointerMove={(e) => {
           if (stickMove(e)) return;
@@ -955,42 +900,20 @@ export function Gravewake() {
             className="pointer-events-none absolute top-0 right-0 left-0 z-10 flex items-start justify-between gap-2 p-2"
             style={{ paddingTop: "calc(0.5rem + var(--sat))", paddingLeft: "calc(0.5rem + var(--sal))", paddingRight: "calc(0.5rem + var(--sar))" }}
           >
-            {/* playtest1u [OWNER-APPROVED 2026-10-04 21:00 ET: playtest1u HUD declutter]: a compact character panel (a small
-                portrait, name and level, the bars, the purse and clock, and only the lines that matter right now). No Pause
-                button: a quick double tap on this panel (two taps within HUD_TAP.ms, HUD_TAP.px apart) pauses or resumes;
-                a double tap anywhere else does nothing special, and a single tap here does nothing. Esc (P is the potion key), the pad's Start,
-                the auto-pause and "Tap to resume" are as they were. Sizes are in rem, so the TV presets' bigger UI (1080p 1.5x) grows the panel, the
-                portrait and the log with it. The rarer lines (festival, season, phase, weather, fish
-                points, escort, swimming, ice) are in the pause menu. */}
             <div
               ref={cardRef}
               data-testid="hud-card"
-              className="gw-card pointer-events-auto max-w-[11rem] touch-manipulation select-none rounded border border-border bg-surface/80 px-2 py-1 text-[0.6875rem] leading-tight"
-              style={{ opacity: game.iframe > 0 && Math.floor(game.frame * 10) % 2 === 0 ? 0.45 : 1, minHeight: HUD_HIT, minWidth: HUD_HIT }}
-              onPointerUp={(e) => {
-                const now = performance.now();
-                if (doubleTap(portraitTap.current, now, e.clientX, e.clientY)) {
-                  portraitTap.current = null;
-                  unlock();
-                  if (game.mode === "play" || game.mode === "pause") {
-                    game.togglePause();
-                    seenPauseHint();
-                  }
-                  bump();
-                  return;
-                }
-                portraitTap.current = { t: now, x: e.clientX, y: e.clientY };
-              }}
+              className="gw-card pointer-events-auto max-w-[14rem] rounded border border-border bg-surface/90 px-3 py-2 text-xs"
+              style={{ opacity: game.iframe > 0 && Math.floor(game.frame * 10) % 2 === 0 ? 0.45 : 1 }}
             >
-              <div className="gw-info flex items-start gap-2">
-              <HudPortrait role={game.cls} />
-              <div className="min-w-0 flex-1">
-              <div className="gw-name truncate font-display text-sm text-fg" data-testid="hud-name">
-                {game.name} <span className="font-sans text-[0.625rem] text-muted">Lv {game.level}</span>
+              <div className="gw-info">
+              <div className="gw-name font-display text-base text-fg">{game.name}</div>
+              <div className="text-muted">
+                Lv {game.level} {CLASSES[game.cls].label}
               </div>
-              <div className="mt-0.5 h-1.5 w-full bg-bg" data-testid="hud-hp">
+              <div className="mt-1 h-2 w-full bg-bg">
                 <div
-                  className="h-1.5"
+                  className="h-2"
                   style={{
                     width: `${Math.max(0, Math.min(100, (game.hp / game.maxHp) * 100))}%`,
                     backgroundImage: "repeating-linear-gradient(90deg, #8f2d2d 0 3px, #c45a4a 3px 4px)",
@@ -998,46 +921,67 @@ export function Gravewake() {
                 />
               </div>
               {game.cls === "vampire" ? (
-                <div className="mt-0.5 h-1.5 w-full bg-bg">
-                  <div className="h-1.5 bg-danger" style={{ width: `${Math.max(0, Math.min(100, (game.blood / 20) * 100))}%` }} />
+                <div className="mt-1 h-2 w-full bg-bg">
+                  <div className="h-2 bg-danger" style={{ width: `${Math.max(0, Math.min(100, (game.blood / 20) * 100))}%` }} />
                 </div>
               ) : (
                 <>
-                  <div className="mt-0.5 h-1.5 w-full bg-bg">
-                    <div className="h-1.5 bg-primary" style={{ width: `${Math.max(0, Math.min(100, (game.energy / Math.max(1, game.maxEnergy)) * 100))}%` }} />
+                  <div className="mt-1 h-2 w-full bg-bg">
+                    <div className="h-2 bg-primary" style={{ width: `${Math.max(0, Math.min(100, (game.energy / Math.max(1, game.maxEnergy)) * 100))}%` }} />
                   </div>
-                  <div className="mt-0.5 h-1 w-full bg-bg">
-                    <div className="h-1" style={{ width: `${Math.max(0, Math.min(100, (game.stam / 40) * 100))}%`, background: "#c4a574" }} />
+                  <div className="mt-1 h-2 w-full bg-bg">
+                    <div className="h-2" style={{ width: `${Math.max(0, Math.min(100, (game.stam / 40) * 100))}%`, background: "#c4a574" }} />
                   </div>
                 </>
               )}
-              <div className="mt-0.5 truncate text-[0.625rem] text-muted" data-testid="hud-purse">
-                {game.purse()} · {game.clockLabel()}
-              </div>
-              </div>
-              </div>
               {game.companion ? (
-                <div className="truncate text-[0.625rem] text-muted" data-testid="hud-companion">
-                  {game.companion.name} {game.companion.hp > 0 ? `${game.companion.hp}/${game.companionMax()}` : "down"}
+                <div className="mt-1 text-muted">
+                  {game.companion.name} {game.companion.hp > 0 ? `${game.companion.hp}/${game.companionMax()}` : "down"} · bond {game.bondOf().bond}
                 </div>
               ) : null}
+              <div className="mt-1 text-muted">
+                {game.purse()} · {game.clockLabel()}
+              </div>
               {/* playtest1o (Bill, 2026-10-03 19:49 ET: "signs to designate what buildings are"): inside, the HUD names the building. */}
               {game.mapId === "inside" && roomNameOf(game.inside) ? <div className="text-primary" data-testid="place-line">Inside {roomNameOf(game.inside)!.name}</div> : null}
               {game.curseLine() ? <div className="text-primary" data-testid="curse-line">{game.curseLine()}</div> : null}
               {game.eventLine() ? <div className="text-primary" data-testid="event-line">{game.eventLine()}</div> : null}
-              {pauseHint && game.mode === "play" ? <div className="mt-0.5 text-[0.625rem] text-primary" data-testid="pause-hint">Double-tap your portrait to pause</div> : null}
+              {game.escortName() ? <div className="text-muted" data-testid="escort-line">{game.escortName()} follows you</div> : null}
+              {game.wading ? <div className="text-primary">Swimming · half speed</div> : null}
+              {game.sliding ? <div className="text-primary">Ice underfoot</div> : null}
+              {game.fishPoints > 0 ? <div className="text-muted">Fish points {game.fishPoints}</div> : null}
+              {/* playtest1b (owner-reported 2026-10-02 01:03 ET): "Lantern Night" is the festival, not the hour; say so. */}
+              <div className="text-muted" data-testid="festival-line">{game.seasonName()} festival</div>
+              <div className="text-muted" data-testid="season-line">{game.seasonLine()}</div>
+              <div className="mt-1 flex gap-1 text-[10px]">
+                <span className="rounded border border-border px-1" data-testid="phase-chip" title="Clock phase">{game.phase === "night" ? "Night" : game.theme === "town" ? "Day · town twilight" : "Day"}</span>
+                <span className="rounded border border-border px-1">WX {game.weatherLabel()}</span>
+              </div>
+              </div>
+              <button
+                type="button"
+                data-testid="hud-pause"
+                className="gw-pause mt-2 h-8 w-full rounded border border-primary bg-bg text-xs"
+                onPointerDown={(e) => {
+                  unlock();
+                  (e.currentTarget as HTMLButtonElement).dataset.down = String(performance.now());
+                }}
+                onPointerUp={(e) => {
+                  const held = pressedFor(e.currentTarget as HTMLButtonElement);
+                  if (held < 350) return;
+                  game.togglePause();
+                  bump();
+                }}
+              >
+                {game.mode === "pause" ? "Resume" : "Pause"}
+                {padFirst ? <PadGlyph b={padLabel(game.padBind.pause)} /> : null}
+              </button>
             </div>
             <div className="flex flex-col items-end gap-1">
             <div className="flex items-start gap-2">
-              {/* playtest1u: the log is smaller and hides HUD_FADE.log ms after its line last changed (the quest line is in the pause menu too) */}
-              <div
-                className="gw-log pointer-events-none max-w-[11rem] rounded border border-border bg-surface/80 px-2 py-1 text-[0.6875rem] leading-tight text-muted"
-                data-testid="hud-log"
-                data-shown={logShown ? "1" : "0"}
-                style={{ opacity: logShown ? 1 : 0, visibility: logShown ? "visible" : "hidden", transition: "opacity 400ms, visibility 400ms" }}
-              >
+              <div className="gw-log pointer-events-auto max-w-[13rem] rounded border border-border bg-surface/90 px-3 py-2 text-xs text-muted">
                 <div>{game.combatLog ? game.logLine : ""}</div>
-                <div className="mt-0.5">{game.questLine()}</div>
+                <div className="mt-1">{game.questLine()}</div>
               </div>
               {fsAvail ? (
                 <button
@@ -1080,8 +1024,8 @@ export function Gravewake() {
               data-testid="minimap"
               width={96}
               height={96}
-              className={`gw-mini absolute z-10 touch-none bg-bg ${pip ? "h-6 w-6" : "h-20 w-20"}`}
-              style={{ opacity: MINI_OPACITY, boxShadow: "0 0 6px rgba(74, 184, 255, 0.3)", left: Math.max(0, Math.min(miniAt.x, (typeof window !== "undefined" ? window.innerWidth : 1e4) - (pip ? 24 : MINI_CSS))), top: Math.max(0, Math.min(miniAt.y, (typeof window !== "undefined" ? window.innerHeight : 1e4) - (pip ? 24 : MINI_CSS))), imageRendering: "pixelated" }}
+              className={`absolute z-10 touch-none bg-bg ${pip ? "h-6 w-6" : "h-24 w-24"}`}
+              style={{ boxShadow: "0 0 8px rgba(74, 184, 255, 0.35)", left: Math.max(0, Math.min(miniAt.x, (typeof window !== "undefined" ? window.innerWidth : 1e4) - (pip ? 24 : 96))), top: Math.max(0, Math.min(miniAt.y, (typeof window !== "undefined" ? window.innerHeight : 1e4) - (pip ? 24 : 96))), imageRendering: "pixelated" }}
               onPointerDown={(e) => {
                 const now = performance.now();
                 if (now - miniTap.current < 280) setPip((v) => !v);
@@ -1168,22 +1112,13 @@ export function Gravewake() {
             </div>
           ) : null}
 
-          {/* playtest1u: the right-hand buttons a little smaller, and translucent once HUD_FADE.idle ms pass with no press */}
-          <div
-            className="gw-touch absolute right-3 bottom-3 z-10 flex flex-col items-end gap-1.5"
-            data-testid="hud-touch"
-            data-idle={touchIdle ? "1" : "0"}
-            style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))", opacity: touchIdle ? HUD_FADE.idleOpacity : HUD_FADE.busyOpacity, transition: "opacity 300ms" }}
-            onPointerDownCapture={() => {
-              pressAt.current = performance.now();
-            }}
-          >
+          <div className="absolute right-3 bottom-3 z-10 flex flex-col items-end gap-2" style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))" }}>
             <div className="flex max-w-[220px] flex-wrap justify-end gap-1">
               {game.specials.slice(0, 4).map((s) => (
                 <button
                   key={s}
                   type="button"
-                  className="h-10 max-w-14 rounded border border-border bg-surface/80 px-1 text-[10px] leading-tight"
+                  className="h-10 max-w-16 rounded border border-border bg-surface px-1 text-[10px] leading-tight"
                   onPointerDown={() => {
                     unlock();
                     game.castKnown(s);
@@ -1197,7 +1132,7 @@ export function Gravewake() {
             <div className="flex gap-2">
               <button
                 type="button"
-                className="h-11 w-12 rounded border border-border bg-surface/80 text-xs"
+                className="h-12 w-14 rounded border border-border bg-surface text-xs"
                 onPointerDown={() => {
                   unlock();
                   game.whirl();
@@ -1209,7 +1144,7 @@ export function Gravewake() {
               </button>
               <button
                 type="button"
-                className="h-11 w-12 rounded border border-border bg-surface/80 text-xs"
+                className="h-12 w-14 rounded border border-border bg-surface text-xs"
                 onPointerDown={() => {
                   unlock();
                   game.smite();
@@ -1222,7 +1157,7 @@ export function Gravewake() {
             </div>
             <button
               type="button"
-              className="gw-main h-14 w-14 rounded-full border border-primary bg-surface/80 text-sm"
+              className="gw-main h-16 w-16 rounded-full border border-primary bg-surface text-sm"
               onPointerDown={(e) => {
                 unlock();
                 (e.currentTarget as HTMLButtonElement).dataset.down = String(performance.now());
@@ -1581,40 +1516,7 @@ export function Gravewake() {
 
           {game.mode === "pause" ? (
             <Panel>
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-display text-xl">Pause</h2>
-                {/* playtest1u: with no HUD Pause button, the menu has its own Resume (and a double tap on the portrait resumes too) */}
-                <button
-                  type="button"
-                  data-testid="pause-resume"
-                  data-padback
-                  className="h-10 rounded border border-primary bg-bg px-3 text-xs"
-                  onClick={() => {
-                    unlock();
-                    if (game.mode === "pause") game.togglePause();
-                    bump();
-                  }}
-                >
-                  Resume
-                  {padFirst ? <PadGlyph b={padLabel(game.padBind.pause)} /> : null}
-                </button>
-              </div>
-              {/* playtest1u: the HUD's rarer lines, folded in here */}
-              <div className="text-xs text-muted" data-testid="pause-now">
-                <div>{game.questLine()}</div>
-                {game.companion ? <div>{game.companion.name} · bond {game.bondOf().bond}</div> : null}
-                {game.escortName() ? <div data-testid="escort-line">{game.escortName()} follows you</div> : null}
-                {game.wading ? <div className="text-primary">Swimming · half speed</div> : null}
-                {game.sliding ? <div className="text-primary">Ice underfoot</div> : null}
-                {game.fishPoints > 0 ? <div>Fish points {game.fishPoints}</div> : null}
-                {/* playtest1b (owner-reported 2026-10-02 01:03 ET): "Lantern Night" is the festival, not the hour; say so. */}
-                <div data-testid="festival-line">{game.seasonName()} festival</div>
-                <div data-testid="season-line">{game.seasonLine()}</div>
-                <div className="mt-1 flex gap-1 text-[10px]">
-                  <span className="rounded border border-border px-1" data-testid="phase-chip" title="Clock phase">{game.phase === "night" ? "Night" : game.theme === "town" ? "Day · town twilight" : "Day"}</span>
-                  <span className="rounded border border-border px-1">WX {game.weatherLabel()}</span>
-                </div>
-              </div>
+              <h2 className="font-display text-xl">Pause</h2>
               <div className="flex gap-2">
                 {(["pack", "guide", "pad", "display"] as const).map((tab) => (
                   <button key={tab} type="button" data-testid={`tab-${tab}`} className={`rounded border px-2 py-1 text-xs ${pauseTab === tab ? "border-primary" : "border-border"}`} onClick={() => setPauseTab(tab)}>
@@ -1626,10 +1528,10 @@ export function Gravewake() {
                 <ScreenOptions s={screenSet} view={look} fs={fs} onSet={setScreen} onFullscreen={fullscreen} />
               ) : pauseTab === "guide" ? (
                 <div className="text-sm text-muted">
-                  <p>{keyLabel(game.keyBind.up)}{keyLabel(game.keyBind.left)}{keyLabel(game.keyBind.down)}{keyLabel(game.keyBind.right)} or the arrows walk. The stick does the same. Tap the ground, or drag a finger, and you follow. Tap a monster (or click it) to lock on: a blue ring marks it, and you walk in and fight it with the fitting attack until it drops. Tap it again, tap the ground or move to let go; your own buttons always go first.</p>
+                  <p>{keyLabel(game.keyBind.up)}{keyLabel(game.keyBind.left)}{keyLabel(game.keyBind.down)}{keyLabel(game.keyBind.right)} or the arrows walk. The stick does the same. Tap the ground, or drag a finger, and you follow.</p>
                   <p>Pinch in to step back. Spread two fingers to step closer. The wheel does that on a computer.</p>
                   <p>{keyLabel(game.keyBind.use)} uses a door, a chest, or a person. {keyLabel(game.keyBind.area)} is a wide swing. {keyLabel(game.keyBind.far)} is a far shot. {keyLabel(game.keyBind.drink)} drinks.</p>
-                  <p>{keyLabel(game.keyBind.pause)} pauses, and so does a quick double tap on your portrait (top left). A fight or a cast waits and comes back. {keyLabel(game.keyBind.map)} opens the map. A paired pad uses the same actions. Remap them under Controller.</p>
+                  <p>{keyLabel(game.keyBind.pause)} pauses, and so does the Pause button. A fight or a cast waits and comes back. {keyLabel(game.keyBind.map)} opens the map. A paired pad uses the same actions. Remap them under Controller.</p>
                   <p>Town stays twilight. A lit door is a threshold: step through it and the room is its own place, and the door behind you leads back out. The clock still has a day and a night, each fifteen minutes. A vampire is served only at night.</p>
                   <p>Weather turns on its own: still air, light rain, hard rain, a thunderstorm, then snow. Each holds for a few minutes. Stone roofs keep it off you. Thunder is a low rumble, not a crack.</p>
                   <p>Roads are quieter than the brush. Do not cross the east bridge at level 1. The tent button, above the stick, pitches camp only in the wild. The south mark breaks it.</p>
@@ -2129,30 +2031,6 @@ function Portrait({ role }: { role: string }) {
     );
   }
   return <canvas ref={ref} width={64} height={80} className="h-20 w-16 shrink-0" />;
-}
-
-/** playtest1u [OWNER-APPROVED 2026-10-04 21:00 ET: playtest1u HUD declutter]: the class's bust, small, on the HUD's
- * character panel (the title's portrait sheet at a quarter of its select-screen size; a drawn bust where it has none). */
-function HudPortrait({ role }: { role: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const cell = PORTRAIT_ORDER.indexOf(role);
-  useEffect(() => {
-    if (cell >= 0) return;
-    const ctx = ref.current?.getContext("2d");
-    if (ctx) drawPortrait(ctx, role);
-  }, [role, cell]);
-  if (cell >= 0) {
-    return (
-      <span
-        role="img"
-        aria-label={`${role} portrait`}
-        data-testid="hud-portrait"
-        className="block h-8 w-6 shrink-0 rounded-sm border border-border"
-        style={{ backgroundImage: `url(${PORTRAITS})`, backgroundSize: "6rem 2rem", backgroundPosition: `-${cell * 1.5}rem 0`, imageRendering: "pixelated" }}
-      />
-    );
-  }
-  return <canvas ref={ref} width={64} height={80} data-testid="hud-portrait" className="h-8 w-[1.625rem] shrink-0 rounded-sm border border-border" />;
 }
 
 /** KeyboardEvent.code turned into a short label for the remap list. */
