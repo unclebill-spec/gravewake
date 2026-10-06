@@ -9,7 +9,7 @@ import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
 import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
-import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
+import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
 import { boulderAt, roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
 import { BOULDER, BOULDERS_EM, BOULDERS_SHEET, BOULDER_GLOW, BOULDER_SEASONS, boulderCol, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
@@ -447,13 +447,12 @@ function paintRoomEdge(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: 
     px(ctx, gx + 6, gy + 6, 1, 1, "#ffe6a0");
   }
   if (tile === T.door) {
-    // playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: larger interior door fallback (nearly full tile; was a 12x12 inset)
-    px(ctx, gx + 1, gy, 14, 16, "#2a1810");
-    px(ctx, gx + 2, gy + 1, 12, 15, "#6a3c28");
-    px(ctx, gx + 2, gy + 1, 5, 15, "#7a4a32");
-    px(ctx, gx + 7, gy + 1, 1, 15, "#3a2418");
-    px(ctx, gx + 12, gy + 9, 1, 1, "#f0d080");
-    px(ctx, gx + 6, gy, 2, 2, "#e8c878");
+    px(ctx, gx + 2, gy + 2, 12, 12, "#2a1810");
+    px(ctx, gx + 3, gy + 3, 10, 11, "#6a3c28");
+    px(ctx, gx + 3, gy + 3, 4, 11, "#7a4a32");
+    px(ctx, gx + 7, gy + 3, 1, 11, "#3a2418");
+    px(ctx, gx + 10, gy + 8, 1, 1, "#f0d080");
+    px(ctx, gx + 1, gy + 1, 2, 3, "#e8c878");
   }
 }
 
@@ -2596,34 +2595,18 @@ export function wayCell(w: Wayrift, season: SeasonId, frame: number) {
   return wayAwake(w, season) ? Math.floor(Math.max(0, frame)) % WAYRIFT.frames : WAYRIFT.frames;
 }
 
-/** playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: one half-size wayrift (24x32 on a 2x1 footprint, standing one tile above). Hub rifts also get a
- * raised 3x2 platform under them. Before the sheet loads: a plain slate oval so the rift is never invisible. */
+/** playtest1f: one wayrift (48x64, standing two tiles over its 3x2 footprint). Before the sheet loads: a plain slate
+ * pair and a violet oval in locked colours, so the rift is never invisible. */
 function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number) {
-  const tile = TILE;
-  // hub platform first (under the rift)
-  if (w.hub) {
-    const platX = w.x * tile;
-    const platY = w.y * tile;
-    const lit = cell < WAYRIFT.frames ? 0 : 1;
-    if (!sheetCell(ctx, WAYRIFT_PLATFORM, lit * 3, 0, platX, platY, 3, 2, 16)) {
-      px(ctx, platX + 4, platY + 8, 40, 20, "#3a4048");
-      px(ctx, platX + 8, platY + 10, 32, 14, "#4a4e54");
-    }
-  }
-  const dx = w.x * tile + (WAYRIFT.fw * tile - WAYRIFT.artW) / 2;
-  const dy = (w.y - WAYRIFT.stand) * tile;
-  // half-size sheet: each cell is 24x32 (1.5 x 2 tiles); draw via drawImage when sheetCell's tile grid won't fit
-  const sheet = landSheet[WAYRIFT_SHEET];
-  if (sheet && sheet.complete && sheet.naturalWidth) {
-    const cw = WAYRIFT.artW, ch = WAYRIFT.artH;
-    ctx.drawImage(sheet, cell * cw, 0, cw, ch, dx, dy, cw, ch);
-    return;
-  }
-  px(ctx, dx + 6, dy + 4, 12, 24, cell < WAYRIFT.frames ? "#4ab8ff" : "#2a3a6a");
-  px(ctx, dx + 8, dy + 6, 8, 20, cell < WAYRIFT.frames ? "#7a5ad0" : "#140c28");
-  px(ctx, dx + 10, dy + 14, 4, 4, cell < WAYRIFT.frames ? "#ff3a50" : "#140c28");
+  const dx = w.x * TILE;
+  const dy = (w.y - 2) * TILE;
+  if (sheetCell(ctx, WAYRIFT_SHEET, cell * 3, 0, dx, dy, 3, 4, 16)) return;
+  px(ctx, dx + 2, dy + 10, 6, 48, "#3a4048");
+  px(ctx, dx + 40, dy + 10, 6, 48, "#3a4048");
+  px(ctx, dx + 13, dy + 8, 22, 44, cell < WAYRIFT.frames ? "#4ab8ff" : "#2a3a6a");
+  px(ctx, dx + 15, dy + 10, 18, 40, cell < WAYRIFT.frames ? "#7a5ad0" : "#140c28");
+  px(ctx, dx + 21, dy + 26, 6, 6, cell < WAYRIFT.frames ? "#ff3a50" : "#140c28");
 }
-
 
 /** playtest1f: the rift writer's 9x11 map marker centred on (mx, my), k map px a marker px. False before it loads. */
 function wayMarker(ctx: CanvasRenderingContext2D, mx: number, my: number, awake: boolean, k: number) {
@@ -3271,7 +3254,7 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
     for (const w of WAYRIFTS) {
       const m = wayMouth(w);
       if (Math.hypot(m.x * TILE + 8 - g.px, m.y * TILE + 8 - g.py) > 3 * TILE) continue;
-      drawLabel(ctx, wayLabel(w, season), m.x * TILE + 8, (w.y - WAYRIFT.stand) * TILE - 2, wayAwake(w, season) ? "violet" : "bone");
+      drawLabel(ctx, wayLabel(w, season), m.x * TILE + 8, (w.y - 2) * TILE - 2, wayAwake(w, season) ? "violet" : "bone");
     }
   }
   // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village icon's name in gold over its roofs
@@ -4202,16 +4185,10 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   if (g.mapId === "world") {
     const season = g.season();
     for (const w of WAYRIFTS) {
-      if ((w.x + WAYRIFT.fw) * TILE < camX || w.x * TILE > camX + viewW / zoom || (w.y + WAYRIFT.fh + 1) * TILE < camY || (w.y - WAYRIFT.stand) * TILE > camY + viewH / zoom) continue;
+      if ((w.x + 3) * TILE < camX || w.x * TILE > camX + viewW / zoom || (w.y + 2) * TILE < camY || (w.y - 2) * TILE > camY + viewH / zoom) continue;
       const cell = wayCell(w, season, g.frame);
-      props.push({ y: (w.y + WAYRIFT.fh + (w.hub ? 1 : 0)) * TILE - 1, fn: () => paintWayrift(ctx, w, cell) });
-      if (cell < WAYRIFT.frames) glow.push((c) => {
-        const sheet = landSheet[WAYRIFT_EM];
-        if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
-        const dx = w.x * TILE + (WAYRIFT.fw * TILE - WAYRIFT.artW) / 2;
-        const dy = (w.y - WAYRIFT.stand) * TILE;
-        c.drawImage(sheet, cell * WAYRIFT.artW, 0, WAYRIFT.artW, WAYRIFT.artH, dx, dy, WAYRIFT.artW, WAYRIFT.artH);
-      });
+      props.push({ y: (w.y + 2) * TILE - 1, fn: () => paintWayrift(ctx, w, cell) });
+      if (cell < WAYRIFT.frames) glow.push((c) => sheetCell(c, WAYRIFT_EM, cell * 3, 0, w.x * TILE, (w.y - 2) * TILE, 3, 4, 16));
     }
   }
   // gfx1: wall torches on dungeon faces. The bracket is lit art; the 4-frame flame is emissive.
@@ -5194,9 +5171,9 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
     const season = g.season();
     const k = Math.max(1, Math.round(scale / 4));
     for (const w of WAYRIFTS) {
-      if (!seenAtOf(g, w.x, w.y)) continue; // playtest1y: half-size footprint mouth
-      const mx = ox + Math.floor((w.x + WAYRIFT.fw / 2) * scale);
-      const my = oy + Math.floor((w.y + WAYRIFT.fh / 2) * scale);
+      if (!seenAtOf(g, w.x + 1, w.y + 1)) continue; // playtest1v: once seen
+      const mx = ox + Math.floor((w.x + 1.5) * scale);
+      const my = oy + Math.floor((w.y + 1) * scale);
       if (!wayMarker(ctx, mx, my, wayAwake(w, season), k)) {
         ctx.fillStyle = "#07060a";
         ctx.fillRect(mx - 3, my - 3, 7, 7);
@@ -5330,11 +5307,11 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
   if (g.mapId === "world") {
     const season = g.season();
     for (const w of WAYRIFTS) {
-      if (!seenAtOf(g, w.x, w.y)) continue; // playtest1y
-      const mx = Math.floor((w.x + WAYRIFT.fw / 2 - (cx - span / 2)) * s);
-      const my = Math.floor((w.y + WAYRIFT.fh / 2 - (cy - span / 2)) * s);
+      if (!seenAtOf(g, w.x + 1, w.y + 1)) continue; // playtest1v: once seen
+      const mx = Math.floor((w.x + 1.5 - (cx - span / 2)) * s);
+      const my = Math.floor((w.y + 1 - (cy - span / 2)) * s);
       if (mx < -6 || my < -6 || mx > size + 6 || my > size + 6) continue;
-      if (!wayMarker(ctx, mx, my, wayAwake(w, season), 1)) mark(w.x + WAYRIFT.fw / 2 - (cx - span / 2), w.y + WAYRIFT.fh / 2 - (cy - span / 2), wayAwake(w, season) ? "#4ab8ff" : "#2a3a6a", 1);
+      if (!wayMarker(ctx, mx, my, wayAwake(w, season), 1)) mark(w.x + 1 - (cx - span / 2), w.y + 1 - (cy - span / 2), wayAwake(w, season) ? "#4ab8ff" : "#2a3a6a", 1);
     }
   }
   const hx = Math.floor(size / 2);

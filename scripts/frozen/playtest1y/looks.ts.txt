@@ -22,9 +22,8 @@ export const CAMP_FIRE = "/art/writer/camp-fire.png";
 export const CAMP_FIRE_EM = "/art/writer/camp-fire_em.png";
 export const CAMP_GEAR = "/art/writer/camp-gear.png";
 export const CAMP_GEAR_EM = "/art/writer/camp-gear_em.png";
-// playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: larger-door fallback wall.
-export const ROOM_WALL = "/art/writer/room-wall2.png";
-export const ROOM_WALL_EM = "/art/writer/room-wall2_em.png";
+export const ROOM_WALL = "/art/writer/room-wall.png";
+export const ROOM_WALL_EM = "/art/writer/room-wall_em.png";
 export const ROOM_KIT = "/art/writer/room-kit.png";
 export const ROOM_KIT_EM = "/art/writer/room-kit_em.png";
 export const ROOM_RUG = "/art/writer/room-rug.png";

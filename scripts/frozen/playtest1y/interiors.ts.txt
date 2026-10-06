@@ -24,9 +24,8 @@ export const STYLE_GLOW: Record<RoomStyle, "blue" | "violet" | "red"> = { cabin:
 export const roomStyle = (id: string | null | undefined): RoomStyle => ROOM_STYLE[id ?? ""] ?? "cabin";
 
 export const roomFloor = (s: RoomStyle) => `/art/writer/room-floor-${s}.png`;
-// playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: larger interior doors on room-wall2-*; the 1i room-wall-* sheets stay for older checks.
-export const roomWall = (s: RoomStyle) => `/art/writer/room-wall2-${s}.png`;
-export const roomWallEm = (s: RoomStyle) => `/art/writer/room-wall2-${s}_em.png`;
+export const roomWall = (s: RoomStyle) => `/art/writer/room-wall-${s}.png`;
+export const roomWallEm = (s: RoomStyle) => `/art/writer/room-wall-${s}_em.png`;
 export const ROOM_FURN = "/art/writer/room-furn.png";
 export const ROOM_FURN_EM = "/art/writer/room-furn_em.png";
 export const ROOM_RUGS = "/art/writer/room-rugs.png";

@@ -140,7 +140,7 @@ export const CLASSES: Record<
   wizard: {
     label: "Dark Wizard",
     armor: "cloth",
-    blurb: "Cloth and a mana pool. Lightning, deathbolts, curses, and a shade.",
+    blurb: "Cloth and a mana pool. Deathbolts, curses, and a shade.",
     specials: ["Deathbolt", "Curse", "Summon Shade", "Grave Nova"],
   },
   assassin: {

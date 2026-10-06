@@ -667,8 +667,8 @@ def playtest1f_d2() -> dict:
 
     made = {}
     pairs = [r.wayrift(f) for f in range(r.FRAMES + 1)]
-    made["wayrift2.png"] = cells([p[0] for p in pairs])
-    made["wayrift2_em.png"] = cells([p[1] for p in pairs])
+    made["wayrift.png"] = cells([p[0] for p in pairs])
+    made["wayrift_em.png"] = cells([p[1] for p in pairs])
     made["wayrift-icon.png"] = cells([r.wayrift_icon(True), r.wayrift_icon(False)])
     # masks 0-15 (1 N, 2 E, 4 S, 8 W), then the sunken-plank straights: 16 north-south, 17 east-west
     paths = [r.swamp_path(m) for m in range(16)] + [r.swamp_path(5, 1), r.swamp_path(10, 1)]
@@ -846,70 +846,6 @@ def playtest1w(out: Path = OUT) -> dict:
     return made
 
 
-
-def playtest1y(out: Path = OUT) -> dict:
-    """playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: half-size wayrifts as wayrift2 + hub platforms; larger interior doors as room-wall2-*.
-    The 1f wayrift.png and 1i room-wall-* stay for older checks. Door enlargement is applied here only (writers stay 1i's)."""
-    import rift_writer as r
-    import interior_writer as iw
-    from hearth_writer import WALLS, room_wall
-    from palette_locked import NEON
-    from wild_writer import Canvas
-    from PIL import Image, ImageDraw
-
-    made = {}
-    pairs = [r.wayrift_half(f) for f in range(r.FRAMES + 1)]
-    made["wayrift2.png"] = cells([p[0] for p in pairs])
-    made["wayrift2_em.png"] = cells([p[1] for p in pairs])
-    made["wayrift-platform.png"] = cells([r.wayrift_platform(True), r.wayrift_platform(False)])
-
-    def enlarge_door_cell(im: Image.Image) -> Image.Image:
-        """Redraw door cell (index 5) as a nearly full-tile door on top of the existing wall cell."""
-        out = im.copy()
-        # door is cell 5, 16x16
-        x0 = 5 * 16
-        door = out.crop((x0, 0, x0 + 16, 16)).convert("RGBA")
-        # paint large door over it
-        px = door.load()
-        # use colours from existing door panel if present, else wood
-        wood0, wood3, wood4, wood1, gold = (42, 24, 16, 255), (106, 80, 56, 255), (122, 104, 72, 255), (58, 40, 24, 255), (224, 192, 96, 255)
-        for y in range(16):
-            for x in range(16):
-                if x == 0 or x == 15:
-                    px[x, y] = (0, 0, 0, 0)  # keep side transparent? no — full cell door
-        for y in range(16):
-            for x in range(1, 15):
-                px[x, y] = wood0
-        for y in range(1, 16):
-            for x in range(2, 14):
-                px[x, y] = wood3 if x >= 7 else wood4
-            px[7, y] = wood1
-        for x in range(2, 14):
-            px[x, 0] = wood1
-        px[12, 9] = gold
-        px[1, 0] = wood1; px[14, 0] = wood1
-        for y in range(16):
-            px[1, y] = wood1; px[14, y] = wood1
-        out.paste(door, (x0, 0))
-        return out
-
-    # start from current 1i sheets (public) and enlarge door cell
-    for style in iw.STYLES:
-        base = Image.open(out / f"room-wall-{style}.png").convert("RGBA")
-        made[f"room-wall2-{style}.png"] = enlarge_door_cell(base)
-        em = Image.open(out / f"room-wall-{style}_em.png").convert("RGBA")
-        made[f"room-wall2-{style}_em.png"] = em  # em unchanged (lamp still over door)
-    base = Image.open(out / "room-wall.png").convert("RGBA")
-    made["room-wall2.png"] = enlarge_door_cell(base)
-    em = Image.open(out / "room-wall_em.png").convert("RGBA")
-    made["room-wall2_em.png"] = em
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    return made
-
-
-
 if __name__ == "__main__":
     main()
     playtest1o()
@@ -917,4 +853,3 @@ if __name__ == "__main__":
     playtest1u()
     playtest1v()
     playtest1w()
-    playtest1y()

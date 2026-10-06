@@ -6729,8 +6729,7 @@ export class Game {
     this.audio?.spell();
   }
 
-  /** Layout Two. Tap is Slash when a foe is in the cone. Otherwise it is the context verb.
-   * playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: a wizard's primary is a lightning bolt (same blow() damage; visual + projectile type only). */
+  /** Layout Two. Tap is Slash when a foe is in the cone. Otherwise it is the context verb. */
   slash() {
     if (this.mode !== "play" || this.fallen > 0) return;
     if (this.driving) {
@@ -6738,37 +6737,6 @@ export class Game {
       return;
     }
     this.noteManual();
-    if (this.cls === "wizard") {
-      this.actPose = "cast";
-      this.actFor = 0.28;
-      const reach = 96;
-      let foe: Roamer | null = null;
-      let best = reach;
-      for (const r of this.roamers) {
-        if (!this.liveFoe(r)) continue;
-        const d = Math.hypot(r.x - this.px, r.y - this.py);
-        if (d <= best) { foe = r; best = d; }
-      }
-      if (foe) {
-        // lightning colour (#4ab8ff / gold-lightning path): bolt() + hurtFoe with slash verb so damage stays on the primary path
-        this.bolt(this.px, this.py - 12, foe.x, foe.y - 10, "bolt", "#f4e27a"); // playtest1y: lightning strip (spellElement)
-        this.hurtFoe(foe, this.blow(), "slash", false);
-        this.logLine = "Lightning.";
-        this.audio?.spell();
-        return;
-      }
-      const prop = this.propInReach(reach);
-      if (prop) {
-        const c = centre(prop, TILE);
-        this.bolt(this.px, this.py - 12, c.x, c.y - 8, "bolt", "#f4e27a");
-        this.hitProp(prop, c.x - this.px, c.y - this.py, null);
-        this.audio?.spell();
-        return;
-      }
-      this.bolt(this.px, this.py - 14, this.px, this.py - 14, "ring", "#f4e27a");
-      this.interact();
-      return;
-    }
     this.actPose = "swing";
     this.actFor = 0.22;
     const hit = this.strikeCone((20 * Math.PI) / 180, 36, this.blow());
