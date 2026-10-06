@@ -7,12 +7,10 @@ import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
 import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
-import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
 import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
-import { boulderAt, roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
-import { BOULDER, BOULDERS_EM, BOULDERS_SHEET, BOULDER_GLOW, BOULDER_SEASONS, boulderCol, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
+import { roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
 import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, hamletEm, hamletLamps, hamletSheet, type HamletLotT, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
@@ -2702,10 +2700,15 @@ type Lamp = { x: number; y: number; r: number; c: RGB; seed: number; flick: bool
 export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh: number): Lamp[] {
   const out: Lamp[] = [];
   const below = g.mapId === "dungeon";
-  out.push({ x: g.px, y: g.py - 10, r: below ? LIGHT.hero : LIGHT.heroNight, c: below ? LIGHTS.torch : g.driving && g.mapId === "world" ? COLD_FIRE.seat : LIGHTS.candle, seed: 0, flick: false }); // playtest1w: cold in the car seat
-  // playtest1v: the bone car's skull headlamps threw two pools ahead of it here; playtest1w: the driven car's beams are
-  // paintColdFire's, after the night grade (the grade turned these pools warm or green on sand and grass)
-  if (!g.driving && g.mapId === "world" && g.carOwned) out.push({ x: g.carX + (g.carFacing === "e" ? 20 : g.carFacing === "w" ? -20 : 0), y: g.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
+  out.push({ x: g.px, y: g.py - 10, r: below ? LIGHT.hero : LIGHT.heroNight, c: below ? LIGHTS.torch : LIGHTS.candle, seed: 0, flick: false });
+  // playtest1v: the bone car's skull headlamps throw two cold-fire pools ahead of it (a near one and a far one)
+  if (g.driving && g.mapId === "world") {
+    const f = g.carFacing;
+    const ax = f === "e" ? 1 : f === "w" ? -1 : 0;
+    const ay = f === "s" ? 1 : f === "n" ? -1 : 0;
+    out.push({ x: g.px + ax * 34, y: g.py - 4 + ay * 26, r: 72, c: NEON_LIGHT.blue, seed: 1, flick: false });
+    out.push({ x: g.px + ax * 76, y: g.py - 2 + ay * 60, r: 96, c: NEON_LIGHT.blue, seed: 2, flick: false });
+  } else if (g.mapId === "world" && g.carOwned) out.push({ x: g.carX + (g.carFacing === "e" ? 20 : g.carFacing === "w" ? -20 : 0), y: g.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
   if (g.mapId === "town" && !g.carOwned) out.push({ x: SHOWROOM.carX + 20, y: SHOWROOM.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
   if (below) {
     for (const s of sconces(g)) if (sconceShows(g, s)) out.push({ x: s.x * TILE + 8, y: s.y * TILE - 1, r: LIGHT.sconce, c: LIGHTS.torch, seed: s.seed, flick: true });
@@ -3247,41 +3250,8 @@ function beyondCached(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: nu
   if (!outdoor) return;
   for (let y = g.h; y < Math.min(y1, g.h + 2); y++) for (let x = x0; x < x1; x++) {
     const biome = biomeOf(g.theme, g.h - 1, Math.max(0, Math.min(g.w - 1, x)));
-    if (!villageTreeShows(g, x, y)) continue; // playtest1w: the village border lattice
     props.push({ y: y * TILE + 8, fn: () => void propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
   }
-}
-
-/** playtest1w: the village border's tree lattice: rows (y % rows == 1), columns (step, offset by half on alternate bands),
- * the inner ring rows every innerStep columns and the inner side columns on every tree row; shade: the ring's ground multiply. */
-export const VILLAGE_EDGE = { rows: 3, step: 4, innerStep: 3, shade: "#8a8a9a" } as const;
-const mod = (a: number, n: number) => ((a % n) + n) % n;
-/** Is (x, y) in a village's tree ring or past its edge? */
-export function villageEdge(g: Game, x: number, y: number): boolean {
-  if (g.mapId !== "village") return false;
-  const b = VILLAGE.border;
-  return x < b || y < b || x >= g.w - b || y >= g.h - b;
-}
-/** Does the village border draw a tree on (x, y)? Everywhere else (and on every other map) every tree tile draws one. */
-export function villageTreeShows(g: Game, x: number, y: number): boolean {
-  if (!villageEdge(g, x, y)) return true;
-  const E = VILLAGE_EDGE;
-  const b = VILLAGE.border;
-  if (mod(y, E.rows) !== 1) return false;
-  const innerRow = (y === b - 1 || y === g.h - b) && x >= b - 1 && x <= g.w - b;
-  if (innerRow) return mod(x - (b - 1), E.innerStep) === 0 || x === g.w - b;
-  const innerCol = (x === b - 1 || x === g.w - b) && y >= b - 1 && y <= g.h - b;
-  if (innerCol) return true;
-  const band = Math.floor((y - 1) / E.rows);
-  return mod(x - 1 - (mod(band, 2) ? E.step / 2 : 0), E.step) === 0;
-}
-/** The shaded ground of a village's ring and past its edge (the wood floor under the crowns). */
-function shadeEdge(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.save();
-  ctx.globalCompositeOperation = "multiply";
-  ctx.fillStyle = VILLAGE_EDGE.shade;
-  ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-  ctx.restore();
 }
 
 function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: number, x1: number, y1: number, props: { y: number; fn: () => unknown }[], treeRow: (y: number) => boolean = () => true) {
@@ -3301,8 +3271,7 @@ function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: num
       const base = propGround(g.theme, cx, cy, T.tree);
       drawTile(ctx, base, x, y, n, g.theme, base, g.frame, base, base, base);
       const biome = biomeOf(g.theme, cy, cx);
-      if (g.mapId === "village") shadeEdge(ctx, x, y); // playtest1w: the wood floor past a village's edge
-      if (treeRow(y) && villageTreeShows(g, x, y)) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
+      if (treeRow(y)) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
     }
   }
 }
@@ -3389,168 +3358,6 @@ function paintShowroom(ctx: CanvasRenderingContext2D, g: Game, props: { y: numbe
     glow.push((c) => void paintCar(c, S.carX, S.carY, "e", 0, "em"));
   } else props.push({ y: S.carY, fn: () => void sheetCell(ctx, VELVET_ROPE, 2, 0, S.carX - 8, S.carY - 16, 1, 1.5, 16) });
   props.push({ y: bot * TILE + 1, fn: () => { ropeHLow(left, right, bot); for (const [vx, vy] of S.posts) if (vy === bot) post(vx, vy); } });
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the skull headlamps' cold fire.
-/** The beams: length, half-width at the skull and at the far end (px); the cool multiply and the blue add per band (0..1,
- * band 4 = full); the skull halo radius; the parked/showroom pool. seat: the hero's lantern colour while driving. */
-export const COLD_FIRE = {
-  beam: { len: 140, w0: 7, w1: 54 },
-  bands: 4,
-  cool: [0.62, 0.8, 1] as RGB,
-  add: [0.1, 0.36, 0.72] as RGB,
-  halo: 11,
-  eye: [0.35, 0.75, 1] as RGB,
-  pool: { len: 60, w0: 4, w1: 24, k: 0.95 },
-  seat: [0.45, 0.65, 1] as RGB,
-} as const;
-const BAYER_CF = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-/** The band (0..bands) of a beam pixel at (u along, v across) from the skull, pinned to world pixel (wx, wy). */
-export function coldBand(u: number, v: number, len: number, w0: number, w1: number, wx: number, wy: number, k = 1): number {
-  if (u < 0 || u > len) return 0;
-  const hw = w0 + (w1 - w0) * (u / len);
-  const a = Math.abs(v) / hw;
-  if (a >= 1) return 0;
-  const lead = u < 6 ? 0.55 + (u / 6) * 0.45 : 1; // the beam leaves the skull narrow and bright
-  const q = Math.pow(1 - u / len, 0.6) * (1 - a * a) * lead * k * COLD_FIRE.bands;
-  let b = Math.floor(q);
-  const frac = q - b;
-  if (frac > 0.6 && b < COLD_FIRE.bands && ((frac - 0.6) / 0.4) * 16 > BAYER_CF[(wy & 3) * 4 + (wx & 3)] + 0.5) b++;
-  return Math.max(0, Math.min(COLD_FIRE.bands, b));
-}
-const coldCache = new Map<string, { mul: HTMLCanvasElement; add: HTMLCanvasElement; ox: number; oy: number }>();
-/** One beam baked: dir e/w/s/n, its size, for a skull on world pixel (sx, sy) (the dither phase is sx&3, sy&3). */
-function coldSprite(dir: CarFacing, len: number, w0: number, w1: number, k: number, sx: number, sy: number) {
-  if (typeof document === "undefined") return null;
-  const key = `${dir}|${len}|${w0}|${w1}|${k}|${sx & 3}|${sy & 3}`;
-  const hit = coldCache.get(key);
-  if (hit) return hit;
-  const side = dir === "e" || dir === "w";
-  const bw = side ? len + 1 : w1 * 2 + 1;
-  const bh = side ? w1 * 2 + 1 : len + 1;
-  const ox = dir === "e" ? 0 : dir === "w" ? len : w1;
-  const oy = dir === "s" ? 0 : dir === "n" ? len : w1;
-  const mk = () => { const c = document.createElement("canvas"); c.width = bw; c.height = bh; return c; };
-  const mul = mk();
-  const add = mk();
-  const mx = mul.getContext("2d");
-  const ax = add.getContext("2d");
-  if (!mx || !ax) return null;
-  const mi = mx.createImageData(bw, bh);
-  const ai = ax.createImageData(bw, bh);
-  for (let j = 0; j < bh; j++) {
-    for (let i = 0; i < bw; i++) {
-      const dx = i - ox;
-      const dy = j - oy;
-      const u = dir === "e" ? dx : dir === "w" ? -dx : dir === "s" ? dy : -dy;
-      const v = side ? dy * 1.6 : dx; // seen from above at 3/4: the pool is flatter across a side beam
-      const b = coldBand(u, v, len, w0, w1, sx - ox + i, sy - oy + j, k) / COLD_FIRE.bands;
-      const o = (j * bw + i) * 4;
-      mi.data[o] = Math.round((1 - (1 - COLD_FIRE.cool[0]) * b) * 255);
-      mi.data[o + 1] = Math.round((1 - (1 - COLD_FIRE.cool[1]) * b) * 255);
-      mi.data[o + 2] = Math.round((1 - (1 - COLD_FIRE.cool[2]) * b) * 255);
-      mi.data[o + 3] = 255;
-      ai.data[o] = Math.round(COLD_FIRE.add[0] * b * 255);
-      ai.data[o + 1] = Math.round(COLD_FIRE.add[1] * b * 255);
-      ai.data[o + 2] = Math.round(COLD_FIRE.add[2] * b * 255);
-      ai.data[o + 3] = 255;
-    }
-  }
-  mx.putImageData(mi, 0, 0);
-  ax.putImageData(ai, 0, 0);
-  const out = { mul, add, ox, oy };
-  coldCache.set(key, out);
-  return out;
-}
-/** Where the skull lamps sit (world px) on a car whose seat point is (x, y), facing f: one beam per lamp seen. */
-export function skullLamps(x: number, y: number, f: CarFacing): { x: number; y: number }[] {
-  const X = Math.round(x);
-  const Y = Math.round(y);
-  if (f === "e") return [{ x: X + 24, y: Y - 14 }];
-  if (f === "w") return [{ x: X - 24, y: Y - 14 }];
-  if (f === "s") return [{ x: X - 4, y: Y - 4 }, { x: X + 4, y: Y - 4 }];
-  return [{ x: X - 4, y: Y - 30 }, { x: X + 4, y: Y - 30 }];
-}
-/** The ground the beam lands on starts a little ahead of and below the skull (the lamp is at hood height). */
-function beamFoot(l: { x: number; y: number }, f: CarFacing) {
-  return f === "e" ? { x: l.x + 2, y: l.y + 12 } : f === "w" ? { x: l.x - 2, y: l.y + 12 } : f === "s" ? { x: l.x, y: l.y + 6 } : { x: l.x, y: l.y - 2 };
-}
-function blitCold(ctx: CanvasRenderingContext2D, f: CarFacing, at: { x: number; y: number }, len: number, w0: number, w1: number, k: number) {
-  const sp = coldSprite(f, len, w0, w1, k, at.x, at.y);
-  if (!sp) return;
-  ctx.globalCompositeOperation = "multiply";
-  ctx.drawImage(sp.mul, at.x - sp.ox, at.y - sp.oy);
-  ctx.globalCompositeOperation = "lighter";
-  ctx.drawImage(sp.add, at.x - sp.ox, at.y - sp.oy);
-}
-/** The halo round a lit skull eye: a small round dithered glow, added (baked per dither phase). */
-function blitHalo(ctx: CanvasRenderingContext2D, at: { x: number; y: number }) {
-  if (typeof document === "undefined") return;
-  const r = COLD_FIRE.halo;
-  const key = `halo|${r}|${at.x & 3}|${at.y & 3}`;
-  let sp = coldCache.get(key);
-  if (!sp) {
-    const c = document.createElement("canvas");
-    c.width = c.height = r * 2 + 1;
-    const x = c.getContext("2d");
-    if (!x) return;
-    const im = x.createImageData(r * 2 + 1, r * 2 + 1);
-    for (let j = 0; j <= r * 2; j++) {
-      for (let i = 0; i <= r * 2; i++) {
-        const b = coldBand(Math.hypot(i - r, j - r), 0, r, 1, 1, at.x - r + i, at.y - r + j, 0.8) / COLD_FIRE.bands;
-        const o = (j * (r * 2 + 1) + i) * 4;
-        im.data[o] = Math.round(COLD_FIRE.eye[0] * b * 255);
-        im.data[o + 1] = Math.round(COLD_FIRE.eye[1] * b * 255);
-        im.data[o + 2] = Math.round(COLD_FIRE.eye[2] * b * 255);
-        im.data[o + 3] = 255;
-      }
-    }
-    x.putImageData(im, 0, 0);
-    sp = { mul: c, add: c, ox: r, oy: r };
-    coldCache.set(key, sp);
-  }
-  ctx.globalCompositeOperation = "lighter";
-  ctx.drawImage(sp.add, at.x - r, at.y - r);
-}
-/** After the night's light layer: the beams ahead of a driven car, and the small pool and eye halos of a parked or showroom car. */
-export function paintColdFire(ctx: CanvasRenderingContext2D, g: Game) {
-  if (!sceneAmbient(g) || g.mapId === "dungeon") return;
-  const cars: { x: number; y: number; f: CarFacing; drive: boolean }[] = [];
-  if (g.mapId === "world" && g.driving) cars.push({ x: g.px, y: g.py, f: g.carFacing, drive: true });
-  else if (g.mapId === "world" && g.carOwned) cars.push({ x: g.carX, y: g.carY, f: g.carFacing, drive: false });
-  if (g.mapId === "town" && !g.carOwned) cars.push({ x: SHOWROOM.carX, y: SHOWROOM.carY, f: "e", drive: false });
-  if (!cars.length) return;
-  ctx.save();
-  ctx.imageSmoothingEnabled = false;
-  for (const c of cars) {
-    for (const l of skullLamps(c.x, c.y, c.f)) {
-      const B = c.drive ? COLD_FIRE.beam : COLD_FIRE.pool;
-      blitCold(ctx, c.f, beamFoot(l, c.f), B.len, B.w0, B.w1, c.drive ? 1 : COLD_FIRE.pool.k);
-      blitHalo(ctx, l);
-    }
-  }
-  ctx.restore();
-}
-
-/** playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: is the hero behind boulder b (north of its foot, his body under the stone's picture)? */
-export function boulderHides(g: Game, b: BoulderT): boolean {
-  const foot = (b.y + 2) * TILE;
-  return g.mapId === "world" && g.py < foot - 6 && g.py > foot - BOULDER.cell.foot - 4 && g.px > b.x * TILE - 6 && g.px < (b.x + 2) * TILE + 6;
-}
-/** One boulder's cell (or its glow mask's), its foot row on the block's bottom edge, centred on the block. */
-function paintBoulder(ctx: CanvasRenderingContext2D, g: Game, b: BoulderT, em: boolean): boolean {
-  const C = BOULDER.cell;
-  const season = b.biome === "snow" ? "winter" : seasonNow;
-  const row = Math.max(0, BOULDER_SEASONS.indexOf(season as (typeof BOULDER_SEASONS)[number]));
-  const veil = !em && boulderHides(g, b);
-  if (veil) ctx.globalAlpha = CANOPY_VEIL;
-  const url = em ? BOULDERS_EM : BOULDERS_SHEET;
-  if (!prop2Ready(url)) return false;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(landSheet[url]!, boulderCol(b.biome, b.kind) * C.w, row * C.h, C.w, C.h, b.x * TILE + TILE - C.w / 2, (b.y + 2) * TILE - 1 - C.foot, C.w, C.h);
-  if (veil) ctx.globalAlpha = 1;
-  return true;
 }
 
 /** playtest1v: how much of a tree shows while the hero stands behind its canopy. */
@@ -3733,17 +3540,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
           },
         });
       }
-      if (tile === T.tree && villageEdge(g, x, y)) shadeEdge(ctx, x, y); // playtest1w: the village ring's wood floor
-      // playtest1w: a boulder's four rock tiles draw it once, from the block's bottom-left tile
-      const bd = g.mapId === "world" && tile === T.rock ? boulderAt(i) : undefined;
-      if (bd && prop2Ready(BOULDERS_SHEET)) {
-        if (x === bd.x && y === bd.y + 1) {
-          props.push({ y: (bd.y + 1) * TILE + 10, fn: () => void paintBoulder(ctx, g, bd, false) });
-          if (BOULDER_GLOW.has(bd.biome)) glow.push((c) => void paintBoulder(c, g, bd, true));
-        }
-        continue;
-      }
-      if ((tile === T.tree && villageTreeShows(g, x, y)) || tile === T.rock || tile === T.pump || tile === T.grave) {
+      if (tile === T.tree || tile === T.rock || tile === T.pump || tile === T.grave) {
         const kind = tile === T.tree ? "tree" : tile === T.rock ? "rock" : tile === T.pump ? "pump" : "grave";
         const by = y * TILE + (kind === "tree" ? 8 : 10);
         const dug = kind === "grave" && g.graveDug(x, y);
@@ -4126,7 +3923,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   for (const d of props) d.fn();
   // playtest1 (owner-reported 2026-10-01, spells did not show): spells are drawn over every actor, not under them.
   for (const s of g.spells) paintSpell(ctx, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
-  if (night && g.mapId !== "dungeon" && g.mapId !== "inside" && !(g.driving && g.mapId === "world")) { // playtest1w: no lantern in the car seat
+  if (night && g.mapId !== "dungeon" && g.mapId !== "inside") {
     px(ctx, Math.round(g.px) - 2, Math.round(g.py) - 14, 2, 2, "#f0d080");
     px(ctx, Math.round(g.px) + 1, Math.round(g.py) - 13, 1, 1, "#fff0c0");
   }
@@ -4145,7 +3942,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     });
     const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
     paintLight(ctx, g, camX, camY, viewW / zoom, viewH / zoom, actors, glow);
-    paintColdFire(ctx, g); // playtest1w: the skull headlamps' cold fire, over the night
   }
   labelView = { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom, zoom }; // playtest1q: the view, for the HUD-safe boss name
   paintLabels(ctx, g);

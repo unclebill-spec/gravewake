@@ -42,10 +42,8 @@ export const BLDG = {
   shadow: { k: 0.45, south: 4, east: 3, up: 22 },
 } as const;
 
-// playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the door_writer.py redraw (tools/pixel-writer), a taller ground storey and a door 34-36 px
-// high (1.1-1.25x the hero's 32), same cells; the 1t town-bldg-<room> sheets stay in public/art/writer as they were.
-export const bldgSheet = (room: string) => `/art/writer/town-bldg2-${room}.png`;
-export const bldgEm = (room: string) => `/art/writer/town-bldg2-${room}_em.png`;
+export const bldgSheet = (room: string) => `/art/writer/town-bldg-${room}.png`;
+export const bldgEm = (room: string) => `/art/writer/town-bldg-${room}_em.png`;
 export const BLDG_SHEETS: string[] = Object.keys(BLDG_LOTS).flatMap((r) => [bldgSheet(r), bldgEm(r)]);
 
 /** FNV-1a over the seed and the room id, then a final mix: a lot's variant, the same everywhere and every time. */

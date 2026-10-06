@@ -51,10 +51,8 @@ export const HAMLET_DEF: Record<string, { head: number; n: number; lamp: [number
   bog_hut: { head: 28, n: 2, lamp: [28, 24, "blue"] },
 };
 export const HAMLET_KIND_IDS = Object.keys(HAMLET_DEF);
-// playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: door_writer.py's hamlet2-<kind> sheets, doors that fit the hero, same cells and lamp pixels
-// (HAMLET_DEF below unchanged); the 1u hamlet-<kind> sheets stay as they were.
-export const hamletSheet = (kind: string) => `/art/writer/hamlet2-${kind}.png`;
-export const hamletEm = (kind: string) => `/art/writer/hamlet2-${kind}_em.png`;
+export const hamletSheet = (kind: string) => `/art/writer/hamlet-${kind}.png`;
+export const hamletEm = (kind: string) => `/art/writer/hamlet-${kind}_em.png`;
 /** Each biome's walk: the writer's plank, flagstone, packed-snow or cinder path cells (hamlet-walk.png, row per biome,
  * 4 cells), laid on the green from every north-row door to the green's middle row and along it. */
 export const HAMLET_WALK = "/art/writer/hamlet-walk.png";

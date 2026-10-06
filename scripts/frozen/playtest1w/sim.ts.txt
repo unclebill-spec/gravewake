@@ -68,7 +68,6 @@ import { HAMLET_ENTRY, WORLD_BRIDGE, WORLD_DRESS, gravewakeHamlets, gravewakeWor
 import { VILLAGE_NAMES, buildVillage, type VillageT } from "./villages";
 import { MAPFOG, decodeSeen, encodeSeen, fogKey, reveal } from "./mapfog"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
 import { CAR, CAR_LINES, SHOWROOM, carPoints, inShowroom, type CarFacing } from "./bonecar"; // playtest1v // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]
-import { BOULDER, boulderIndex, layBoulders, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
 import { HAMLET_KINDS, type HamletBiomeId, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
 import { edgeBand, riftSeed, rng32, subSeed, type MapResult } from "../../tools/map-writer/map_writer";
 import { GATE, fromGate, lairTiles, nightOf, postBounty, type Posting } from "./bounty";
@@ -3779,30 +3778,12 @@ export class Game {
       x = m.x * TILE + 8;
       y = (below ? m.y : f.y) * TILE + 8;
     }
-    // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: a tap past a boulder walks round it by the tile route
-    // (a straight line would stop at its face); a tap on the stone itself still walks straight up to it
-    if (this.mapId === "world" && this.boulderOnLine(x, y) && this.routeTo(Math.floor(x / TILE), Math.floor(y / TILE), true)) return;
     this.goal = { x, y };
     this.goalStuck = 0;
   }
 
-  /** playtest1w: does the hero's foot box, walked straight from here to (x, y), touch a boulder's block? */
-  private boulderOnLine(x: number, y: number): boolean {
-    const n = Math.max(1, Math.ceil(Math.hypot(x - this.px, y - this.py) / 4));
-    for (let k = 1; k <= n; k++) {
-      const qx = this.px + ((x - this.px) * k) / n;
-      const qy = this.py + ((y - this.py) * k) / n;
-      for (const [dx, dy] of [[-5, -2], [5, -2], [-5, 3], [5, 3]]) {
-        const tx = Math.floor((qx + dx) / TILE);
-        const ty = Math.floor((qy + dy) / TILE);
-        if (tx >= 0 && ty >= 0 && tx < this.w && ty < this.h && boulderAt(ty * this.w + tx)) return true;
-      }
-    }
-    return false;
-  }
-
-  /** playtest1v: walk to tile (tx, ty) by the shortest open tile route (within 40 tiles); false when there is none (playtest1w: loose, see free). */
-  routeTo(tx: number, ty: number, loose = false): boolean {
+  /** playtest1v: walk to tile (tx, ty) by the shortest open tile route (within 40 tiles); false when there is none. */
+  routeTo(tx: number, ty: number): boolean {
     const sx = Math.floor(this.px / TILE);
     const sy = Math.floor(this.py / TILE);
     const S = 40;
@@ -3817,8 +3798,7 @@ export class Game {
       const t = this.tiles[y * this.w + x];
       return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || t === T.exit || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((r) => r.tx === x && r.ty === y) || !!wayMouthAt(x, y) || !!villageEntryAt(x, y)));
     };
-    // playtest1w: loose (a tap past a boulder) lets the tapped tile itself be a tree or a lone rock, which the hero only brushes past
-    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && ((x === tx && y === ty) || !exit(x, y)) && !this.solidAt(x * TILE + 8, y * TILE + 8) && ((loose && x === tx && y === ty) || !this.blockedProp(x * TILE + 8, y * TILE + 8));
+    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && ((x === tx && y === ty) || !exit(x, y)) && !this.solidAt(x * TILE + 8, y * TILE + 8) && !this.blockedProp(x * TILE + 8, y * TILE + 8);
     const q = [sx, sy];
     prev[at(sx, sy)] = -1;
     let hit = -1;
@@ -4280,9 +4260,6 @@ export class Game {
     if (t === T.wall || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t)) return true;
     // playtest1f: a wayrift's standing stones (its footprint but the mouth) stop everyone
     if (this.mapId === "world" && waySolid(tx, ty)) return true;
-    // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: a boulder's whole 2x2 block stops everyone, the hero too
-    // (a lone rock only nudges the hero aside, slideOffProps; a boulder is too big to slip between its four tiles)
-    if (this.mapId === "world" && t === T.rock && boulderAt(ty * this.w + tx)) return true;
     if (this.mapId === "dungeon" && this.room.solid.has(ty * this.w + tx)) return true; // playtest1n: a standing room prop
     // Item 10: bought furniture stands in the croft and stops everyone, like any furnishing.
     if (this.mapId === "inside" && this.inside === "croft" && this.decorAt(tx, ty)) return true;
@@ -9123,11 +9100,6 @@ export class Game {
     this.carOwned = !!raw.carOwned;
     this.carX = raw.carX ?? CAR.park.x * TILE + 8;
     this.carY = raw.carY ?? CAR.park.y * TILE + 8;
-    // playtest1w: a car parked where a boulder now stands waits by the road gate instead
-    if (carPoints(this.carX, this.carY, this.carFacing).some(([x, y]) => boulderAt(Math.floor(y / TILE) * WORLD.w + Math.floor(x / TILE)))) {
-      this.carX = CAR.park.x * TILE + 8;
-      this.carY = CAR.park.y * TILE + 8;
-    }
     this.driving = false;
     this.carPuffs = [];
     this.bestiary = raw.bestiary ?? [];
@@ -9157,9 +9129,6 @@ export class Game {
     if (raw.mapId === "world") {
       this.enterWorld(raw.px, raw.py);
       if (raw !== record) this.landMigrated();
-      // playtest1w: a save from before the boulders steps off one (its feet on a boulder's block: the nearest open tile, as a
-      // migrated save does)
-      if ([[0, 0], [-5, 3], [5, 3]].some(([dx, dy]) => boulderAt(Math.floor((this.py + dy) / TILE) * this.w + Math.floor((this.px + dx) / TILE)))) this.landMigrated();
       // A save made inside a rift sits on its mouth: hold the mouth until you step off, as on the way out.
       this.riftHold = `${Math.floor(raw.px / TILE)},${Math.floor(raw.py / TILE)}`;
     } else if (raw.mapId === "camp") this.enterCamp(true);
@@ -9586,7 +9555,7 @@ const WORLD_CARTS: [number, number][] = [
  * spread through each biome, a forest band round the edge). Every place sits at twice its old tile. Built once and
  * copied: the sim stamps the world's tiles (a boss's clearing) on its own copy.
  */
-let worldMemo: { w: number; h: number; tiles: Uint8Array; entrances: Record<string, string>; npcs: Npc[]; landmarks: { x: number; y: number; kind: string }[]; caches: { x: number; y: number }[]; hamlets: HamletT[]; boulders: BoulderT[] } | null = null;
+let worldMemo: { w: number; h: number; tiles: Uint8Array; entrances: Record<string, string>; npcs: Npc[]; landmarks: { x: number; y: number; kind: string }[]; caches: { x: number; y: number }[]; hamlets: HamletT[] } | null = null;
 /** playtest1e: the vale's landmarks and caches as the map writer laid them (copies; the checks and the mini map read them). */
 export function worldPlan() {
   if (!worldMemo) worldMemo = layWorld();
@@ -9597,17 +9566,6 @@ export function worldPlan() {
 export function worldHamlets(): HamletT[] {
   if (!worldMemo) worldMemo = layWorld();
   return worldMemo.hamlets;
-}
-/** playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the vale's boulders (top-left tile of each 2x2 block), as laid. */
-export function worldBoulders(): BoulderT[] {
-  if (!worldMemo) worldMemo = layWorld();
-  return worldMemo.boulders;
-}
-let boulderMemo: Map<number, BoulderT> | null = null;
-/** playtest1w: the boulder whose 2x2 block holds vale tile i, if any. */
-export function boulderAt(i: number): BoulderT | undefined {
-  if (!boulderMemo) boulderMemo = boulderIndex(worldBoulders(), WORLD.w);
-  return boulderMemo.get(i);
 }
 /** playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: the village icon whose doorstep is tile (x, y). */
 export function villageEntryAt(x: number, y: number): HamletT | undefined {
@@ -9684,26 +9642,7 @@ function layWorld() {
   // by the map writer (phase 4) on open ground, far from every lair, mouth, wayrift, festival spot, cart, watch, landmark
   // and cache, every walkable tile still reached from the gate. Each lot is wall on the grid: it stops bodies where drawn.
   const hamlets = layHamlets(tiles, laid.landmarks, laid.caches, npcs);
-  // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the boulders, laid last on plain ground clear of every place
-  const boulders = layBoulders(tiles, w, h, boulderPlaces(laid.landmarks, laid.caches, npcs, hamlets));
-  return { w, h, tiles, entrances, npcs, landmarks: laid.landmarks.map((l) => ({ x: l.x, y: l.y, kind: l.kind })), caches: laid.caches, hamlets, boulders };
-}
-
-/** playtest1w: every place a body must reach or fight at, with the room a boulder keeps from it (BOULDER.keep, tiles). */
-function boulderPlaces(landmarks: { x: number; y: number }[], caches: { x: number; y: number }[], npcs: Npc[], hamlets: HamletT[]) {
-  const K = BOULDER.keep;
-  const out: { x: number; y: number; r: number }[] = [];
-  for (const b of WORLD_BOSSES) out.push({ x: b.tx, y: b.ty, r: K.lair });
-  for (const f of [HARVEST.lord, KRAMPUSNACHT.spot]) out.push({ x: f.x, y: f.y, r: K.lair });
-  out.push({ x: WORLD_DOOR.x, y: WORLD_DOOR.y, r: K.door }, { x: GATE.x, y: GATE.y, r: K.gate }, { x: CAR.park.x, y: CAR.park.y, r: K.park });
-  for (const d of [...DUNGEONS, ...RIFTS]) if (!d.town) out.push({ x: d.tx, y: d.ty, r: K.mouth });
-  for (const wr of WAYRIFTS) out.push({ x: wr.x + 1, y: wr.y + 1, r: K.wayrift });
-  for (const [x, y] of WORLD_CARTS) out.push({ x, y, r: K.npc });
-  for (const n of npcs) out.push({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE), r: K.npc });
-  for (const l of landmarks) out.push({ x: l.x, y: l.y, r: K.landmark });
-  for (const c of caches) out.push({ x: c.x, y: c.y, r: K.cache });
-  for (const m of hamlets) out.push({ x: m.x + m.w / 2, y: m.y + m.h / 2, r: Math.max(m.w, m.h) / 2 + K.hamlet });
-  return out;
+  return { w, h, tiles, entrances, npcs, landmarks: laid.landmarks.map((l) => ({ x: l.x, y: l.y, kind: l.kind })), caches: laid.caches, hamlets };
 }
 
 /** playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: how far (tiles) a hamlet's box keeps from each kind of place. */

@@ -827,29 +827,9 @@ def playtest1v(out: Path = OUT) -> dict:
     return made
 
 
-def playtest1w(out: Path = OUT) -> dict:
-    """playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the vale's big boulders (boulder_writer.py):
-    wild-boulders.png (+ _em), 48x56 cells, columns boulder_writer.KINDS, rows its SEASONS; and the buildings with doors
-    that fit the hero (door_writer.py): town-bldg2-<room>.png and hamlet2-<kind>.png (+ _em), the 1t/1u sheets redrawn with
-    a taller ground storey and a door 1.1-1.25x the hero (the old sheets stay as they were, the loading fallback).
-    Runs on its own: python3 -c "import make_gravewake as m; m.playtest1w()"."""
-    import boulder_writer as bw
-
-    made = {}
-    made["wild-boulders.png"], made["wild-boulders_em.png"] = bw.sheet()
-    import door_writer as dw
-
-    made.update(dw.sheets())
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    return made
-
-
 if __name__ == "__main__":
     main()
     playtest1o()
     playtest1t()
     playtest1u()
     playtest1v()
-    playtest1w()
