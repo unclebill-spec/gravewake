@@ -62,7 +62,7 @@ export const ROOM_FURNITURE: Record<string, Piece[]> = {
   bank: [{ k: "bookcase", x: 32, y: 16 }, { k: "bookcase", x: 160, y: 16 }, { k: "strongbox", x: 80, y: 18 }, { k: "counter", x: 120, y: 58 }],
   tailor: [{ k: "bookcase", x: 32, y: 16 }, { k: "bookcase", x: 160, y: 16 }, { k: "mannequin", x: 80, y: 18 }, { k: "counter", x: 120, y: 58 }],
   chapel: [{ k: "altar", x: 104, y: 18 }, { k: "pew", x: 40, y: 66 }, { k: "pew", x: 160, y: 66 }],
-  // casino: playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the Felt is bigger and furnished from casino.ts (three tables, the stage, the prize counter)
+  casino: [{ k: "cardtable", x: 104, y: 48 }],
   smith: [{ k: "forge", x: 40, y: 8 }, { k: "anvil", x: 128, y: 40 }, { k: "rack", x: 176, y: 104 }],
   alchemy: [{ k: "narrow", x: 24, y: 16 }, { k: "narrow", x: 168, y: 16 }, { k: "cauldron", x: 104, y: 32 }, { k: "potions", x: 40, y: 64 }],
   mystic: [{ k: "narrow", x: 24, y: 16 }, { k: "narrow", x: 168, y: 16 }, { k: "orrery", x: 104, y: 32 }],

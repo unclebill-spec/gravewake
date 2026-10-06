@@ -34,7 +34,6 @@ import {
   type ScreenSettings,
   type View,
 } from "./screen";
-import { BJ, CARD, CARD_SHEET, bjValue, pokerRank, type Card } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { InstallButton } from "../pwa/InstallButton"; // install1
 import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
 import { FxOptions } from "./FxOptions"; // playtest1l
@@ -62,8 +61,6 @@ export function Gravewake() {
   const [path, setPath] = useState<StatPath>("str");
   const [name, setName] = useState("Wanderer");
   const [stake, setStake] = useState(5);
-  const stakeRef = useRef(stake); // playtest1x: the card tables' keys deal at the slider's stake
-  stakeRef.current = stake;
   const [bankN, setBankN] = useState(10);
   const stick = useRef({ id: -1, ox: 0, oy: 0 });
   const [miniAt, setMiniAt] = useState({ x: 8, y: 132 });
@@ -215,7 +212,7 @@ export function Gravewake() {
     let navDir: Dir | null = null;
     let navNext = 0;
     let focusEl: HTMLElement | null = null;
-    const NAV_MODES = new Set(["title", "talk", "shop", "casino", "prizes", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map"]);
+    const NAV_MODES = new Set(["title", "talk", "shop", "casino", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map"]);
     const lastOf = (sel: string) => {
       const all = document.querySelectorAll<HTMLElement>(sel);
       return all.length ? all[all.length - 1] : null;
@@ -342,25 +339,6 @@ export function Gravewake() {
         e.preventDefault();
         setTick((n) => n + 1);
         return;
-      }
-      // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the card tables' keys: H hit, S stand, D deal (or draw at poker), 1-5 hold, Escape leaves
-      if (game.mode === "casino" && (game.casinoGame === "blackjack" || game.casinoGame === "poker") && !e.repeat) {
-        const t = game.table;
-        const live = !!t && t.phase === "play" && t.game === game.casinoGame;
-        let used = true;
-        if (e.code === "KeyH" && live) game.bjHit();
-        else if (e.code === "KeyS" && live) game.bjStand();
-        else if (e.code === "KeyD") {
-          if (live && t?.game === "poker") game.pokerDraw();
-          else if (!live) game.dealCards(game.casinoGame, Math.min(stakeRef.current, game.coin));
-        } else if (/^Digit[1-5]$/.test(e.code) && live) game.pokerHold(Number(e.code.slice(5)) - 1);
-        else if (e.code === "Escape" || e.code === "Backspace") game.leaveTable();
-        else used = false;
-        if (used) {
-          e.preventDefault();
-          setTick((n) => n + 1);
-          return;
-        }
       }
       game.held.add(e.code);
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
@@ -1443,9 +1421,7 @@ export function Gravewake() {
             </Panel>
           ) : null}
 
-          {/* playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the Felt's three tables (each dealer runs his own), and Corvin Tallow's prize counter */}
-          {game.mode === "casino" && game.casinoGame !== "roulette" ? <CardTableView game={game} stake={stake} setStake={setStake} bump={bump} /> : null}
-          {game.mode === "casino" && game.casinoGame === "roulette" ? (
+          {game.mode === "casino" ? (
             <Panel>
               <h2 className="font-display text-xl">Roulette</h2>
               <p className="text-sm text-muted">Red or black pays 1:1. Green pays 14:1. Points {game.points}. Stake {Math.min(stake, Math.max(0, game.coin))}s.</p>
@@ -1457,17 +1433,6 @@ export function Gravewake() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted">Points buy prizes at Corvin Tallow's counter, by the east wall.</p>
-              <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
-                Stand
-              </button>
-            </Panel>
-          ) : null}
-
-          {game.mode === "prizes" ? (
-            <Panel>
-              <h2 className="font-display text-xl">Corvin's prize counter</h2>
-              <p className="text-sm text-muted">Points {game.points}. The back shelf takes points, not silver.</p>
               <button type="button" className="rounded border border-border px-3 py-2 text-sm" onClick={() => { game.spendPoints(); bump(); }}>
                 Points shelf · 20
               </button>
@@ -1483,9 +1448,8 @@ export function Gravewake() {
                   </div>
                 </div>
               ) : null}
-              <p className="text-sm">{game.logLine}</p>
               <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
-                Leave the counter
+                Stand
               </button>
             </Panel>
           ) : null}
@@ -2234,104 +2198,6 @@ function rankWord(rank: number) {
 }
 
 /** The dark card used by talk, shops, and the pause menu. */
-/**
- * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill, 10:30 ET): the blackjack and draw-poker close-up. A dark felt table over the field; the dealer's
- * hand on top and yours below, face up, in big pixel-art cards (casino-cards.png, casino_writer.card_sheet, drawn whole-pixel
- * sharp); the totals or hand names by them; one row of buttons (Deal, then Hit / Stand or Draw, and Leave) that touch, the pad
- * (it is a pad root, Leave is its back button) and the keys (H, S, D, 1-5, Escape) all reach; at poker each of your cards is a
- * button that holds it. Cards scale with the screen (between 36 and 84 px wide).
- */
-function PlayingCard({ card, held, label }: { card: Card | null; held?: boolean; label?: string }) {
-  const col = card == null ? CARD.back : card % 13;
-  const row = card == null ? 0 : Math.floor(card / 13);
-  return (
-    <span
-      role="img"
-      aria-label={label}
-      data-testid="playing-card"
-      data-card={card ?? "back"}
-      className="relative block shrink-0"
-      style={{
-        width: "var(--gw-card)",
-        height: "calc(var(--gw-card) * 1.4)",
-        backgroundImage: `url(${CARD_SHEET})`,
-        backgroundSize: `${CARD.cols * 100}% ${CARD.rows * 100}%`,
-        backgroundPosition: `${(col / (CARD.cols - 1)) * 100}% ${(row / (CARD.rows - 1)) * 100}%`,
-        imageRendering: "pixelated",
-        transform: held ? "translateY(-8%)" : undefined,
-        filter: held ? "drop-shadow(0 0 4px #5ab8ff)" : undefined,
-      }}
-    />
-  );
-}
-
-function CardTableView({ game, stake, setStake, bump }: { game: Game; stake: number; setStake: (n: number) => void; bump: () => void }) {
-  const kind = game.casinoGame === "poker" ? "poker" : "blackjack";
-  const t = game.table && game.table.game === kind ? game.table : null;
-  const live = !!t && t.phase === "play";
-  const bet = Math.min(stake, Math.max(0, game.coin));
-  const name = (cards: Card[]) => (kind === "poker" ? pokerRank(cards).name : `${bjValue(cards).total}`);
-  const btn = "rounded border border-border bg-surface/80 px-3 py-2 text-sm disabled:opacity-40";
-  return (
-    <section
-      data-padnav
-      data-testid="card-table"
-      className="gw-table absolute inset-x-3 top-3 bottom-3 z-30 flex flex-col items-center justify-between gap-1 overflow-auto rounded border border-border p-2"
-      style={{
-        background: kind === "poker" ? "radial-gradient(ellipse at 50% 45%, #3a2468 0%, #1a1030 70%, #07060a 100%)" : "radial-gradient(ellipse at 50% 45%, #1e4634 0%, #0f241c 70%, #07060a 100%)",
-        boxShadow: "inset 0 0 0 2px #2a1c14, inset 0 0 24px #000",
-        ["--gw-card" as string]: "clamp(36px, min(11vw, 17vh), 84px)",
-        right: "calc(0.75rem + var(--sar))",
-        left: "calc(0.75rem + var(--sal, 0px))",
-      }}
-    >
-      <div className="flex w-full items-baseline justify-between text-xs text-muted">
-        <span className="font-display text-base text-foreground">{kind === "poker" ? "Five-card draw" : "Blackjack"}</span>
-        <span>Purse {game.coin}s · points {game.points}{t ? ` · stake ${t.stake}s` : ""}</span>
-      </div>
-      <div className="flex flex-col items-center gap-1" data-testid="dealer-hand">
-        <span className="text-xs text-muted">Dealer{t ? ` · ${name(t.dealer)}` : ""}</span>
-        <div className="flex gap-1">{(t ? t.dealer : kind === "poker" ? [null, null, null, null, null] : [null, null]).map((c, i) => <PlayingCard key={i} card={c} />)}</div>
-      </div>
-      <p className="min-h-[1.25rem] text-center text-sm" data-testid="table-line">{t ? game.logLine : kind === "poker" ? "Hold what you like, draw once; the better hand wins even money." : `Dealer stands on ${BJ.stand}. Blackjack pays 3:2.`}</p>
-      <div className="flex flex-col items-center gap-1" data-testid="your-hand">
-        <div className="flex gap-1">
-          {t
-            ? t.you.map((c, i) =>
-                kind === "poker" && live ? (
-                  <button key={i} type="button" data-testid={`hold-${i + 1}`} aria-pressed={t.held[i]} className="rounded p-0" onClick={() => { game.pokerHold(i); bump(); }}>
-                    <PlayingCard card={c} held={t.held[i]} />
-                  </button>
-                ) : (
-                  <PlayingCard key={i} card={c} held={kind === "poker" && t.held[i] && live} />
-                ),
-              )
-            : (kind === "poker" ? [null, null, null, null, null] : [null, null]).map((c, i) => <PlayingCard key={i} card={c} />)}
-        </div>
-        <span className="text-xs text-muted">You{t ? ` · ${name(t.you)}` : ""}{kind === "poker" && live ? " · tap cards to hold" : ""}</span>
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-2" data-testid="table-actions">
-        {live ? (
-          kind === "blackjack" ? (
-            <>
-              <button type="button" className={btn} onClick={() => { game.bjHit(); bump(); }}>Hit</button>
-              <button type="button" className={btn} onClick={() => { game.bjStand(); bump(); }}>Stand</button>
-            </>
-          ) : (
-            <button type="button" className={btn} onClick={() => { game.pokerDraw(); bump(); }}>Draw</button>
-          )
-        ) : (
-          <>
-            <input type="range" aria-label="Stake" min={1} max={Math.max(1, game.coin)} value={Math.min(stake, Math.max(1, game.coin))} onChange={(e) => setStake(Number(e.target.value))} />
-            <button type="button" disabled={bet < 1} className={btn} onClick={() => { game.dealCards(kind, bet); bump(); }}>{t ? "Deal again" : "Deal"} · {bet}s</button>
-          </>
-        )}
-        <button type="button" data-padback className={btn} onClick={() => { game.leaveTable(); bump(); }}>Leave</button>
-      </div>
-    </section>
-  );
-}
-
 function Panel({ children }: { children: ReactNode }) {
   return (
     <section

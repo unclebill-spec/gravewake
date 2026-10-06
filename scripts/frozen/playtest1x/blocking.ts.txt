@@ -15,7 +15,6 @@
  */
 import { ROOM_FURNITURE, ROOM_KIT_EXTRA, type FurnKind } from "./interiors";
 import { ROOM_DRESS } from "./looks";
-import { CASINO_BOX, CASINO_FURNITURE } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 
 /** A rectangle of floor, px, end-exclusive. */
 export type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -49,7 +48,6 @@ export function roomFeet(inside: string | null | undefined, theme: string): Box[
   if (hit) return hit;
   const out: Box[] = [];
   for (const p of ROOM_FURNITURE[inside ?? ""] ?? []) out.push(footOf(p.x, p.y, FURN_BOX[p.k]));
-  if (inside === "casino") for (const p of CASINO_FURNITURE) if (p.solid) out.push(footOf(p.x, p.y, CASINO_BOX[p.k])); // playtest1x: the Felt's tables, stage, curtains and prize counter
   const kind = theme.startsWith("room:") ? theme.slice(5) : "";
   for (const d of [...(ROOM_DRESS[kind] ?? []), ...(ROOM_KIT_EXTRA[inside ?? ""] ?? [])]) {
     const box = KIT_BOX[d.cell];

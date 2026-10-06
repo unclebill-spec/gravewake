@@ -17,7 +17,6 @@ import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, ha
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
-import { CASINO_FURNITURE, CASINO_KINDS, CASINO_LIGHT, CASINO_RUG, CASINO_SHEET, CASINO_SHEET_EM, CASINO_SIGN_X } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
@@ -32,7 +31,7 @@ import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, sca
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
-import { BLDG, BLDG_SHEETS, ROOF_RISE, bldgEm, bldgSheet, lotCell, townLots, type BldgRoom, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
+import { BLDG, BLDG_SHEETS, bldgEm, bldgSheet, lotCell, townLots, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
 import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, WILD_TREES2, WILD_TREES2_EM, DEADWOOD2, DEADWOOD2_EM, ROCKS2, ROCKS2_EM, PROP2, PROP2_SLACK, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
 /**
@@ -421,9 +420,6 @@ function paintHouse(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: num
   }
 }
 
-/** playtest1x: a room's rug, its top-left tile (4x2 tiles): 5,5 in every 14x11 room, CASINO_RUG in the bigger casino. */
-export const rugAt = (kind: string | null | undefined): { x: number; y: number } => (kind === "casino" ? CASINO_RUG : { x: 5, y: 5 });
-
 /** Interior wall and the exit door. Wood, a window, a step. */
 function paintRoomEdge(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: number, frame = 0) {
   const gx = x * TILE;
@@ -724,15 +720,12 @@ function drawTile(
       px(ctx, gx + 11, gy + 7, 2, 2, "#141414");
     }
     // playtest1b B2: the woven writer rug over the same 4x2 tiles (the flat block is the not-yet-loaded fallback).
-    // playtest1x: the casino's rug sits in the middle of its bigger floor (rugAt)
-    const rg = rugAt(kind);
-    const onRug = !!kind && x >= rg.x && x <= rg.x + 3 && y >= rg.y && y <= rg.y + 1;
-    if (onRug && (sheetCell(ctx, ROOM_RUGS, x - rg.x, rugRow(roomStyleNow) + y - rg.y, gx, gy) || sheetCell(ctx, ROOM_RUG, x - rg.x, y - rg.y, gx, gy))) {
+    if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6 && (sheetCell(ctx, ROOM_RUGS, x - 5, rugRow(roomStyleNow) + y - 5, gx, gy) || sheetCell(ctx, ROOM_RUG, x - 5, y - 5, gx, gy))) {
       // drawn
-    } else if (onRug) {
-      px(ctx, gx, gy, TILE, TILE, x === rg.x || y === rg.y ? "#6a3040" : "#5a2838");
+    } else if (kind && x >= 5 && x <= 8 && y >= 5 && y <= 6) {
+      px(ctx, gx, gy, TILE, TILE, x === 5 || y === 5 ? "#6a3040" : "#5a2838");
       px(ctx, gx + 2, gy + 2, 4, 2, "#8a4860");
-      if (x === rg.x && y === rg.y) px(ctx, gx, gy, TILE, 2, "#c4a050");
+      if (x === 5 && y === 5) px(ctx, gx, gy, TILE, 2, "#c4a050");
     }
     if (old && kind === "inn" && x === 8 && y === 3) {
       px(ctx, gx + 2, gy + 6, 12, 7, "#5a3828");
@@ -2055,7 +2048,6 @@ function roomDoors(g: Game) {
 export const INSIDE_SIGN = { x: 7, croftAlt: 13, label: 25 } as const;
 function insideSignSpot(g: Game): { x: number; y: number } {
   const taken = g.inside === "croft" && g.bossTrophies().some((t) => t.slot === INSIDE_SIGN.x);
-  if (g.inside === "casino") return { x: CASINO_SIGN_X * TILE, y: 0 }; // playtest1x: clear of the curtains and the stage
   return { x: (taken ? INSIDE_SIGN.croftAlt : INSIDE_SIGN.x) * TILE, y: 0 };
 }
 
@@ -2205,46 +2197,7 @@ function paintHamletBlock(ctx: CanvasRenderingContext2D, m: HamletT, l: HamletLo
 }
 
 /** One lot's building: the shadow, then its sheet cell (or, on the glow pass, its glow mask's cell). */
-/**
- * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill: "try not to spend too much time behind roofs", "maybe you can make the roof less imposing"):
- * anyone standing behind a lot's roof (feet north of the lot, inside its columns, within its roof's rise: buildings.ts
- * ROOF_RISE) shows through it: the roof is drawn with a dithered oval round the body thinned out (half its pixels in the
- * middle, a quarter at the rim, on even pixels so it does not shimmer), only above the lot's top edge. Picture only.
- */
-export const ROOF_SEE = { rx: 12, ry: 19, lift: 14, core: 0.62, pad: 6 } as const;
-export function roofBodies(g: Game, l: Lot): { x: number; y: number }[] {
-  const top = l.y * TILE;
-  const rise = ROOF_RISE[l.room as BldgRoom] ?? 0;
-  const out: { x: number; y: number }[] = [];
-  const all: { x: number; y: number }[] = [{ x: g.px, y: g.py }, ...g.npcs, ...(g.companion ? [g.companion] : [])];
-  for (const b of all) {
-    if (b.x < l.x * TILE - ROOF_SEE.pad || b.x >= (l.x + l.w) * TILE + ROOF_SEE.pad) continue;
-    if (b.y >= top || b.y <= top - rise) continue;
-    out.push({ x: b.x, y: b.y });
-  }
-  return out;
-}
-let roofMask: HTMLCanvasElement | null = null;
-/** The dithered oval (opaque where the roof is thinned), made once. */
-export function roofSeeMask(): HTMLCanvasElement | null {
-  if (roofMask || typeof document === "undefined") return roofMask;
-  const c = document.createElement("canvas");
-  c.width = ROOF_SEE.rx * 2;
-  c.height = ROOF_SEE.ry * 2;
-  const cx = c.getContext("2d");
-  if (!cx) return null;
-  cx.fillStyle = "#000";
-  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-    const d = Math.hypot((x + 0.5 - ROOF_SEE.rx) / ROOF_SEE.rx, (y + 0.5 - ROOF_SEE.ry) / ROOF_SEE.ry);
-    if (d >= 1) continue;
-    if (d < ROOF_SEE.core ? (x + y) % 2 === 0 : x % 2 === 0 && y % 2 === 0) cx.fillRect(x, y, 1, 1);
-  }
-  roofMask = c;
-  return c;
-}
-let roofWork: HTMLCanvasElement | null = null;
-
-function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false, behind: { x: number; y: number }[] = []) {
+function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false) {
   const cell = lotCell(l, seasonNow);
   if (!cell) return;
   const url = em ? bldgEm(l.room) : bldgSheet(l.room);
@@ -2262,30 +2215,6 @@ function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false, behind: { x
   }
   const im = landSheet[url];
   if (!im) return;
-  const mask = behind.length && !em ? roofSeeMask() : null;
-  if (mask) {
-    // playtest1x: the cell drawn on a work canvas, thinned round each body behind the roof, then laid down
-    roofWork = roofWork ?? document.createElement("canvas");
-    if (roofWork.width < cell.w || roofWork.height < cell.h) {
-      roofWork.width = Math.max(roofWork.width, cell.w);
-      roofWork.height = Math.max(roofWork.height, cell.h);
-    }
-    const wx = roofWork.getContext("2d");
-    if (wx) {
-      wx.imageSmoothingEnabled = false;
-      wx.clearRect(0, 0, roofWork.width, roofWork.height);
-      wx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, 0, 0, cell.w, cell.h);
-      wx.save();
-      wx.beginPath();
-      wx.rect(0, 0, cell.w, cell.h - l.h * TILE);
-      wx.clip();
-      wx.globalCompositeOperation = "destination-out";
-      for (const b of behind) wx.drawImage(mask, (Math.round(b.x - cell.dx - ROOF_SEE.rx) >> 1) << 1, (Math.round(b.y - ROOF_SEE.lift - cell.dy - ROOF_SEE.ry) >> 1) << 1);
-      wx.restore();
-      ctx.drawImage(roofWork, 0, 0, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
-      return;
-    }
-  }
   ctx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
 }
 
@@ -2828,11 +2757,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
       const l = FURN_LIGHT[p.k];
       if (l) out.push({ x: p.x + l.dx, y: p.y + l.dy, r: l.big ? LIGHT.brazier : LIGHT.lantern, c: NEON_LIGHT[l.c], seed: p.x & 3, flick: true });
     }
-    // playtest1x: the Felt's tables, stage footlights and prize counter
-    if (g.inside === "casino") for (const p of CASINO_FURNITURE) {
-      const l = CASINO_LIGHT[p.k];
-      if (l) out.push({ x: p.x + l.dx, y: p.y + l.dy, r: l.big ? LIGHT.brazier : LIGHT.lantern, c: NEON_LIGHT[l.c], seed: p.x & 3, flick: true });
-    }
     for (const d of [...(ROOM_DRESS[g.theme.slice(5)] ?? []), ...roomKitExtra(g.inside)]) if (d.lit) out.push({ x: d.lit.x, y: d.lit.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: true });
   }
   // playtest1u: each hamlet lot's lantern casts its pool (neon blue, violet or red) on the ground at night (playtest1v:
@@ -3200,37 +3124,15 @@ function townDoors(g: Game): { x: number; y: number }[] {
  */
 /** playtest1q: the view the labels are painted in (world px and zoom), set by drawWorld just before paintLabels, for the HUD-safe boss name. */
 let labelView: { x: number; y: number; w: number; h: number; zoom: number } | null = null;
-/** playtest1x: the Felt's singer and points merchant wear the trades' blue name. */
-const CASINO_TRADES: ReadonlySet<string> = new Set(["singer", "prizes"]);
-/** playtest1x: while Velvet Odile sings, her line shows over her name in violet, two cold-blue notes rising beside it. */
-export const SONG_LABEL = { lift: 10, noteRise: 10 } as const;
-function paintSong(ctx: CanvasRenderingContext2D, g: Game) {
-  const line = typeof g.songLine === "function" ? g.songLine() : "";
-  if (!line) return;
-  const n = g.npcs.find((p) => p.role === "singer");
-  if (!n) return;
-  const y = n.y - LABEL.lift - SONG_LABEL.lift;
-  drawLabel(ctx, line.toUpperCase(), n.x, y, "violet");
-  for (let i = 0; i < 2; i++) {
-    const t = ((g.frame / 24 + i * 0.5) % 1);
-    const nx = Math.round(n.x + (i ? 12 : -14) + Math.sin(t * 6.28) * 2);
-    const ny = Math.round(n.y - 26 - t * SONG_LABEL.noteRise);
-    px(ctx, nx, ny + 3, 2, 2, "#5ab8ff");
-    px(ctx, nx + 1, ny, 1, 3, "#5ab8ff");
-    px(ctx, nx + 2, ny, 1, 1, "#9fe0ff");
-  }
-}
-
 function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   if (g.mode === "title") return;
   const cam = labelView;
   const near = (x: number, y: number) => Math.hypot(x - g.px, y - g.py) <= LABEL.near * TILE;
   for (const n of g.npcs) {
     if (!n.name || !near(n.x, n.y)) continue;
-    const row: FontRow = TRADE_ROLES.has(n.role) || CASINO_TRADES.has(n.role) ? "blue" : "bone";
+    const row: FontRow = TRADE_ROLES.has(n.role) ? "blue" : "bone";
     drawLabel(ctx, n.name, n.x, n.y - LABEL.lift, row);
   }
-  paintSong(ctx, g); // playtest1x
   if (g.companion && g.companion.name) drawLabel(ctx, g.companion.name, g.companion.x, g.companion.y - LABEL.lift, "violet");
   const bossNames: { x: number; y: number; w: number; h: number }[] = []; // playtest1u: where the boss names went (world px)
   for (const r of g.roamers) {
@@ -3312,8 +3214,6 @@ export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: 
 /** playtest1e: what lies past a map's edge: deep forest on the vale, the camp and the town (on the edge tile's own
  * ground), the rock the floor is cut from below ground and indoors. Picture only; nothing walks there. */
 const OUTDOOR_EDGE = new Set(["over", "camp", "town"]);
-/** playtest1x: the dark past an interior's walls (the fog's own dark). */
-export const BEYOND_ROOM = "#07060a";
 /**
  * playtest1e: the border past a fog-free map (camp, town, rooms) drawn once into an offscreen canvas, margin tiles deep
  * all round, and blitted each frame. Trees whose canopy reaches into the map from the south (the two rows below it)
@@ -3393,9 +3293,8 @@ function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: num
       const cy = Math.max(0, Math.min(g.h - 1, y));
       const n = (((x * 13 + y * 7) % 10) + 10) % 10 / 10;
       if (!outdoor) {
-        // unexplored rock stays the fog's dark, as it is inside the map; playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill: "have for a house
-        // ends when you're inside of it just be the walls and everything after that just be dark black"): past a room's walls, plain dark
-        if (g.mapId === "inside" || (g.fog && g.fog[cy * g.w + cx] === 0)) px(ctx, x * TILE, y * TILE, TILE, TILE, BEYOND_ROOM);
+        // unexplored rock stays the fog's dark, as it is inside the map
+        if (g.fog && g.fog[cy * g.w + cx] === 0) px(ctx, x * TILE, y * TILE, TILE, TILE, "#07060a");
         else drawTile(ctx, T.wall, x, y, n, g.theme, T.wall, g.frame, T.wall, T.wall, T.wall);
         continue;
       }
@@ -3914,7 +3813,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const lots = lotsIn(g, b);
       if (lots.length && lots.every((l) => sheetReady(bldgSheet(l.room)) && !!lotCell(l, seasonNow))) {
         for (const l of lots) {
-          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintLot(ctx, l, false, roofBodies(g, l)) });
+          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintLot(ctx, l) });
           if (lit) glow.push((c) => paintLot(c, l, true));
         }
         continue;
@@ -3986,12 +3885,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const k = anim && Math.floor(g.frame / 3) % 2 === 1 ? anim : p.k;
       props.push({ y: p.y + 30, fn: () => void sheetCell(ctx, ROOM_FURN, FURN[k], 0, p.x, p.y, 2, 2, 32) });
       glow.push((c) => void sheetCell(c, ROOM_FURN_EM, FURN[k], 0, p.x, p.y, 2, 2, 32));
-    }
-    // playtest1x: the Felt's three tables, its stage (curtains, boards, the microphone) and the prize counter (casino_writer.py)
-    if (g.inside === "casino") for (const p of CASINO_FURNITURE) {
-      const col = CASINO_KINDS.indexOf(p.k);
-      props.push({ y: p.z, fn: () => void sheetCell(ctx, CASINO_SHEET, col, 0, p.x, p.y, 2, 2, 32) });
-      glow.push((c) => void sheetCell(c, CASINO_SHEET_EM, col, 0, p.x, p.y, 2, 2, 32));
     }
     for (let x = 4; x < g.w - 1; x += 4) glow.push((c) => void (sheetCell(c, roomWallEm(roomStyleNow), ROOM_CELL.sconce, 0, x * TILE, 0) || sheetCell(c, ROOM_WALL_EM, ROOM_CELL.sconce, 0, x * TILE, 0)));
   }
@@ -4732,7 +4625,7 @@ export const PT1H_ART = [
   ...Object.keys(CAVES).map(caveLiquid),
 ];
 /** playtest1i: the interior sheets (every style's floor, wall and glow, the furniture and rugs), loaded up front. */
-export const PT1I_ART = [...INTERIOR_SHEETS, CASINO_SHEET, CASINO_SHEET_EM]; // playtest1x: the Felt's sheet too
+export const PT1I_ART = [...INTERIOR_SHEETS];
 let pt1iWarm = false;
 function warmPt1i() {
   if (pt1iWarm || typeof Image === "undefined") return;

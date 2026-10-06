@@ -89,8 +89,6 @@ import { COLD_WEATHER, COMBO, COMBO_COLOR, COMBO_NAME, COMBO_ROW, OILED_FAMILIES
 import { ORDER, ORDER_LABEL, type Order } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { TAP, pickAttack, tapHit, type Choice } from "./tapfight"; // playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]
 import { ALLY_SPACE, exits, gapOf, inArea, pushOut, ringAt, sideAngle, wrap, type Area, type Pt } from "./allyspace"; // playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]
-import { CASINO_FOLK, OLD_ROOM, SONG, bjPays, bjSettle, bjValue, dealerDraws, dealerHolds, drawOnce, gameOf, isBlackjack, pokerCompare, pokerRank, pointsFor, roomDoorX, roomSize, shuffled, type CardTable, type CasinoGame } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
-import { roofedAt, townLots } from "./buildings"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the town walk keeps off roofed tiles
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
@@ -110,7 +108,6 @@ export type Mode =
   | "level"
   | "dead"
   | "casino"
-  | "prizes"
   | "bank"
   | "zeppelin"
   | "map"
@@ -216,11 +213,6 @@ export type Npc = {
   homeY?: number;
   stuck?: number;
   moving?: boolean;
-  /** playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: a stroller's walk goal (px), its pause left (s) and its pick counter. Never saved. */
-  goalX?: number;
-  goalY?: number;
-  pause?: number;
-  walkN?: number;
 };
 
 export type Companion = {
@@ -412,8 +404,6 @@ type SaveBlob = {
   campY?: number;
   /** playtest1e: 2 once world places are on the twice-size vale. A save without it is migrated on load (migrateWorldSave). */
   worldV?: number;
-  /** playtest1x: the width of the room a save was made in (absent: 14, every room before the casino grew). */
-  roomW?: number;
   /** playtest1v: the map fog, per fogKey, as mapfog.ts encodeSeen strings ("all" = fully open). Absent on an old save. */
   mapSeen?: Record<string, string>;
   /** playtest1v: the bone car: owned, and where it stands on the vale (world px, the seat point). */
@@ -524,10 +514,6 @@ export class Game {
   }[] = [];
   private doorCool = 0;
   private roomKey = "";
-  /** playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the Felt's open table, the cards on it (blackjack or poker, never saved), the song being sung. */
-  casinoGame: CasinoGame = "roulette";
-  table: CardTable | null = null;
-  song: { n: number; t: number; note: number; noteT: number } | null = null;
   inv: Item[] = [];
   equip: Partial<Record<string, Item>> = {};
   potHp = 2;
@@ -1560,27 +1546,6 @@ export class Game {
    * playtest1: a save, a revive or a portal that lands the hero's feet in a wall (an old save from before the town's
    * doors moved south, say) steps them to the nearest open tile centre instead, nearest first, a fixed search order.
    */
-  /**
-   * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: a spot saved in a room of another width (an old 14x11 casino; roomW absent means 14) moves with the
-   * door (bottom middle), then any spot inside a wall, a table or out of the room steps to the nearest clear tile centre.
-   */
-  private landInRoom(savedW?: number) {
-    if (this.mapId !== "inside") return;
-    const w0 = savedW ?? OLD_ROOM.w;
-    if (w0 !== this.w) {
-      const h0 = w0 === OLD_ROOM.w ? OLD_ROOM.h : this.h;
-      this.px += (roomDoorX(this.w) - roomDoorX(w0)) * TILE;
-      this.py += (this.h - h0) * TILE;
-    }
-    this.px = Math.max(TILE + 4, Math.min((this.w - 1) * TILE - 4, this.px));
-    this.py = Math.max(TILE + 4, Math.min((this.h - 1) * TILE - 4, this.py));
-    if (this.solidFeet() || this.tiles[Math.floor(this.py / TILE) * this.w + Math.floor(this.px / TILE)] === T.door) {
-      const keep = this.doorCool;
-      this.unstick();
-      this.doorCool = Math.max(keep, 0.45);
-    }
-  }
-
   private unstick() {
     if (!this.solidFeet()) return;
     const ox = Math.floor(this.px / TILE);
@@ -2553,52 +2518,6 @@ export class Game {
     return t === T.tree || t === T.rock || t === T.pump || t === T.grave || t === T.wall || t === T.water || t === T.pool || t === T.ice || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t);
   }
 
-  /**
-   * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: a stroller's next goal: tile centres within FOLK_WALK.town tiles of its spot in town (FOLK_WALK.room
-   * in a room), open ground a body can stand on (no wall, prop, door, water or showroom), not under a roof (buildings.ts
-   * roofedAt: no building drawn over the body there), at least FOLK_WALK.min tiles away, and reached by a straight clear
-   * line that never passes behind a roof either. Seeded (hash of the stroller's id, spot and pick count), never Math.random. null when none of the tries fits.
-   */
-  folkGoal(n: Npc, home?: { id: string } | null): { x: number; y: number } | null {
-    const hx = n.homeX ?? n.x;
-    const hy = n.homeY ?? n.y;
-    const R = this.mapId === "town" ? FOLK_WALK.town : FOLK_WALK.room;
-    const lots = this.mapId === "town" ? townLots(this.w, this.h, this.tiles, T.wall, T.door, townRoomAt) : [];
-    const k = n.walkN ?? 0;
-    let seed = 0;
-    for (let i = 0; i < n.id.length; i++) seed = (seed * 31 + n.id.charCodeAt(i)) % 9973;
-    const bodyAt = (x: number, y: number) => this.solidAt(x, y) || this.blockedProp(x, y);
-    for (let tr = 0; tr < FOLK_WALK.tries; tr++) {
-      const a = hash(seed + tr * 7, k * 13 + 1, 5) * Math.PI * 2;
-      const r = FOLK_WALK.min + hash(seed + tr * 11, k * 17 + 3, 6) * (R - FOLK_WALK.min);
-      const tx = Math.floor((hx + Math.cos(a) * r * TILE) / TILE);
-      const ty = Math.floor((hy + Math.sin(a) * r * TILE) / TILE);
-      if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
-      const t = this.tiles[ty * this.w + tx];
-      if (t === T.door || t === T.water || t === T.pool || t === T.ice) continue;
-      const gx = tx * TILE + 8;
-      const gy = ty * TILE + 8;
-      if (bodyAt(gx, gy)) continue;
-      if (home && !HOMES.some((h) => h.id === home.id && insideHome(h, tx, ty))) continue;
-      if (!home && HOMES.some((h) => insideHome(h, tx, ty))) continue;
-      if (lots.length && roofedAt(lots, tx, ty)) continue;
-      if (Math.hypot(gx - n.x, gy - n.y) < FOLK_WALK.min * TILE * 0.75) continue;
-      const d = Math.hypot(gx - n.x, gy - n.y);
-      let clear = true;
-      for (let s = 4; s < d; s += 4) {
-        const lx = n.x + ((gx - n.x) * s) / d;
-        const ly = n.y + ((gy - n.y) * s) / d;
-        // the walk there neither hits a body nor passes behind a roof
-        if (bodyAt(lx, ly) || (lots.length && roofedAt(lots, Math.floor(lx / TILE), Math.floor(ly / TILE)))) {
-          clear = false;
-          break;
-        }
-      }
-      if (clear) return { x: gx, y: gy };
-    }
-    return null;
-  }
-
   private tickFolk(dt: number) {
     for (const n of this.npcs) {
       if (n.role === "portal") {
@@ -2622,43 +2541,16 @@ export class Game {
         }
         continue;
       }
-      // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill: "don't need to move quite so much in circles so rapidly ... leisurely walk around
-      // town ... try not to spend too much time behind roofs"): a stroller walks a straight line at FOLK_WALK.speed to a goal
-      // a few tiles off (in town up to FOLK_WALK.town tiles from its spot, picked off roofed tiles), pauses, then picks again.
-      if ((n.pause ?? 0) > 0) {
-        n.pause = (n.pause ?? 0) - dt;
-        n.moving = false;
-        continue;
+      const ang = this.frame * 0.35 + n.x * 0.01;
+      let nx = n.x + Math.cos(ang) * 10 * dt;
+      let ny = n.y + Math.sin(ang) * 10 * dt;
+      if (Math.hypot(nx - n.homeX, ny - n.homeY) > 18) {
+        nx = n.x + Math.sign(n.homeX - n.x) * 12 * dt;
+        ny = n.y + Math.sign(n.homeY - n.y) * 12 * dt;
       }
-      if (n.goalX == null || n.goalY == null) {
-        const goal = this.folkGoal(n, home);
-        n.walkN = (n.walkN ?? 0) + 1;
-        if (!goal) {
-          n.pause = FOLK_WALK.retry;
-          n.moving = false;
-          continue;
-        }
-        n.goalX = goal.x;
-        n.goalY = goal.y;
-      }
-      const gdx = n.goalX - n.x;
-      const gdy = n.goalY - n.y;
-      const gd = Math.hypot(gdx, gdy);
-      if (gd < 1) {
-        n.goalX = undefined;
-        n.goalY = undefined;
-        n.pause = FOLK_WALK.pause[0] + hash(n.walkN ?? 0, n.id.length + Math.round(n.x), 9) * (FOLK_WALK.pause[1] - FOLK_WALK.pause[0]);
-        n.moving = false;
-        continue;
-      }
-      const step = Math.min(gd, FOLK_WALK.speed * dt);
-      const nx = n.x + (gdx / gd) * step;
-      const ny = n.y + (gdy / gd) * step;
       const ntx = Math.floor(nx / TILE);
       const nty = Math.floor(ny / TILE);
       if (home && !insideHome(home, ntx, nty)) {
-        n.goalX = undefined;
-        n.goalY = undefined;
         n.moving = false;
         n.stuck = 0;
         continue;
@@ -2666,9 +2558,6 @@ export class Game {
       if (this.solidAt(nx, ny) || this.blockedProp(nx, ny)) {
         n.stuck = (n.stuck ?? 0) + dt;
         n.moving = false;
-        n.goalX = undefined; // a body in the way: pick another goal after a short pause
-        n.goalY = undefined;
-        n.pause = FOLK_WALK.retry;
         if ((n.stuck ?? 0) > 1) {
           n.stuck = 0;
           this.freeBody(n);
@@ -3653,7 +3542,7 @@ export class Game {
       this.tickBattle();
       return;
     }
-    if (this.mode === "shop" || this.mode === "casino" || this.mode === "prizes" || this.mode === "bank" || this.mode === "zeppelin" || this.mode === "crypt") return;
+    if (this.mode === "shop" || this.mode === "casino" || this.mode === "bank" || this.mode === "zeppelin" || this.mode === "crypt") return;
     if (this.fallen > 0) {
       this.fallen -= dt;
       if (this.fallen <= 0) {
@@ -3692,7 +3581,6 @@ export class Game {
     if (this.mapId === "dungeon") this.tickRoom(dt); // playtest1n: spikes on foes, fire, oil, fuses, falls
     if (this.mapId === "dungeon") this.tickRun(dt);
     this.tickFolk(dt);
-    this.tickSong(dt); // playtest1x
     if (this.mapId === "town") {
       this.syncHunter();
       this.syncPortal();
@@ -4615,10 +4503,8 @@ export class Game {
     this.roamers = [];
     this.entrances = {};
     this.critters = [];
-    this.song = null;
-    // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the start is the door's column, two rows in (7,8 in every 14x11 room, as before)
-    this.px = roomDoorX(this.w) * TILE + 8;
-    this.py = (this.h - 3) * TILE + 10;
+    this.px = 7 * TILE + 8;
+    this.py = 8 * TILE + 10;
     this.facing = "n";
     this.doorCool = 0.45;
     this.audio?.door();
@@ -4662,9 +4548,9 @@ export class Game {
       if (keep("acolyte")) list.push(at("acolyte", "Acolyte Bren", "wander", "#e6e0d4", 9, 5, "priest"));
     }
     if (room.id === "casino") {
-      // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: three dealers (roulette, bone dice, high-low), Velvet Odile on the stage, Corvin Tallow at the
-      // prize counter, and gamblers and listeners (casino.ts CASINO_FOLK, pixel feet)
-      for (const f of CASINO_FOLK) list.push({ id: f.id, name: f.name, role: f.role, coat: f.coat, look: "look" in f ? f.look : undefined, x: f.x, y: f.y });
+      list.push(at("dealer", "Dealer", "casino", "#8a2030", 7, 3));
+      list.push(at("patron1", "Gambler", "patron", "#3a1830", 4, 5, "patron"));
+      list.push(at("patron2", "Gambler", "patron", "#1a2838", 10, 5, "patron"));
     }
     if (room.id === "smith") list.push(at("smith", "Blacksmith", "smith", "#5a4030", 5, 4, "smith"));
     if (room.id === "tailor") list.push(at("tailor", "Tailor", "tailor", "#6a4060", 8, 4));
@@ -4972,7 +4858,7 @@ export class Game {
       this.reel();
       return;
     }
-    if (this.mode === "talk" || this.mode === "shop" || this.mode === "bank" || this.mode === "casino" || this.mode === "prizes" || this.mode === "zeppelin") {
+    if (this.mode === "talk" || this.mode === "shop" || this.mode === "bank" || this.mode === "casino" || this.mode === "zeppelin") {
       this.mode = "play";
       this.talk = null;
       return;
@@ -5385,9 +5271,7 @@ export class Game {
       tailor: "Cloth only. Twelve silver turns the stitch.",
       alchemist: "The cauldron does not sleep. Draughts, and a stone if the day allows. My sister hears offers.",
       mystic: "Tomes for the off hand. Rings. The shade behind the veil answers a wizard.",
-      casino: n.id === "bjdealer" ? "Blackjack. I stand on seventeen; a blackjack pays three to two." : n.id === "pokerdealer" ? "Five-card draw. Hold what you like, draw once; the better hand takes it." : "Red, black, or a lonely green. Points buy from Corvin's back shelf.",
-      singer: `A song for the dead and the living? ${SONG.tip} silver, and I sing.`,
-      prizes: "Corvin Tallow, points merchant. The back shelf is mine: house prizes, and fine things for a croft wall.",
+      casino: "Red, black, or a lonely green. Points buy from the back shelf.",
       zeppelin: this.visited.filter((id) => dungeonById(id)?.zeppelin).length
         ? "The tower reaches dungeons you have already walked. Not the town stairs."
         : "Come back when a deep dungeon has seen you. The tower does not guess.",
@@ -5498,19 +5382,7 @@ export class Game {
       return;
     }
     if (role === "casino") {
-      this.casinoGame = gameOf(this.talk.npcId); // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: each dealer runs his own table
-      if (this.table && this.table.game !== this.casinoGame) this.table = null;
       this.mode = "casino";
-      return;
-    }
-    if (role === "prizes") {
-      this.mode = "prizes"; // playtest1x: Corvin's back shelf
-      return;
-    }
-    if (role === "singer") {
-      this.requestSong(); // playtest1x: Velvet Odile sings
-      this.mode = "play";
-      this.talk = null;
       return;
     }
     if (role === "bank") {
@@ -5840,7 +5712,6 @@ export class Game {
       this.enterInside(p.inside, true);
       this.px = p.px;
       this.py = p.py;
-      this.landInRoom(this.w); // playtest1x: never on a table or a wall
     } else if (p.mapId === "village" && p.inside && villageById(p.inside)) {
       this.enterVillage(p.inside, true); // playtest1v
       this.px = p.px;
@@ -8775,7 +8646,7 @@ export class Game {
         special: rank === 5 ? "Grave spark" : undefined,
       }),
     );
-    this.logLine = "Corvin Tallow slides a prize across.";
+    this.logLine = "The points merchant slides a prize across.";
   }
 
   private die() {
@@ -9057,151 +8928,6 @@ export class Game {
     }
   }
 
-  /**
-   * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill, 10:30 ET: blackjack and draw poker in place of the dice and high-low): deal a hand at the
-   * blackjack or poker table for a stake in silver (the roulette's bets and coin). The cards stay on the table (this.table)
-   * for the shell's close-up view; points as the roulette gives them.
-   */
-  dealCards(game: "blackjack" | "poker", stake: number) {
-    if (this.table && this.table.phase === "play") return;
-    const bet = Math.floor(stake);
-    if (bet < 1 || this.coin < bet) {
-      this.logLine = "Not enough silver for that stake.";
-      return;
-    }
-    this.coin -= bet;
-    const deck = shuffled(Math.random);
-    const take = () => deck.pop() as number;
-    if (game === "blackjack") {
-      // the dealer's hand is face up: one card now, the rest once you stand (no hidden card)
-      const you = [take(), take()];
-      const dealer = [take()];
-      this.table = { game, stake: bet, deck, you, dealer, held: [], phase: "play", result: "", paid: 0 };
-      if (isBlackjack(you)) this.bjStand(); // a natural: the dealer draws to see if he matches it
-      else this.logLine = `You show ${bjValue(you).total}. Hit or stand.`;
-    } else {
-      const you = [take(), take(), take(), take(), take()];
-      const dealer = [take(), take(), take(), take(), take()];
-      this.table = { game, stake: bet, deck, you, dealer, held: [false, false, false, false, false], phase: "play", result: "", paid: 0 };
-      this.logLine = `You hold ${pokerRank(you).name.toLowerCase()}. Pick the cards to keep, then draw.`;
-    }
-    this.audio?.coin();
-  }
-
-  /** Blackjack: one more card; over 21 busts. */
-  bjHit() {
-    const t = this.table;
-    if (!t || t.game !== "blackjack" || t.phase !== "play") return;
-    t.you.push(t.deck.pop() as number);
-    const v = bjValue(t.you).total;
-    if (v > 21) this.settleCards("bust");
-    else if (v === 21) this.bjStand();
-    else this.logLine = `You show ${v}. Hit or stand.`;
-  }
-
-  /** Blackjack: stand; the dealer draws to 16 and stands on every 17, then the hands are settled. */
-  bjStand() {
-    const t = this.table;
-    if (!t || t.game !== "blackjack" || t.phase !== "play") return;
-    if (isBlackjack(t.you)) t.dealer.push(t.deck.pop() as number); // one card to see if he matches a natural
-    else dealerDraws(t.dealer, t.deck);
-    this.settleCards(bjSettle(t.you, t.dealer));
-  }
-
-  /** Poker: keep or give back card i (0-4) before the draw. */
-  pokerHold(i: number) {
-    const t = this.table;
-    if (!t || t.game !== "poker" || t.phase !== "play" || i < 0 || i >= t.you.length) return;
-    t.held[i] = !t.held[i];
-  }
-
-  /** Poker: draw once for every card not held; the dealer draws by the house rule; the better hand wins. */
-  pokerDraw() {
-    const t = this.table;
-    if (!t || t.game !== "poker" || t.phase !== "play") return;
-    drawOnce(t.you, t.held, t.deck);
-    drawOnce(t.dealer, dealerHolds(t.dealer), t.deck);
-    const c = pokerCompare(t.you, t.dealer);
-    this.settleCards(c > 0 ? "win" : c < 0 ? "lose" : "push");
-  }
-
-  /** Pay a finished hand: blackjack 3 to 2, a win even money, a push the stake back; points as the roulette. */
-  private settleCards(r: "blackjack" | "win" | "push" | "lose" | "bust") {
-    const t = this.table;
-    if (!t) return;
-    t.phase = "done";
-    t.result = r;
-    t.paid = r === "push" ? t.stake : Math.floor(t.stake * bjPays(r));
-    this.coin += t.paid;
-    this.points += pointsFor(t.stake, r === "win" || r === "blackjack");
-    const mine = t.game === "poker" ? pokerRank(t.you).name : `${bjValue(t.you).total}`;
-    const his = t.game === "poker" ? pokerRank(t.dealer).name : `${bjValue(t.dealer).total}`;
-    this.logLine =
-      r === "blackjack" ? `Blackjack! ${t.paid} silver back.` : r === "bust" ? `Bust at ${mine}. The house keeps the stake.`
-        : r === "win" && t.game === "blackjack" && bjValue(t.dealer).total > 21 ? `The dealer busts at ${his}. ${t.paid} silver back.`
-        : r === "win" ? `${mine} beats ${his}. ${t.paid} silver back.` : r === "push" ? `${mine} and ${his}: a push, your stake back.` : `${his} beats ${mine}. The house keeps the stake.`;
-    this.audio?.coin();
-  }
-
-  /** Leave the table: a hand still in play is finished first (blackjack stands, poker draws with its holds), never lost. */
-  leaveTable() {
-    const t = this.table;
-    if (t && t.phase === "play") {
-      if (t.game === "blackjack") this.bjStand();
-      else this.pokerDraw();
-    }
-    this.mode = "play";
-  }
-
-  /** playtest1x: tip Velvet Odile and she sings one of her songs (the lines show over her; the melody plays). */
-  requestSong() {
-    if (this.song) {
-      this.logLine = "She is mid-song. Let her finish.";
-      return;
-    }
-    if (this.coin < SONG.tip) {
-      this.logLine = `She sings for ${SONG.tip} silver.`;
-      return;
-    }
-    this.coin -= SONG.tip;
-    const n = Math.floor(this.worldMs / 1000 + this.points) % SONG.songs.length;
-    this.song = { n, t: 0, note: 0, noteT: 0 };
-    this.logLine = `Velvet Odile sings "${SONG.songs[n].name}".`;
-    this.audio?.coin();
-  }
-
-  /** The line Odile is singing now, or "" (the draw shows it over her). */
-  songLine(): string {
-    const s = this.song;
-    if (!s) return "";
-    return SONG.songs[s.n].lines[Math.min(SONG.songs[s.n].lines.length - 1, Math.floor(s.t / SONG.beat))] ?? "";
-  }
-
-  private tickSong(dt: number) {
-    const s = this.song;
-    if (!s) return;
-    if (this.mapId !== "inside" || this.inside !== "casino") {
-      this.song = null;
-      return;
-    }
-    const song = SONG.songs[s.n];
-    s.t += dt;
-    s.noteT -= dt;
-    if (s.noteT <= 0) {
-      const f = song.notes[s.note % song.notes.length];
-      if (f) {
-        this.audio?.tone(f, SONG.noteGap * 0.9, "triangle", 0.16);
-        this.audio?.tone(f * 2, SONG.noteGap * 0.6, "sine", 0.05);
-      }
-      s.note += 1;
-      s.noteT = SONG.noteGap;
-    }
-    if (s.t >= song.lines.length * SONG.beat) {
-      this.song = null;
-      this.logLine = "The Felt claps, softly, for the dead.";
-    }
-  }
-
   /** One roulette spin. Green is the long shot. The house does not track a streak. */
   bet(color: "red" | "black" | "green", stake: number) {
     const bet = Math.floor(stake);
@@ -9301,7 +9027,6 @@ export class Game {
       carX: this.driving && this.mapId === "world" ? this.px : this.carX,
       carY: this.driving && this.mapId === "world" ? this.py : this.carY,
       drops: this.drops.map((d) => ({ ...d, item: d.item ? { ...d.item } : null })),
-      ...(this.mapId === "inside" ? { roomW: this.w } : {}), // playtest1x: the room's width, so a load lands right if the room grows
     };
   }
 
@@ -9451,7 +9176,6 @@ export class Game {
       this.enterInside(raw.inside, true);
       this.px = raw.px;
       this.py = raw.py;
-      this.landInRoom(raw.roomW); // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: a save from the old 14x11 casino keeps its spot by the door
     } else if (raw.mapId === "dungeon" && raw.dungeon) {
       this.dungeon = raw.dungeon;
       this.floor = raw.floor || 1;
@@ -9637,12 +9361,6 @@ export const MANA = { pool: 2.5, regen: 3 } as const;
 export const WADE_LINE = "You sink in. Swimming is half speed.";
 export const DRY_LINE = "You climb out onto dry ground.";
 
-/**
- * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the town's strollers walk, not spin. speed px/s (the hero walks 74), a goal FOLK_WALK.min to town tiles
- * from its spot (room tiles indoors), a pause between walks in s ([min, max]), retry after a blocked try, tries per pick.
- */
-export const FOLK_WALK = { speed: 12, town: 7, room: 4, min: 2, pause: [1.5, 4.5] as [number, number], retry: 0.8, tries: 14 } as const;
-
 const fenceCache = new WeakMap<object, Set<number>>(); // playtest1o
 /**
  * playtest1o (Bill, 2026-10-03 19:49 ET: "there's signs to designate what buildings are?"): the name and trade of the room
@@ -9658,12 +9376,12 @@ export function townRoomAt(x: number, y: number): { id: string; name: string; ki
 }
 
 function buildRoom(kind: string) {
-  // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the casino is 22x15 (casino.ts ROOM_SIZE); every other room keeps 14x11, the door mid south wall
-  const { w, h } = roomSize(kind);
+  const w = 14;
+  const h = 11;
   const tiles = new Uint8Array(w * h);
   tiles.fill(T.wall);
   for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) tiles[y * w + x] = T.floor;
-  tiles[(h - 1) * w + roomDoorX(w)] = T.door;
+  tiles[(h - 1) * w + 7] = T.door;
   const set = (x: number, y: number, t: number) => {
     tiles[y * w + x] = t;
   };

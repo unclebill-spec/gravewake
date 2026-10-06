@@ -44,31 +44,8 @@ export const BLDG = {
 
 // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the door_writer.py redraw (tools/pixel-writer), a taller ground storey and a door 34-36 px
 // high (1.1-1.25x the hero's 32), same cells; the 1t town-bldg-<room> sheets stay in public/art/writer as they were.
-// playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill: "reduce the roof size a little in town so that town folk
-// aren't hidden behind roofs constantly", "don't eliminate roofs but maybe you can make the roof less imposing"): the
-// roof_writer.py sheets (tools/pixel-writer), door_writer's cells with the headroom above the lot drawn at half its rise
-// (every roof kept; walls, door, windows byte-equal); the 1w town-bldg2 sheets stay in public/art/writer as they were.
-export const bldgSheet = (room: string) => `/art/writer/town-bldg3-${room}.png`;
-export const bldgEm = (room: string) => `/art/writer/town-bldg3-${room}_em.png`;
-
-/** playtest1x: each room's tallest roof rise over its lot's top edge in the town-bldg3 sheets, px (roof_writer.measure). */
-export const ROOF_RISE: Record<BldgRoom, number> = {
-  inn: 16, shop: 16, guild: 16, bank: 11, bram: 7, pell: 7, ivy: 7, chapel: 19,
-  casino: 20, smith: 24, fisher: 11, tailor: 15, noll: 20, croft: 13, alchemy: 15, mystic: 15,
-};
-
-/**
- * playtest1x: is a body standing on tile (tx, ty) (feet 12 px down the tile) drawn behind some lot's roof? True when the
- * tile is north of a lot, inside its columns, and the feet are inside the roof's rise (the building drawn over them).
- */
-export function roofedAt(lots: readonly Lot[], tx: number, ty: number): boolean {
-  for (const l of lots) {
-    if (tx < l.x || tx >= l.x + l.w || ty >= l.y) continue;
-    const rise = ROOF_RISE[l.room as BldgRoom] ?? 0;
-    if (ty * 16 + 12 > l.y * 16 - rise) return true;
-  }
-  return false;
-}
+export const bldgSheet = (room: string) => `/art/writer/town-bldg2-${room}.png`;
+export const bldgEm = (room: string) => `/art/writer/town-bldg2-${room}_em.png`;
 export const BLDG_SHEETS: string[] = Object.keys(BLDG_LOTS).flatMap((r) => [bldgSheet(r), bldgEm(r)]);
 
 /** FNV-1a over the seed and the room id, then a final mix: a lot's variant, the same everywhere and every time. */
