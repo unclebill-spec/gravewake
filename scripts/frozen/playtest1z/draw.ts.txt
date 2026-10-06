@@ -9,8 +9,7 @@ import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
 import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
-import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, PARK_STATUE, PARK_ARCH, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
-import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM } from "./wildportals";
+import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
 import { boulderAt, roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
 import { BOULDER, BOULDERS_EM, BOULDERS_SHEET, BOULDER_GLOW, BOULDER_SEASONS, boulderCol, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
@@ -1044,7 +1043,7 @@ if (typeof Image !== "undefined") {
     landSheet[url] = im;
   }
   // playtest1f: the wayrifts, their glow, their map marker and the swamp path load up front too.
-  for (const url of [...WAYRIFT_SHEETS, WILD_PORTAL_SHEET, WILD_PORTAL_EM]) {
+  for (const url of WAYRIFT_SHEETS) {
     if (landSheet[url]) continue;
     const im = new Image();
     im.src = url;
@@ -2601,19 +2600,19 @@ export function wayCell(w: Wayrift, season: SeasonId, frame: number) {
  * raised 3x2 platform under them. Before the sheet loads: a plain slate oval so the rift is never invisible. */
 function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number) {
   const tile = TILE;
-  // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: octagon pad under any platform rift (3x3)
-  if (w.platform) {
+  // hub platform first (under the rift)
+  if (w.hub) {
     const platX = w.x * tile;
     const platY = w.y * tile;
     const lit = cell < WAYRIFT.frames ? 0 : 1;
-    if (!sheetCell(ctx, WAYRIFT_PLATFORM, lit * 3, 0, platX, platY, 3, 3, 16)) {
-      // fallback octagon blob
-      px(ctx, platX + 8, platY + 8, 32, 32, "#3a4048");
-      px(ctx, platX + 12, platY + 12, 24, 24, "#4a4e54");
+    if (!sheetCell(ctx, WAYRIFT_PLATFORM, lit * 3, 0, platX, platY, 3, 2, 16)) {
+      px(ctx, platX + 4, platY + 8, 40, 20, "#3a4048");
+      px(ctx, platX + 8, platY + 10, 32, 14, "#4a4e54");
     }
   }
   const dx = w.x * tile + (WAYRIFT.fw * tile - WAYRIFT.artW) / 2;
   const dy = (w.y - WAYRIFT.stand) * tile;
+  // half-size sheet: each cell is 24x32 (1.5 x 2 tiles); draw via drawImage when sheetCell's tile grid won't fit
   const sheet = landSheet[WAYRIFT_SHEET];
   if (sheet && sheet.complete && sheet.naturalWidth) {
     const cw = WAYRIFT.artW, ch = WAYRIFT.artH;
@@ -2623,42 +2622,6 @@ function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number) {
   px(ctx, dx + 6, dy + 4, 12, 24, cell < WAYRIFT.frames ? "#4ab8ff" : "#2a3a6a");
   px(ctx, dx + 8, dy + 6, 8, 20, cell < WAYRIFT.frames ? "#7a5ad0" : "#140c28");
   px(ctx, dx + 10, dy + 14, 4, 4, cell < WAYRIFT.frames ? "#ff3a50" : "#140c28");
-}
-
-/** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: tiny wild spawn portal (12x16, no platform). */
-function paintWildPortal(ctx: CanvasRenderingContext2D, x: number, y: number, cell: number) {
-  const tile = TILE;
-  const dx = x * tile + (tile - WILD_PORTAL.artW) / 2;
-  const dy = (y - WILD_PORTAL.stand) * tile;
-  const sheet = landSheet[WILD_PORTAL_SHEET];
-  if (sheet && sheet.complete && sheet.naturalWidth) {
-    ctx.drawImage(sheet, cell * WILD_PORTAL.artW, 0, WILD_PORTAL.artW, WILD_PORTAL.artH, dx, dy, WILD_PORTAL.artW, WILD_PORTAL.artH);
-    return;
-  }
-  px(ctx, dx + 2, dy + 2, 8, 12, "#4ab8ff");
-  px(ctx, dx + 3, dy + 4, 6, 8, "#7a5ad0");
-}
-
-/** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: park statues and arch in town. */
-function paintParkProps(ctx: CanvasRenderingContext2D) {
-  const tile = TILE;
-  // statues at park corners (cells 0 warrior, 1 mage)
-  const st = landSheet[PARK_STATUE];
-  if (st && st.complete && st.naturalWidth) {
-    ctx.drawImage(st, 0, 0, 16, 32, 16 * tile, 13 * tile, 16, 32);
-    ctx.drawImage(st, 16, 0, 16, 32, 21 * tile, 13 * tile, 16, 32);
-  } else {
-    px(ctx, 16 * tile + 4, 14 * tile, 8, 16, "#6a6e78");
-    px(ctx, 21 * tile + 4, 14 * tile, 8, 16, "#6a6e78");
-  }
-  const arch = landSheet[PARK_ARCH];
-  if (arch && arch.complete && arch.naturalWidth) {
-    ctx.drawImage(arch, 0, 0, 48, 48, 17 * tile, 16 * tile, 48, 48);
-  } else {
-    px(ctx, 17 * tile, 17 * tile, 8, 24, "#4a4e54");
-    px(ctx, 20 * tile, 17 * tile, 8, 24, "#4a4e54");
-    px(ctx, 17 * tile, 16 * tile, 48, 8, "#5a5e64");
-  }
 }
 
 
@@ -2895,19 +2858,12 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     if ((m.x + m.w) * TILE < camX - 64 || m.x * TILE > camX + vw + 64 || (m.y + m.h) * TILE < camY - 64 || m.y * TILE > camY + vh + 64) continue;
     for (const l of hamletLamps(m)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT[l.c], seed: l.x & 3, flick: true });
   }
-  if (g.mapId === "town") {
-    for (const l of wayLights(g.season(), "town", TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
-  }
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
     for (const r of g.riftMouths()) out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
-    // playtest1f: an awake wayrift lights the vale cold blue at night
-    for (const l of wayLights(g.season(), "world", TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portal light
-    if (g.wildPortal) {
-      const p = g.wildPortal;
-      out.push({ x: p.x * TILE + 8, y: p.y * TILE + 8, r: WILD_PORTAL.light, c: NEON_LIGHT.blue, seed: p.x & 3, flick: true });
-    }
+    // playtest1f: an awake wayrift lights the vale cold blue at night (a light at its mouth, spilling onto the ground
+    // before it; the gate's four share one a pair, wayLights); a sealed one is dark
+    for (const l of wayLights(g.season(), TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
     // playtest1c: each dungeon mouth's cold-fire braziers light the vale blue at night: one light between the pair,
     // brazier-sized, so the scene's light count stays inside retro1's limit.
     for (const [k, id] of Object.entries(g.entrances)) {
@@ -3309,19 +3265,13 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
     if (lw) bossNames.push({ x: Math.round(at.cx - lw / 2), y: Math.round(at.y - 7), w: lw, h: 7 });
   }
   paintLockLabel(ctx, g, bossNames); // playtest1u: after the boss names, clear of them and of the HUD
-  if (g.mapId === "world" || g.mapId === "town") {
-    // playtest1f / playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: a wayrift's name when you stand near its mouth
+  if (g.mapId === "world") {
+    // playtest1f: a wayrift's name (where it leads) when you stand near its mouth
     const season = g.season();
-    const map = g.mapId as "town" | "world";
     for (const w of WAYRIFTS) {
-      if (w.map !== map) continue;
       const m = wayMouth(w);
       if (Math.hypot(m.x * TILE + 8 - g.px, m.y * TILE + 8 - g.py) > 3 * TILE) continue;
       drawLabel(ctx, wayLabel(w, season), m.x * TILE + 8, (w.y - WAYRIFT.stand) * TILE - 2, wayAwake(w, season) ? "violet" : "bone");
-    }
-    if (g.mapId === "world" && g.wildPortal) {
-      const p = g.wildPortal;
-      if (Math.hypot(p.x * TILE + 8 - g.px, p.y * TILE + 8 - g.py) <= 3 * TILE) drawLabel(ctx, "Wild rift", p.x * TILE + 8, (p.y - 1) * TILE - 2, "violet");
     }
   }
   // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village icon's name in gold over its roofs
@@ -4249,35 +4199,18 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: the wayrifts, y-sorted on their footprint's foot (you
   // pass in front of one from the south, and step into its mouth from there). Awake ones swirl and their fire and
   // runes are emissive; a sealed festival rift is dark and still.
-  if (g.mapId === "world" || g.mapId === "town") {
+  if (g.mapId === "world") {
     const season = g.season();
-    const map = g.mapId as "town" | "world";
     for (const w of WAYRIFTS) {
-      if (w.map !== map) continue;
       if ((w.x + WAYRIFT.fw) * TILE < camX || w.x * TILE > camX + viewW / zoom || (w.y + WAYRIFT.fh + 1) * TILE < camY || (w.y - WAYRIFT.stand) * TILE > camY + viewH / zoom) continue;
       const cell = wayCell(w, season, g.frame);
-      props.push({ y: (w.y + WAYRIFT.fh + (w.platform ? 2 : 0)) * TILE - 1, fn: () => paintWayrift(ctx, w, cell) });
+      props.push({ y: (w.y + WAYRIFT.fh + (w.hub ? 1 : 0)) * TILE - 1, fn: () => paintWayrift(ctx, w, cell) });
       if (cell < WAYRIFT.frames) glow.push((c) => {
         const sheet = landSheet[WAYRIFT_EM];
         if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
         const dx = w.x * TILE + (WAYRIFT.fw * TILE - WAYRIFT.artW) / 2;
         const dy = (w.y - WAYRIFT.stand) * TILE;
         c.drawImage(sheet, cell * WAYRIFT.artW, 0, WAYRIFT.artW, WAYRIFT.artH, dx, dy, WAYRIFT.artW, WAYRIFT.artH);
-      });
-    }
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: town park statues + arch
-    if (g.mapId === "town") props.push({ y: 18 * TILE, fn: () => paintParkProps(ctx) });
-    // playtest1z: wild spawn portal on the vale
-    if (g.mapId === "world" && g.wildPortal) {
-      const p = g.wildPortal;
-      const cell = Math.floor(Math.max(0, g.frame)) % WILD_PORTAL.frames;
-      props.push({ y: (p.y + 1) * TILE - 1, fn: () => paintWildPortal(ctx, p.x, p.y, cell) });
-      glow.push((c) => {
-        const sheet = landSheet[WILD_PORTAL_EM];
-        if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
-        const dx = p.x * TILE + (TILE - WILD_PORTAL.artW) / 2;
-        const dy = (p.y - WILD_PORTAL.stand) * TILE;
-        c.drawImage(sheet, cell * WILD_PORTAL.artW, 0, WILD_PORTAL.artW, WILD_PORTAL.artH, dx, dy, WILD_PORTAL.artW, WILD_PORTAL.artH);
       });
     }
   }
@@ -5261,7 +5194,6 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
     const season = g.season();
     const k = Math.max(1, Math.round(scale / 4));
     for (const w of WAYRIFTS) {
-      if (w.map !== "world") continue;
       if (!seenAtOf(g, w.x, w.y)) continue; // playtest1y: half-size footprint mouth
       const mx = ox + Math.floor((w.x + WAYRIFT.fw / 2) * scale);
       const my = oy + Math.floor((w.y + WAYRIFT.fh / 2) * scale);
@@ -5271,15 +5203,6 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
         ctx.fillStyle = wayAwake(w, season) ? "#4ab8ff" : "#2a3a6a";
         ctx.fillRect(mx - 2, my - 2, 5, 5);
       }
-    }
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portal marker
-    if (g.wildPortal && seenAtOf(g, g.wildPortal.x, g.wildPortal.y)) {
-      const mx = ox + Math.floor((g.wildPortal.x + 0.5) * scale);
-      const my = oy + Math.floor((g.wildPortal.y + 0.5) * scale);
-      ctx.fillStyle = "#07060a";
-      ctx.fillRect(mx - 2, my - 2, 5, 5);
-      ctx.fillStyle = "#9ae4ff";
-      ctx.fillRect(mx - 1, my - 1, 3, 3);
     }
   }
 }
@@ -5407,7 +5330,6 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
   if (g.mapId === "world") {
     const season = g.season();
     for (const w of WAYRIFTS) {
-      if (w.map !== "world") continue;
       if (!seenAtOf(g, w.x, w.y)) continue; // playtest1y
       const mx = Math.floor((w.x + WAYRIFT.fw / 2 - (cx - span / 2)) * s);
       const my = Math.floor((w.y + WAYRIFT.fh / 2 - (cy - span / 2)) * s);

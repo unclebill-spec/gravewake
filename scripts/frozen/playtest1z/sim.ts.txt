@@ -79,7 +79,6 @@ import { FESTIVALS, LIVE_FESTIVALS, SEASON, dayInSeason, festivalHook, seasonAt,
 import { ASHEN_FAIR, DROWNED_BLOOM, HARVEST, KRAMPUSNACHT, bloomSpots, carveScore, courtList, danceOrder, harvestJudge, inFlood, naughtyList, sideshowList, type Naughty } from "./festivals";
 import { BOND, BOND_LINES, bondKey, bondStamp, bondTier, readBond, type BondPassive } from "./bond";
 import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival, wayFront, wayLink, wayMouth, wayMouthAt, waySolid, wayriftById, type Wayrift } from "./wayrifts";
-import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
 import type { AudioBus } from "./audio";
@@ -250,9 +249,6 @@ export type Roamer = {
   tint: string;
   boss?: boolean;
   mini?: boolean;
-  /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-quest tags (heads to gather / ring-bearer). */
-  wildHead?: boolean;
-  wildRing?: boolean;
   def: string;
   level: number;
   ang: number;
@@ -655,16 +651,6 @@ export class Game {
   travel: { t: number; from: string; to: string; moved: boolean } | null = null;
   /** The rift you just stepped out of: it will not take you back until your feet are off its mouth and front. */
   wayHold = "";
-  /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: active wild spawn portal on the vale (not saved; respawns by chance). */
-  wildPortal: WildPortal | null = null;
-  /** Seconds until the next wild-portal spawn roll. */
-  wildRoll = 0;
-  /** Seconds until the open wild portal tries to bleed another foe. */
-  wildSpawnT = 0;
-  /** Inside a wild-portal run: which stage, return spot on the vale, and the small quest. Not saved mid-run (a save reloads slot 1 on death; leaving cleans up). */
-  wildRun: { stage: "rift" | "camp" | "quest"; returnX: number; returnY: number; quest: WildQuest; layout: "arena" | "floors"; born: number } | null = null;
-  /** Elder Thorn (camp NPC) — rebuilt when the camp is entered. */
-  wildNpc: Npc | null = null;
   private swirlCool = 0;
   private bossRoomNoted = "";
   /** Map writer: the generated floor you stand on (rooms, boss spot), or null on a hand-made floor. Read by checks and the headless run. */
@@ -1608,7 +1594,7 @@ export class Game {
           if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
           const t = this.tiles[ty * this.w + tx];
           if (t === T.door || t === T.water || t === T.pool || t === T.stairD || t === T.stairU) continue;
-          if ((this.mapId === "world" || this.mapId === "town") && wayMouthAt(tx, ty, this.mapId as "town" | "world")) continue; // playtest1f/1z: never set down in a wayrift's mouth
+          if (this.mapId === "world" && wayMouthAt(tx, ty)) continue; // playtest1f: never set down in a wayrift's mouth
           const keep = [this.px, this.py];
           this.px = tx * TILE + 8;
           this.py = ty * TILE + 8;
@@ -1638,7 +1624,7 @@ export class Game {
           if (tx < 1 || ty < 1 || tx >= this.w - 1 || ty >= this.h - 1) continue;
           const t = this.tiles[ty * this.w + tx];
           if (t === T.door || t === T.stairD || t === T.stairU) continue;
-          if ((this.mapId === "world" || this.mapId === "town") && wayMouthAt(tx, ty, this.mapId as "town" | "world")) continue; // playtest1f/1z: never set down in a wayrift's mouth
+          if (this.mapId === "world" && wayMouthAt(tx, ty)) continue; // playtest1f: never set down in a wayrift's mouth
           this.px = tx * TILE + 8;
           this.py = ty * TILE + 8;
           if (open()) return;
@@ -1804,7 +1790,7 @@ export class Game {
         ...Object.keys(world.entrances).map((k) => ({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) })),
         ...RIFTS.map((r) => ({ x: r.tx, y: r.ty })),
         ...world.npcs.map((n) => ({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE) })),
-        ...WAYRIFTS.filter((w) => w.map === "world").map((w) => wayMouth(w)), // playtest1f/1z: no lair on or by a world wayrift
+        ...WAYRIFTS.map((w) => wayMouth(w)), // playtest1f: no lair on or by a wayrift's stones
       ];
       // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: no stalker lair (bounty, naughty list, court,
       // sideshow, blooms) on a hamlet's green or within BOUNTY.lairClear of its box: a named pack never rises among the houses.
@@ -3239,7 +3225,7 @@ export class Game {
   private carExitAt(tx: number, ty: number): boolean {
     const t = this.tiles[ty * this.w + tx];
     if (t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || t === T.exit) return true;
-    return this.mapId === "world" && (!!this.entrances[`${tx},${ty}`] || RIFTS.some((r) => r.tx === tx && r.ty === ty) || !!wayMouthAt(tx, ty, "world") || !!villageEntryAt(tx, ty) || !!(this.wildPortal && this.wildPortal.x === tx && this.wildPortal.y === ty));
+    return this.mapId === "world" && (!!this.entrances[`${tx},${ty}`] || RIFTS.some((r) => r.tx === tx && r.ty === ty) || !!wayMouthAt(tx, ty) || !!villageEntryAt(tx, ty));
   }
 
   /** Does the car's footprint at (x, y) facing f hit anything? note: remember an exit or water touched (a stop). */
@@ -3693,7 +3679,6 @@ export class Game {
     if (this.travel) {
       // playtest1f: inside a wayrift's swirl nothing moves (no input from any scheme, no foe steps up)
       this.tickTravel(dt);
-      this.tickWildPortal(dt); // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]
       return;
     }
     this.regen(dt);
@@ -3898,7 +3883,7 @@ export class Game {
     const vil = this.mapId === "world" ? villageArtAt(x, y) : undefined;
     if (vil?.entry && this.routeTo(vil.entry.x, vil.entry.y)) return;
     // playtest1f: a tap on a wayrift's art walks you into its mouth (the stones would stop a straight line to the tap)
-    const way = (this.mapId === "world" || this.mapId === "town") ? wayArtAt(x, y, this.mapId as "town" | "world", TILE) : undefined;
+    const way = this.mapId === "world" ? wayArtAt(x, y, TILE) : undefined;
     if (way) {
       const m = wayMouth(way);
       const f = wayFront(way);
@@ -3942,7 +3927,7 @@ export class Game {
     // never across a tile that leaves the map on the way (a door, a stair, a mouth, a rift, a wayrift, another doorstep)
     const exit = (x: number, y: number) => {
       const t = this.tiles[y * this.w + x];
-      return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || t === T.exit || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((r) => r.tx === x && r.ty === y) || !!wayMouthAt(x, y, "world") || !!villageEntryAt(x, y) || !!(this.wildPortal && this.wildPortal.x === x && this.wildPortal.y === y)));
+      return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || t === T.exit || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((r) => r.tx === x && r.ty === y) || !!wayMouthAt(x, y) || !!villageEntryAt(x, y)));
     };
     // playtest1w: loose (a tap past a boulder) lets the tapped tile itself be a tree or a lone rock, which the hero only brushes past
     const free = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && ((x === tx && y === ty) || !exit(x, y)) && !this.solidAt(x * TILE + 8, y * TILE + 8) && ((loose && x === tx && y === ty) || !this.blockedProp(x * TILE + 8, y * TILE + 8));
@@ -4406,7 +4391,7 @@ export class Game {
     const t = this.tiles[ty * this.w + tx];
     if (t === T.wall || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t)) return true;
     // playtest1f: a wayrift's standing stones (its footprint but the mouth) stop everyone
-    if ((this.mapId === "world" || this.mapId === "town") && waySolid(tx, ty, this.mapId as "town" | "world")) return true;
+    if (this.mapId === "world" && waySolid(tx, ty)) return true;
     // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: a boulder's whole 2x2 block stops everyone, the hero too
     // (a lone rock only nudges the hero aside, slideOffProps; a boulder is too big to slip between its four tiles)
     if (this.mapId === "world" && t === T.rock && boulderAt(ty * this.w + tx)) return true;
@@ -4532,7 +4517,7 @@ export class Game {
     if (this.wayHold) {
       const held = wayriftById(this.wayHold);
       const m = held && wayMouth(held);
-      if (!m || this.mapId !== held!.map || tx !== m.x || (ty !== m.y && ty !== m.y + 1)) this.wayHold = "";
+      if (!m || this.mapId !== "world" || tx !== m.x || (ty !== m.y && ty !== m.y + 1)) this.wayHold = "";
     }
     // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village icon's doorstep zones you in;
     // the gap in a village's south trees puts you back on the vale
@@ -4540,45 +4525,15 @@ export class Game {
       this.leaveVillage();
       return;
     }
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-rift exits
-    if (this.wildRun && this.mapId === "dungeon" && here === T.exit) {
-      if (this.wildRun.stage === "rift") {
-        if (this.roamers.some((r) => this.liveFoe(r))) {
-          this.logLine = "Clear the den first.";
-          return;
-        }
-        this.buildWildStage("camp");
-        this.logLine = "The den falls quiet. A campfire waits below.";
-        return;
-      }
-      if (this.wildRun.stage === "quest") {
-        this.buildWildStage("camp");
-        this.logLine = "Back to Elder Thorn's camp.";
-        return;
-      }
-      if (this.wildRun.stage === "camp") {
-        if (!this.wildRun.quest.done) {
-          this.logLine = "Finish Elder Thorn's quest before the home rift opens.";
-          return;
-        }
-        this.leaveWildRun();
-        return;
-      }
-    }
     const vil = this.mapId === "world" && !this.riftHold && !this.travel ? villageEntryAt(tx, ty) : undefined;
     if (vil?.id) {
       this.enterVillage(vil.id);
       return;
     }
-    const way = (this.mapId === "world" || this.mapId === "town") && !this.riftHold && !this.travel ? wayMouthAt(tx, ty, this.mapId as "town" | "world") : undefined;
+    const way = this.mapId === "world" && !this.riftHold && !this.travel ? wayMouthAt(tx, ty) : undefined;
     if (way && way.id === this.wayHold) return;
     if (way) {
       this.startTravel(way);
-      return;
-    }
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: step into a wild spawn portal on the vale
-    if (this.mapId === "world" && this.wildPortal && !this.riftHold && !this.travel && tx === this.wildPortal.x && ty === this.wildPortal.y) {
-      this.enterWildPortal();
       return;
     }
     if (rift && !hearth && !grave && !pit && !gate && !mouth) {
@@ -5131,32 +5086,6 @@ export class Game {
 
   private useStair(here: number) {
     if (this.escortHolds()) return;
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-rift stairs / quest portal
-    if (this.wildRun) {
-      if (this.wildRun.stage === "rift" && here === T.stairD) {
-        if (this.roamers.some((r) => this.liveFoe(r))) {
-          this.logLine = "Clear the floor first.";
-          return;
-        }
-        this.audio?.door();
-        this.buildWildStage("camp");
-        this.logLine = "You climb down into a quiet camp.";
-        return;
-      }
-      if (this.wildRun.stage === "camp" && here === T.stairU) {
-        if (!this.wildRun.quest.taken) {
-          this.logLine = "Speak to Elder Thorn first.";
-          return;
-        }
-        if (this.wildRun.quest.done) {
-          this.logLine = "The quest portal is spent. Take the west rift home.";
-          return;
-        }
-        this.audio?.spell();
-        this.buildWildStage("quest");
-        return;
-      }
-    }
     this.climbUntil = this.worldMs + 500;
     const def = dungeonById(this.dungeon);
     const max = def?.floors ?? 5;
@@ -5419,7 +5348,7 @@ export class Game {
       return;
     }
     const rented = n.role === "inn" && this.worldMs < this.rentedUntil;
-    if (vamp && day && !rented && n.role !== "undertaker" && n.role !== "folk" && n.role !== "guard" && n.role !== "portal" && n.role !== "wander" && n.role !== "elder") {
+    if (vamp && day && !rented && n.role !== "undertaker" && n.role !== "folk" && n.role !== "guard" && n.role !== "portal" && n.role !== "wander") {
       this.talk = { who: n.name, role: n.role, npcId: n.id, text: "We know what walks in. Leave, before the watch is called." };
       this.mode = "talk";
       this.linger = 0.01;
@@ -5435,33 +5364,6 @@ export class Game {
     }
     if (n.role === "carman") {
       this.talk = { who: n.name, role: n.role, npcId: n.id, text: this.carOwned ? CAR_LINES.owned : CAR_LINES.pitch }; // playtest1v
-      this.mode = "talk";
-      return;
-    }
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: Elder Thorn in the wild-rift camp
-    if (n.role === "elder" && this.wildRun) {
-      const q = this.wildRun.quest;
-      if (!q.taken) {
-        q.taken = true;
-        this.talk = { who: n.name, role: n.role, npcId: n.id, text: wildQuestPitch(q) };
-        this.mode = "talk";
-        return;
-      }
-      if (!q.done) {
-        const ready = q.kind === "heads" ? q.have >= q.need : q.ring;
-        if (ready) {
-          q.done = true;
-          this.coin += WILD_QUEST_REWARD.silver;
-          this.points += WILD_QUEST_REWARD.points;
-          this.audio?.coin();
-          this.talk = { who: n.name, role: n.role, npcId: n.id, text: `Elder Thorn takes the offering. "Well done." He pays ${WILD_QUEST_REWARD.silver} silver and ${WILD_QUEST_REWARD.points} points. The west rift will take you home.` };
-        } else {
-          this.talk = { who: n.name, role: n.role, npcId: n.id, text: wildQuestPitch(q) };
-        }
-        this.mode = "talk";
-        return;
-      }
-      this.talk = { who: n.name, role: n.role, npcId: n.id, text: wildQuestPitch(q) };
       this.mode = "talk";
       return;
     }
@@ -5837,7 +5739,6 @@ export class Game {
   /**
    * playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: step into a wayrift's mouth. A sealed festival rift
    * says when it wakes (once, until you step off its mouth); an awake one swirls you to its twin's front.
-   * playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: the seasonal hub is in town; travel may cross town ↔ world.
    */
   private startTravel(w: Wayrift) {
     const m = wayMouth(w);
@@ -5861,21 +5762,15 @@ export class Game {
     if (!tr) return;
     tr.t += dt;
     const to = wayriftById(tr.to);
-    if (!to) {
+    if (!to || this.mapId !== "world") {
       this.travel = null;
       return;
     }
     if (!tr.moved && tr.t >= WAYRIFT.out) {
       tr.moved = true;
       const f = wayFront(to);
-      if (to.map === "town") {
-        this.enterTown(f.x * TILE + 8, f.y * TILE + 8);
-      } else if (this.mapId !== "world") {
-        this.enterWorld(f.x * TILE + 8, f.y * TILE + 8);
-      } else {
-        this.px = f.x * TILE + 8;
-        this.py = f.y * TILE + 8;
-      }
+      this.px = f.x * TILE + 8;
+      this.py = f.y * TILE + 8;
       this.facing = "s";
       this.wayHold = to.id;
       this.unstick();
@@ -5890,222 +5785,6 @@ export class Game {
       this.logLine = `You step out by ${WAYRIFT_PLACE[to.id] ?? "the far rift"}.`;
     }
     if (tr.t >= WAYRIFT.out + WAYRIFT.back) this.travel = null;
-  }
-
-  /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: enter a wild spawn portal → procedural mini-dungeon. */
-  /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: rare wild portal on the vale — spawn, bleed foes, despawn. */
-  private tickWildPortal(dt: number) {
-    if (this.mapId !== "world" || this.mode !== "play" || this.travel || this.wildRun) return;
-    // despawn expired
-    if (this.wildPortal) {
-      if ((this.worldMs - this.wildPortal.born) / 1000 > WILD_PORTAL.life) {
-        this.wildPortal = null;
-        return;
-      }
-      this.wildSpawnT -= dt;
-      if (this.wildSpawnT <= 0 && this.roamers.filter((r) => r.id.startsWith("wildbleed")).length < WILD_PORTAL.spawnCap) {
-        this.wildSpawnT = WILD_PORTAL.spawnEvery;
-        const p = this.wildPortal;
-        const a = hash(p.x, p.y, Math.floor(this.worldMs / 1000)) * Math.PI * 2;
-        const x = p.x * TILE + 8 + Math.cos(a) * 40;
-        const y = p.y * TILE + 8 + Math.sin(a) * 32;
-        if (!this.solidAt(x, y)) {
-          const picks = familiesFor(p.x, p.y, "world");
-          const def = seasonPick(picks, this.season(), hash(p.x, p.y, Math.floor(this.worldMs / 500)));
-          const lv = zoneLevel(p.x, p.y, this.level);
-          this.roamers.push({ id: `wildbleed-${this.worldMs}`, x, y, family: def.family, tint: def.tint, def: def.id, level: lv, ang: a });
-        }
-      }
-      return;
-    }
-    this.wildRoll -= dt;
-    if (this.wildRoll > 0) return;
-    this.wildRoll = WILD_PORTAL.rollEvery;
-    // seeded chance (no Math.random for spawn position; chance uses worldMs hash)
-    const roll = hash(Math.floor(this.worldMs / 1000), Math.floor(this.px / TILE), Math.floor(this.py / TILE));
-    if (roll > WILD_PORTAL.chance) return;
-    // pick a clear tile near the hero but not too close, off town/village/lair/wayrift
-    const tx0 = Math.floor(this.px / TILE);
-    const ty0 = Math.floor(this.py / TILE);
-    for (let n = 0; n < 12; n++) {
-      const a = hash(tx0, ty0, n + Math.floor(this.worldMs / 800)) * Math.PI * 2;
-      const dist = 10 + (n % 5) * 3;
-      const tx = Math.round(tx0 + Math.cos(a) * dist);
-      const ty = Math.round(ty0 + Math.sin(a) * dist);
-      if (tx < 4 || ty < 4 || tx >= this.w - 4 || ty >= this.h - 4) continue;
-      if (Math.hypot(tx - WORLD_DOOR.x, ty - WORLD_DOOR.y) < WILD_PORTAL.townClear) continue;
-      if (wayMouthAt(tx, ty, "world") || waySolid(tx, ty, "world")) continue;
-      if (villageEntryAt(tx, ty) || this.entrances[`${tx},${ty}`]) continue;
-      if (RIFTS.some((r) => Math.hypot(r.tx - tx, r.ty - ty) < 6)) continue;
-      const t = this.tiles[ty * this.w + tx];
-      if (t === T.tree || t === T.rock || t === T.water || t === T.ice || t === T.wall || t === T.road) continue;
-      const born = this.worldMs;
-      this.wildPortal = { x: tx, y: ty, born, layout: wildLayout(born), quest: wildQuestKind(born) };
-      this.wildSpawnT = 1;
-      this.logLine = "A wild rift tears open on the vale.";
-      this.fx.portal(tx * TILE + 8, ty * TILE - 8);
-      return;
-    }
-  }
-
-    private enterWildPortal() {
-    const p = this.wildPortal;
-    if (!p) return;
-    const layout = p.layout;
-    const kind = p.quest;
-    this.wildRun = {
-      stage: "rift",
-      returnX: p.x * TILE + 8,
-      returnY: (p.y + 1) * TILE + 8,
-      quest: { kind, need: 3, have: 0, ring: false, taken: false, done: false },
-      layout,
-      born: p.born,
-    };
-    this.wildPortal = null;
-    this.goal = null;
-    this.buildWildStage("rift");
-    this.audio?.spell();
-    this.fx.portal(this.px, this.py - 16);
-    this.logLine = layout === "arena" ? "The wild rift opens onto a beast's den." : "The wild rift opens onto a ruined floor.";
-  }
-
-  /** Build or rebuild a wild-portal stage map. */
-  private buildWildStage(stage: "rift" | "camp" | "quest") {
-    const run = this.wildRun;
-    if (!run) return;
-    run.stage = stage;
-    this.mapId = "dungeon";
-    this.dungeon = stage === "rift" ? WILD_MAP.rift : stage === "camp" ? WILD_MAP.camp : WILD_MAP.quest;
-    this.floor = 1;
-    this.inside = "";
-    this.theme = "ossuary";
-    this.roamers = [];
-    this.drops = this.drops.filter((d) => d.mapId !== "dungeon");
-    this.wildNpc = null;
-    const seed = (run.born ^ (stage === "rift" ? 1 : stage === "camp" ? 2 : 3)) >>> 0;
-    if (stage === "rift") {
-      if (run.layout === "arena") this.carveWildArena(seed);
-      else this.carveWildFloors(seed);
-    } else if (stage === "camp") {
-      this.carveWildCamp(seed);
-    } else {
-      this.carveWildQuest(seed, run.quest.kind);
-    }
-    this.mode = "play";
-  }
-
-  private carveWildArena(seed: number) {
-    const { w, h } = WILD_SIZE.arena;
-    const tiles = new Uint8Array(w * h);
-    tiles.fill(T.wall);
-    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) tiles[y * w + x] = T.ash;
-    tiles[2 * w + Math.floor(w / 2)] = T.exit;
-    tiles[3 * w + Math.floor(w / 2)] = T.ash;
-    this.w = w; this.h = h; this.tiles = tiles;
-    this.px = Math.floor(w / 2) * TILE + 8;
-    this.py = 4 * TILE + 8;
-    const lv = Math.max(4, this.level);
-    const ids = ["ghoul", "zombie", "skeleton", "wolf"];
-    const bossId = ids[seed % ids.length];
-    this.spawnWildFoe("wildmini", bossId, (w - 4) * TILE + 8, (h - 4) * TILE + 8, lv + 2, { mini: true, name: "Rift Beast" });
-    for (let i = 0; i < 5; i++) {
-      const id = ids[(seed + i * 3) % ids.length];
-      this.spawnWildFoe(`wildt${i}`, id, (4 + (i % 3) * 4) * TILE + 8, (6 + Math.floor(i / 3) * 4) * TILE + 8, lv, {});
-    }
-    this.logLine = "A mini-boss and its pack hold the den. Clear them.";
-  }
-
-  private carveWildFloors(seed: number) {
-    const { w, h } = WILD_SIZE.floors;
-    const tiles = new Uint8Array(w * h);
-    tiles.fill(T.wall);
-    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) tiles[y * w + x] = T.bone;
-    for (let i = 0; i < 6; i++) {
-      const x = 4 + ((seed >> (i * 3)) & 7) % (w - 8);
-      const y = 4 + ((seed >> (i * 2)) & 7) % (h - 8);
-      tiles[y * w + x] = T.rock;
-    }
-    tiles[2 * w + Math.floor(w / 2)] = T.exit;
-    tiles[(h - 3) * w + Math.floor(w / 2)] = T.stairD;
-    this.w = w; this.h = h; this.tiles = tiles;
-    this.px = Math.floor(w / 2) * TILE + 8;
-    this.py = 4 * TILE + 8;
-    const lv = Math.max(4, this.level);
-    const ids = ["bat", "skeleton", "zombie", "ghoul"];
-    for (let i = 0; i < 7; i++) {
-      const id = ids[(seed + i) % ids.length];
-      this.spawnWildFoe(`wildf${i}`, id, (3 + (i % 4) * 3) * TILE + 8, (5 + Math.floor(i / 4) * 3) * TILE + 8, lv, {});
-    }
-    this.logLine = "Clear the floor, then take the ladder down.";
-  }
-
-  private carveWildCamp(_seed: number) {
-    const { w, h } = WILD_SIZE.camp;
-    const tiles = new Uint8Array(w * h);
-    tiles.fill(T.wall);
-    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) tiles[y * w + x] = T.dirt;
-    // campfire
-    tiles[5 * w + 6] = T.pump;
-    // return portal (exit) west; quest portal east as door-like exit tiles
-    tiles[6 * w + 2] = T.exit; // home
-    tiles[6 * w + (w - 3)] = T.stairU; // quest portal (reuse stairU as the second portal mouth)
-    this.w = w; this.h = h; this.tiles = tiles;
-    this.px = 4 * TILE + 8;
-    this.py = 6 * TILE + 8;
-    this.wildNpc = { id: "elder-thorn", name: "Elder Thorn", x: 7 * TILE + 8, y: 5 * TILE + 8, coat: "#5a4a38", role: "elder" };
-    this.npcs = this.wildNpc ? [this.wildNpc] : [];
-    this.roamers = [];
-    this.logLine = wildQuestLog(this.wildRun!.quest);
-  }
-
-  private carveWildQuest(seed: number, kind: "heads" | "ring") {
-    const { w, h } = WILD_SIZE.quest;
-    const tiles = new Uint8Array(w * h);
-    tiles.fill(T.wall);
-    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) tiles[y * w + x] = T.ash;
-    tiles[2 * w + Math.floor(w / 2)] = T.exit;
-    this.w = w; this.h = h; this.tiles = tiles;
-    this.px = Math.floor(w / 2) * TILE + 8;
-    this.py = 4 * TILE + 8;
-    const lv = Math.max(5, this.level);
-    if (kind === "heads") {
-      const ids = ["ghoul", "skeleton", "zombie"];
-      for (let i = 0; i < 6; i++) {
-        const id = ids[(seed + i) % ids.length];
-        this.spawnWildFoe(`wq${i}`, id, (4 + (i % 3) * 4) * TILE + 8, (5 + Math.floor(i / 3) * 4) * TILE + 8, lv, { wildHead: true });
-      }
-      this.logLine = "Slay them and gather their heads for Elder Thorn.";
-    } else {
-      this.spawnWildFoe("wqboss", "wolf", (w - 4) * TILE + 8, (h - 4) * TILE + 8, lv + 3, { mini: true, name: "Rift-lord", wildRing: true });
-      for (let i = 0; i < 3; i++) {
-        this.spawnWildFoe(`wqm${i}`, "zombie", (4 + i * 3) * TILE + 8, 6 * TILE + 8, lv, {});
-      }
-      this.logLine = "Slay the rift-lord and take Elder Thorn's ring.";
-    }
-  }
-
-  /** Spawn one wild-dungeon foe already armed for field combat (existing family numbers via scaleMonster). */
-  private spawnWildFoe(id: string, defId: string, x: number, y: number, level: number, extra: Partial<Roamer>) {
-    const base = monsterById(defId);
-    const s = scaleMonster(base, level);
-    this.roamers.push({
-      id, x, y, family: base.family, tint: base.tint, def: defId, level, ang: 0,
-      hp: s.hp, max: s.hp, atk: s.atk, ac: s.ac, xp: s.xp, silver: s.silver,
-      name: extra.name ?? base.name, aggro: true, cool: 0.4, age: 0,
-      spam: "swipe", spamTag: "melee",
-      mini: extra.mini, wildHead: extra.wildHead, wildRing: extra.wildRing,
-    });
-  }
-
-  /** Leave the wild run back to the vale. */
-  private leaveWildRun() {
-    const run = this.wildRun;
-    const x = run?.returnX ?? GATE.x * TILE + 8;
-    const y = run?.returnY ?? GATE.y * TILE + 8;
-    this.wildRun = null;
-    this.wildNpc = null;
-    this.enterWorld(x, y);
-    this.logLine = "You step back onto the vale. The wild rift is gone.";
   }
 
   /** The rift mouths on the overworld. Read by draw.ts. */
@@ -7555,15 +7234,6 @@ export class Game {
     }
     this.roamers = this.roamers.filter((o) => o !== r);
     this.quest = Math.max(this.quest, 1);
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-quest progress
-    if (this.wildRun && r.wildHead) {
-      this.wildRun.quest.have = Math.min(this.wildRun.quest.need, this.wildRun.quest.have + 1);
-      this.logLine = `A head for Elder Thorn (${this.wildRun.quest.have}/${this.wildRun.quest.need}).`;
-    }
-    if (this.wildRun && r.wildRing) {
-      this.wildRun.quest.ring = true;
-      this.logLine = "Elder Thorn's ring is yours. Return it to him.";
-    }
     this.audio?.coin();
     this.checkLevel();
   }
@@ -10182,15 +9852,8 @@ function buildTown() {
   set(15, 17, T.grave);
   set(13, 19, T.grave);
   set(14, 18, T.stairD);
-  // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: town center park (statues + arch + seasonal wayrift) replaces the old pond
-  for (let y = 14; y <= 17; y++) for (let x = 16; x <= 21; x++) set(x, y, T.grass);
-  for (let x = 17; x <= 20; x++) { set(x, 14, T.cobble); set(x, 17, T.cobble); }
-  for (let y = 14; y <= 17; y++) { set(16, y, T.cobble); set(21, y, T.cobble); }
-  // mouth tiles for hub-fest (18,15)-(19,15) stay grass/open; platform rim is soft (waySolid)
-  set(18, 15, T.dirt); set(19, 15, T.dirt);
-  set(18, 16, T.dirt); // front / land tile
-  // small reflecting pool kept as one water tile (park accent)
-  set(20, 16, T.water);
+  for (let y = 14; y <= 16; y++) for (let x = 16; x <= 19; x++) set(x, y, T.water);
+  set(16, 16, T.dirt);
   for (let i = 0; i < 10; i++) {
     const x = 2 + ((i * 7) % 16);
     const y = 9 + (i % 2);
@@ -10348,7 +10011,7 @@ function boulderPlaces(landmarks: { x: number; y: number }[], caches: { x: numbe
   for (const f of [HARVEST.lord, KRAMPUSNACHT.spot]) out.push({ x: f.x, y: f.y, r: K.lair });
   out.push({ x: WORLD_DOOR.x, y: WORLD_DOOR.y, r: K.door }, { x: GATE.x, y: GATE.y, r: K.gate }, { x: CAR.park.x, y: CAR.park.y, r: K.park });
   for (const d of [...DUNGEONS, ...RIFTS]) if (!d.town) out.push({ x: d.tx, y: d.ty, r: K.mouth });
-  for (const wr of WAYRIFTS) if (wr.map === "world") out.push({ x: wr.x + 1, y: wr.y + 1, r: K.wayrift });
+  for (const wr of WAYRIFTS) out.push({ x: wr.x + 1, y: wr.y + 1, r: K.wayrift });
   for (const [x, y] of WORLD_CARTS) out.push({ x, y, r: K.npc });
   for (const n of npcs) out.push({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE), r: K.npc });
   for (const l of landmarks) out.push({ x: l.x, y: l.y, r: K.landmark });
@@ -10368,7 +10031,7 @@ function layHamlets(tiles: Uint8Array, landmarks: { x: number; y: number }[], ca
   for (const f of [HARVEST.lord, KRAMPUSNACHT.spot]) keep.push({ x: f.x, y: f.y, ...K.lair });
   keep.push({ x: WORLD_DOOR.x, y: WORLD_DOOR.y, r: K.door });
   for (const d of [...DUNGEONS, ...RIFTS]) if (!d.town) keep.push({ x: d.tx, y: d.ty, r: K.mouth });
-  for (const wr of WAYRIFTS) if (wr.map === "world") keep.push({ x: wr.x + 1, y: wr.y + 1, r: K.wayrift });
+  for (const wr of WAYRIFTS) keep.push({ x: wr.x + 1, y: wr.y + 1, r: K.wayrift });
   for (const [x, y] of WORLD_CARTS) keep.push({ x, y, r: K.cart });
   for (const n of npcs) keep.push({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE), r: K.cart });
   for (const l of landmarks) keep.push({ x: l.x, y: l.y, r: K.landmark });

@@ -349,11 +349,9 @@ def swamp_path(mask: int, alt: int = 0) -> tuple[Canvas, Canvas]:
     return c, em
 
 
-# --- playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: half-size wayrifts (24x32).
-# playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: octagon pads, tiny wild rifts, park statue/arch ---
+# --- playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: half-size wayrifts (24x32) and a raised stone platform for the hub arc ---
 HALF_W, HALF_H = 24, 32
-PLATFORM_W, PLATFORM_H = 48, 48  # playtest1z: 3x3 octagon pad (steering: round/octagon, not half-circle slabs)
-TINY_W, TINY_H = 12, 16  # playtest1z: wild spawn portal = half of wayrift2
+PLATFORM_W, PLATFORM_H = 48, 32  # 3x2 tiles under each hub rift
 
 
 def wayrift_half(frame: int) -> tuple[Canvas, Canvas]:
@@ -372,120 +370,50 @@ def wayrift_half(frame: int) -> tuple[Canvas, Canvas]:
 
 
 def wayrift_platform(lit: bool = True) -> Canvas:
-    """playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]:
-    raised slate/wood OCTAGON pad (48x48, 3x3 tiles). Round/octagon (steering), not the old half-circle slab."""
+    """Raised slate/wood platform (48x32): a small dais the half-size hub rifts stand on in their half-circle above town."""
     c = Canvas(PLATFORM_W, PLATFORM_H)
-    cx, cy = 23.5, 23.5
-    # regular octagon: |x|+|y| diamond cut of a square (Chebyshev + Manhattan blend)
-    def in_oct(x, y, r=21.5):
-        dx, dy = abs(x - cx), abs(y - cy)
-        return max(dx, dy) <= r and (dx + dy) <= r * 1.45
-
-    WOODP = ("#2a1c14", "#3a2818", "#5a4030", "#8a6848")
-    # packed earth shadow under the pad
-    for y in range(PLATFORM_H):
-        for x in range(PLATFORM_W):
-            if in_oct(x, y, 22.5) and not in_oct(x, y, 20.0):
-                c.set(x, y, SLATE[0] if (x + y) % 4 else "#1a1410")
-    # raised octagon face
-    for y in range(PLATFORM_H):
-        for x in range(PLATFORM_W):
-            if not in_oct(x, y, 20.5):
+    # packed earth shadow under the slab
+    for y in range(26, 32):
+        for x in range(2, 46):
+            d = abs(x - 23.5) / 22.0 + (y - 26) / 8.0
+            if d < 1.15:
+                c.set(x, y, SLATE[0] if (x + y) % 5 else "#1a1410")
+    # raised slab (top face)
+    for y in range(10, 27):
+        for x in range(4, 44):
+            nx, ny = (x - 23.5) / 19.5, (y - 18.5) / 8.5
+            if nx * nx + ny * ny > 1.0:
                 continue
-            dx, dy = abs(x - cx), abs(y - cy)
-            rim = max(dx, dy) > 18.0 or (dx + dy) > 20.5 * 1.35
-            col = SLATE[5] if rim else (SLATE[4] if y < cy - 4 else SLATE[3] if y < cy + 4 else SLATE[2])
-            if not rim and _hash(x // 4, y // 3, 11) > 0.72:
-                col = SLATE[5] if y < cy else SLATE[3]
-            # flagstone joints
-            if not rim and (x % 8 == 0 or y % 8 == 0):
+            col = SLATE[4] if y < 14 else SLATE[3] if y < 20 else SLATE[2]
+            if _hash(x // 4, y // 3, 11) > 0.72:
+                col = SLATE[5] if y < 18 else SLATE[3]
+            # plank seams (wood edge boards)
+            if y in (12, 18, 24) or x in (8, 16, 24, 32, 40):
                 col = SLATE[1]
             c.set(x, y, col)
-    # wood plank rim on the eight flats
-    for y in range(PLATFORM_H):
-        for x in range(PLATFORM_W):
-            if in_oct(x, y, 20.5) and not in_oct(x, y, 18.5):
-                c.set(x, y, WOODP[3] if (x + y) % 3 else WOODP[2])
-    # front step (south flat)
-    for y in range(40, 46):
+    # rim lip (raised edge)
+    for y in range(8, 12):
+        for x in range(5, 43):
+            nx = (x - 23.5) / 18.5
+            if abs(nx) > 1.0:
+                continue
+            c.set(x, y, SLATE[5] if y == 8 else SLATE[4])
+    # wood plank trim around the rim (Bill: stone/wood platforms)
+    WOODP = ("#2a1c14", "#3a2818", "#5a4030", "#8a6848")
+    for y in (8, 9):
+        for x in range(6, 42):
+            if c.get(x, y) is not None:
+                c.set(x, y, WOODP[3] if y == 8 else WOODP[2])
+    for x in (5, 6, 41, 42):
+        for y in range(9, 27):
+            if abs(x - 23.5) / 19.5 < 1.05:
+                c.set(x, y, WOODP[1] if x in (5, 42) else WOODP[2])
+    # front step
+    for y in range(27, 31):
         for x in range(14, 34):
-            if in_oct(x, y - 2, 20.5):
-                c.set(x, y, WOODP[2] if y == 40 else WOODP[1])
-    # violet rune dots when lit
+            c.set(x, y, WOODP[2] if y == 27 else WOODP[1])
+    # violet rune dots when lit (matches hub glow)
     if lit:
-        for k, (x, y) in enumerate(((12, 14), (23, 10), (34, 14), (12, 33), (23, 36), (34, 33), (18, 23), (28, 23))):
-            if in_oct(x, y, 18.5):
-                c.set(x, y, VIOLET[3] if k % 2 == 0 else VIOLET[2])
-    return c
-
-
-def wayrift_tiny(frame: int) -> tuple[Canvas, Canvas]:
-    """playtest1z: wild spawn portal = half of wayrift2 (12x16), no platform."""
-    half, half_em = wayrift_half(frame)
-    c = Canvas(TINY_W, TINY_H)
-    em = Canvas(TINY_W, TINY_H)
-    for y in range(TINY_H):
-        for x in range(TINY_W):
-            sx, sy = x * 2, y * 2
-            c.set(x, y, half.get(sx, sy))
-            e = half_em.get(sx, sy)
-            if e is not None:
-                em.set(x, y, e)
-    return c, em
-
-
-def park_statue(kind: int = 0) -> Canvas:
-    """playtest1z: a small stone statue for the town park (16x32). kind 0 warrior, 1 mage."""
-    c = Canvas(16, 32)
-    ST = SLATE
-    # plinth
-    for y in range(26, 32):
-        for x in range(2, 14):
-            c.set(x, y, ST[2] if y == 26 else ST[1])
-    # body
-    for y in range(10, 26):
-        for x in range(5, 11):
-            c.set(x, y, ST[4] if y < 14 else ST[3])
-    # head
-    for y in range(4, 10):
-        for x in range(6, 10):
-            c.set(x, y, ST[5])
-    if kind == 0:
-        # spear
-        for y in range(2, 24):
-            c.set(11, y, ST[5] if y < 6 else ST[3])
-    else:
-        # staff orb (cold blue tip)
-        for y in range(2, 22):
-            c.set(4, y, ST[3])
-        c.set(4, 2, BLUE[3])
-        c.set(4, 3, BLUE[2])
-    return c
-
-
-def park_arch() -> Canvas:
-    """playtest1z: a stone arch for the town park approach (48x48, spans 3 tiles)."""
-    c = Canvas(48, 48)
-    ST = SLATE
-    # pillars
-    for y in range(16, 48):
-        for x in range(4, 12):
-            c.set(x, y, ST[3] if x in (4, 11) else ST[4])
-        for x in range(36, 44):
-            c.set(x, y, ST[3] if x in (36, 43) else ST[4])
-    # arch curve
-    cx, cy, rx, ry = 23.5, 22.0, 18.0, 12.0
-    for y in range(4, 28):
-        for x in range(4, 44):
-            nx, ny = (x - cx) / rx, (y - cy) / ry
-            d = nx * nx + ny * ny
-            if 0.75 <= d <= 1.05 and y <= cy + 2:
-                c.set(x, y, ST[5] if abs(d - 0.9) < 0.05 else ST[4])
-    # keystone
-    for y in range(8, 14):
-        for x in range(21, 27):
-            c.set(x, y, ST[5])
-    # violet rune on keystone
-    c.set(23, 10, VIOLET[3])
-    c.set(24, 10, VIOLET[2])
+        for k, (x, y) in enumerate(((12, 14), (23, 12), (34, 14), (18, 22), (28, 22))):
+            c.set(x, y, VIOLET[3] if k % 2 == 0 else VIOLET[2])
     return c

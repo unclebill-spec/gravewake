@@ -1,15 +1,13 @@
 /**
- * Wayrifts: standing portals ([OWNER-APPROVED 2026-10-02: playtest1f portals], owner-requested
+ * Wayrifts: standing portals on the vale ([OWNER-APPROVED 2026-10-02: playtest1f portals], owner-requested
  * 2026-10-02 09:42 ET, batch D2). Visible, animated rifts in the Gravewake palette (tools/pixel-writer/rift_writer.py:
- * neon-blue cold fire round a violet swirl with a red-glowing heart).
+ * neon-blue cold fire round a violet swirl with a red-glowing heart) that link the town's gate to the seasonal festival
+ * zones, the Ashen Rift and two other special places on the 128x120 vale.
  *
- * playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: each wayrift is half size (24x32 art on a 2x1 footprint, standing one tile above it).
- *
- * playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]:
- * only the SEASONAL festival portal sits in town (center park with statues and an arch, on a round/octagon pad).
- * Ashen Rift, Shifting Barrow, Waste Pocket and the festival far twins are scattered in the biomes (also on octagon
- * pads). The old half-circle hub platforms north of town are gone. Far biome portals return to the town park.
- * Platforms are round/octagon pads (steering). The sim keeps no new save key for travel: a journey is over in a second.
+ * playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: each wayrift is half size (24x32 art on a 2x1 footprint, standing one tile above it). The footprint
+ * tiles are the mouth (walk into either); the tile south of the footprint is the front, where a traveller lands. Hub
+ * rifts sit on raised stone/wood platforms in a half-circle north of town (above the gate); far twins stay at their
+ * places. The sim keeps no new save key: a journey is over in a second and a save holds only where you stand.
  *
  * The festival hub rift leads to this season's festival zone; the other three festival zones' rifts are sealed
  * (dim, no fire) until their own season. Pure data and picks here; the sim (sim.ts) and the draw (draw.ts) read it.
@@ -19,15 +17,11 @@ import { FESTIVALS, type SeasonId } from "./seasons";
 export type Wayrift = {
   id: string;
   name: string;
-  /** Footprint top-left tile (playtest1y: 2 wide, 1 tall). */
+  /** Footprint top-left tile (playtest1y: 2 wide, 1 tall; was 3x2). */
   x: number;
   y: number;
-  /** Map the rift stands on: town park or the vale. */
-  map: "town" | "world";
-  /** A hub rift is the town's seasonal park portal; far rifts stand at their places. */
+  /** A hub rift stands at the town gate; a far rift stands at its place. */
   hub: boolean;
-  /** Raised octagon pad under this rift (playtest1z; wild spawn portals have none). */
-  platform: boolean;
   /** The rift it leads to; a festival hub leads to this season's festival rift instead. */
   to?: string;
   /** A festival rift: awake only in its own season. */
@@ -40,44 +34,41 @@ export const WAYRIFT = {
   /** Seconds the swirl takes to close over you, then to open at the far rift. */
   out: 0.55,
   back: 0.55,
-  /** Night light (cold blue) at an awake rift, px radius; sealed ones give none. */
+  /** Night light (cold blue) at an awake rift, px radius; sealed ones give none. playtest1y: a bit tighter for the smaller rifts. */
   light: 72,
   /** Swirl frames in the sheet (cell 8 is the sealed look). */
   frames: 8,
-  /** playtest1y: half-size footprint and art. */
+  /** playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: half-size footprint and art. */
   fw: 2,
   fh: 1,
   artW: 24,
   artH: 32,
   /** Tiles the art stands above the footprint. */
   stand: 1,
-  /** playtest1z: octagon pad sheet cell size (3x3 tiles). */
+  /** Hub platform sheet cell size (3x2 tiles). */
   platW: 48,
-  platH: 48,
-  platTiles: 3,
+  platH: 32,
   /** The map-writer pass that keeps each footprint clear: rows above the footprint (the art) and a side margin. */
   clearUp: 2,
   clearSide: 1,
 } as const;
 
-/**
- * playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]:
- * one seasonal hub in the town park; other portals scattered in biomes (no half-circle hub north of town).
- * Town park footprint at (18,15) — center plaza west of the north-south cobble, north of the graves.
- * Biome far twins kept clear of villages/lairs (near their places, slightly deeper into each biome).
- */
+// playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: hub rifts on a half-circle of platforms north of town (door 91,124); far twins stay put (1v tiles).
 export const WAYRIFTS: readonly Wayrift[] = [
-  // town center park — seasonal only
-  { id: "hub-fest", name: "Festival wayrift", x: 18, y: 15, map: "town", hub: true, platform: true, festival: true },
-  // festival zones (one awake a season) — scattered, on octagon pads
-  { id: "fest-harvest", name: "Harvest Moon wayrift", x: 65, y: 147, map: "world", hub: false, platform: true, to: "hub-fest", season: "autumn" },
-  { id: "fest-krampus", name: "Krampusnacht wayrift", x: 38, y: 27, map: "world", hub: false, platform: true, to: "hub-fest", season: "winter" },
-  { id: "fest-bloom", name: "Drowned Bloom wayrift", x: 102, y: 59, map: "world", hub: false, platform: true, to: "hub-fest", season: "spring" },
-  { id: "fest-ashen", name: "Ashen Fair wayrift", x: 40, y: 141, map: "world", hub: false, platform: true, to: "hub-fest", season: "summer" },
-  // special places scattered in biomes (return to town park; no town outbound twin)
-  { id: "rift", name: "Ashen Rift wayrift", x: 26, y: 88, map: "world", hub: false, platform: true, to: "hub-fest" },
-  { id: "barrow", name: "Shifting Barrow wayrift", x: 138, y: 90, map: "world", hub: false, platform: true, to: "hub-fest" },
-  { id: "waste", name: "Waste Pocket wayrift", x: 142, y: 52, map: "world", hub: false, platform: true, to: "hub-fest" },
+  // hub half-circle above town (west → east along the northern arc)
+  { id: "hub-rift", name: "Wayrift to the Ashen Rift", x: 82, y: 114, hub: true, to: "rift" },
+  { id: "hub-fest", name: "Festival wayrift", x: 87, y: 109, hub: true, festival: true },
+  { id: "hub-barrow", name: "Wayrift to the Shifting Barrow", x: 93, y: 109, hub: true, to: "barrow" },
+  { id: "hub-waste", name: "Wayrift to the Waste Pocket", x: 98, y: 114, hub: true, to: "waste" },
+  // the festival zones (one awake a season)
+  { id: "fest-harvest", name: "Harvest Moon wayrift", x: 65, y: 147, hub: false, to: "hub-fest", season: "autumn" },
+  { id: "fest-krampus", name: "Krampusnacht wayrift", x: 38, y: 27, hub: false, to: "hub-fest", season: "winter" },
+  { id: "fest-bloom", name: "Drowned Bloom wayrift", x: 102, y: 59, hub: false, to: "hub-fest", season: "spring" },
+  { id: "fest-ashen", name: "Ashen Fair wayrift", x: 40, y: 141, hub: false, to: "hub-fest", season: "summer" },
+  // the rift and the other special places
+  { id: "rift", name: "Ashen Rift wayrift", x: 33, y: 85, hub: false, to: "hub-rift" },
+  { id: "barrow", name: "Shifting Barrow wayrift", x: 134, y: 83, hub: false, to: "hub-barrow" },
+  { id: "waste", name: "Waste Pocket wayrift", x: 134, y: 59, hub: false, to: "hub-waste" },
 ];
 
 /** Where each far rift's place is called in a line ("You step out by ..."). */
@@ -89,53 +80,62 @@ export const WAYRIFT_PLACE: Record<string, string> = {
   rift: "the Ashen Rift",
   barrow: "the Shifting Barrow",
   waste: "the Waste Pocket",
-  "hub-fest": "the festival park in town",
+  "hub-rift": "the wayrift circle above town",
+  "hub-fest": "the wayrift circle above town",
+  "hub-barrow": "the wayrift circle above town",
+  "hub-waste": "the wayrift circle above town",
 };
 
-/** The rift writer's sheets: 24x32 cells, 0-7 the swirl, 8 the sealed look. */
+/** The rift writer's sheets (tools/pixel-writer/rift_writer.py): 48x64 cells, 0-7 the swirl, 8 the sealed look. */
+// playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: half-size sheets (wayrift2); the 1f wayrift.png 48x64 cells stay for older checks.
 export const WAYRIFT_SHEET = "/art/writer/wayrift2.png";
 export const WAYRIFT_EM = "/art/writer/wayrift2_em.png";
+/** Corner-map and full-map marker (glow_writer / rift_writer: a cold-fire ring round a violet eye). */
 export const WAYRIFT_ICON = "/art/writer/wayrift-icon.png";
-/** playtest1z: octagon pad (48x48, lit and sealed cells). */
+/** playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: raised stone/wood platform under each hub rift (48x32, lit and sealed cells). */
 export const WAYRIFT_PLATFORM = "/art/writer/wayrift-platform.png";
-/** playtest1z: park props. */
-export const PARK_STATUE = "/art/writer/park-statue.png";
-export const PARK_ARCH = "/art/writer/park-arch.png";
+/** The swamp's path sheet (16x16 cells by NESW mask; cells 16 and 17 are the plank alts). */
 export const SWAMP_PATH = "/art/writer/swamp-path.png";
-export const WAYRIFT_SHEETS = [WAYRIFT_SHEET, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, PARK_STATUE, PARK_ARCH, SWAMP_PATH];
+export const WAYRIFT_SHEETS = [WAYRIFT_SHEET, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, SWAMP_PATH];
 
 /** The name over a rift when you stand near it. */
 export function wayLabel(w: Wayrift, season: SeasonId): string {
   if (w.festival) return `Wayrift: ${FESTIVALS[season].name}`;
   if (w.season && w.season !== season) return `${FESTIVALS[w.season].name} rift (sealed)`;
-  if (!w.hub) return "Wayrift: the festival park in town";
+  if (!w.hub) return "Wayrift: the circle above town";
   return w.name.replace("Wayrift to the ", "Wayrift: ");
 }
 
 export const wayriftById = (id: string) => WAYRIFTS.find((w) => w.id === id);
-/** Mouth = west footprint tile (both footprint tiles accept travel). */
+/** The mouth tile (walk into it) and the front tile (where you land). */
+/** playtest1y: mouth is the west footprint tile (both footprint tiles accept travel). */
 export const wayMouth = (w: Wayrift) => ({ x: w.x, y: w.y });
 export const wayFront = (w: Wayrift) => ({ x: w.x, y: w.y + WAYRIFT.fh });
 
+/** Is this rift awake in this season? Hubs and the rift's own places always are; a festival rift only in its season. */
 export function wayAwake(w: Wayrift, season: SeasonId): boolean {
   return !w.season || w.season === season;
 }
 
+/** The rift this one leads to now, or null (sealed). The festival hub leads to this season's festival rift. */
 export function wayLink(w: Wayrift, season: SeasonId): Wayrift | null {
   if (!wayAwake(w, season)) return null;
   if (w.festival) return WAYRIFTS.find((f) => f.season === season) ?? null;
   return (w.to && wayriftById(w.to)) || null;
 }
 
+/** The festival named for a festival rift or the hub (this season's). */
 export function wayFestival(w: Wayrift, season: SeasonId) {
   return FESTIVALS[w.season ?? season];
 }
 
-/** One cold-blue night light at each awake rift's mouth (on the map it stands on). */
-export function wayLights(season: SeasonId, map: "town" | "world", tile = 16): { x: number; y: number; seed: number }[] {
+/**
+ * playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: one cold-blue night light at each awake rift's mouth (hubs on the half-circle each get their own;
+ * they are no longer paired 4 tiles apart in a row).
+ */
+export function wayLights(season: SeasonId, tile = 16): { x: number; y: number; seed: number }[] {
   const out: { x: number; y: number; seed: number }[] = [];
   for (const w of WAYRIFTS) {
-    if (w.map !== map) continue;
     if (!wayAwake(w, season)) continue;
     const m = wayMouth(w);
     out.push({ x: m.x * tile + tile / 2, y: m.y * tile + tile / 2, seed: m.x & 3 });
@@ -143,39 +143,37 @@ export function wayLights(season: SeasonId, map: "town" | "world", tile = 16): {
   return out;
 }
 
-/** The rift whose footprint holds this tile on the given map, or undefined. */
-export function wayriftAt(tx: number, ty: number, map: "town" | "world" = "world"): Wayrift | undefined {
-  return WAYRIFTS.find((w) => w.map === map && tx >= w.x && tx < w.x + WAYRIFT.fw && ty >= w.y && ty < w.y + WAYRIFT.fh);
+/** The rift whose footprint holds this tile, or undefined. */
+export function wayriftAt(tx: number, ty: number): Wayrift | undefined {
+  return WAYRIFTS.find((w) => tx >= w.x && tx < w.x + WAYRIFT.fw && ty >= w.y && ty < w.y + WAYRIFT.fh);
 }
 
-/** playtest1z: octagon pad rim solid (3x3) except the 2x1 footprint mouth. */
-export function wayPlatformSolid(tx: number, ty: number, map: "town" | "world" = "world"): boolean {
+/** playtest1y: half-size rifts have no standing-stone solid (the whole footprint is the mouth); hub platforms are solid around them via wayPlatformSolid. */
+export function waySolid(tx: number, ty: number): boolean {
+  return wayPlatformSolid(tx, ty);
+}
+
+/** Hub platform rim (3x2 at the rift's top-left): solid except the 2x1 footprint mouth. Far rifts have no platform solid. */
+export function wayPlatformSolid(tx: number, ty: number): boolean {
   for (const w of WAYRIFTS) {
-    if (!w.platform || w.map !== map) continue;
-    // platform top-left = rift footprint top-left (mouth in NW of the 3x3)
-    if (tx >= w.x && tx < w.x + WAYRIFT.platTiles && ty >= w.y && ty < w.y + WAYRIFT.platTiles) {
+    if (!w.hub) continue;
+    if (tx >= w.x && tx < w.x + 3 && ty >= w.y && ty < w.y + 2) {
       if (tx >= w.x && tx < w.x + WAYRIFT.fw && ty >= w.y && ty < w.y + WAYRIFT.fh) return false;
-      // octagon cut: corner tiles of the 3x3 are open (rounder pad)
-      const lx = tx - w.x;
-      const ly = ty - w.y;
-      if ((lx === 0 || lx === 2) && (ly === 0 || ly === 2)) return false;
       return true;
     }
   }
   return false;
 }
 
-export function waySolid(tx: number, ty: number, map: "town" | "world" = "world"): boolean {
-  return wayPlatformSolid(tx, ty, map);
+/** The rift whose mouth is this tile, or undefined. playtest1y: any footprint tile. */
+export function wayMouthAt(tx: number, ty: number): Wayrift | undefined {
+  const w = wayriftAt(tx, ty);
+  return w;
 }
 
-export function wayMouthAt(tx: number, ty: number, map: "town" | "world" = "world"): Wayrift | undefined {
-  return wayriftAt(tx, ty, map);
-}
-
-export function wayArtAt(px: number, py: number, map: "town" | "world" = "world", tile = 16): Wayrift | undefined {
+/** The rift whose art (24x32, standing one tile over its footprint) covers this world pixel. */
+export function wayArtAt(px: number, py: number, tile = 16): Wayrift | undefined {
   return WAYRIFTS.find((w) => {
-    if (w.map !== map) return false;
     const ax = w.x * tile + (WAYRIFT.fw * tile - WAYRIFT.artW) / 2;
     const ay = (w.y - WAYRIFT.stand) * tile;
     return px >= ax && px < ax + WAYRIFT.artW && py >= ay && py < ay + WAYRIFT.artH;
@@ -183,15 +181,16 @@ export function wayArtAt(px: number, py: number, map: "town" | "world" = "world"
 }
 
 /**
- * Lay the world wayrifts on the vale's grid (sim.ts layWorld). Town park rifts are laid in buildTown.
+ * Lay the rifts on the vale's grid (sim.ts layWorld, after the map writer): the footprint, its front and the rows the
+ * art stands over are cleared of trees, rocks and pumps to the biome's ground (roads, trails, doors, stairs and caches
+ * stay), and if the front cannot reach the road net a short trail is cut to the nearest road or trail tile.
+ * ground(x, y) is the biome's open ground; open(t) says a tile is walkable. Returns how many trail tiles it cut.
  */
 export function stampWayrifts(tiles: Uint8Array, w: number, h: number, codes: { road: number; trail: number; tree: number; rock: number; pump: number; water: number; ice: number }, ground: (x: number, y: number) => number, open: (t: number) => boolean): number {
   const clearable = (t: number) => t === codes.tree || t === codes.rock || t === codes.pump;
-  const world = WAYRIFTS.filter((r) => r.map === "world");
-  for (const r of world) {
-    const pad = r.platform ? WAYRIFT.platTiles : WAYRIFT.fw;
-    for (let y = r.y - WAYRIFT.clearUp; y <= r.y + Math.max(WAYRIFT.fh, pad) + 1; y++) {
-      for (let x = r.x - WAYRIFT.clearSide; x <= r.x + pad - 1 + WAYRIFT.clearSide; x++) {
+  for (const r of WAYRIFTS) {
+    for (let y = r.y - WAYRIFT.clearUp; y <= r.y + WAYRIFT.fh + 1; y++) {
+      for (let x = r.x - WAYRIFT.clearSide; x <= r.x + WAYRIFT.fw - 1 + WAYRIFT.clearSide; x++) {
         if (x < 0 || y < 0 || x >= w || y >= h) continue;
         const i = y * w + x;
         const inside = x >= r.x && x < r.x + WAYRIFT.fw && y >= r.y && y <= r.y + WAYRIFT.fh;
@@ -200,13 +199,15 @@ export function stampWayrifts(tiles: Uint8Array, w: number, h: number, codes: { 
     }
   }
   let cut = 0;
-  for (const r of world) {
+  for (const r of WAYRIFTS) {
     const f = wayFront(r);
+    // a 0-1 search from the front (open ground costs nothing, a tree or rock to fell costs one; never through a
+    // footprint) to the nearest road or trail tile, so a front already joined to the net cuts nothing
     const cost = new Int32Array(w * h).fill(1 << 30);
     const prev = new Int32Array(w * h).fill(-1);
     const start = f.y * w + f.x;
-    if (start < 0 || start >= w * h) continue;
     cost[start] = 0;
+    // bucket queue by cost (each bucket first in, first out): the same bytes every run
     const buckets: number[][] = [[start]];
     let hit = -1;
     for (let c = 0; c < buckets.length && hit < 0; c++) {
@@ -224,7 +225,7 @@ export function stampWayrifts(tiles: Uint8Array, w: number, h: number, codes: { 
         for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
           const nx = x + dx;
           const ny = y + dy;
-          if (nx < 2 || ny < 2 || nx >= w - 2 || ny >= h - 2 || wayriftAt(nx, ny, "world")) continue;
+          if (nx < 2 || ny < 2 || nx >= w - 2 || ny >= h - 2 || wayriftAt(nx, ny)) continue;
           const j = ny * w + nx;
           const nt = tiles[j];
           if (!open(nt) && !clearable(nt)) continue;

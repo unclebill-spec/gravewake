@@ -15032,8 +15032,190 @@ if (on("playtest1z")) {
   Object.assign(globalThis, had);
 }
 
+// playtest1z2 (2026-10-06, [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest], Bill's
+// 17:14 ET clarification): a wild portal rolls ONE of three entry layouts from born (arena / floors / camp); arena and floors
+// clear to a modest reward and the way home (no camp); the camp is its own layout with Elder Thorn, his quest portal and the
+// turn-in. Wild portals roll in play (1z only called the roll inside a wayrift swirl). Saves: a run is never saved; a save in
+// one is written at its return spot, and a 1z save on a wild map lands on the vale.
+if (on("playtest1z2")) {
+  asLive();
+  const { readFileSync, writeFileSync } = await import("node:fs");
+  const TAG = "[OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]";
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "pt1z2.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/wildportals.ts";\nexport { T, WORLD_DOOR } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "pt1z2.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1z2.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const ctxGet = (t, k) => {
+    if (k in t) return t[k];
+    if (k === "getImageData" || k === "createImageData") return () => ({ data: new Uint8ClampedArray(4) });
+    if (k === "measureText") return () => ({ width: 1 });
+    return () => ({ addColorStop() {} });
+  };
+  const ctx2 = () => new Proxy({}, { get: ctxGet, set: (t, k, v) => { t[k] = v; return true; } });
+  globalThis.document = { createElement: () => ({ width: 16, height: 16, getContext: ctx2 }) };
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  const X = await import(pathToFileURL(join(dir, "pt1z2.mjs")).href);
+  const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const mk = () => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = 5 * 60 * 1000; return g; };
+  const P = (g) => Object.getPrototypeOf(g);
+  const door = X.WORLD_DOOR || { x: 91, y: 124 };
+  const bornFor = (lay) => { for (let b = 300000; b < 303000; b++) if (X.wildLayout(b) === lay) return b; return 300000; }; // bounded: a missing layout fails its check instead of hanging
+  const enter = (lay) => {
+    const g = mk();
+    g.enterWorld(door.x * 16 + 8, (door.y + 6) * 16 + 8);
+    const born = bornFor(lay);
+    g.wildPortal = { x: 100, y: 110, born, layout: X.wildLayout(born), quest: X.wildQuestKind(born) };
+    P(g).enterWildPortal.call(g);
+    return g;
+  };
+  const findTile = (g, t) => { for (let i = 0; i < g.tiles.length; i++) if (g.tiles[i] === t) return { x: i % g.w, y: Math.floor(i / g.w) }; return null; };
+  const stepOn = (g, t) => { const p = findTile(g, t); if (!p) return false; g.px = p.x * 16 + 8; g.py = p.y * 16 + 8; P(g).tryEntrance.call(g, p.x, p.y); return true; };
+  const killAll = (g) => { for (const r of [...g.roamers]) { r.hp = 0; P(g).fellFoe.call(g, r); } };
+  const campSeen = (g) => g.dungeon === X.WILD_MAP.camp || g.npcs.some((n) => n.role === "elder");
+
+  // 1. three layouts, seeded from born
+  {
+    const n = { arena: 0, floors: 0, camp: 0 };
+    let same = true;
+    for (let b = 0; b < 3000; b++) { const l = X.wildLayout(b * 37 + 11); n[l] = (n[l] ?? 0) + 1; if (X.wildLayout(b * 37 + 11) !== l) same = false; }
+    const keys = Object.keys(n);
+    const even = Object.values(n).every((v) => v >= 900 && v <= 1100);
+    check("playtest1z2", `a wild portal rolls one of three layouts from born (arena ${n.arena}, floors ${n.floors}, camp ${n.camp}; repeatable ${same})`,
+      keys.length === 3 && X.WILD_LAYOUTS.length === 3 && even && same && X.wildLayout(0) === X.wildLayout(0) && X.isWildMap("wildcamp") && !X.isWildMap("crypt"));
+  }
+
+  // 2. arena: mini-boss + little foes; clearing pays and opens home; no camp
+  {
+    seed(21);
+    const g = enter("arena");
+    const start = g.wildRun?.stage === "rift" && g.dungeon === X.WILD_MAP.rift && !campSeen(g) && g.npcs.length === 0; // no vale folk in the den
+    const mini = g.roamers.filter((r) => r.mini).length === 1 && g.roamers.filter((r) => !r.mini).length >= 3;
+    const coin0 = g.coin, pts0 = g.points;
+    stepOn(g, X.T.exit);
+    const held = g.mapId === "dungeon" && g.wildRun?.stage === "rift" && g.coin === coin0;
+    killAll(g);
+    const paid = g.wildRun?.cleared && g.coin - coin0 === X.WILD_CLEAR_REWARD.silver && g.points - pts0 === X.WILD_CLEAR_REWARD.points;
+    const ret = { x: g.wildRun?.returnX, y: g.wildRun?.returnY };
+    stepOn(g, X.T.exit);
+    const home = g.mapId === "world" && g.wildRun === null && g.px === ret.x && g.py === ret.y && g.coin - coin0 === X.WILD_CLEAR_REWARD.silver;
+    check("playtest1z2", `arena: mini + pack (${mini}), exit held while foes live ${held}, clear pays ${X.WILD_CLEAR_REWARD.silver}s/${X.WILD_CLEAR_REWARD.points}pt once ${!!paid}, then home to the mouth ${home}, never a camp ${start}`,
+      start && mini && held && !!paid && home);
+  }
+
+  // 3. floors: clear floor → ladder → mini-boss → home; no camp
+  {
+    seed(22);
+    const g = enter("floors");
+    const start = g.wildRun?.stage === "rift" && g.dungeon === X.WILD_MAP.rift && !campSeen(g);
+    const noExit = !findTile(g, X.T.exit) && !!findTile(g, X.T.stairD) && g.roamers.length >= 4 && !g.roamers.some((r) => r.mini);
+    const coin0 = g.coin;
+    stepOn(g, X.T.stairD);
+    const held = g.wildRun?.stage === "rift";
+    killAll(g);
+    const noPayYet = g.coin === coin0 && !g.wildRun?.cleared;
+    stepOn(g, X.T.stairD);
+    const deep = g.wildRun?.stage === "deep" && g.dungeon === X.WILD_MAP.deep && g.roamers.some((r) => r.mini && r.name === "Rift Warden") && !campSeen(g);
+    stepOn(g, X.T.exit);
+    const deepHeld = g.wildRun?.stage === "deep";
+    killAll(g);
+    const paid = g.wildRun?.cleared && g.coin - coin0 === X.WILD_CLEAR_REWARD.silver;
+    stepOn(g, X.T.exit);
+    const home = g.mapId === "world" && g.wildRun === null;
+    check("playtest1z2", `floors: no exit up top (${noExit}), ladder held until clear ${held}, no pay for the floor ${noPayYet}, ladder → Rift Warden ${deep}, exit held ${deepHeld}, clear pays ${!!paid}, then home ${home}; never a camp ${start}`,
+      start && noExit && held && noPayYet && deep && deepHeld && !!paid && home);
+  }
+
+  // 4. camp: straight in; Elder's portal → quest pocket → turn in
+  {
+    seed(23);
+    const g = enter("camp");
+    const start = g.wildRun?.stage === "camp" && g.dungeon === X.WILD_MAP.camp && g.roamers.length === 0;
+    const elder = g.npcs.find((n) => n.role === "elder");
+    const portal = !!findTile(g, X.T.stairU);
+    stepOn(g, X.T.stairU);
+    const needsTalk = g.wildRun?.stage === "camp";
+    if (elder) P(g).openTalk.call(g, elder); g.mode = "play";
+    stepOn(g, X.T.stairU);
+    const quest = g.wildRun?.stage === "quest" && g.dungeon === X.WILD_MAP.quest && g.roamers.length > 0;
+    killAll(g);
+    const done = !!g.wildRun && (g.wildRun.quest.kind === "heads" ? g.wildRun.quest.have >= g.wildRun.quest.need : g.wildRun.quest.ring);
+    const noClearPay = !g.wildRun?.cleared;
+    stepOn(g, X.T.exit);
+    const back = g.wildRun?.stage === "camp";
+    const coin0 = g.coin;
+    const el2 = g.npcs.find((n) => n.role === "elder");
+    if (el2) P(g).openTalk.call(g, el2); g.mode = "play";
+    const paid = !!g.wildRun?.quest.done && g.coin - coin0 === X.WILD_QUEST_REWARD.silver;
+    stepOn(g, X.T.exit);
+    const home = g.mapId === "world" && g.wildRun === null;
+    check("playtest1z2", `camp layout: straight into the camp ${start} with Elder Thorn ${!!elder} and his portal ${portal} (shut until spoken to ${needsTalk}), quest pocket ${quest} (${g.wildRun ? "" : "done "}${done}), no clear pay ${noClearPay}, back to camp ${back}, turn-in pays ${paid}, home ${home}`,
+      start && !!elder && portal && needsTalk && quest && done && noClearPay && back && paid && home);
+  }
+
+  // 5. save-safe: a 1z save on any wild map lands on the vale; a save in a run is written at its return spot
+  {
+    seed(24);
+    const results = [];
+    for (const dungeon of ["wildrift", "wildcamp", "wildquest", "wilddeep"]) {
+      const g = enter("arena");
+      const rec = g.saveRecord();
+      const old = { ...rec, mapId: "dungeon", dungeon, floor: 1, px: 7 * 16 + 8, py: 6 * 16 + 8 };
+      const h = mk();
+      h.loadRecord(old);
+      const tx = Math.floor(h.px / 16), ty = Math.floor(h.py / 16);
+      results.push(h.mapId === "world" && h.wildRun === null && h.mode === "play" && !h.solidAt(h.px, h.py) && tx > 0 && ty > 0 && tx < h.w && ty < h.h);
+    }
+    const g = enter("camp");
+    const rx = g.wildRun.returnX, ry = g.wildRun.returnY;
+    const rec = g.saveRecord();
+    const atReturn = rec.mapId === "world" && rec.px === rx && rec.py === ry && rec.dungeon === "" && !("wildRun" in rec);
+    const h = mk();
+    h.loadRecord(rec);
+    const loaded = h.mapId === "world" && h.wildRun === null && Math.abs(h.px - rx) < 48 && Math.abs(h.py - ry) < 48;
+    // a run left by death is over (no stale run blocks new portals)
+    const d = enter("arena");
+    d.revive();
+    d.update(0.05);
+    const stale = d.wildRun === null;
+    check("playtest1z2", `save-safe: 1z saves on wildrift/wildcamp/wildquest/wilddeep land on open vale ground (${results.join("/")}); a save in a run is written at its return spot ${atReturn} and loads there ${loaded}; a run left by death ends ${stale}`,
+      results.every(Boolean) && atReturn && loaded && stale);
+  }
+
+  // 6. wild portals roll in play; fight numbers untouched; notes
+  {
+    seed(25);
+    const g = mk();
+    g.enterWorld(40 * 16 + 8, 60 * 16 + 8);
+    let rose = false;
+    for (let i = 0; i < 4000 && !rose; i++) {
+      g.mode = "play"; g.roamers = []; g.battle = null; g.hp = g.maxHp; g.held.clear();
+      g.worldMs += 250;
+      g.update(0.25);
+      if (g.wildPortal) rose = true;
+    }
+    const sim = readFileSync("src/game/sim.ts", "utf8");
+    const travelBlock = sim.slice(sim.indexOf("if (this.travel) {"), sim.indexOf("this.regen(dt);"));
+    const callSite = !travelBlock.includes("tickWildPortal") && /this\.tickLock\(dt\);[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*this\.tickWildPortal\(dt\);/.test(sim);
+    // wild foes use the families' own numbers (scaleMonster), unchanged
+    const e = enter("arena");
+    const r = e.roamers.find((o) => !o.mini);
+    const same = r && typeof r.hp === "number" && r.hp === r.max && r.atk > 0;
+    const modest = X.WILD_CLEAR_REWARD.silver < X.WILD_QUEST_REWARD.silver && X.WILD_CLEAR_REWARD.points < X.WILD_QUEST_REWARD.points;
+    const agents = readFileSync("AGENTS.project.md", "utf8");
+    const wp = readFileSync("src/game/wildportals.ts", "utf8");
+    const notes = /## playtest1z2 /.test(agents) && agents.includes(TAG) && wp.includes("playtest1z2") && sim.includes("playtest1z2 [OWNER-APPROVED 2026-10-06 17:14 ET");
+    check("playtest1z2", `wild portals roll in play (rose ${rose}; call site outside the swirl ${callSite}), wild foes armed from family numbers ${!!same}, clear reward modest ${modest}, notes ${notes}`,
+      rose && callSite && !!same && modest && notes);
+  }
+
+  Object.assign(globalThis, had);
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

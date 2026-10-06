@@ -79,7 +79,7 @@ import { FESTIVALS, LIVE_FESTIVALS, SEASON, dayInSeason, festivalHook, seasonAt,
 import { ASHEN_FAIR, DROWNED_BLOOM, HARVEST, KRAMPUSNACHT, bloomSpots, carveScore, courtList, danceOrder, harvestJudge, inFlood, naughtyList, sideshowList, type Naughty } from "./festivals";
 import { BOND, BOND_LINES, bondKey, bondStamp, bondTier, readBond, type BondPassive } from "./bond";
 import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival, wayFront, wayLink, wayMouth, wayMouthAt, waySolid, wayriftById, type Wayrift } from "./wayrifts";
-import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest } from "./wildportals";
+import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, WILD_CLEAR_REWARD, isWildMap, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest, type WildLayout, type WildStage } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
 import type { AudioBus } from "./audio";
@@ -662,7 +662,7 @@ export class Game {
   /** Seconds until the open wild portal tries to bleed another foe. */
   wildSpawnT = 0;
   /** Inside a wild-portal run: which stage, return spot on the vale, and the small quest. Not saved mid-run (a save reloads slot 1 on death; leaving cleans up). */
-  wildRun: { stage: "rift" | "camp" | "quest"; returnX: number; returnY: number; quest: WildQuest; layout: "arena" | "floors"; born: number } | null = null;
+  wildRun: { stage: WildStage; returnX: number; returnY: number; quest: WildQuest; layout: WildLayout; born: number; cleared?: boolean } | null = null;
   /** Elder Thorn (camp NPC) — rebuilt when the camp is entered. */
   wildNpc: Npc | null = null;
   private swirlCool = 0;
@@ -3693,11 +3693,13 @@ export class Game {
     if (this.travel) {
       // playtest1f: inside a wayrift's swirl nothing moves (no input from any scheme, no foe steps up)
       this.tickTravel(dt);
-      this.tickWildPortal(dt); // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]
       return;
     }
     this.regen(dt);
     this.tickLock(dt); // playtest1u: a tapped foe: walk in, fight it
+    // playtest1z2 [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portals roll in play
+    // (1z only called this inside a wayrift swirl, where it returns at once, so no wild portal ever rose)
+    this.tickWildPortal(dt);
     this.move(dt);
     this.tickDrops(dt);
     this.tickCritters(dt);
@@ -4542,13 +4544,14 @@ export class Game {
     }
     // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-rift exits
     if (this.wildRun && this.mapId === "dungeon" && here === T.exit) {
-      if (this.wildRun.stage === "rift") {
+      // playtest1z2 [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: an arena (or the floors' deep room) clears to the way home; no camp
+      if (this.wildRun.stage === "rift" || this.wildRun.stage === "deep") {
         if (this.roamers.some((r) => this.liveFoe(r))) {
-          this.logLine = "Clear the den first.";
+          this.logLine = this.wildRun.stage === "deep" ? "The mini-boss still holds the way home." : "Clear the den first.";
           return;
         }
-        this.buildWildStage("camp");
-        this.logLine = "The den falls quiet. A campfire waits below.";
+        this.payWildClear();
+        this.leaveWildRun();
         return;
       }
       if (this.wildRun.stage === "quest") {
@@ -5138,9 +5141,9 @@ export class Game {
           this.logLine = "Clear the floor first.";
           return;
         }
+        // playtest1z2: the floors' ladder leads down to a mini-boss, not to the camp
         this.audio?.door();
-        this.buildWildStage("camp");
-        this.logLine = "You climb down into a quiet camp.";
+        this.buildWildStage("deep");
         return;
       }
       if (this.wildRun.stage === "camp" && here === T.stairU) {
@@ -5829,6 +5832,12 @@ export class Game {
   }
 
   /** Inside a rift zone, the spot a save is written at: the rift's return spot. */
+  /** playtest1z2 [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: a wild run's return spot, for a save made inside it. */
+  private wildSaveSpot() {
+    const run = this.wildRun;
+    return run && this.mapId === "dungeon" && isWildMap(this.dungeon) ? { mapId: "world" as const, px: run.returnX, py: run.returnY } : null;
+  }
+
   private riftSaveSpot() {
     const p = this.riftReturn;
     return this.mapId === "dungeon" && p && p.mapId === "world" && dungeonById(this.dungeon)?.rift ? p : null;
@@ -5895,6 +5904,8 @@ export class Game {
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: enter a wild spawn portal → procedural mini-dungeon. */
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: rare wild portal on the vale — spawn, bleed foes, despawn. */
   private tickWildPortal(dt: number) {
+    // playtest1z2: a run left by any other way (death, a load) is over
+    if (this.wildRun && !(this.mapId === "dungeon" && isWildMap(this.dungeon))) { this.wildRun = null; this.wildNpc = null; }
     if (this.mapId !== "world" || this.mode !== "play" || this.travel || this.wildRun) return;
     // despawn expired
     if (this.wildPortal) {
@@ -5954,7 +5965,7 @@ export class Game {
     const layout = p.layout;
     const kind = p.quest;
     this.wildRun = {
-      stage: "rift",
+      stage: layout === "camp" ? "camp" : "rift", // playtest1z2: the camp is its own entry layout
       returnX: p.x * TILE + 8,
       returnY: (p.y + 1) * TILE + 8,
       quest: { kind, need: 3, have: 0, ring: false, taken: false, done: false },
@@ -5963,29 +5974,32 @@ export class Game {
     };
     this.wildPortal = null;
     this.goal = null;
-    this.buildWildStage("rift");
+    this.buildWildStage(layout === "camp" ? "camp" : "rift");
     this.audio?.spell();
     this.fx.portal(this.px, this.py - 16);
-    this.logLine = layout === "arena" ? "The wild rift opens onto a beast's den." : "The wild rift opens onto a ruined floor.";
+    this.logLine = layout === "arena" ? "The wild rift opens onto a beast's den." : layout === "floors" ? "The wild rift opens onto a ruined floor." : "The wild rift opens onto a quiet camp. An old man waits by the fire.";
   }
 
   /** Build or rebuild a wild-portal stage map. */
-  private buildWildStage(stage: "rift" | "camp" | "quest") {
+  private buildWildStage(stage: WildStage) {
     const run = this.wildRun;
     if (!run) return;
     run.stage = stage;
     this.mapId = "dungeon";
-    this.dungeon = stage === "rift" ? WILD_MAP.rift : stage === "camp" ? WILD_MAP.camp : WILD_MAP.quest;
+    this.dungeon = WILD_MAP[stage];
     this.floor = 1;
     this.inside = "";
     this.theme = "ossuary";
     this.roamers = [];
     this.drops = this.drops.filter((d) => d.mapId !== "dungeon");
     this.wildNpc = null;
-    const seed = (run.born ^ (stage === "rift" ? 1 : stage === "camp" ? 2 : 3)) >>> 0;
+    this.npcs = []; // playtest1z2: the vale's folk stay on the vale (1z left them standing in the wild rooms); the camp sets Elder Thorn
+    const seed = (run.born ^ (stage === "rift" ? 1 : stage === "camp" ? 2 : stage === "quest" ? 3 : 4)) >>> 0;
     if (stage === "rift") {
       if (run.layout === "arena") this.carveWildArena(seed);
       else this.carveWildFloors(seed);
+    } else if (stage === "deep") {
+      this.carveWildDeep(seed);
     } else if (stage === "camp") {
       this.carveWildCamp(seed);
     } else {
@@ -6015,6 +6029,35 @@ export class Game {
     this.logLine = "A mini-boss and its pack hold the den. Clear them.";
   }
 
+  /** playtest1z2 [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: below the floors' ladder, a mini-boss guards the way home. */
+  private carveWildDeep(seed: number) {
+    const { w, h } = WILD_SIZE.deep;
+    const tiles = new Uint8Array(w * h);
+    tiles.fill(T.wall);
+    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) tiles[y * w + x] = T.bone;
+    tiles[2 * w + Math.floor(w / 2)] = T.exit; // the way home, open once the room is clear
+    this.w = w; this.h = h; this.tiles = tiles;
+    this.px = Math.floor(w / 2) * TILE + 8;
+    this.py = 4 * TILE + 8;
+    const lv = Math.max(4, this.level);
+    const ids = ["ghoul", "skeleton", "zombie", "wolf"];
+    this.spawnWildFoe("wilddeep", ids[seed % ids.length], Math.floor(w / 2) * TILE + 8, (h - 4) * TILE + 8, lv + 2, { mini: true, name: "Rift Warden" });
+    for (let i = 0; i < 2; i++) this.spawnWildFoe(`wilddp${i}`, ids[(seed + i + 1) % ids.length], (4 + i * 7) * TILE + 8, (h - 5) * TILE + 8, lv, {});
+    this.logLine = "At the ladder's foot a Rift Warden bars the way home.";
+  }
+
+  /** playtest1z2: a cleared arena or deep room pays once (modest; no fight number moves). */
+  private payWildClear() {
+    const run = this.wildRun;
+    if (!run || run.cleared || run.layout === "camp") return;
+    if (!(run.stage === "deep" || (run.stage === "rift" && run.layout === "arena"))) return;
+    run.cleared = true;
+    this.coin += WILD_CLEAR_REWARD.silver;
+    this.points += WILD_CLEAR_REWARD.points;
+    this.audio?.coin();
+    this.logLine = `The rift falls quiet: ${WILD_CLEAR_REWARD.silver} silver and ${WILD_CLEAR_REWARD.points} points. The way home is open.`;
+  }
+
   private carveWildFloors(seed: number) {
     const { w, h } = WILD_SIZE.floors;
     const tiles = new Uint8Array(w * h);
@@ -6025,8 +6068,7 @@ export class Game {
       const y = 4 + ((seed >> (i * 2)) & 7) % (h - 8);
       tiles[y * w + x] = T.rock;
     }
-    tiles[2 * w + Math.floor(w / 2)] = T.exit;
-    tiles[(h - 3) * w + Math.floor(w / 2)] = T.stairD;
+    tiles[(h - 3) * w + Math.floor(w / 2)] = T.stairD; // playtest1z2: no exit here; the way home is past the mini-boss below
     this.w = w; this.h = h; this.tiles = tiles;
     this.px = Math.floor(w / 2) * TILE + 8;
     this.py = 4 * TILE + 8;
@@ -7564,6 +7606,8 @@ export class Game {
       this.wildRun.quest.ring = true;
       this.logLine = "Elder Thorn's ring is yours. Return it to him.";
     }
+    // playtest1z2: the last foe of an arena or deep room pays the clear reward and opens the way home
+    if (this.wildRun && !this.wildRun.cleared && !this.roamers.some((o) => this.liveFoe(o))) this.payWildClear();
     this.audio?.coin();
     this.checkLevel();
   }
@@ -9621,13 +9665,14 @@ export class Game {
       ranks: { ...this.ranks },
       worldMs: this.worldMs,
       // Map writer: a save inside a rift zone is written at the rift's return spot (no new save field).
-      mapId: this.riftSaveSpot()?.mapId ?? this.mapId,
-      px: this.riftSaveSpot()?.px ?? this.px,
-      py: this.riftSaveSpot()?.py ?? this.py,
+      // playtest1z2: a save inside a wild run (never saved itself) is written on the vale where the run began.
+      mapId: this.wildSaveSpot()?.mapId ?? this.riftSaveSpot()?.mapId ?? this.mapId,
+      px: this.wildSaveSpot()?.px ?? this.riftSaveSpot()?.px ?? this.px,
+      py: this.wildSaveSpot()?.py ?? this.riftSaveSpot()?.py ?? this.py,
       quest: this.quest,
       bossDead: { ...this.bossDead },
-      dungeon: this.riftSaveSpot() ? "" : this.dungeon,
-      floor: this.riftSaveSpot() ? 0 : this.floor,
+      dungeon: this.riftSaveSpot() || this.wildSaveSpot() ? "" : this.dungeon,
+      floor: this.riftSaveSpot() || this.wildSaveSpot() ? 0 : this.floor,
       inv: this.inv.map((i) => ({ ...i })),
       equip: Object.fromEntries(Object.entries(this.equip).map(([k, v]) => [k, v ? { ...v } : v])),
       visited: [...this.visited],
@@ -9789,6 +9834,9 @@ export class Game {
     this.talk = null;
     this.travel = null; // playtest1f: a journey is never saved, and a load never lands mid-swirl
     this.wayHold = "";
+    this.wildRun = null; // playtest1z2: a wild run is never saved
+    this.wildNpc = null;
+    this.wildPortal = null;
     this.hp = Math.min(raw.hp, this.maxHp);
     this.energy = this.cls === "vampire" ? 0 : Math.min(raw.energy, this.maxEnergy);
     if (raw.mapId === "world") {
@@ -9814,6 +9862,15 @@ export class Game {
       this.px = raw.px;
       this.py = raw.py;
       this.landInRoom(raw.roomW); // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: a save from the old 14x11 casino keeps its spot by the door
+    } else if (raw.mapId === "dungeon" && isWildMap(raw.dungeon)) {
+      // playtest1z2: a 1z save made inside a wild run (old flow: wildrift / wildcamp / wildquest) has no run to resume;
+      // it lands on the vale by the road gate, on open ground
+      this.enterWorld(GATE.x * TILE + 8, GATE.y * TILE + 8);
+      this.unstick();
+      this.mode = "play";
+      this.drops = (raw.drops ?? []).filter((d) => d.mapId !== "dungeon");
+      this.logLine = "The wild rift closed behind you. You wake by the road gate.";
+      return;
     } else if (raw.mapId === "dungeon" && raw.dungeon) {
       this.dungeon = raw.dungeon;
       this.floor = raw.floor || 1;

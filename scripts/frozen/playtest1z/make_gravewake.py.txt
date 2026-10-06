@@ -910,25 +910,6 @@ def playtest1y(out: Path = OUT) -> dict:
 
 
 
-
-def playtest1z(out: Path = OUT) -> dict:
-    """playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]:
-    octagon wayrift platforms, tiny wild portals (wayrift3), park statue and arch. wayrift2 kept."""
-    import rift_writer as r
-    made = {}
-    # rebuild octagon platforms (overwrite 1y's 48x32 sheet with 48x48)
-    made["wayrift-platform.png"] = cells([r.wayrift_platform(True), r.wayrift_platform(False)])
-    pairs = [r.wayrift_tiny(f) for f in range(r.FRAMES + 1)]
-    made["wayrift3.png"] = cells([p[0] for p in pairs])
-    made["wayrift3_em.png"] = cells([p[1] for p in pairs])
-    made["park-statue.png"] = cells([r.park_statue(0), r.park_statue(1)])
-    made["park-arch.png"] = cells([r.park_arch()])
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    return made
-
-
 if __name__ == "__main__":
     main()
     playtest1o()
@@ -937,4 +918,3 @@ if __name__ == "__main__":
     playtest1v()
     playtest1w()
     playtest1y()
-    playtest1z()
