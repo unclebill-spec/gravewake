@@ -795,41 +795,8 @@ def playtest1u(out: Path = OUT) -> dict:
     return made
 
 
-
-def playtest1v(out: Path = OUT) -> dict:
-    """playtest1v [OWNER-APPROVED 2026-10-05 21:15 ET: playtest1v prop scale + detail pass]: the vale's trees, dead trees and rocks
-    at their audited sizes (prop_scale_writer.py; qa/playtest1v/prop_scale.md): wild-trees2-<season>.png (+ _em), 64x96 cells
-    in wild_writer TREE_KINDS order; wild-deadwood2.png (+ _em), 64x96 in DEAD_KINDS order; wild-rocks2.png (+ _em), 24x24 in
-    ROCK_KINDS order. The 1c sheets stay as they were. Runs on its own: python3 -c "import make_gravewake as m; m.playtest1v()"."""
-    import prop_scale_writer as ps
-    import wild_writer as w
-
-    made = {}
-    for season in w.SEASONS:
-        pairs = [ps.tree2(k, season) for k in w.TREE_KINDS]
-        made[f"wild-trees2-{season}.png"] = cells([p[0] for p in pairs])
-        made[f"wild-trees2-{season}_em.png"] = cells([p[1] for p in pairs])
-    pairs = [ps.deadwood2(k) for k in w.DEAD_KINDS]
-    made["wild-deadwood2.png"] = cells([p[0] for p in pairs])
-    made["wild-deadwood2_em.png"] = cells([p[1] for p in pairs])
-    pairs = [ps.rock2(k) for k in w.ROCK_KINDS]
-    made["wild-rocks2.png"] = cells([p[0] for p in pairs])
-    made["wild-rocks2_em.png"] = cells([p[1] for p in pairs])
-    # [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car (64x48 cells: rows side, front, back;
-    # columns wheel frames 0 and 1 and the rider's front layer) and the showroom's velvet ropes (bone_car_writer.py).
-    import bone_car_writer as bc
-
-    made["bonecar.png"], made["bonecar_em.png"] = bc.car_sheet()
-    made["velvet-rope.png"] = bc.rope_sheet()
-    for name, im in made.items():
-        _check_v3(name, im)
-        im.save(out / name)
-    return made
-
-
 if __name__ == "__main__":
     main()
     playtest1o()
     playtest1t()
     playtest1u()
-    playtest1v()

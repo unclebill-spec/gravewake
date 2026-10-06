@@ -9,16 +9,7 @@ export const TILE = 16;
  * is laid at twice the old 64x60 plan each way, so every biome has four times its old area. Every world place (mouths,
  * bosses, carts, the town door) sits at twice its old tile; the zone rule is the old rectangles at twice the size.
  */
-/**
- * playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes] (Bill: "double each area in size"): the vale
- * grows sqrt2 each way again (128x120 -> 181x170), so every wild biome has twice its 1e area; the town (its own 40x30
- * map) is unchanged. Every world place sits at round(1e tile x sqrt2) (WORLD.grow); scale = vale tiles per old plan tile.
- */
-export const WORLD = { scale: 2 * Math.SQRT2, grow: Math.SQRT2, w: 181, h: 170, was: { w: 128, h: 120 } } as const;
-/** playtest1v: a 1e world tile on the 1v vale. */
-export function growTile(v: number) {
-  return Math.round(v * WORLD.grow);
-}
+export const WORLD = { scale: 2, w: 128, h: 120, was: { w: 64, h: 60 } } as const;
 export type WorldBiome = "vale" | "snow" | "sand" | "ash" | "swamp";
 /** The world's zone rule (one place for it): the old rectangles, read at WORLD.scale. */
 export function worldBiome(tx: number, ty: number): WorldBiome {
@@ -33,7 +24,7 @@ export function planBiome(x: number, y: number): WorldBiome {
   return "vale";
 }
 /** The town's door on the vale and the road tile south of it (the old 32,44 and 32,46). */
-export const WORLD_DOOR = { x: 91, y: 124 } as const; // playtest1v: 1e (64,88) x sqrt2
+export const WORLD_DOOR = { x: 64, y: 88 } as const;
 export const DAY_MS = 15 * 60 * 1000;
 export const NIGHT_MS = 15 * 60 * 1000;
 export const CYCLE_MS = DAY_MS + NIGHT_MS;
@@ -490,23 +481,23 @@ export type DungeonDef = {
 
 /** Vale sites. grave and hearth sit under the town. pocket sites are short side caves. */
 export const DUNGEONS: DungeonDef[] = [
-  { id: "harrow", name: "Harrow Manor", boss: "frank", level: 10, floors: 8, theme: "harrow", tx: 62, ty: 96, zeppelin: true },
-  { id: "ossuary", name: "Parish Ossuary", boss: "warlock", level: 12, floors: 6, theme: "ossuary", tx: 79, ty: 107, zeppelin: true },
-  { id: "wraps", name: "Tomb of Wraps", boss: "wrapped", level: 22, floors: 8, theme: "wraps", tx: 153, ty: 51, zeppelin: true },
-  { id: "carrion", name: "Fort Carrion", boss: "lich", level: 24, floors: 5, theme: "carrion", tx: 158, ty: 96, zeppelin: true },
-  { id: "wick", name: "Abbey of the Last Wick", boss: "lanternking", level: 32, floors: 7, theme: "wick", tx: 124, ty: 141, zeppelin: true },
-  { id: "warren", name: "Ember Warren", boss: "haysaint", level: 34, floors: 5, theme: "warren", tx: 102, ty: 153, zeppelin: true },
-  { id: "chapel", name: "Hollow Chapel", boss: "horseman", level: 44, floors: 6, theme: "chapel", tx: 68, ty: 28, zeppelin: true },
-  { id: "vesper", name: "Castle Vesper", boss: "dracula", level: 48, floors: 10, theme: "vesper", tx: 28, ty: 51, zeppelin: true },
-  { id: "drowned", name: "Drowned Parish", boss: "witchboss", level: 62, floors: 9, theme: "drowned", tx: 102, ty: 79, zeppelin: true },
-  { id: "blackroot", name: "Blackroot", boss: "rootwidow", level: 66, floors: 7, theme: "blackroot", tx: 85, ty: 102, zeppelin: true },
-  { id: "pocketvale", name: "Vale Pocket", boss: "", level: 4, floors: 2, theme: "harrow", tx: 51, ty: 119, pocket: true },
-  { id: "pocketwaste", name: "Waste Pocket", boss: "", level: 16, floors: 2, theme: "wraps", tx: 141, ty: 62, pocket: true },
-  { id: "pocketcinder", name: "Cinder Pocket", boss: "", level: 26, floors: 2, theme: "warren", tx: 113, ty: 136, pocket: true },
-  { id: "pocketwinter", name: "Winter Pocket", boss: "", level: 30, floors: 2, theme: "chapel", tx: 51, ty: 23, pocket: true },
-  { id: "pocketswamp", name: "Swamp Pocket", boss: "", level: 40, floors: 2, theme: "drowned", tx: 96, ty: 68, pocket: true },
+  { id: "harrow", name: "Harrow Manor", boss: "frank", level: 10, floors: 8, theme: "harrow", tx: 44, ty: 68, zeppelin: true },
+  { id: "ossuary", name: "Parish Ossuary", boss: "warlock", level: 12, floors: 6, theme: "ossuary", tx: 56, ty: 76, zeppelin: true },
+  { id: "wraps", name: "Tomb of Wraps", boss: "wrapped", level: 22, floors: 8, theme: "wraps", tx: 108, ty: 36, zeppelin: true },
+  { id: "carrion", name: "Fort Carrion", boss: "lich", level: 24, floors: 5, theme: "carrion", tx: 112, ty: 68, zeppelin: true },
+  { id: "wick", name: "Abbey of the Last Wick", boss: "lanternking", level: 32, floors: 7, theme: "wick", tx: 88, ty: 100, zeppelin: true },
+  { id: "warren", name: "Ember Warren", boss: "haysaint", level: 34, floors: 5, theme: "warren", tx: 72, ty: 108, zeppelin: true },
+  { id: "chapel", name: "Hollow Chapel", boss: "horseman", level: 44, floors: 6, theme: "chapel", tx: 48, ty: 20, zeppelin: true },
+  { id: "vesper", name: "Castle Vesper", boss: "dracula", level: 48, floors: 10, theme: "vesper", tx: 20, ty: 36, zeppelin: true },
+  { id: "drowned", name: "Drowned Parish", boss: "witchboss", level: 62, floors: 9, theme: "drowned", tx: 72, ty: 56, zeppelin: true },
+  { id: "blackroot", name: "Blackroot", boss: "rootwidow", level: 66, floors: 7, theme: "blackroot", tx: 60, ty: 72, zeppelin: true },
+  { id: "pocketvale", name: "Vale Pocket", boss: "", level: 4, floors: 2, theme: "harrow", tx: 36, ty: 84, pocket: true },
+  { id: "pocketwaste", name: "Waste Pocket", boss: "", level: 16, floors: 2, theme: "wraps", tx: 100, ty: 44, pocket: true },
+  { id: "pocketcinder", name: "Cinder Pocket", boss: "", level: 26, floors: 2, theme: "warren", tx: 80, ty: 96, pocket: true },
+  { id: "pocketwinter", name: "Winter Pocket", boss: "", level: 30, floors: 2, theme: "chapel", tx: 36, ty: 16, pocket: true },
+  { id: "pocketswamp", name: "Swamp Pocket", boss: "", level: 40, floors: 2, theme: "drowned", tx: 68, ty: 48, pocket: true },
   // OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. One generated dungeon; no boss (a Stalker pack guards its boss room).
-  { id: "barrow", name: "Shifting Barrow", boss: "", level: 14, floors: 3, theme: "cave", tx: 124, ty: 91, zeppelin: true, gen: true },
+  { id: "barrow", name: "Shifting Barrow", boss: "", level: 14, floors: 3, theme: "cave", tx: 88, ty: 64, zeppelin: true, gen: true },
   { id: "grave", name: "Opened Grave", boss: "priest", level: 10, floors: 5, theme: "grave", tx: 0, ty: 0, town: true, scale: true },
   { id: "hearth", name: "Hearth Stair", boss: "abbot", level: 10, floors: 5, theme: "hearth", tx: 0, ty: 0, town: true, scale: true },
 ];
@@ -516,7 +507,7 @@ export const DUNGEONS: DungeonDef[] = [
  * dungeon. Trash only (the rift tile's own families), a possible Stalker or Goblin, no boss. L = zone of the rift tile.
  * The pocket rerolls each day-night cycle; you come back out on the exact spot you went in from.
  */
-export const RIFTS: DungeonDef[] = [{ id: "riftvale", name: "Ashen Rift", boss: "", level: 1, floors: 1, theme: "ossuary", tx: 28, ty: 85, rift: true }];
+export const RIFTS: DungeonDef[] = [{ id: "riftvale", name: "Ashen Rift", boss: "", level: 1, floors: 1, theme: "ossuary", tx: 20, ty: 60, rift: true }];
 
 /** Map-writer site settings. seed is the world seed the generated floors and rifts hash from. */
 export const MAP_WRITER = {

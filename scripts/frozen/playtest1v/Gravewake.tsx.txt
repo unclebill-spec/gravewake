@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CLASSES, type ClassId, type StatPath } from "./content";
 import { AudioBus } from "./audio";
 import { cameraFor, drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
-import { ACTS, Game, roomNameOf, villageById } from "./sim";
+import { ACTS, Game, roomNameOf } from "./sim";
 import { LOOT, LOOT_SHEET, lootCell, slotCell } from "./loot";
 import { ORDERS, ORDER_LABEL } from "./commands"; // playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]
 import { CAMP_ICON, PORTRAITS } from "./looks"; // playtest1b
@@ -384,8 +384,6 @@ export function Gravewake() {
         e.preventDefault();
         game.slash();
       }
-      // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: B is the bone car (owners only)
-      if (e.code === "KeyB" && game.carOwned && !e.repeat && !Object.values(bind).includes("KeyB")) game.carAction();
       if (e.code === bind.area) game.whirl();
       if (e.code === bind.far) game.smite();
       if (e.code === bind.drink) game.usePotion();
@@ -1025,8 +1023,6 @@ export function Gravewake() {
               ) : null}
               {/* playtest1o (Bill, 2026-10-03 19:49 ET: "signs to designate what buildings are"): inside, the HUD names the building. */}
               {game.mapId === "inside" && roomNameOf(game.inside) ? <div className="text-primary" data-testid="place-line">Inside {roomNameOf(game.inside)!.name}</div> : null}
-              {/* playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: in a village, the HUD names it. */}
-              {game.mapId === "village" && villageById(game.inside) ? <div className="text-primary" data-testid="place-line">In {villageById(game.inside)!.name}</div> : null}
               {game.curseLine() ? <div className="text-primary" data-testid="curse-line">{game.curseLine()}</div> : null}
               {game.eventLine() ? <div className="text-primary" data-testid="event-line">{game.eventLine()}</div> : null}
               {pauseHint && game.mode === "play" ? <div className="mt-0.5 text-[0.625rem] text-primary" data-testid="pause-hint">Double-tap your portrait to pause</div> : null}
@@ -1136,26 +1132,6 @@ export function Gravewake() {
             />
             <span className="text-[9px] leading-none text-fg" data-testid="hud-camp-label">{game.mapId === "camp" ? "Break" : "Camp"}</span>
           </button>
-
-          {/* playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car button, only for
-              an owner on the vale (step in, step down, or call it to you); nobody else ever sees it. */}
-          {game.carOwned && game.mapId === "world" && game.mode === "play" ? (
-            <button
-              type="button"
-              data-testid="hud-car"
-              aria-label={game.driving ? "Step down from the bone car" : "Bone car"}
-              className="gw-car absolute z-10 flex h-12 w-12 flex-col items-center justify-center border border-border bg-surface"
-              style={{ imageRendering: "pixelated", left: "calc(0.75rem + var(--sal))", bottom: "calc(12.5rem + var(--sab))" }}
-              onPointerDown={() => {
-                unlock();
-                game.carAction();
-                bump();
-              }}
-            >
-              <span aria-hidden data-testid="hud-car-icon" className="block h-6 w-8" style={{ backgroundImage: "url(/art/writer/bonecar.png)", backgroundSize: "96px 72px", backgroundPosition: "0 -24px", imageRendering: "pixelated" }} />
-              <span className="text-[9px] leading-none text-fg" data-testid="hud-car-label">{game.driving ? "Step" : "Car"}</span>
-            </button>
-          ) : null}
 
           {/* playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: one-tap companion orders, a
               row beside the stick (clear of the stick, the camp tent and the right-hand cluster on every preset; on a narrow

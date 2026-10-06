@@ -46,13 +46,13 @@ export const HARVEST = {
   allLitBonus: 15,
   /** The Pumpkin Lord's patch: open Cinder ash, 17 tiles south-west of the town gate (64,90), 20 tiles from any
    * dungeon mouth and 28 from any world boss spot (so a fight never spills into a stair or a boss). */
-  lord: { x: 74, y: 147, lv: 10 }, // playtest1v: 1e (52,104) x sqrt2
+  lord: { x: 52, y: 104, lv: 10 },
 };
 
 export const KRAMPUSNACHT = {
   /** Krampus stands in the Winter hollow, well west of the Wolfman (64,12), from dusk to dawn: open snow,
    * 13 tiles from the nearest dungeon mouth and 20 from any world boss spot (playtest1e: twice the old plan). */
-  spot: { x: 34, y: 31, lv: 16 }, // playtest1v: 1e (24,22) x sqrt2
+  spot: { x: 24, y: 22, lv: 16 },
   /** Naughty-list stalkers: packs on the existing Stalker build, named off the list, in the Winter hollow. */
   stalkers: 3,
   names: ["Greedy Tobiah", "Liar Agnes", "Little Mott the Biter", "Sly Hanne", "Sour Piet", "Wicked Lise", "Gutter Klaus", "Spiteful Wenna"],

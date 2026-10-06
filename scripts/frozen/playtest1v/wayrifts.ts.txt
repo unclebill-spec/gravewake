@@ -45,23 +45,21 @@ export const WAYRIFT = {
   clearSide: 1,
 } as const;
 
-// playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: far rifts at their 1e tile x sqrt2; the hub row
-// keeps its 1e offsets from the town door column (91) one row south of the gate (91,126).
 export const WAYRIFTS: readonly Wayrift[] = [
   // the hub row, south of the town gate: west of the road, then east
-  { id: "hub-rift", name: "Wayrift to the Ashen Rift", x: 83, y: 127, hub: true, to: "rift" },
-  { id: "hub-fest", name: "Festival wayrift", x: 87, y: 127, hub: true, festival: true },
-  { id: "hub-barrow", name: "Wayrift to the Shifting Barrow", x: 93, y: 127, hub: true, to: "barrow" },
-  { id: "hub-waste", name: "Wayrift to the Waste Pocket", x: 97, y: 127, hub: true, to: "waste" },
+  { id: "hub-rift", name: "Wayrift to the Ashen Rift", x: 56, y: 91, hub: true, to: "rift" },
+  { id: "hub-fest", name: "Festival wayrift", x: 60, y: 91, hub: true, festival: true },
+  { id: "hub-barrow", name: "Wayrift to the Shifting Barrow", x: 66, y: 91, hub: true, to: "barrow" },
+  { id: "hub-waste", name: "Wayrift to the Waste Pocket", x: 70, y: 91, hub: true, to: "waste" },
   // the festival zones (one awake a season)
-  { id: "fest-harvest", name: "Harvest Moon wayrift", x: 65, y: 147, hub: false, to: "hub-fest", season: "autumn" },
-  { id: "fest-krampus", name: "Krampusnacht wayrift", x: 38, y: 27, hub: false, to: "hub-fest", season: "winter" },
-  { id: "fest-bloom", name: "Drowned Bloom wayrift", x: 102, y: 59, hub: false, to: "hub-fest", season: "spring" },
-  { id: "fest-ashen", name: "Ashen Fair wayrift", x: 40, y: 141, hub: false, to: "hub-fest", season: "summer" },
+  { id: "fest-harvest", name: "Harvest Moon wayrift", x: 46, y: 104, hub: false, to: "hub-fest", season: "autumn" },
+  { id: "fest-krampus", name: "Krampusnacht wayrift", x: 27, y: 19, hub: false, to: "hub-fest", season: "winter" },
+  { id: "fest-bloom", name: "Drowned Bloom wayrift", x: 72, y: 42, hub: false, to: "hub-fest", season: "spring" },
+  { id: "fest-ashen", name: "Ashen Fair wayrift", x: 28, y: 100, hub: false, to: "hub-fest", season: "summer" },
   // the rift and the other special places
-  { id: "rift", name: "Ashen Rift wayrift", x: 33, y: 85, hub: false, to: "hub-rift" },
-  { id: "barrow", name: "Shifting Barrow wayrift", x: 134, y: 83, hub: false, to: "hub-barrow" },
-  { id: "waste", name: "Waste Pocket wayrift", x: 134, y: 59, hub: false, to: "hub-waste" },
+  { id: "rift", name: "Ashen Rift wayrift", x: 23, y: 60, hub: false, to: "hub-rift" },
+  { id: "barrow", name: "Shifting Barrow wayrift", x: 95, y: 59, hub: false, to: "hub-barrow" },
+  { id: "waste", name: "Waste Pocket wayrift", x: 95, y: 42, hub: false, to: "hub-waste" },
 ];
 
 /** Where each far rift's place is called in a line ("You step out by ..."). */

@@ -24,7 +24,7 @@
  * 9. If a check fails, the change is not done. Do not loosen the check to hide it.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync as existsTop, mkdtempSync, readdirSync as readdirTop, readFileSync as readTop, writeFileSync as writeTop } from "node:fs"; // playtest1r: readdirTop, writeTop (pt1qGame)
+import { existsSync as existsTop, mkdtempSync, readdirSync as readdirTop, readFileSync as readTop, writeFileSync as writeTop, symlinkSync as symlinkTop } from "node:fs"; // playtest1r: readdirTop, writeTop (pt1qGame); playtest1v: symlinkTop (pt1uRoot)
 import { createHash as hashTop } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -98,7 +98,7 @@ const PT1_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.t
 // bounty and festivals had not moved since install1, so the older module pins read those frozen copies, and the 1c/1d
 // groups read the 1d copies through pt1dFile. Group playtest1e pins the frozen copies and the live files.
 const PT1E_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/content.ts", "src/game/Gravewake.tsx", "src/game/bounty.ts", "src/game/festivals.ts"];
-const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.split("/").pop()}.txt` : PT1E_FROZEN.includes(f) ? `scripts/frozen/playtest1e/${f.split("/").pop()}.txt` : f);
+const pinFile = (f) => (PT1_FROZEN.includes(f) ? `scripts/frozen/playtest1/${f.split("/").pop()}.txt` : PT1E_FROZEN.includes(f) ? `scripts/frozen/playtest1e/${f.split("/").pop()}.txt` : pt1uView(f)); // playtest1v: a later move reads as playtest1u left it
 // playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: batch D2 edits sim.ts and draw.ts; their playtest1e copies
 // (as pushed at ee433e3) are frozen in scripts/frozen/playtest1f, and group playtest1e's live pin reads them.
 const PT1F_FROZEN = ["src/game/sim.ts", "src/game/draw.ts"];
@@ -191,11 +191,64 @@ function pt1sView(f) { return f in PT1T_FROZEN ? `scripts/frozen/playtest1t/${PT
 // older "every other file" digest. pt1tGame/pt1tSim are the sim and draw as playtest1t left them (every other module live),
 // for the older checks that judged the vale's grid (now with the hamlets' lots) or traced a walk across it.
 const PT1U_FROZEN = {"src/game/sim.ts": "sim.ts", "src/game/draw.ts": "draw.ts", "src/game/Gravewake.tsx": "Gravewake.tsx", "src/styles.css": "styles.css", "tools/map-writer/map_writer.ts": "map_writer.ts", "tools/map-writer/gravewake_world.ts": "gravewake_world.ts", "tools/map-writer/check_map_writer.mjs": "check_map_writer.mjs", "tools/pixel-writer/house_writer.py": "house_writer.py", "tools/pixel-writer/make_gravewake.py": "make_gravewake.py", "AGENTS.project.md": "AGENTS.project.md"};
-function pt1tView(f) { return f in PT1U_FROZEN ? `scripts/frozen/playtest1u/${PT1U_FROZEN[f]}.txt` : f; }
+function pt1tView(f) { return f in PT1U_FROZEN ? `scripts/frozen/playtest1u/${PT1U_FROZEN[f]}.txt` : pt1uView(f); }
 function pt1uNew(f) { return ["src/game/hamlets.ts", "src/game/tapfight.ts", "src/game/hudtap.ts"].includes(f) || /^public\/art\/writer\/hamlet-[a-z_]+\.png$/.test(f); }
+// playtest1v (2026-10-05, [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes], [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones],
+// [OWNER-APPROVED 2026-10-05 21:15 ET: playtest1v prop scale + detail pass], [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map
+// fog + bone car]): every wild biome doubles in area (the world grows from 128x120 to 181x170, every place spread out), the
+// hamlets become villages with maps of their own (villages.ts), the trees and rocks are drawn at a believable scale
+// (prop_scale_writer.py), the maps start dark and fill in where the hero has been (mapfog.ts) and a bone car is sold in town
+// (bonecar.ts, bone_car_writer.py). So the sim, draw, shell, content, bounty, festivals, hamlets, wayrifts, wild, screen,
+// audio, the world adapter and its check, the sheet maker and the owner notes moved: every older group reads them as
+// playtest1u left them (scripts/frozen/playtest1v/, as pushed at 4b118d2), and the new files are in no older "every other
+// file" digest. pt1uGame/pt1uSim are the whole game as playtest1u left it (src/game and tools/map-writer mirrored, the moved
+// files frozen), for the older checks that judged the world's grid, size and spots or traced a walk across it.
+const PT1V_FROZEN = {"src/game/sim.ts": "sim.ts", "src/game/draw.ts": "draw.ts", "src/game/Gravewake.tsx": "Gravewake.tsx", "src/game/content.ts": "content.ts", "src/game/bounty.ts": "bounty.ts", "src/game/festivals.ts": "festivals.ts", "src/game/hamlets.ts": "hamlets.ts", "src/game/wayrifts.ts": "wayrifts.ts", "src/game/wild.ts": "wild.ts", "src/game/screen.ts": "screen.ts", "src/game/audio.ts": "audio.ts", "tools/map-writer/gravewake_world.ts": "gravewake_world.ts", "tools/map-writer/check_map_writer.mjs": "check_map_writer.mjs", "tools/pixel-writer/make_gravewake.py": "make_gravewake.py", "AGENTS.project.md": "AGENTS.project.md"};
+function pt1uView(f) { return f in PT1V_FROZEN ? `scripts/frozen/playtest1v/${PT1V_FROZEN[f]}.txt` : f; }
+function pt1vNew(f) { return ["src/game/villages.ts", "src/game/mapfog.ts", "src/game/bonecar.ts", "tools/pixel-writer/prop_scale_writer.py", "tools/pixel-writer/bone_car_writer.py"].includes(f) || /^public\/art\/writer\/(wild-trees2-(autumn|winter|spring|summer)|wild-deadwood2|wild-rocks2|bonecar)(_em)?\.png$/.test(f) || f === "public/art/writer/velvet-rope.png"; }
+function pt1uGame(dir) {
+  const root = process.cwd();
+  for (const d of ["src/game", "tools/map-writer"]) {
+    execFileSync("mkdir", ["-p", join(dir, d)]);
+    for (const n of readdirTop(d)) {
+      if (/\.(tsx?|mjs)$/.test(n)) writeTop(join(dir, d, n), readTop(join(root, pt1uView(`${d}/${n}`)), "utf8"));
+      else if (!existsTop(join(dir, d, n))) symlinkTop(join(root, d, n), join(dir, d, n));
+    }
+  }
+  return (m) => join(dir, m.includes("/") ? m : `src/game/${m}.ts`);
+}
+// The tree as playtest1u left it, for the older groups that judged the world (their own bundles, reads and the swapped sim):
+// every top-level entry linked but src and tools, whose game and map-writer folders are copies with the moved files frozen.
+// GW_PT1V_LIVE=1 (group playtest1v's live pass) gives the live tree instead.
+const PT1V_LIVE = process.env.GW_PT1V_LIVE === "1";
+let pt1uRootDir = null;
+function pt1uRoot() {
+  if (PT1V_LIVE) return process.cwd();
+  if (pt1uRootDir) return pt1uRootDir;
+  const root = process.cwd();
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-1u-"));
+  for (const n of readdirTop(root)) if (n !== "src" && n !== "tools") symlinkTop(join(root, n), join(dir, n));
+  for (const top of ["src", "tools"]) {
+    execFileSync("mkdir", ["-p", join(dir, top)]);
+    for (const n of readdirTop(join(root, top))) if (n !== "game" && n !== "map-writer") symlinkTop(join(root, top, n), join(dir, top, n));
+  }
+  pt1uGame(dir);
+  pt1uRootDir = dir;
+  return dir;
+}
+const V1 = (f) => (PT1V_LIVE ? f : pt1uView(f));
+let pt1uSimMod = null;
+async function pt1uSim() {
+  if (pt1uSimMod) return pt1uSimMod;
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  writeTop(join(dir, "sim1u-entry.ts"), `export * from "${pt1uRoot()}/src/game/sim.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "sim1u-entry.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "sim1u.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  pt1uSimMod = await import(pathToFileURL(join(dir, "sim1u.mjs")).href);
+  return pt1uSimMod;
+}
 const PT1T_GAME = ["sim", "draw"];
 function pt1tGame(dir) {
-  const root = process.cwd();
+  const root = pt1uRoot(); // playtest1v: every other module as playtest1u left it
   const fix = (t) => t.replace(/from "\.\/(sim|draw)"/g, 'from "./$11t.ts"').replace(/from "\.\/(?!(?:sim|draw)1t\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
   for (const m of PT1T_GAME) writeTop(join(dir, `${m}1t.ts`), fix(readTop(`scripts/frozen/playtest1u/${m}.ts.txt`, "utf8")));
   return (m) => join(dir, `${m}1t.ts`);
@@ -212,24 +265,21 @@ async function pt1tSim() {
 function fresh1t(M, cls = "warrior", path = "str") { const g = new M.Game(); g.start(cls, path, "A"); g.held.clear(); return g; }
 function pt1tNew(f) { return ["src/game/buildings.ts", "tools/pixel-writer/house_writer.py"].includes(f) || /^public\/art\/writer\/town-bldg-[a-z]+(_em)?\.png$/.test(f); }
 const PT1S_GAME = ["draw"];
-function pt1sGame(dir) {
-  const root = process.cwd();
+function pt1sGame(dir, root = process.cwd()) { // playtest1v: root is the tree the other modules come from
   const fix = (t) => t.replace(/from "\.\/(draw)"/g, 'from "./$11s.ts"').replace(/from "\.\/(?!(?:draw)1s\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
   for (const m of PT1S_GAME) writeTop(join(dir, `${m}1s.ts`), fix(readTop(`scripts/frozen/playtest1t/${m}.ts.txt`, "utf8")));
   return (m) => join(dir, `${m}1s.ts`);
 }
 function pt1sNew(f) { return ["src/game/allyspace.ts"].includes(f); }
 const PT1R_GAME = ["sim", "draw"];
-function pt1rGame(dir) {
-  const root = process.cwd();
+function pt1rGame(dir, root = process.cwd()) { // playtest1v: root is the tree the other modules come from
   const fix = (t) => t.replace(/from "\.\/(sim|draw)"/g, 'from "./$11r.ts"').replace(/from "\.\/(?!(?:sim|draw)1r\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
   for (const m of PT1R_GAME) writeTop(join(dir, `${m}1r.ts`), fix(readTop(`scripts/frozen/playtest1s/${m}.ts.txt`, "utf8")));
   return (m) => join(dir, `${m}1r.ts`);
 }
 function pt1rNew(f) { return ["src/game/bigshapes.ts"].includes(f); }
 const PT1Q_GAME = ["sim", "draw", "fightlights", "bigboss", "roomdraw"];
-function pt1qGame(dir) {
-  const root = process.cwd();
+function pt1qGame(dir, root = process.cwd()) { // playtest1v: root is the tree the other modules come from
   const fix = (t) => t.replace(/from "\.\/(sim|draw|fightlights|bigboss|roomdraw)"/g, 'from "./$11q.ts"').replace(/from "\.\/(?!(?:sim|draw|fightlights|bigboss|roomdraw)1q\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`);
   for (const m of PT1Q_GAME) writeTop(join(dir, `${m}1q.ts`), fix(readTop(m === "roomdraw" ? "src/game/roomdraw.ts" : `scripts/frozen/playtest1r/${m}.ts.txt`, "utf8")));
   return (m) => join(dir, `${m}1q.ts`);
@@ -259,7 +309,7 @@ const pt1gView = (f) => (PT1H_FROZEN.includes(f) ? `scripts/frozen/playtest1h/${
 const PT1I_FROZEN = ["src/game/draw.ts", "tools/pixel-writer/make_gravewake.py"];
 const pt1hView = (f) => (PT1I_FROZEN.includes(f) ? `scripts/frozen/playtest1i/${f.split("/").pop()}.txt` : pt1iView(f));
 const pt1iNew = (f) => f === "src/game/interiors.ts" || /^public\/art\/writer\/(room-floor-(cabin|stone|slate|warm)|room-wall-(cabin|stone|slate|warm)|room-furn|room-rugs|preview-playtest1i)/.test(f);
-const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : `src/game/${f}`);
+const pt1dFile = (f) => (PT1E_FROZEN.includes(`src/game/${f}`) ? `scripts/frozen/playtest1e/${f}.txt` : pt1uView(`src/game/${f}`)); // playtest1v: as playtest1u left it
 const simPin = () => hashTop("md5").update(unfade2Sim(readTop(pinFile("src/game/sim.ts"), "utf8"))).digest("hex");
 // install1 (2026-10-01 22:14 ET, owner-approved Install button): Gravewake.tsx's only edits (two imports, the tip
 // hook, the title button, the Display button). uninstall1Ui takes exactly these out, so older groups still pin the rest.
@@ -301,7 +351,10 @@ const out = join(mkdtempSync(join(tmpdir(), "gravewake-")), "sim.mjs");
 execFileSync("npx", ["esbuild", "src/game/sim.ts", "--bundle", "--platform=node", "--format=esm", `--outfile=${out}`], {
   stdio: ["ignore", "ignore", "inherit"],
 });
-const { Game, FAMILIES, scaleMonster, zoneLevel } = await import(pathToFileURL(out).href);
+const LIVE_SIM = await import(pathToFileURL(out).href);
+let { Game, FAMILIES, scaleMonster, zoneLevel } = LIVE_SIM; // playtest1v: swapped to the game as playtest1u left it in the older world groups (as1u)
+async function as1u() { ({ Game, FAMILIES, scaleMonster, zoneLevel } = PT1V_LIVE ? LIVE_SIM : await pt1uSim()); }
+function asLive() { ({ Game, FAMILIES, scaleMonster, zoneLevel } = LIVE_SIM); }
 
 const wanted = new Set(process.argv.slice(2));
 const failures = [];
@@ -313,7 +366,7 @@ function on(group) {
 
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
-const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "src/game/bigboss.ts", "src/game/hudsafe.ts", "src/game/bigshapes.ts", "src/game/allyspace.ts", "src/game/buildings.ts", "src/game/hamlets.ts", "src/game/tapfight.ts", "src/game/hudtap.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o); playtest1p adds bigboss.ts (the big bodies' scale, feet and arenas, group playtest1p); playtest1q adds hudsafe.ts (a boss name clear of the HUD, group playtest1q); playtest1r adds bigshapes.ts (each big body's measured shape, group playtest1r); playtest1s adds allyspace.ts (the companion's spacing rule, group playtest1s); playtest1t adds buildings.ts (the town's lots, variants and seeded pick, group playtest1t); playtest1u adds hamlets.ts (the hamlets' kinds, sheets and lamps), tapfight.ts (tap targeting) and hudtap.ts (the HUD's double tap and fades), group playtest1u
+const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "src/game/bigboss.ts", "src/game/hudsafe.ts", "src/game/bigshapes.ts", "src/game/allyspace.ts", "src/game/buildings.ts", "src/game/hamlets.ts", "src/game/tapfight.ts", "src/game/hudtap.ts", "src/game/villages.ts", "src/game/mapfog.ts", "src/game/bonecar.ts"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o); playtest1p adds bigboss.ts (the big bodies' scale, feet and arenas, group playtest1p); playtest1q adds hudsafe.ts (a boss name clear of the HUD, group playtest1q); playtest1r adds bigshapes.ts (each big body's measured shape, group playtest1r); playtest1s adds allyspace.ts (the companion's spacing rule, group playtest1s); playtest1t adds buildings.ts (the town's lots, variants and seeded pick, group playtest1t); playtest1u adds hamlets.ts (the hamlets' kinds, sheets and lamps), tapfight.ts (tap targeting) and hudtap.ts (the HUD's double tap and fades), group playtest1u; playtest1v adds villages.ts (the villages' own maps), mapfog.ts (the explored-map fog) and bonecar.ts (the bone car and its showroom), group playtest1v
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -384,6 +437,7 @@ function item(partial) {
 }
 
 if (on("move")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const land = fresh();
   land.px = 8 * TILE + 8;
   land.py = 13 * TILE + 8;
@@ -434,6 +488,7 @@ if (on("move")) {
 }
 
 if (on("bodies")) {
+  asLive();
   const town = fresh();
   let feet = true;
   let feetDetail = "";
@@ -542,6 +597,7 @@ if (on("bodies")) {
 }
 
 if (on("doors")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const shop = fresh();
   shop.px = 14 * TILE + 8; // playtest1: the shop door is 14,6 now
   shop.py = 6 * TILE + 8;
@@ -604,6 +660,7 @@ if (on("doors")) {
 }
 
 if (on("fight")) {
+  asLive();
   const swing = fresh();
   startFight(swing);
   const foe0 = fieldFoe(swing);
@@ -786,6 +843,7 @@ if (on("fight")) {
 }
 
 if (on("gear")) {
+  asLive();
   const g = fresh();
   const ac0 = g.ac;
   const atk0 = g.atk;
@@ -862,6 +920,7 @@ if (on("gear")) {
 }
 
 if (on("loop")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const hire = fresh();
   hire.level = 10;
   hire.coin = 40;
@@ -948,6 +1007,7 @@ if (on("loop")) {
 // Particle pool. Pictures only: these checks guard the caps, the kill-oldest rule, the named
 // bursts, and that the pool never draws on Math.random (so no combat roll can shift).
 if (on("fx")) {
+  asLive();
   const COMBAT = 1;
   const liveKinds = (pool, kind) => {
     let n = 0;
@@ -1029,6 +1089,7 @@ if (on("fx")) {
 }
 
 if (on("crowd")) {
+  asLive();
   const crowdOut = join(mkdtempSync(join(tmpdir(), "gravewake-")), "crowd.mjs");
   execFileSync("npx", ["esbuild", "src/game/crowd.ts", "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${crowdOut}`], {
     stdio: ["ignore", "ignore", "inherit"],
@@ -1147,6 +1208,7 @@ function ringIsRock(S, g, room, mouth) {
 }
 
 if (on("rune") || on("crack")) {
+  asLive();
   const S = await secrets();
   const { readFileSync } = await import("node:fs");
   const src = readFileSync("src/game/feats.ts", "utf8");
@@ -1342,6 +1404,7 @@ if (on("rune") || on("crack")) {
 
 // ---- Trapped floors: spikes and pressure plates (trap). ----
 if (on("trap")) {
+  asLive();
   const S = await secrets();
   const { readFileSync } = await import("node:fs");
   const src = readFileSync("src/game/feats.ts", "utf8");
@@ -1566,6 +1629,7 @@ function standInRow(R, g) {
 }
 
 if (on("curse")) {
+  asLive();
   const R = await runsMod();
   const { readFileSync } = await import("node:fs");
   const runsSrc = readFileSync("src/game/runs.ts", "utf8");
@@ -1768,6 +1832,7 @@ if (on("curse")) {
 }
 
 if (on("rescue")) {
+  asLive();
   const R = await runsMod();
   const { readFileSync } = await import("node:fs");
   const png = readFileSync("public/art/writer/captive.png");
@@ -1932,20 +1997,20 @@ if (on("rescue")) {
   }
 }
 
-let feat47Module = null;
-async function feat47Mod() {
-  if (feat47Module) return feat47Module;
+const feat47Mods = new Map(); // playtest1v: one bundle per tree (the live one, and playtest1u's for the older world groups)
+async function feat47Mod(root = process.cwd()) {
+  if (feat47Mods.has(root)) return feat47Mods.get(root);
   const { writeFileSync } = await import("node:fs");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const entry = join(dir, "feat47.ts");
-  const root = process.cwd();
   writeFileSync(
     entry,
     `export { DUNGEONS, T, MIMICS, MIMIC_DEF, BOUNTY, FAMILIES as ROSTER, CYCLE_MS, DAY_MS, MINI_NAME, mimicHint, RESCUES, RESCUE_QUESTS, ESCORT, RUNS } from "${root}/src/game/content.ts";\nexport * from "${root}/src/game/mimic.ts";\nexport * from "${root}/src/game/bounty.ts";\nexport { walkSteps, secretTile } from "${root}/src/game/feats.ts";\nexport { captiveFloor } from "${root}/src/game/runs.ts";\nexport { monsterById } from "${root}/src/game/content.ts";\nexport * from "${root}/src/game/graves.ts";\nexport * from "${root}/src/game/derby.ts";\nexport * from "${root}/src/game/decor.ts";\nexport * from "${root}/src/game/bond.ts";\nexport { BOSSES as BOSSES_LIST } from "${root}/src/game/content.ts";\nexport * from "${root}/src/game/seasons.ts";\nexport { WEATHER_MS } from "${root}/src/game/content.ts";\nexport * from "${root}/src/game/festivals.ts";\nexport { FESTIVAL_BOSSES } from "${root}/src/game/content.ts";\n`,
   );
   const file = join(dir, "feat47.mjs");
   execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
-  feat47Module = await import(pathToFileURL(file).href);
+  const feat47Module = await import(pathToFileURL(file).href);
+  feat47Mods.set(root, feat47Module);
   return feat47Module;
 }
 
@@ -2005,6 +2070,7 @@ function onMimic(F, g, rows, n = 0) {
 }
 
 if (on("mimic")) {
+  asLive();
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const simSrc = readFileSync("src/game/sim.ts", "utf8");
@@ -2255,6 +2321,7 @@ if (on("mimic")) {
 }
 
 if (on("bounty")) {
+  asLive();
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const bountySrc = readFileSync("src/game/bounty.ts", "utf8");
@@ -2465,6 +2532,7 @@ function freedAt(F, g, site) {
 }
 
 if (on("retouch")) {
+  asLive();
   // OWNER-APPROVED COMBAT FIX 2026-09-30: a foe already in the fight is never re-touched or rebuilt.
   const simSrc = (await import("node:fs")).readFileSync("src/game/sim.ts", "utf8");
   check("retouch", "touchFoe refuses any foe already in a fight before it rebuilds anything", /private touchFoe\(r: Roamer\) \{\n {4}if \(this\.mode !== "play"\) return;\n(?: {4}\/\/.*\n)* {4}if \(r\.aggro\) return;/.test(simSrc));
@@ -2532,6 +2600,7 @@ if (on("retouch")) {
 }
 
 if (on("escort")) {
+  asLive();
   const F = await feat47Mod();
   const lv = (site) => { const g = fresh(); const d = F.DUNGEONS.find((x) => x.id === site); g.enterDungeon(site); g.floor = F.captiveFloor(site, d.floors); g.loadFloor("start"); return g.escortMax(); };
   const hps = F.RESCUES.map((r) => `${r.id} ${lv(r.dungeon)}`);
@@ -2681,6 +2750,7 @@ if (on("escort")) {
 }
 
 if (on("errand")) {
+  asLive();
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const rescueAll = (g, ids = ["wren", "tansy", "corin"]) => { for (const id of ids) g.opened.add(`rescued:${id}`); };
@@ -2893,6 +2963,7 @@ if (on("errand")) {
 
 // ---- Item 8: grave digging. Numbers in src/game/graves.ts DIG.
 if (on("graves")) {
+  asLive();
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const C = F.CYCLE_MS;
@@ -3036,6 +3107,7 @@ if (on("graves")) {
 
 // ---- Item 9: the Midnight Derby. Numbers in src/game/derby.ts DERBY.
 if (on("derby")) {
+  asLive();
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const C = F.CYCLE_MS;
@@ -3193,6 +3265,7 @@ if (on("derby")) {
 }
 
 if (on("decor")) {
+  asLive();
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const D = F.DECOR;
@@ -3316,6 +3389,7 @@ if (on("decor")) {
 }
 
 if (on("bond")) {
+  asLive();
   const F = await feat47Mod();
   const B = F.BOND;
   const C = F.CYCLE_MS;
@@ -3533,7 +3607,8 @@ if (on("bond")) {
 }
 
 if (on("season")) {
-  const F = await feat47Mod();
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
+  const F = await feat47Mod(pt1uRoot());
   const { readFileSync, existsSync } = await import("node:fs");
   const { inflateSync } = await import("node:zlib");
   const S = F.SEASON;
@@ -3626,7 +3701,7 @@ if (on("season")) {
   {
     const names = ["vale", "camp-grass", "town-grass", "trees", "town-trees"];
     const src = { vale: "public/art/writer/vale.png", "camp-grass": "public/art/writer/camp-grass.png", "town-grass": "public/art/writer/town-grass.png", trees: "public/art/brileta/trees.png", "town-trees": "public/art/held/trees.png" };
-    const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
+    const locked = new Set([...readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
     const bad = [];
     let sheets = 0;
     const seen = new Set();
@@ -3650,7 +3725,7 @@ if (on("season")) {
     }
     check("season", "20 season tint sheets (4 seasons x world grass, camp grass, town grass, wild trees, town trees): same size and shape as their source, every pixel solid and in the locked palette", sheets === 20 && !bad.length && locked.size > 400, bad.slice(0, 4).join("; "));
     check("season", "the four seasons' sheets differ from each other", seen.size === 20);
-    const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
+    const writer = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8");
     // playtest1c (owner-reported 2026-10-02, old third-party trees): the draw no longer uses the tree season sheets (the wild
     // writer draws trees per season); this records playtest1b's draw, frozen in scripts/frozen/playtest1c. Group playtest1c checks the new trees.
     const drawPT1B = readFileSync("scripts/frozen/playtest1c/draw.ts.txt", "utf8");
@@ -3783,14 +3858,15 @@ if (on("season")) {
     const back = fresh();
     back.loadSlot(2);
     check("season", "the season rides the saved clock: no new save field, and a save loads in its season", back.season() === "spring" && !Object.keys(raw).some((k) => /season/i.test(k)) && back.seasonLine() === "Spring · day 3 of 6", Object.keys(raw).filter((k) => /season/i.test(k)).join(","));
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8");
     check("season", "the HUD shows the season line", /data-testid="season-line">\{game\.seasonLine\(\)\}/.test(ui));
   }
 }
 
 if (on("daysweep")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // OWNER-APPROVED FIX 2026-10-01 (day-sweep): the day clears wanderers, never a foe already in a fight.
-  const F = await feat47Mod();
+  const F = await feat47Mod(pt1uRoot());
   const C = F.CYCLE_MS;
   const seeded = (seed) => { let s = seed; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
   const hold = (g, n) => { for (let i = 0; i < n; i++) { g.hp = g.maxHp; g.update(0.05); } };
@@ -3905,7 +3981,8 @@ if (on("daysweep")) {
 }
 
 if (on("festival")) {
-  const F = await feat47Mod();
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
+  const F = await feat47Mod(pt1uRoot());
   const { readFileSync } = await import("node:fs");
   const { inflateSync } = await import("node:zlib");
   const C = F.CYCLE_MS;
@@ -3913,7 +3990,7 @@ if (on("festival")) {
   const K = F.KRAMPUSNACHT;
   const nightOf = (d) => d * C + F.DAY_MS + 60000;
   const dayOf = (d) => d * C + 60000;
-  const simSrc = readFileSync("src/game/sim.ts", "utf8");
+  const simSrc = readFileSync(V1("src/game/sim.ts"), "utf8");
   const TAG = "OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES";
   {
     const law = ["rules/GAME_LAYOUT_TWO.txt", "rules/GAME_LAYOUT_TWO_PROMPT.txt", "rules/GAME_LAYOUT_TWO_ROSTER.txt", "AGENTS.project.md"].map((f) => [f, readFileSync(f, "utf8")]);
@@ -4279,7 +4356,7 @@ if (on("festival")) {
       }
       return { w, h, px: out };
     };
-    const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
+    const locked = new Set([...readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
     const bad = [];
     const sheet = (path, w, h, cells, cw) => {
       let im;
@@ -4303,8 +4380,8 @@ if (on("festival")) {
     const frames = new Set();
     if (kr) for (let c = 0; c < 11; c++) { let s = ""; for (let y = 0; y < 32; y++) for (let x = c * 16; x < c * 16 + 16; x++) s += kr.px[(y * 176 + x) * 4 + 3] ? kr.px.readUInt32BE((y * 176 + x) * 4).toString(16) : "."; frames.add(s); }
     check("festival", "Krampus and the Pumpkin Lord are 11-frame 16x32 sprite-writer strips (176x32), festival props a 4-cell 16x16 sheet; every pixel solid and in the locked palette, no empty frame", !bad.length && locked.size > 400 && frames.size >= 6 && kr && pl && !kr.px.equals(pl.px), bad.slice(0, 4).join("; ") + ` frames ${frames.size}`);
-    const draw = readFileSync("src/game/draw.ts", "utf8");
-    const writer = readFileSync("tools/sprite-writer/make_gravewake.py", "utf8");
+    const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
+    const writer = readFileSync(V1("tools/sprite-writer/make_gravewake.py"), "utf8");
     check("festival", "the draw uses the festival strips for their families and the props in town on the festival night; the sprite-writer makes the strips", /krampus: "\/art\/sprites\/krampus\.png", pumpkinlord: "\/art\/sprites\/pumpkin-lord\.png"/.test(draw) && /FESTIVAL_SHEETS\[family\] && sheetCell\(ctx, FESTIVAL_SHEETS\[family\]/.test(draw) && /const fest = g\.festivalId\(\);/.test(draw) && draw.includes("FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS)") && /FESTIVAL_STRIPS = \{"krampus\.png": "krampus", "pumpkin-lord\.png": "pumpkinlord"\}/.test(writer));
   }
 }
@@ -4316,7 +4393,7 @@ async function mapMod() {
   const { writeFileSync } = await import("node:fs");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const entry = join(dir, "mapwriter.ts");
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(
     entry,
     `export { DUNGEONS, RIFTS, MAP_WRITER, BOSSES, FAMILIES as ROSTER, T, CYCLE_MS, monsterById } from "${root}/src/game/content.ts";\nexport * from "${root}/tools/map-writer/gravewake.ts";\nexport { riftSeed, stepsFrom } from "${root}/tools/map-writer/map_writer.ts";\nexport { walkSteps } from "${root}/src/game/feats.ts";\nexport { plainChests } from "${root}/src/game/mimic.ts";\nexport { ParticlePool, CH_INTERACT, K_ASH } from "${root}/src/game/particles.ts";\n`,
@@ -4328,12 +4405,13 @@ async function mapMod() {
 }
 
 if (on("mapwriter")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const M = await mapMod();
   const { readFileSync } = await import("node:fs");
   const TAG = "[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER]";
-  const simSrc = readFileSync("src/game/sim.ts", "utf8");
-  const drawSrc = readFileSync("src/game/draw.ts", "utf8");
-  const contentSrc = readFileSync("src/game/content.ts", "utf8");
+  const simSrc = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const drawSrc = readFileSync(V1("src/game/draw.ts"), "utf8");
+  const contentSrc = readFileSync(V1("src/game/content.ts"), "utf8");
   const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   const C = M.CYCLE_MS;
   const gen = M.DUNGEONS.filter((d) => d.gen);
@@ -4584,13 +4662,13 @@ if (on("mapwriter")) {
       near = Math.max(near, g.fx.count(M.CH_INTERACT));
     }
     check("mapwriter", "a rift mouth swirls when you are near and stays still when you are not", near === 8 && far.fx.count(M.CH_INTERACT) === 0, `${near} / ${far.fx.count(M.CH_INTERACT)}`);
-    const locked = new Set((readFileSync("tools/sprite-writer/palette_locked.py", "utf8").match(/#[0-9a-f]{6}/gi) ?? []).map((c) => c.toLowerCase()));
+    const locked = new Set((readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8").match(/#[0-9a-f]{6}/gi) ?? []).map((c) => c.toLowerCase()));
     const paint = (drawSrc.match(/function paintRift[\s\S]*?\n}\n/) ?? [""])[0];
     const hexes = (paint.match(/#[0-9a-fA-F]{6}/g) ?? []).map((c) => c.toLowerCase());
     // gfx1 (owner-requested 2026-10-01) replaced the painted pit with the pixel writer's portal gate. Strengthened: the
     // painted pit is still locked colours only with no art file (it is now the fallback while the gate sheet loads),
     // and the mouth draws the writer's gate, whose sheet is checked pixel by pixel in the gfx1 group.
-    check("mapwriter", "the rift mouth draws the pixel writer's portal gate (portal-rift.png, made in the writer's palette-checked list); its fallback pit is painted in locked colors only, with no art file", hexes.length > 0 && hexes.every((c) => locked.has(c)) && !/\.png/.test(paint) && /if \(!paintPortalGate\(ctx, "rift", r\.x, r\.y, g\.frame\)\) paintRift\(ctx, r\.x, r\.y, g\.frame\);/.test(drawSrc) && /rift: \{ sheet: "\/art\/writer\/portal-rift\.png"/.test(drawSrc) && /im\.save\(OUT \/ f"portal-\{name\}\.png"\)\n {8}made\.append\(im\)/.test(readFileSync("tools/pixel-writer/make_gravewake.py", "utf8")), hexes.filter((c) => !locked.has(c)).join(","));
+    check("mapwriter", "the rift mouth draws the pixel writer's portal gate (portal-rift.png, made in the writer's palette-checked list); its fallback pit is painted in locked colors only, with no art file", hexes.length > 0 && hexes.every((c) => locked.has(c)) && !/\.png/.test(paint) && /if \(!paintPortalGate\(ctx, "rift", r\.x, r\.y, g\.frame\)\) paintRift\(ctx, r\.x, r\.y, g\.frame\);/.test(drawSrc) && /rift: \{ sheet: "\/art\/writer\/portal-rift\.png"/.test(drawSrc) && /im\.save\(OUT \/ f"portal-\{name\}\.png"\)\n {8}made\.append\(im\)/.test(readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8")), hexes.filter((c) => !locked.has(c)).join(","));
   }
 
   // The last floor's curse line names keepers, not a boss (the barrow has none).
@@ -4615,7 +4693,7 @@ if (on("mapwriter")) {
 
   // Seeded only.
   {
-    const mw = strip(readFileSync("tools/map-writer/map_writer.ts", "utf8")) + strip(readFileSync("tools/map-writer/gravewake.ts", "utf8"));
+    const mw = strip(readFileSync(V1("tools/map-writer/map_writer.ts"), "utf8")) + strip(readFileSync(V1("tools/map-writer/gravewake.ts"), "utf8"));
     const sites = [...simSrc.matchAll(/Math\.random\s*\(/g)].map((m) => methodAt(simSrc, m.index));
     const gen = ["seedWrittenFoes", "guardKey", "leaveRift", "riftSwirl", "noteBossRoom", "genRoomAt", "riftSaveSpot", "riftMouths"];
     const carve = (simSrc.match(/function carveGen[\s\S]*?\nfunction biomeTile/) ?? [""])[0];
@@ -4624,8 +4702,9 @@ if (on("mapwriter")) {
 }
 
 if (on("festival2")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS] Drowned Bloom and Ashen Fair: no boss, no exception.
-  const F = await feat47Mod();
+  const F = await feat47Mod(pt1uRoot());
   const { readFileSync } = await import("node:fs");
   const { inflateSync } = await import("node:zlib");
   const C = F.CYCLE_MS;
@@ -4634,8 +4713,8 @@ if (on("festival2")) {
   const H = F.HARVEST;
   const nightOf = (d) => d * C + F.DAY_MS + 60000;
   const dayOf = (d) => d * C + 60000;
-  const simSrc = readFileSync("src/game/sim.ts", "utf8");
-  const festSrc = readFileSync("src/game/festivals.ts", "utf8");
+  const simSrc = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const festSrc = readFileSync(V1("src/game/festivals.ts"), "utf8");
   const TAG = "[OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS]";
   const bossSpots = [...simSrc.slice(simSrc.indexOf("const WORLD_BOSSES = ["), simSrc.indexOf("];", simSrc.indexOf("const WORLD_BOSSES = ["))).matchAll(/tx: (\d+), ty: (\d+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
   const world = (d, lv = 20) => {
@@ -5016,7 +5095,7 @@ if (on("festival2")) {
       }
       return { w, h, px: out };
     };
-    const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
+    const locked = new Set([...readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
     const bad = [];
     const cellsOf = [];
     const sheet = (path, w, h, cells, cw, full) => {
@@ -5039,33 +5118,34 @@ if (on("festival2")) {
     };
     sheet("public/art/writer/festival-props2.png", 96, 16, 6, 16, false);
     sheet("public/art/writer/flood.png", 64, 16, 4, 16, true);
-    const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-    const pix = readFileSync("tools/pixel-writer/pixel_writer.py", "utf8");
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const writer = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8");
+    const pix = readFileSync(V1("tools/pixel-writer/pixel_writer.py"), "utf8");
+    const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
     check("festival2", "art: festival-props2.png is six 16x16 cells (bowl, Ottla's stall, bloom, brazier, flare, Sallow's booth) and flood.png four patchy 16x16 water overlay cells (each at least a quarter wet); every pixel hard-edged and in the locked palette, every cell distinct and filled; both come from the pixel writer's palette-checked list", !bad.length && locked.size > 400 && new Set(cellsOf).size === 10 && /props2\.save\(OUT \/ "festival-props2\.png"\)/.test(writer) && /flood\.save\(OUT \/ "flood\.png"\)/.test(writer) && /made \+= \[props2, flood\]/.test(writer) && /def bloom_prop\(/.test(pix) && /def fair_prop\(/.test(pix) && /def flood_tile\(/.test(pix), bad.slice(0, 4).join("; "));
     check("festival2", "the draw uses them: the flood over flooded tiles, bowls and Ottla's stall on Bloom night, braziers (flaring as called or walked) and Sallow's booth on Ashen night, unpicked blooms on the flood; both sheets preloaded", /if \(g\.floodAt\(x, y\)\) sheetCell\(ctx, FLOOD_SHEET/.test(draw) && /fest === "bloom" \? 0 : dance\.now === i \|\| dance\.done\.includes\(i\) \? 4 : 3/.test(draw) && /FESTIVAL_PROPS2, fest === "bloom" \? 1 : 5/.test(draw) && /if \(!g\.bloomPicked\(i\)\) props\.push/.test(draw) && /FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET/.test(draw));
   }
 }
 
 if (on("mapwriter2")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-REQUESTED 2026-10-01: MAP WRITER PHASE 2] Biome noise blending on the vale: looks only, the grid is the same.
   const { readFileSync, writeFileSync } = await import("node:fs");
   const { inflateSync } = await import("node:zlib");
   const TAG = "[OWNER-REQUESTED 2026-10-01: MAP WRITER PHASE 2]";
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const entry = join(dir, "mw2.ts");
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(entry, `export * from "${root}/tools/map-writer/map_writer.ts";\nexport * from "${root}/tools/map-writer/gravewake_vale.ts";\nexport { T, CYCLE_MS, DAY_MS } from "${root}/src/game/content.ts";\n`);
   const file = join(dir, "mw2.mjs");
   execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
   const V = await import(pathToFileURL(file).href);
   const V2 = await import(pathToFileURL(file).href + "?again");
-  const simSrc = readFileSync("src/game/sim.ts", "utf8");
+  const simSrc = readFileSync(V1("src/game/sim.ts"), "utf8");
   const draw = readFileSync(pt1tView("src/game/draw.ts"), "utf8"); // playtest1u: as playtest1t left it (the corner map shows the hamlets now)
-  const valeSrc = readFileSync("tools/map-writer/gravewake_vale.ts", "utf8");
+  const valeSrc = readFileSync(V1("tools/map-writer/gravewake_vale.ts"), "utf8");
   const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
   const agents = readFileSync("AGENTS.project.md", "utf8");
-  const readme = readFileSync("tools/map-writer/README.md", "utf8");
+  const readme = readFileSync(V1("tools/map-writer/README.md"), "utf8");
   const S = V.T;
   const fnv = (arr) => { let h = 0x811c9dc5; for (const t of arr) { h ^= t; h = Math.imul(h, 16777619) >>> 0; } return h.toString(16); };
   // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: the vale as playtest1t laid it; group playtest1u proves the live grid
@@ -5235,7 +5315,7 @@ if (on("mapwriter2")) {
         px[y * stride + x] = p & 255;
       }
     }
-    const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
+    const locked = new Set([...readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
     const inks = new Set();
     let soft = 0;
     const cells = [];
@@ -5254,14 +5334,15 @@ if (on("mapwriter2")) {
     const bands = [0, 1, 2, 3, 4, 5, 6, 7].every((c) => { const d = depth(cells[c], c % 4); const solid = cells[c].length >= 32; return solid && Math.max(...d) <= 5 && Math.max(...d) >= 2; });
     const nooks = [8, 9, 10, 11].every((c, k) => cells[c].length >= 6 && cells[c].every(([x, y]) => { const dx = k === 0 || k === 1 ? 15 - x : x; const dy = k === 1 || k === 2 ? 15 - y : y; return dx + dy <= 4; }));
     const distinct = new Set(cells.map((on) => JSON.stringify(on))).size === 12;
-    const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-    const pix = readFileSync("tools/pixel-writer/pixel_writer.py", "utf8");
+    const writer = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8");
+    const pix = readFileSync(V1("tools/pixel-writer/pixel_writer.py"), "utf8");
     check("mapwriter2", "art: border-dither.png is twelve 16x16 fringe masks (four ragged bands n e s w 3-6 px deep in two variants, four small corner nooks), one locked ink, hard alpha, every cell filled and distinct; made by the pixel writer's border_mask and in its palette-checked list", pw === 192 && ph === 16 && inks.size === 1 && locked.has([...inks][0]) && !soft && bands && nooks && distinct && /def border_mask\(/.test(pix) && /border\.save\(OUT \/ "border-dither\.png"\)/.test(writer) && /made \+= \[border\]/.test(writer), `${pw}x${ph} inks ${[...inks]} soft ${soft} bands ${bands} nooks ${nooks} distinct ${distinct}`);
   }
   check("mapwriter2", "the draw: the skin only on the world (theme over), worked out once per grid; open ground and prop ground show the skin biome's own sheet, a tree or rock is the skin biome's kind, road verges read it; each differing side gets the neighbour's ground through a mask (destination-in, no new colours); the mask sheet is preloaded; the minimap is untouched", /if \(g\.mapId !== "world" \|\| g\.theme !== "over"\) return null;/.test(draw) && /skinFor\.tiles !== g\.tiles/.test(draw) && /const at = \(j: number\) => \(g\.hidden\.has\(j\) \? T\.wall : look\(j, g\.tiles\[j\]\)\);/.test(draw) && /prop \? \(skin \? \(VALE_GROUND\[skin\.biome\[i\]\] as Tile\) : propGround/.test(draw) && /if \(skin\) paintFringes\(ctx, skin, g, x, y, n\);/.test(draw) && /skin \? SKIN_PROP\[skin\.biome\[i\]\] : biomeOf\(g\.theme, y, x\)/.test(draw) && /const SKIN_PROP = \["vale", "snow", "sand", "ash", "swamp"\];/.test(draw) && /off\.globalCompositeOperation = "destination-in";/.test(draw) && /\/art\/writer\/feat-\$\{k\}\.png`\), BORDER_SHEET\]\) \{/.test(draw) && !/skin|BORDER_SHEET/i.test(draw.slice(draw.indexOf("export function drawMinimap"), draw.indexOf("export function drawMinimap") + 4000)));
 }
 
 if (on("gfx1")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Batch 1: the light layer, wall depth, the rift portal gate.
   const { readFileSync, writeFileSync } = await import("node:fs");
   const { inflateSync } = await import("node:zlib");
@@ -5269,17 +5350,17 @@ if (on("gfx1")) {
   const TAG = "[OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11]";
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const entry = join(dir, "gfx1.ts");
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(entry, `export * from "${root}/src/game/draw.ts";\nexport * from "${root}/src/game/light.ts";\nexport { T } from "${root}/src/game/content.ts";\n`);
   const file = join(dir, "gfx1.mjs");
   execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
   const D = await import(pathToFileURL(file).href);
-  const draw = readFileSync("src/game/draw.ts", "utf8");
-  const lightSrc = readFileSync("src/game/light.ts", "utf8");
-  const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-  const pix = readFileSync("tools/pixel-writer/pixel_writer.py", "utf8");
+  const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
+  const lightSrc = readFileSync(V1("src/game/light.ts"), "utf8");
+  const writer = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8");
+  const pix = readFileSync(V1("tools/pixel-writer/pixel_writer.py"), "utf8");
   const md5 = (f) => createHash("md5").update(readFileSync(pinFile(f))).digest("hex");
-  const locked = new Set([...readFileSync("tools/sprite-writer/palette_locked.py", "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
+  const locked = new Set([...readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8").split("SPRITE_CORE")[0].matchAll(/"(#[0-9a-f]{6})"/g)].map((m) => m[1]));
   const lum = (c) => { const n = parseInt(c.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
   const readPng = (f) => {
     const b = readFileSync(f);
@@ -5387,7 +5468,7 @@ if (on("gfx1")) {
     const gapOk = (ss) => ss.every((a, i) => ss.every((b, j) => i === j || Math.abs(a.x - b.x) + Math.abs(a.y - b.y) >= D.LIGHT.sconceGap));
     let ok = s1.length > 0 && faceOk(g, s1), gap = gapOk(s1), all = 0;
     for (const c of caves) { const gc = fresh(c.id === "grave" ? "vampire" : "warrior"); gc.enterDungeon(c.id === "cave" ? "barrow" : c.id); if (gc.mapId !== "dungeon" || gc.theme !== c.id) ok = false; const sc = D.sconces(gc); all += sc.length; if (!faceOk(gc, sc)) ok = false; if (!gapOk(sc)) gap = false; }
-    check("gfx1", "light: dungeon wall torches are seeded per floor (two fresh games on the same floor place the same ones), only on a tall plain-rock face over open floor, never two within the gap; they are art only and the sim never reads them", ok && gap && JSON.stringify(s1) === JSON.stringify(s2) && !/sconces\(/.test(readFileSync("src/game/sim.ts", "utf8")), `${s1.length} (${all} over ${caves.length} caves) ${JSON.stringify(s1.slice(0, 3))}`);
+    check("gfx1", "light: dungeon wall torches are seeded per floor (two fresh games on the same floor place the same ones), only on a tall plain-rock face over open floor, never two within the gap; they are art only and the sim never reads them", ok && gap && JSON.stringify(s1) === JSON.stringify(s2) && !/sconces\(/.test(readFileSync(V1("src/game/sim.ts"), "utf8")), `${s1.length} (${all} over ${caves.length} caves) ${JSON.stringify(s1.slice(0, 3))}`);
     const ld = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
     check("gfx1", "light: below ground the hero's torch is first (96 px, torch colour) and the list stays within the budget", ld[0].r === 96 && ld[0].r === D.LIGHT.hero && JSON.stringify(ld[0].c) === JSON.stringify(D.LIGHTS.torch) && ld.length <= 24);
   }
@@ -5401,7 +5482,7 @@ if (on("gfx1")) {
 
   // Wall depth: the kit, and how it is drawn.
   {
-    const ramps = JSON.parse(readFileSync("tools/pixel-writer/wall-ramps.json", "utf8"));
+    const ramps = JSON.parse(readFileSync(V1("tools/pixel-writer/wall-ramps.json"), "utf8"));
     const bad = [];
     for (const c of caves) {
       const im = readPng(`public/art/writer/wall-${c.id}.png`);
@@ -5464,7 +5545,7 @@ if (on("gfx1")) {
   // Nothing in play changed.
   {
     check("gfx1", "play is untouched: sim.ts, content.ts, feats.ts, particles.ts and audio.ts are byte-identical to before the batch (movement, collision, combat numbers, shops, saves, audio)", simPin() === "a3ecff0b08113f1b418cb4127e7a4f94" && md5("src/game/content.ts") === "e520f80e802f7b80d5b5835893cbb019" && md5("src/game/feats.ts") === "39ed775c579eed137ffa64fd877bb647" && md5("src/game/particles.ts") === "32a2407a12fd4f93b4e6a423adcda043" && md5("src/game/audio.ts") === "98fbcef17779a2f944f6e71f913eba81");
-    const sw = readFileSync("tools/sprite-writer/sprite_writer.py", "utf8");
+    const sw = readFileSync(V1("tools/sprite-writer/sprite_writer.py"), "utf8");
     const kr = readPng("public/art/sprites/krampus.png");
     const m = sw.match(/"fur": "(#\w+)"[^}]*"birch": "(#\w+)", "birch_hi": "(#\w+)"/);
     check("gfx1", "Krampus's birch switch reads: pale bark with dark notches, at least 100 luminance over his fur, in the sprite strip and locked", !!m && lum(m[2]) - lum(m[1]) >= 100 && locked.has(m[2]) && locked.has(m[3]) && kr.inks.has(m[2]) && kr.inks.has(m[3]) && [...kr.inks].every((x) => locked.has(x)), m ? `${m[1]} ${m[2]} ${m[3]}` : "no match");
@@ -5472,6 +5553,7 @@ if (on("gfx1")) {
 }
 
 if (on("gfx2")) {
+  asLive();
   // [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Batch 2: the owner's darkness pick, C5 moving lights,
   // the floor kit and blob shadows, palette v2 and the master ramps (C3), the spell writer's emits (C11).
   const { readFileSync, writeFileSync, readdirSync } = await import("node:fs");
@@ -5750,6 +5832,7 @@ if (on("gfx2")) {
 }
 
 if (on("gfx3")) {
+  asLive();
   // [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Batch 3, with the owner's 15:59 ET approvals: the hero
   // light exception, brighter vale nights; ghost lights, the Deathbolt's light, #9a8aa8 walls, the harrow floor, glow masks.
   const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
@@ -5941,6 +6024,7 @@ if (on("gfx3")) {
 }
 
 if (on("screen1")) {
+  asLive();
   // screen1 (owner request 2026-10-01 16:11 ET): screen and display settings. Presentation and input reading only:
   // the C10 zoom, play, movement, collision, combat, shops, saves and audio content stay as they were.
   const { readFileSync, writeFileSync, existsSync, mkdtempSync: mk } = await import("node:fs");
@@ -6138,6 +6222,7 @@ if (on("screen1")) {
 }
 
 if (on("retro1")) {
+  asLive();
   // [OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] retro1: in Retro only, the camera shows
   // 320×240 game pixels at 1 canvas px per game px, scaled up whole with black bars. Every other preset keeps the
   // C10 view and behaviour exactly; no combat number, aggro range, spawn rule or movement changes.
@@ -6284,6 +6369,7 @@ if (on("retro1")) {
 }
 
 if (on("fade1")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in] fade1: a night roamer dissolves in over half a second
   // when it spawns. Looks only: sim.ts and every play module are retro1's byte for byte, the foe is live from its first
   // tick, and a fixed-seed night spawns the same foes at the same places and times with or without the drawing.
@@ -6291,7 +6377,7 @@ if (on("fade1")) {
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in]";
   const dir = mk(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   // playtest1u: the traces walk the vale as playtest1t laid it (the sim and draw as playtest1t left them; the hamlets are group playtest1u's)
   const G1t = pt1tGame(dir);
   writeFileSync(join(dir, "fade1.ts"), `export * from "${G1t("sim")}";\nexport * from "${G1t("draw")}";\nexport * as F from "${root}/src/game/fade.ts";\nexport * as P from "${root}/src/game/particles.ts";\nexport { CYCLE_MS, DAY_MS, TILE } from "${root}/src/game/content.ts";\n`);
@@ -6300,10 +6386,10 @@ if (on("fade1")) {
   const { F, P } = X;
   const md5 = (f) => createHash("md5").update(readFileSync(pinFile(f))).digest("hex");
   const md5s = (t) => createHash("md5").update(t).digest("hex");
-  const fadeSrc = readFileSync("src/game/fade.ts", "utf8");
+  const fadeSrc = readFileSync(V1("src/game/fade.ts"), "utf8");
   // fade2 changed three of fade1's calls (they pass the foe and the scene start); fade1's tests read fade1's text.
-  const draw = unfade2Draw(readFileSync("src/game/draw.ts", "utf8"));
-  const sim = readFileSync("src/game/sim.ts", "utf8");
+  const draw = unfade2Draw(readFileSync(V1("src/game/draw.ts"), "utf8"));
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
 
   // A canvas stand-in: counts calls, and keeps the current path's rects so a clip can be read back as world cells.
   const mockCtx = () => {
@@ -6384,7 +6470,7 @@ if (on("fade1")) {
       }
       if (n !== lv) counts = false;
     }
-    check("fade1", "the dissolve is the light layer's 4x4 Bayer: level n shows exactly n of 16 cells, a cell once shown stays shown, and the pattern is pinned to world pixels (it does not crawl with the camera)", counts && pinned && JSON.stringify(levels) === JSON.stringify([0, 0, 1, 3, 7, 8, 9, 13, 15, 16, 16]) && fadeSrc.includes("const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];") && readFileSync("src/game/light.ts", "utf8").includes("const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];"), JSON.stringify(levels));
+    check("fade1", "the dissolve is the light layer's 4x4 Bayer: level n shows exactly n of 16 cells, a cell once shown stays shown, and the pattern is pinned to world pixels (it does not crawl with the camera)", counts && pinned && JSON.stringify(levels) === JSON.stringify([0, 0, 1, 3, 7, 8, 9, 13, 15, 16, 16]) && fadeSrc.includes("const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];") && readFileSync(V1("src/game/light.ts"), "utf8").includes("const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];"), JSON.stringify(levels));
     const bad = [];
     for (const t of [0.07, 0.2, 0.45, 0.5, 0.55, 0.8, 0.9]) {
       for (const [x, y] of [[100, 200], [101.4, 199.6], [-37.5, 3.49]]) {
@@ -6545,13 +6631,14 @@ if (on("fade1")) {
 }
 
 if (on("fade2")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag] fade2: festival foes
   // dissolve in like fade1's night roamers. The sim only writes spawnAt on festival spawns; play never reads it.
   const { readFileSync, writeFileSync, readdirSync, mkdtempSync: mk } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag]";
   const dir = mk(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   // playtest1u: the traces walk the vale as playtest1t laid it (the sim and draw as playtest1t left them; the hamlets are group playtest1u's)
   const G1t = pt1tGame(dir);
   writeFileSync(join(dir, "fade2.ts"), `export * from "${G1t("sim")}";\nexport * from "${G1t("draw")}";\nexport * as F from "${root}/src/game/fade.ts";\nexport { CYCLE_MS, DAY_MS, TILE } from "${root}/src/game/content.ts";\n`);
@@ -6560,8 +6647,8 @@ if (on("fade2")) {
   const { F } = X;
   const md5 = (f) => createHash("md5").update(readFileSync(pinFile(f))).digest("hex");
   const md5s = (t) => createHash("md5").update(t).digest("hex");
-  const sim = readFileSync("src/game/sim.ts", "utf8");
-  const fadeSrc = readFileSync("src/game/fade.ts", "utf8");
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const fadeSrc = readFileSync(V1("src/game/fade.ts"), "utf8");
   const strip = (r) => { const { spawnAt: _t, ...rest } = r; return rest; };
   const mockCtx = () => {
     const st = { clips: 0, cell: [Infinity, Infinity, -Infinity, -Infinity] };
@@ -6796,6 +6883,7 @@ if (on("fade2")) {
 }
 
 if (on("install1")) {
+  asLive();
   // [OWNER-APPROVED 2026-10-01 22:14 ET: in-game Install button, web app manifest, offline service worker] install1:
   // the game installs as an app (Android home screen, PC desktop) from an Install button; it plays offline after.
   const { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync: mk } = await import("node:fs");
@@ -7057,6 +7145,7 @@ if (on("install1")) {
 }
 
 if (on("playtest1")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-REPORTED 2026-10-01 23:25 ET: playtest1 phone playtest fixes] Bill's phone playtest, batch A.
   const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
   const { createHash } = await import("node:crypto");
@@ -7064,15 +7153,15 @@ if (on("playtest1")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const SIMX = await import(pathToFileURL(out).href);
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "pt1.ts"), `export * from "${root}/src/game/draw.ts";\nexport * from "${root}/src/game/light.ts";\nexport { T, KITS } from "${root}/src/game/content.ts";\nexport * as SCR from "${root}/src/game/screen.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "pt1.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const D = await import(pathToFileURL(join(dir, "pt1.mjs")).href);
   const T = D.T;
-  const sim = readFileSync("src/game/sim.ts", "utf8");
-  const draw = readFileSync("src/game/draw.ts", "utf8");
-  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
-  const scr = readFileSync("src/game/screen.ts", "utf8");
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
+  const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8");
+  const scr = readFileSync(V1("src/game/screen.ts"), "utf8");
 
   // 0. The frozen references the older groups pin are the files exactly as install1 left them.
   {
@@ -7165,13 +7254,13 @@ if (on("playtest1")) {
   // 3. Looks: the four hero looks are the player's alone; folk wear their own; swim/climb/fish/slide are sheet frames.
   {
     const kit = Object.values(D.KITS).map((k) => k.look);
-    const crowdSrc = readFileSync("src/game/crowd.ts", "utf8");
+    const crowdSrc = readFileSync(V1("src/game/crowd.ts"), "utf8");
     const heroLooks = ["warrior", "wizard", "assassin", "vampire"];
     const npcLooks = heroLooks.map((r) => D.lookFor(r, "npc"));
     check("playtest1", "a hero's look belongs to the player: NPCs, the crowd and companions asking for a hero class draw sellsword, cutpurse, hedgemage or patron instead (the companion kits too), so the hero never looks like the townsfolk (owner-reported)", JSON.stringify(npcLooks) === '["sellsword","hedgemage","cutpurse","patron"]' && heroLooks.every((r) => D.lookFor(r, "hero") === r) && !kit.some((l) => heroLooks.includes(l)) && /"sellsword"/.test(crowdSrc) && /"cutpurse"/.test(crowdSrc) && /"hedgemage"/.test(crowdSrc), JSON.stringify({ npcLooks, kit }));
     const png = (f) => { const b = readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
     const [mw, mh] = png("public/art/sprites/moves.png");
-    check("playtest1", "swim, slide, fish and climb are sprite-writer frames (moves.png: every look x 7 frames, 16 x 32 cells) and person() draws them from the sheet; no role falls back to the old painted person", mw === D.FOLK.length * 7 * 16 && mh === 32 && /sheetCell\(ctx, MOVES_SHEET, moveCol\(role, pose, frame\), 0, 0, -10, 1, 2, 16\)/.test(draw) && /if \(!FOLK\.includes\(role\)\) role = FOLK\[8 \+ \(strHash\(seed \|\| role\) % 16\)\]!;/.test(draw) && /MOVES = \(/.test(readFileSync("tools/sprite-writer/make_gravewake.py", "utf8") + readFileSync("tools/sprite-writer/sprite_writer.py", "utf8")), `${mw}x${mh}`);
+    check("playtest1", "swim, slide, fish and climb are sprite-writer frames (moves.png: every look x 7 frames, 16 x 32 cells) and person() draws them from the sheet; no role falls back to the old painted person", mw === D.FOLK.length * 7 * 16 && mh === 32 && /sheetCell\(ctx, MOVES_SHEET, moveCol\(role, pose, frame\), 0, 0, -10, 1, 2, 16\)/.test(draw) && /if \(!FOLK\.includes\(role\)\) role = FOLK\[8 \+ \(strHash\(seed \|\| role\) % 16\)\]!;/.test(draw) && /MOVES = \(/.test(readFileSync(V1("tools/sprite-writer/make_gravewake.py"), "utf8") + readFileSync(V1("tools/sprite-writer/sprite_writer.py"), "utf8")), `${mw}x${mh}`);
     const cyc = [0, 1, 2, 3, 4, 5, 6, 7].map((f) => D.poseCol("walk", f + 0.5));
     check("playtest1", "the walk cycles at the game's 8 frames a second through stride, pass, stride, pass (2 3 4 3), a frame every 125 ms, so feet change as fast as the body moves (owner-reported: the walk floated)", JSON.stringify(cyc) === "[2,3,4,3,2,3,4,3]" && /this\.frame \+= dt \* 8;/.test(sim), JSON.stringify(cyc));
   }
@@ -7215,11 +7304,11 @@ if (on("playtest1")) {
     const got = py(`import json,sys\nsys.path.insert(0,'../sprite-writer')\nfrom PIL import Image\nfrom palette_locked import LOCKED\nL=set(c.lower() for c in LOCKED)\nout={}\nfor n in ${JSON.stringify(names)}:\n    im=Image.open(f'../../public/art/writer/{n}.png').convert('RGBA')\n    px=[p for p in im.getdata() if p[3]]\n    out[n]=[im.size[0],im.size[1],sum(1 for p in px if '#%02x%02x%02x'%p[:3] not in L),sum(1 for p in im.getdata() if 0<p[3]<255)]\nprint(json.dumps(out))`);
     const okArt = !got.error && names.every((n) => got[n] && got[n][1] === 16 && got[n][2] === 0 && got[n][3] === 0);
     const gone = !/\/art\/cozy\/dirt\.png|landCell\(ctx, "terrain"/.test(draw) && !/"\/art\/cozy\/dirt\.png"/.test(scr);
-    check("playtest1", "the town cobble, town dirt, town water, vale road, room floors, town pool and the town fence are pixel-writer strips in the locked palette (no soft pixels); the land pack's cobble and water and the cozy pack's dirt are drawn nowhere (owner-reported: old ground textures)", okArt && gone && /def playtest1_grounds\(\) -> list:/.test(readFileSync("tools/pixel-writer/make_gravewake.py", "utf8")), JSON.stringify(got));
+    check("playtest1", "the town cobble, town dirt, town water, vale road, room floors, town pool and the town fence are pixel-writer strips in the locked palette (no soft pixels); the land pack's cobble and water and the cozy pack's dirt are drawn nowhere (owner-reported: old ground textures)", okArt && gone && /def playtest1_grounds\(\) -> list:/.test(readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8")), JSON.stringify(got));
     // the recipes themselves (not only the shipped strips): every colour named from TOWN_STONE to playtest1_grounds is locked
-    const mk = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
+    const mk = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8");
     const recipe = mk.slice(mk.indexOf("TOWN_STONE = ("), mk.indexOf("def playtest1_grounds() -> list:"));
-    const lockedSrc = readFileSync("tools/sprite-writer/palette_locked.py", "utf8");
+    const lockedSrc = readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8");
     const LOCK = new Set([...lockedSrc.slice(lockedSrc.indexOf("LOCKED = frozenset(("), lockedSrc.indexOf("))", lockedSrc.indexOf("LOCKED = frozenset(("))).matchAll(/"(#[0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase()));
     const named = [...recipe.matchAll(/"(#[0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase());
     const loose = named.filter((c) => !LOCK.has(c));
@@ -7280,13 +7369,13 @@ if (on("playtest1")) {
     localStorage.removeItem("gravewake-autosave-v1");
     const hooks = ["visibilitychange", "pagehide", "beforeunload", "popstate", "blur"].every((e) => ui.includes(`window.addEventListener("${e}"`) || ui.includes(`document.addEventListener("${e}"`));
     check("playtest1", "the shell autosaves when the page hides, is closed or loses focus, when fullscreen ends, and every 45 s; hiding or leaving fullscreen mid-play pauses under a \"Tap to resume (fullscreen)\" cover; a page that went away mid-play resumes there on reload (owner-reported: the Android edge swipe lost progress)", hooks && /const autoId = window\.setInterval\(\(\) => \{\n\s+if \(playing\(\) && document\.visibilityState === "visible"\) game\.autosave\(false\);\n\s+\}, 45000\);/.test(ui) && /if \(wasFs && !now\) away\(true\);/.test(ui) && /data-testid="tap-resume"/.test(ui) && /if \(auto\?\.live && game\.resumeAuto\(\)\) \{/.test(ui) && /data-testid="continue"/.test(ui));
-    check("playtest1", "the back gesture pops a trap entry first and asks \"Leave game?\" (Stay keeps playing); closing mid-play raises the browser's leave prompt; fullscreen locks landscape and holds Escape where the browser allows; the page never scrolls or bounces", /history\.pushState\(\{ \.\.\.\(history\.state \?\? \{\}\), gravewakeTrap: 1 \}, "", location\.href\);/.test(ui) && /data-testid="leave-game"/.test(ui) && /e\.preventDefault\(\);\n\s+e\.returnValue = "";/.test(ui) && /await o\.lock\("landscape"\);/.test(scr) && /await kb\.lock\(\["Escape"\]\);/.test(scr) && /overscroll-behavior: none;/.test(readFileSync("src/styles.css", "utf8")) && /touch-action: none;/.test(readFileSync("src/styles.css", "utf8")));
+    check("playtest1", "the back gesture pops a trap entry first and asks \"Leave game?\" (Stay keeps playing); closing mid-play raises the browser's leave prompt; fullscreen locks landscape and holds Escape where the browser allows; the page never scrolls or bounces", /history\.pushState\(\{ \.\.\.\(history\.state \?\? \{\}\), gravewakeTrap: 1 \}, "", location\.href\);/.test(ui) && /data-testid="leave-game"/.test(ui) && /e\.preventDefault\(\);\n\s+e\.returnValue = "";/.test(ui) && /await o\.lock\("landscape"\);/.test(scr) && /await kb\.lock\(\["Escape"\]\);/.test(scr) && /overscroll-behavior: none;/.test(readFileSync(V1("src/styles.css"), "utf8")) && /touch-action: none;/.test(readFileSync(V1("src/styles.css"), "utf8")));
   }
 
   // 9. The manifest says what the game is; the notes are written.
   {
     const man = JSON.parse(readFileSync("public/gravewake.webmanifest", "utf8"));
-    const head = readFileSync("src/routes/__root.tsx", "utf8");
+    const head = readFileSync(V1("src/routes/__root.tsx"), "utf8");
     check("playtest1", "the web app manifest and the page describe a real-time gothic Halloween action RPG (they said turn-based); display stays fullscreen", /real-time gothic Halloween action RPG/.test(man.description) && !/turn-based/i.test(man.description + head) && /real-time gothic Halloween action RPG/.test(head) && man.display === "fullscreen", man.description);
     const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -7304,6 +7393,7 @@ if (on("playtest1")) {
 
 
 if (on("playtest1b")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b looks] Bill's batch B ("gloom and glow") and his 2026-10-02 playtest
   // notes (bugs/playtest-2026-10-02/NOTES.md), plus the [OWNER-APPROVED 2026-10-02 Bill] mana change.
   const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
@@ -7313,17 +7403,17 @@ if (on("playtest1b")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const md5b = (a) => createHash("md5").update(Buffer.from(a)).digest("hex");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "draw1n.ts"), readFileSync(pt1nView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`)); // playtest1o: the draw as playtest1n left it
   writeFileSync(join(dir, "pt1b.ts"), `export * from "${dir}/draw1n.ts";\nexport * as L from "${root}/src/game/looks.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport { townRoomAt, MANA, WADE_LINE, DRY_LINE } from "${root}/src/game/sim.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1b.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "pt1b.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const D = await import(pathToFileURL(join(dir, "pt1b.mjs")).href);
   const T = D.T;
   const L = D.L;
-  const sim = readFileSync("src/game/sim.ts", "utf8");
-  const draw = readFileSync("src/game/draw.ts", "utf8");
-  const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
-  const looks = readFileSync("src/game/looks.ts", "utf8");
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
+  const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8");
+  const looks = readFileSync(V1("src/game/looks.ts"), "utf8");
   const py = (code) => {
     try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })); }
     catch (e) { return { error: String(e.stderr || e.message).slice(-300) }; }
@@ -7341,7 +7431,7 @@ if (on("playtest1b")) {
 
   // 1. Palette v3 and the writer sheets.
   {
-    const pal = readFileSync("tools/sprite-writer/palette_locked.py", "utf8");
+    const pal = readFileSync(V1("tools/sprite-writer/palette_locked.py"), "utf8");
     const four = ["#4ab8ff", "#9ae4ff", "#b07aff", "#ff3a50"];
     check("playtest1b", "palette v3 is the locked v2 set plus exactly four neon tubes (#4ab8ff #9ae4ff #b07aff #ff3a50), with the NEON ramps (blue, violet, red), under the dated owner tag", (pal.match(/PALETTE_V3_GLOW = frozenset\(\(\n([^)]*)\)\)/)?.[1].match(/#[0-9a-f]{6}/g) ?? []).join() === four.join() && /LOCKED_V3\s*=\s*LOCKED_V2\s*\|\s*PALETTE_V3_GLOW/.test(pal) && /NEON\s*=/.test(pal) && pal.includes("[OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b"));
     const SHEETS = ["writer/font-small.png", "writer/town-signs.png", "writer/town-signs_em.png", "writer/town-icon.png", "writer/town-icon_em.png", "writer/town-map-icon.png", "writer/camp-icon.png", "sprites/portraits.png", "writer/camp-tent.png", "writer/camp-tent_em.png", "writer/camp-fire.png", "writer/camp-fire_em.png", "writer/camp-gear.png", "writer/camp-gear_em.png", "writer/room-wall.png", "writer/room-wall_em.png", "writer/room-kit.png", "writer/room-kit_em.png", "writer/room-rug.png", "writer/room-boards.png"];
@@ -7488,6 +7578,7 @@ if (on("playtest1b")) {
 }
 
 if (on("playtest1c")) {
+  asLive();
   // [OWNER-REQUESTED 2026-10-02 02:07 ET: playtest1c art audit] Bill's batch C: no old graphics or sprites left in the
   // game, fluid movement animations, and the same detail level everywhere (bugs/playtest-2026-10-02/NOTES.md [C]
   // items and his shots). C1 is the outdoor world, the foes' scale and the animation timing; see specs/ART_AUDIT.md.
@@ -7625,6 +7716,7 @@ tops=[cy(sc[i]) for i in (2,3,4)]\nprint(json.dumps({'sc':d(sc[0],sc[1]),'pl':d(
 }
 
 if (on("playtest1d")) {
+  asLive();
   // [OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2] batch C's second part (specs/ART_AUDIT.md, C2 list):
   // the town's houses and cabin, a cozier town lawn, the last third-party spell strips, a rim where biomes meet, the
   // square on the ice in Bill's snow shot, the dungeon stairs dressed per dungeon, and Bill's "lizard" note.
@@ -7797,6 +7889,7 @@ if (on("playtest1d")) {
 }
 
 if (on("playtest1e")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-APPROVED 2026-10-02: playtest1e bigger world] [OWNER-APPROVED 2026-10-02: playtest1e no void] batch D1:
   // the vale is twice the size each way (4x every biome's area), laid by the map writer's phase 3 with roads, trails,
   // landmarks and caches; the camera stops at the map's edge and anything past it is themed border, never black;
@@ -7808,7 +7901,7 @@ if (on("playtest1e")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const md5b = (b) => createHash("md5").update(b).digest("hex");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "pt1e.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport { WORLD, WORLD_DOOR, worldBiome, planBiome, T, DUNGEONS, RIFTS } from "${root}/src/game/content.ts";\nexport * as MW from "${root}/tools/map-writer/map_writer.ts";\nexport * as GW from "${root}/tools/map-writer/gravewake_world.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1e.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1e.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const had = { Image: globalThis.Image, document: globalThis.document };
@@ -7831,11 +7924,11 @@ if (on("playtest1e")) {
   globalThis.document = { createElement: () => ({ getContext: () => mock(), width: 16, height: 16 }) };
   const X = await import(pathToFileURL(join(dir, "pt1e.mjs")).href);
   const { T: TT, WORLD: WD } = X;
-  const sim = readFileSync("src/game/sim.ts", "utf8");
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
   const ui = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8"); // playtest1u: the shell as playtest1t left it (group playtest1u checks the live one)
-  const gw = readFileSync("tools/map-writer/gravewake_world.ts", "utf8");
-  const mw = readFileSync("tools/map-writer/map_writer.ts", "utf8");
+  const gw = readFileSync(V1("tools/map-writer/gravewake_world.ts"), "utf8");
+  const mw = readFileSync(V1("tools/map-writer/map_writer.ts"), "utf8");
   const mk = () => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); return g; };
   const START = [X.WORLD_DOOR.x * TILE + 8, (X.WORLD_DOOR.y + 2) * TILE + 8];
 
@@ -8025,7 +8118,7 @@ if (on("playtest1e")) {
   {
     const rules = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
-    const readme = readFileSync("tools/map-writer/README.md", "utf8");
+    const readme = readFileSync(V1("tools/map-writer/README.md"), "utf8");
     check("playtest1e", "rules/GAME_LAYOUT_TWO.txt, AGENTS.project.md and the map-writer README (phase 3) carry the dated owner notes, including that the g.tiles rule is lifted for the vale only", [rules, agents].every((t) => t.includes(TAG) && t.includes(TAG2) && /lifted for the vale only/.test(t)) && readme.includes("## Phase 3: the overworld") && readme.includes(TAG));
     check("playtest1e", "the frozen references (scripts/frozen/playtest1e) are playtest1d's sim, draw, content, shell, bounty and festivals byte for byte, and the older pins read them", md5f("scripts/frozen/playtest1e/sim.ts.txt") === "04d3325b77505c886beba0d81bfac5d5" && md5f("scripts/frozen/playtest1e/draw.ts.txt") === "63ac4c27a789a596773da09b34330ffb" && md5f("scripts/frozen/playtest1e/content.ts.txt") === "363ab7b0efeac538717636f7478838b0" && md5f("scripts/frozen/playtest1e/Gravewake.tsx.txt") === "bdf6866b62280f7c2c3cf1651061bf2b" && md5f("scripts/frozen/playtest1e/bounty.ts.txt") === "8b71d8a405b42bbd61af08f6e60c32bc" && md5f("scripts/frozen/playtest1e/festivals.ts.txt") === "d6c5fd0abacc274cff6d5d35356422fa" && pinFile("src/game/bounty.ts").startsWith("scripts/frozen/playtest1e/"));
   }
@@ -8042,6 +8135,7 @@ if (on("playtest1e")) {
 }
 
 if (on("playtest1f")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   await pt1tSim(); // playtest1u: the grid as playtest1t laid it, for the rifts' diff
   // [OWNER-APPROVED 2026-10-02: playtest1f portals] batch D2: wayrifts (visible animated portals in the Gravewake palette)
   // linking the town gate to the seasonal festival zones, the Ashen Rift and two special places, on the corner map and
@@ -8052,7 +8146,7 @@ if (on("playtest1f")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const md5b = (b) => createHash("md5").update(b).digest("hex");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "pt1f.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as WR from "${root}/src/game/wayrifts.ts";\nexport { WORLD, WORLD_DOOR, worldBiome, T, DUNGEONS, RIFTS } from "${root}/src/game/content.ts";\nexport { GATE } from "${root}/src/game/bounty.ts";\nexport { FESTIVALS } from "${root}/src/game/seasons.ts";\nexport { HARVEST, KRAMPUSNACHT, DROWNED_BLOOM } from "${root}/src/game/festivals.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1f.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1f.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   // playtest1e's sim as pushed (scripts/frozen/playtest1f/sim.ts.txt), bundled beside it, for the before/after grid
@@ -8077,9 +8171,9 @@ if (on("playtest1f")) {
   const P = await import(pathToFileURL(join(dir, "sim1e.mjs")).href);
   const W = X.WR;
   const TT = X.T;
-  const sim = readFileSync("src/game/sim.ts", "utf8");
-  const draw = readFileSync("src/game/draw.ts", "utf8");
-  const wr = readFileSync("src/game/wayrifts.ts", "utf8");
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
+  const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
+  const wr = readFileSync(V1("src/game/wayrifts.ts"), "utf8");
   const mk = (ms = 5 * 60 * 1000) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 93 * TILE + 8); g.worldMs = ms; g.roamers = []; g.mode = "play"; return g; };
   const CYCLE = 30 * 60 * 1000, NIGHT = 20 * 60 * 1000;
   const at = (g, x, y) => { g.px = x * TILE + 8; g.py = y * TILE + 8; g.roamers = []; g.goal = null; g.riftHold = ""; g.wayHold = ""; };
@@ -8113,7 +8207,7 @@ if (on("playtest1f")) {
     const okTiles = R.every((r) => [...fp(r), [r.x + 1, r.y + 2]].every(([x, y]) => ground.has(tiles[y * w + x])));
     const inside = R.every((r) => r.x >= 2 && r.y >= 4 && r.x + 3 <= w - 2 && r.y + 3 <= h - 2);
     const apart = R.every((a, i) => R.every((b, j) => i === j || a.x + 3 + 1 <= b.x || b.x + 3 + 1 <= a.x || a.y + 3 <= b.y - 2 || b.y + 3 <= a.y - 2));
-    const simSrc1p = readFileSync("src/game/sim.ts", "utf8"); // playtest1p
+    const simSrc1p = readFileSync(V1("src/game/sim.ts"), "utf8"); // playtest1p
     check("playtest1f", "every footprint (3x2 tiles; the art 48x64, 3x4 tiles) sits inside the vale's edge band on open biome ground, front included, and no two rifts' art overlap", okTiles && inside && apart);
     const solidOk = R.every((r) => fp(r).every(([x, y]) => g.solidAt(x * TILE + 8, y * TILE + 8, true) === !(x === r.x + 1 && y === r.y + 1)) && !g.solidAt((r.x + 1) * TILE + 8, (r.y + 2) * TILE + 8, true));
     const old = new P.Game(); old.start("warrior", "str", "Q"); old.enterWorld(64 * TILE + 8, 93 * TILE + 8);
@@ -8369,14 +8463,14 @@ if (on("playtest1f")) {
     const sizes = o["wayrift.png"]?.[0] === 432 && o["wayrift.png"]?.[1] === 64 && o["wayrift_em.png"]?.[0] === 432 && o["wayrift-icon.png"]?.[0] === 18 && o["wayrift-icon.png"]?.[1] === 11 && o["swamp-path.png"]?.[0] === 288 && o["swamp-path.png"]?.[1] === 16;
     check("playtest1f", `the art is the rift writer's (tools/pixel-writer/rift_writer.py, run from make_gravewake.playtest1f_d2): wayrift 9 cells of 48x64 (8 swirl frames and the sealed one) and its glow mask, the 9x11 map marker, 18 swamp path cells; palette v3 only, hard alpha; a re-run gives the same bytes`, sizes && files.every((f) => o[f]?.[2] === 0) && Object.values(res.same ?? {}).every(Boolean) && Object.keys(res.same ?? {}).length === 4, JSON.stringify(res).slice(0, 300));
     check("playtest1f", `the rift burns in Bill's three glows: neon-blue cold fire, violet and red (${(res.neon ?? []).join(" ")} all used), and its glow mask is only its own pixels`, (res.neon ?? []).length === 4 && res.em === true);
-    check("playtest1f", "every rift sheet is asked for up front (WAYRIFT_SHEETS, after the wild sheets) and exists", W.WAYRIFT_SHEETS.length === 4 && W.WAYRIFT_SHEETS.every((u) => existsSync(`public${u}`)) && /for \(const url of WAYRIFT_SHEETS\) \{/.test(draw) && /def playtest1f_d2\(\)/.test(readFileSync("tools/pixel-writer/make_gravewake.py", "utf8")));
+    check("playtest1f", "every rift sheet is asked for up front (WAYRIFT_SHEETS, after the wild sheets) and exists", W.WAYRIFT_SHEETS.length === 4 && W.WAYRIFT_SHEETS.every((u) => existsSync(`public${u}`)) && /for \(const url of WAYRIFT_SHEETS\) \{/.test(draw) && /def playtest1f_d2\(\)/.test(readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8")));
   }
 
   // 8. Laws: the dated owner notes, the frozen playtest1e copies, the live pin.
   {
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
-    check("playtest1f", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in wayrifts.ts, sim.ts, draw.ts and the rift writer`, law.includes(`${TAG}`) && agents.includes(`${TAG}`) && wr.includes(TAG) && sim.includes(TAG) && draw.includes(TAG) && readFileSync("tools/pixel-writer/rift_writer.py", "utf8").includes(TAG));
+    check("playtest1f", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt and AGENTS.project.md, and tagged in wayrifts.ts, sim.ts, draw.ts and the rift writer`, law.includes(`${TAG}`) && agents.includes(`${TAG}`) && wr.includes(TAG) && sim.includes(TAG) && draw.includes(TAG) && readFileSync(V1("tools/pixel-writer/rift_writer.py"), "utf8").includes(TAG));
     const FROZEN = { "sim.ts": "c909777a3b3ad62894296b6d3b1aeef7", "draw.ts": "f44c0e93ff39252740c959aabc9884ef" };
     check("playtest1f", "the frozen references (scripts/frozen/playtest1f) are playtest1e's sim and draw byte for byte (as pushed at ee433e3), and group playtest1e's live pin reads them", Object.entries(FROZEN).every(([f, hh]) => md5f(`scripts/frozen/playtest1f/${f}.txt`) === hh) && /md5f\(pt1eView\(f\)\)/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
     globalThis.Image = had.Image;
@@ -8388,6 +8482,7 @@ if (on("playtest1f")) {
 }
 
 if (on("playtest1g")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   // [OWNER-APPROVED 2026-10-02: playtest1g trail paths] the vale's, the snow's, the ash's and the sand's trails drawn as
   // proper paths (the trail writer's 16 NESW masks, ragged edges on each biome's own ground), drawing only.
   const { readFileSync, writeFileSync, existsSync, readdirSync, statSync } = await import("node:fs");
@@ -8395,7 +8490,7 @@ if (on("playtest1g")) {
   const TAG = "[OWNER-APPROVED 2026-10-02: playtest1g trail paths]";
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   // playtest1h: playtest1g's draw as pushed (scripts/frozen/playtest1h/draw.ts.txt) stands in for the live one here
   writeFileSync(join(dir, "draw1g.ts"), readFileSync(pt1gView("src/game/draw.ts"), "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
   writeFileSync(join(dir, "pt1g.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${join(dir, "draw1g.ts")}";\nexport * as TR from "${root}/src/game/trails.ts";\nexport { SWAMP_PATH } from "${root}/src/game/wayrifts.ts";\nexport { WILD_GROUND } from "${root}/src/game/wild.ts";\nexport { seasonAt } from "${root}/src/game/seasons.ts";\nexport { worldBiome, T } from "${root}/src/game/content.ts";\nexport { VALE_GROUND } from "${root}/tools/map-writer/gravewake_vale.ts";\n`);
@@ -8438,7 +8533,7 @@ if (on("playtest1g")) {
   const TR = X.TR;
   const TT = X.T;
   const draw = readFileSync(pt1gView("src/game/draw.ts"), "utf8"); // playtest1h: playtest1g's draw as pushed
-  const trs = readFileSync("src/game/trails.ts", "utf8");
+  const trs = readFileSync(V1("src/game/trails.ts"), "utf8");
   const CYCLE = 30 * 60 * 1000;
   const SEAS = 6 * CYCLE;
   const mk = (ms = 5 * 60 * 1000) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 93 * TILE + 8); g.worldMs = ms; g.roamers = []; g.mode = "play"; return g; };
@@ -8649,7 +8744,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     check("playtest1g", `the looks: leaf litter on the vale path in every season (${(L.litter ?? []).map((x) => x.length).join("/")} litter colours) and each season's row its own; boot prints in the snow; embers in the ash's cracks (${(L.ash_embers ?? []).length}); pebbles (${(L.sand_pebbles ?? []).length}) and wind ripples on the sand`, (L.litter ?? []).length === 4 && L.litter.every((x) => x.length >= 1) && L.rows_differ === true && L.snow_prints === true && (L.ash_embers ?? []).length >= 2 && (L.sand_pebbles ?? []).length >= 2 && L.sand_ripple === true, JSON.stringify(L));
     const C = res.contrast ?? {};
     check("playtest1g", `the path reads against its ground: its body's mean light differs from the ground sheet's by ${Object.entries(C).map(([b, v]) => `${b} ${v}`).join(", ")} (12 or more of 255)`, ["snow", "ash", "sand"].every((b) => C[b] >= 12), JSON.stringify(C));
-    check("playtest1g", "every trail sheet is asked for up front (TRAIL_SHEETS) and exists, one for each of the four grounds (TRAIL_BY_GROUND: vale grass, snow, ash, sand; the swamp keeps its own)", TR.TRAIL_SHEETS.length === 4 && TR.TRAIL_SHEETS.every((u) => existsSync(`public${u}`)) && Object.keys(TR.TRAIL_BY_GROUND).length === 4 && TR.TRAIL_BY_GROUND[TT.grass] === TR.TRAIL_VALE && TR.TRAIL_BY_GROUND[TT.snow] === TR.TRAIL_SNOW && TR.TRAIL_BY_GROUND[TT.ash] === TR.TRAIL_ASH && TR.TRAIL_BY_GROUND[TT.sand] === TR.TRAIL_SAND && TR.TRAIL_BY_GROUND[TT.swamp] === undefined && /def playtest1g\(\)/.test(readFileSync("tools/pixel-writer/make_gravewake.py", "utf8")));
+    check("playtest1g", "every trail sheet is asked for up front (TRAIL_SHEETS) and exists, one for each of the four grounds (TRAIL_BY_GROUND: vale grass, snow, ash, sand; the swamp keeps its own)", TR.TRAIL_SHEETS.length === 4 && TR.TRAIL_SHEETS.every((u) => existsSync(`public${u}`)) && Object.keys(TR.TRAIL_BY_GROUND).length === 4 && TR.TRAIL_BY_GROUND[TT.grass] === TR.TRAIL_VALE && TR.TRAIL_BY_GROUND[TT.snow] === TR.TRAIL_SNOW && TR.TRAIL_BY_GROUND[TT.ash] === TR.TRAIL_ASH && TR.TRAIL_BY_GROUND[TT.sand] === TR.TRAIL_SAND && TR.TRAIL_BY_GROUND[TT.swamp] === undefined && /def playtest1g\(\)/.test(readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8")));
   }
   // 7. Laws: drawing only, the dated owner notes, the frozen playtest1f draw, the live pin.
   {
@@ -8658,12 +8753,12 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
     const NEW = new Set(["src/game/draw.ts", "src/game/trails.ts", "public/art/writer/trail-vale.png", "public/art/writer/trail-snow.png", "public/art/writer/trail-ash.png", "public/art/writer/trail-sand.png", "public/art/writer/preview-playtest1g.png"]);
     // playtest1h: its new art (public/art/spells/fx, the prop writer's sheets) is not playtest1f's and is left out here
     const pt1hNew = (f) => f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !NEW.has(f) && !pt1hNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1gView)}`).join("\n")).digest("hex");
     check("playtest1g", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1f's byte for byte (the sim, the grid and the saves untouched)", rest === "c162145fa6cbae2e5ffdcde757b937e2", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
-    const readme = readFileSync("tools/pixel-writer/README.md", "utf8");
-    check("playtest1g", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt, AGENTS.project.md and the pixel writer's README, and tagged in trails.ts, draw.ts, the trail writer and make_gravewake.py`, law.includes(TAG) && agents.includes(TAG) && readme.includes(TAG) && /trail_writer/.test(readme) && trs.includes(TAG) && draw.includes(TAG) && readFileSync("tools/pixel-writer/trail_writer.py", "utf8").includes(TAG) && readFileSync("tools/pixel-writer/make_gravewake.py", "utf8").includes(TAG));
+    const readme = readFileSync(V1("tools/pixel-writer/README.md"), "utf8");
+    check("playtest1g", `the change is recorded as a dated owner-approved note, ${TAG}, in rules/GAME_LAYOUT_TWO.txt, AGENTS.project.md and the pixel writer's README, and tagged in trails.ts, draw.ts, the trail writer and make_gravewake.py`, law.includes(TAG) && agents.includes(TAG) && readme.includes(TAG) && /trail_writer/.test(readme) && trs.includes(TAG) && draw.includes(TAG) && readFileSync(V1("tools/pixel-writer/trail_writer.py"), "utf8").includes(TAG) && readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8").includes(TAG));
     check("playtest1g", "the frozen reference (scripts/frozen/playtest1g/draw.ts.txt) is playtest1f's draw byte for byte (as pushed at dff8ec6), and group playtest1f's live pin reads it", md5f("scripts/frozen/playtest1g/draw.ts.txt") === "2d1deb7e9bfe797a01d42ca41e433360" && /md5f\(pt1fView\(f\)\)/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")));
     globalThis.Image = had.Image;
     globalThis.document = had.document;
@@ -8674,6 +8769,7 @@ print(json.dumps({'out': out, 'same': same, 'seam': seam[:6], 'nseam': len(seam)
 }
 
 if (on("playtest1h")) {
+  asLive();
   // [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit] Bill: "make sure nothing is mismatched,
   // everything is loading correctly, there's no placeholders, and that there are spell effects that show correctly when
   // spells are cast". Drawing and loading only: every asset the game names resolves, the last painted placeholders
@@ -8967,7 +9063,7 @@ if (on("playtest1h")) {
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
     const isNew = (f) => f === "src/game/draw.ts" || f.startsWith("public/art/spells/fx/") || /^public\/art\/writer\/(prop-|cave-liquid-|preview-playtest1h)/.test(f);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !isNew(f) && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1hView)}`).join("\n")).digest("hex");
     check("playtest1h", "drawing and loading only: every other source file, map writer and sprite writer file and asset is playtest1g's byte for byte (the sim, particles, the grid and the saves untouched; the older spell strips and sheets unchanged)", rest === "f432e04ee283307ff65ff59368837931", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -8985,6 +9081,7 @@ if (on("playtest1h")) {
 // inside matches its outside (interiors.ts, the interior writer), the old painted furniture is gone, the road, dirt and
 // camp edges blend into their grass, and every asset the live draw asks for resolves.
 if (on("playtest1i")) {
+  asLive();
   const { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]";
@@ -9253,7 +9350,7 @@ if (on("playtest1i")) {
   // 8. Laws: drawing only, the dated owner notes, the frozen playtest1h files, the live pin (last)
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/draw.ts" && !pt1iNew(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1iView)}`).join("\n")).digest("hex");
     check("playtest1i", "drawing only: every other source file, map writer and sprite writer file and asset is playtest1h's byte for byte (the sim, rooms' grids, NPC spots, collision and saves untouched)", rest === "33e033d1f37b6029ab1c6a775062c50c", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9273,12 +9370,13 @@ if (on("playtest1i")) {
 // combat batch): readable, fair telegraphs (every mid and big mark walkable at stick pace with a reaction to spare), boss
 // phase two at half HP with nova and aim + echo patterns, neon marks and wind-up glow, and pooled moving fight lights.
 if (on("playtest1j")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-03: telegraphed attacks";
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   for (const [m, f] of [["sim", "sim.ts"], ["draw", "draw.ts"], ["fightlights", "fightlights.ts"], ["facing", "facing.ts"]]) writeFileSync(join(dir, `${m}1o.ts`), readFileSync(`scripts/frozen/playtest1p/${f}.txt`, "utf8").replace(/from "\.\/(sim|draw|fightlights|facing)"/g, 'from "./$11o.ts"').replace(/from "\.\/(?!(?:sim|draw|fightlights|facing)1o\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`)); // playtest1p: the fight as playtest1o left it (the 5x boss, its foot and its wider rings are group playtest1p's)
   writeFileSync(join(dir, "pt1j.ts"), `export * from "${dir}/sim1o.ts";\nexport * from "${dir}/draw1o.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport * as FL from "${dir}/fightlights1o.ts";\nexport { NEON_LIGHT } from "${root}/src/game/looks.ts";\nexport { LIGHT } from "${root}/src/game/light.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1j.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1j.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -9300,7 +9398,7 @@ if (on("playtest1j")) {
   const Z = await import(pathToFileURL(join(dir, "sim1i.mjs")).href);
   const { TG, FL, NEON_LIGHT } = X;
   const seed = (n) => { let a = n >>> 0; Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
-  const simSrc = readFileSync("src/game/sim.ts", "utf8");
+  const simSrc = readFileSync(V1("src/game/sim.ts"), "utf8");
   const kitSrc = simSrc.slice(simSrc.indexOf("const BOSS_KITS"), simSrc.indexOf("export type Battle"));
   const KITS = Object.fromEntries([...kitSrc.matchAll(/^\s+(\w+): \{ personality: "(\w+)", spam: "[^"]+", spamTag: "(\w+)", mid: "[^"]+", midTag: "(\w+)", big: "[^"]+", bigTag: "(\w+)"/gm)].map((m) => [m[1], { personality: m[2], spamTag: m[3], midTag: m[4], bigTag: m[5] }]));
   const mk = (M = X) => { const g = new M.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.enterWorld(64 * TILE + 8, 80 * TILE + 8); g.worldMs = 5 * 60 * 1000; g.roamers = []; g.mode = "play"; return g; };
@@ -9533,7 +9631,7 @@ if (on("playtest1j")) {
     const again = FL.markCacheSize();
     const reused = marks().length === big.m.length && marks().every((d) => big.m.some((e) => e.c === d.c));
     const laneEnd = lane.m.find((d) => d.c.width === 33 && Math.round(d.dx) === Math.round(lane.b.markX) - 16);
-    const drawSrc = readFileSync("src/game/draw.ts", "utf8");
+    const drawSrc = readFileSync(V1("src/game/draw.ts"), "utf8");
     const main = drawSrc.indexOf("paintTells(ctx, tellView(g), false, TILE, LINE_HALF);");
     const okDraw = !!bigMark && bigMark.c.ctx.fillStyle === "#ff3a4f" && Math.round(bigMark.dx) === Math.round(big.b.markX) - 40 && ring.length >= 1 && ring.every((d) => d.c.ctx.fillStyle === "#ff3a4f") && !!hotMark && hotMark.c !== bigMark.c && mid.m.some((d) => d.c.width === 81 && d.c.ctx.fillStyle === "#b07aff") && !!laneEnd && lane.dots > 20 && big.dots === 0 && reused && again === before && before <= FL.FIGHT.cacheMax && main > 0 && main < drawSrc.indexOf("props.sort((a, b) => a.y - b.y);\n  for (const d of props) d.fn();", main) && /paintLightless\([^;]*\);[\s\S]{0,600}paintTells\(ctx, tellView\(g\), false, TILE, LINE_HALF, true\)/.test(drawSrc) && !/paintMark\(ctx,/.test(drawSrc.replace(/export function paintMark[\s\S]*?\n}\n/, ""));
     check("playtest1j", "marks (playtest1p: through the draw as playtest1o left it): a big is a red #ff3a4f ellipse sprite on its spot (violet #b07aff for a mid, a dotted lane for a line), filling in 8 steps and doubling its rim when hot, with a wind-up ring at the foe's feet; drawn under the props and actors, rims only over the Lightless dark; a repeat frame blits the same baked sprites (cache bounded)", okDraw, JSON.stringify({ big: bigMark && size(bigMark), ring: ring.map(size), hot: !!hotMark, mid: mid.m.map(size), lane: lane.m.map(size), dots: [lane.dots, big.dots], reused, before, again, main }));
@@ -9568,7 +9666,7 @@ if (on("playtest1j")) {
   // 11. Laws: the dated owner notes, the frozen playtest1i files, drawing and fight only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1J_FROZEN.includes(f) && !pt1jNew(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1jView)}`).join("\n")).digest("hex");
     check("playtest1j", "only the sim's fight and the draw moved: every other source file, map writer and sprite writer file and asset is playtest1i's byte for byte (beside the two new modules, telegraph.ts and fightlights.ts)", rest === "b50139536d38945c7b5cedc799246177", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -9592,12 +9690,13 @@ if (on("playtest1j")) {
 // the 1h fx elements), and the bond companion takes four one-tap orders (Taunt, Heal or guard me, Focus my target, Stay or
 // follow) on touch, keys and pad. Statuses and orders live in the run only: no save field moves.
 if (on("playtest1k")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-03: elemental combos, companion commands]";
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   for (const [m, f] of [["sim", "sim.ts"], ["draw", "draw.ts"], ["fightlights", "fightlights.ts"], ["facing", "facing.ts"]]) writeFileSync(join(dir, `${m}1o.ts`), readFileSync(`scripts/frozen/playtest1p/${f}.txt`, "utf8").replace(/from "\.\/(sim|draw|fightlights|facing)"/g, 'from "./$11o.ts"').replace(/from "\.\/(?!(?:sim|draw|fightlights|facing)1o\.ts")/g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`)); // playtest1p: the fight as playtest1o left it (the 5x boss, its foot and its wider rings are group playtest1p's)
   const LIVE1K = process.env.GW_PT1K_LIVE === "1"; // playtest1p: group playtest1p runs this group a second time on the live game
   writeFileSync(join(dir, "pt1k.ts"), (LIVE1K ? `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\n` : `export * from "${dir}/sim1o.ts";\nexport * from "${dir}/draw1o.ts";\n`) + `export * as CB from "${root}/src/game/combos.ts";\nexport * as CM from "${root}/src/game/commands.ts";\nexport { HERO_SPELLS, KITS, T } from "${root}/src/game/content.ts";\n`);
@@ -10014,7 +10113,7 @@ if (on("playtest1k")) {
   // 17. Laws: the dated owner notes, the frozen playtest1j files, combat, companion and shell only, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1K_FROZEN.includes(f) && !pt1kNew(f) && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1k", "only the sim, the draw and the shell moved: every other source file, map writer and sprite writer file and asset is playtest1j's byte for byte (beside the two new modules, combos.ts and commands.ts)", rest === "5cefcd6c2da5856d55dc208b98d4303e", rest);
     const law = readFileSync("rules/GAME_LAYOUT_TWO.txt", "utf8");
     const agents = readFileSync("AGENTS.project.md", "utf8");
@@ -10035,6 +10134,7 @@ if (on("playtest1k")) {
 // finished playfield frame by src/game/postfx.ts (WebGL1 bloom, a 2D scanline column). Looks only: the sim, the draw, the
 // screen settings and the saves do not move; only the shell gains a layer, one call per frame and the options rows.
 if (on("playtest1l")) {
+  asLive();
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]";
@@ -10287,7 +10387,7 @@ if (on("playtest1l")) {
   //     the frozen playtest1k shell, the live pin (last).
   {
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && f !== "src/game/Gravewake.tsx" && !pt1lNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1lView)}`).join("\n")).digest("hex");
     check("playtest1l", "looks only: every other source file (sim, draw, screen settings, saves, HUD, the service worker and manifest in public/), the map writer and sprite writer are playtest1k's byte for byte (beside the two new modules, postfx.ts and FxOptions.tsx)", rest === "48a91245db9da25edb2663ccf0101ac7", rest);
     const sim = readFileSync("src/game/sim.ts", "utf8") + readFileSync("src/game/draw.ts", "utf8") + readFileSync("src/game/screen.ts", "utf8");
     check("playtest1l", "the build, base path and offline cache are untouched (vite.config.ts, package.json and vercel.json as playtest1k shipped them), and nothing in the sim, the draw or the screen settings reads the layer", md5f("vite.config.ts") === "7e3cef5ab1d7501c86890c4608e3ff28" && md5f("package.json") === "681fd1e5f320944b44e762cb01eb0c02" && md5f("vercel.json") === "c4ec4b6c370869f73641d08a0655721a" && !/postfx|FxOptions/.test(sim), "");
@@ -10312,6 +10412,7 @@ if (on("playtest1l")) {
 // app-template tests retired while the builder files they read are absent, each with its written reason), lint is 0, and the
 // art the game never loads left public/art (scripts/frozen/playtest1m/removed-art.json lists the 55 removed and the 51 kept).
 if (on("playtest1m")) {
+  asLive();
   const { readFileSync, readdirSync, statSync, existsSync } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
@@ -10348,7 +10449,7 @@ if (on("playtest1m")) {
     const csOk = fz("client.server.ts").replace('    } catch {}\n  }\n  return createHash("sha256")', '    } catch {\n      // An unreadable token falls through to the plain token hash below.\n    }\n  }\n  return createHash("sha256")') === readFileSync("src/lib/app-data/client.server.ts", "utf8");
     const cuOk = fz("use-current-user.ts").replace("  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime\n", "  // authEnabled is constant for the app's lifetime, so this hook call keeps a stable order.\n") === readFileSync("src/lib/auth/use-current-user.ts", "utf8");
     check("playtest1m", "no gameplay change: sim.ts, the shell, client.server.ts and use-current-user.ts are their frozen playtest1l copies (scripts/frozen/playtest1m/, as pushed at 121dbc1) plus only the lint edit", simOk && uiOk && csOk && cuOk && md5f("scripts/frozen/playtest1m/sim.ts.txt") === "d52ddac1d0e38c429c2d0fcbff81f62c" && md5f("scripts/frozen/playtest1m/Gravewake.tsx.txt") === "8ab3379a9a8868799ddfeaaac3c29dbf" && md5f("scripts/frozen/playtest1m/client.server.ts.txt") === "345eb9b87cabf2a6afd322dbd7b6feb4" && md5f("scripts/frozen/playtest1m/use-current-user.ts.txt") === "740f77dcf0c45b8919dd6304bdc6291e", `${simOk} ${uiOk} ${csOk} ${cuOk}`);
-    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
+    const rest = md5s(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((d) => pt1mWalk(walk, d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !pt1nNew(f) && !PT1M_FROZEN.includes(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1mView)}`).join("\n"));
     check("playtest1m", "every other source file, public file (counting the removed art at its playtest1l md5s), map writer and sprite writer file is playtest1l's byte for byte", rest === "fe4ef0a4eefd74370570ff89e43c4614", rest);
     const me = readFileSync("scripts/gravewake-check.mjs", "utf8");
     check("playtest1m", "the older groups read playtest1l's files: pt1kView falls through to pt1lView, group playtest1l's shell text, tags and live pin read pt1lView, and all six older rest digests walk and hash through pt1mWalk and pt1mMd5", me.includes(": pt1lView(f); }") && (me.match(/\.flatMap\(\(d\) => pt1mWalk\(walk, d\)\)/g) ?? []).length === 7 && (me.match(/\$\{pt1mMd5\(md5f, f, pt1[g-l]View\)\}/g) ?? []).length === 6 && /md5f\(pt1lView\(f\)\) !== hh/.test(me) && me.includes('readFileSync(pt1lView("src/game/Gravewake.tsx"), "utf8"); // playtest1m'));
@@ -10378,13 +10479,14 @@ if (on("playtest1m")) {
 // 15:41 ET): the room a fight can use. Shoves onto spikes, lanterns that drop into fire, oil and powder barrels, pillars
 // that break, a little hazard sense in the foes, every hazard marked before it lands; nothing saved.
 if (on("playtest1n")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]";
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "pt1n.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as RM from "${root}/src/game/room.ts";\nexport * as RD from "${root}/src/game/roomdraw.ts";\nexport { MARK_NEON, WALK_PACE, TELL, fairTell } from "${root}/src/game/telegraph.ts";\nexport { DUNGEONS, T, TRAPS, trapAtk } from "${root}/src/game/content.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1n.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1n.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   writeFileSync(join(dir, "sim1m.ts"), readFileSync("scripts/frozen/playtest1n/sim.ts.txt", "utf8").replace(/from "\.\//g, `from "${root}/src/game/`).replace(/from "\.\.\/\.\.\//g, `from "${root}/`));
@@ -10740,7 +10842,7 @@ if (on("playtest1n")) {
     const r = py(`import json, sys, hashlib\nsys.path.insert(0, '../sprite-writer')\nfrom pathlib import Path\nfrom PIL import Image\nfrom palette_locked import LOCKED_V3\nimport room_writer as w\nw.OUT = Path(${JSON.stringify(out)})\nw.main()\nres = {}\nfor n in ['room-props.png', 'room-props_em.png', 'room-fire.png', 'room-oil.png']:\n    im = Image.open('../../public/art/writer/' + n).convert('RGBA')\n    bad = sum(1 for (r, g, b, a) in im.getdata() if a not in (0, 255) or (a and '#%02x%02x%02x' % (r, g, b) not in LOCKED_V3))\n    same = hashlib.md5(open(${JSON.stringify(out)} + '/' + n, 'rb').read()).hexdigest() == hashlib.md5(open('../../public/art/writer/' + n, 'rb').read()).hexdigest()\n    res[n] = [im.width, im.height, bad, same]\nprint(json.dumps(res))`);
     const want = { "room-props.png": [128, 32], "room-props_em.png": [128, 32], "room-fire.png": [128, 16], "room-oil.png": [32, 16] };
     const ok = !r.error && Object.entries(want).every(([n, [w, h]]) => r[n] && r[n][0] === w && r[n][1] === h && r[n][2] === 0 && r[n][3] === true);
-    const src = readFileSync("tools/pixel-writer/room_writer.py", "utf8");
+    const src = readFileSync(V1("tools/pixel-writer/room_writer.py"), "utf8");
     check("playtest1n", "the art: the room writer's four sheets (props and their emissive copy 8 cells of 16x32, the 4-frame fire, the oil slick) are palette v3 with hard alpha, the sizes the draw reads, and the writer rebuilds them byte for byte", ok && src.includes(TAG) && /from wild_writer import Canvas/.test(src), JSON.stringify(r));
   }
 
@@ -10753,7 +10855,7 @@ if (on("playtest1n")) {
     const added = live.split("\n").filter((l) => !fd.split("\n").includes(l));
     const back = live.split("\n").filter((l) => !/\/\/ playtest1n/.test(l) || /^import \{ fightLights/.test(l)).join("\n") === fd;
     check("playtest1n", "only the fight moved: the frozen references (scripts/frozen/playtest1n/) are playtest1m's sim and draw byte for byte (as pushed at e47342c); the live draw is that plus exactly four tagged lines (the import, roomLights, roomScene, roomRims); every older view, rest digest and live pin reads the frozen copies (pt1mView under pt1lView, pt1nNew out of all seven rest digests)", md5f("scripts/frozen/playtest1n/sim.ts.txt") === "96ff3576076a7f9fa15d8d4567df5cf7" && md5f("scripts/frozen/playtest1n/draw.ts.txt") === "d118165d8af0411153f865b9cc3bfb6e" && added.length === 4 && added.every((l) => /\/\/ playtest1n/.test(l)) && back && cs.includes(': pt1mView(f); }') && pt1mView("src/game/sim.ts") === "scripts/frozen/playtest1n/sim.ts.txt" && pt1mView("src/game/draw.ts") === "scripts/frozen/playtest1n/draw.ts.txt" && pt1mView("src/game/room.ts") === "src/game/room.ts" && (cs.match(/!pt1nNew\(f\) && /g) ?? []).length >= 7 && cs.includes('"src/game/room.ts", "src/game/roomdraw.ts"]); // playtest1c adds'), `${added.length} ${back}`);
-    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1nView)}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(["src", "public", "tools/map-writer", "tools/sprite-writer"].flatMap((top) => pt1mWalk(walk, top)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !pt1oNew(f) && !PT1N_FROZEN.includes(f) && !pt1nNew(f)).sort().map((f) => `${f} ${pt1mMd5(md5f, f, pt1nView)}`).join("\n")).digest("hex");
     check("playtest1n", "every other source file, public file, map writer and sprite writer file is playtest1m's byte for byte (beside the two new modules, room.ts and roomdraw.ts, and the four room sheets)", rest === "08a6f0edf537ad995c93f06f31f7bf92", rest);
   }
 
@@ -10779,6 +10881,7 @@ if (on("playtest1n")) {
 // fences stop bodies where they are drawn; signs and a place line inside; the loot and the cave ore as writer art; the
 // old painted footprint fence gone. Nothing saved.
 if (on("playtest1o")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const { inflateSync } = await import("node:zlib");
@@ -10816,7 +10919,7 @@ if (on("playtest1o")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "pt1o.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as F from "${root}/src/game/facing.ts";\nexport * as B from "${root}/src/game/blocking.ts";\nexport * as LT from "${root}/src/game/loot.ts";\nexport * as I from "${root}/src/game/interiors.ts";\nexport * as DC from "${root}/src/game/decor.ts";\nexport { T, BOUNTY, BOSSES, CYCLE_MS } from "${root}/src/game/content.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1o.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1o.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage };
@@ -10839,8 +10942,8 @@ if (on("playtest1o")) {
   globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
   const X = await import(pathToFileURL(join(dir, "pt1o.mjs")).href);
   const { F, LT, I, DC, T } = X;
-  const draw = readFileSync("src/game/draw.ts", "utf8");
-  const sim = readFileSync("src/game/sim.ts", "utf8");
+  const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
+  const sim = readFileSync(V1("src/game/sim.ts"), "utf8");
   const ui = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8"); // playtest1u: the shell as playtest1t left it (group playtest1u checks the live one)
   const base = (u) => (u || "").split("/").pop();
   const mk = (cls = "warrior") => { const g = new X.Game(); g.start(cls, "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = 5 * 60 * 1000; return g; };
@@ -11116,7 +11219,7 @@ if (on("playtest1o")) {
     check("playtest1o", "the frozen references (scripts/frozen/playtest1o/) are playtest1n's sim, draw, shell, the three writer files and the owner notes byte for byte (as pushed at 1ce6277), the new modules and writers carry the request tag and AGENTS.project.md its ## playtest1o; every older group, view, rest digest and live pin reads them (pt1nView under pt1mView; groups 1b and 1i bundle the 1n draw; group 1m reads the 1n shell)", JSON.stringify(fz) === '{"sim.ts":"e4ff28d93acc7a3214131ed475dd144d","draw.ts":"e8d23687274f3f98d0b5de67cdae2f85","Gravewake.tsx":"a15ddc44f9f389017aac4a40a763c73d","pixel-writer.make_gravewake.py":"d017892689e677d51042e864a16af8db","sprite-writer.make_gravewake.py":"f3a23a6eadb0b2cfa81906036b369dd6","sprite_writer.py":"8d050a094dd99da99d8dfe0e14ef8d9e","AGENTS.project.md":"dbc1895b92ceca139ecfcf3f3d6d750a"}' && ["src/game/facing.ts", "src/game/blocking.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py"].every((f) => readFileSync(f, "utf8").includes(TAG)) && readFileSync("AGENTS.project.md", "utf8").includes(`## playtest1o (sprite motion, collision, art consistency, signs) — ${TAG}`) && /function pt1nView\(f\) \{ return f in PT1O_FROZEN/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")), JSON.stringify(fz));
     const NEW = new Set(["src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "tools/sprite-writer/dirs_writer.py", "tools/pixel-writer/loot_writer.py", "public/art/writer/loot.png", "public/art/writer/cave-ore.png", ...Object.values(F.DIRS).map((u) => `public${u}`), ...Object.values(F.DIRS_EM).map((u) => `public${u}`)]);
     const MOVED = new Set(["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx", "tools/pixel-writer/make_gravewake.py", "tools/sprite-writer/make_gravewake.py", "tools/sprite-writer/sprite_writer.py"]);
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !NEW.has(f) && !MOVED.has(f) && !pt1pNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f)).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !NEW.has(f) && !MOVED.has(f) && !pt1pNew(f) && !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f)).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1oView(f))}`).join("\n")).digest("hex"); // playtest1p: the moved files as playtest1o left them
     check("playtest1o", "every other source file, public file and writer file is playtest1n's byte for byte (beside the three new modules, the two new writers, the 13 new sheets, and the six moved files)", rest === "24fac7811ac469fd6e30d377fc11ff1a", rest);
     const LIVE = {"src/game/sim.ts": "53818e62dee77f19b591806bd9a2f37d", "src/game/draw.ts": "9010f54b7aa9ab93eb8339d41c03dd8f", "src/game/Gravewake.tsx": "e5ed3f7d8ca72282b3c35a7041ce2261", "src/game/facing.ts": "6d072d081a82aefd540cb1d33f85857f", "src/game/blocking.ts": "431f7741f7746341edf57a802dd6efcf", "src/game/loot.ts": "d0ff098d5f8cd2da93888dba5257deef", "tools/sprite-writer/dirs_writer.py": "737b593acb669b8793b8159ccb16f34d", "tools/sprite-writer/sprite_writer.py": "6763fc75fc356d4e71d76fd8e592f8c9", "tools/sprite-writer/make_gravewake.py": "e446539538c1af315e3bb7f36df9c278", "tools/pixel-writer/loot_writer.py": "37b7a8ba09326e28c0c283da07ab6eb8", "tools/pixel-writer/make_gravewake.py": "d6108841b06aa28b42c88529aaedd46d", "public/art/writer/loot.png": "e5e3705996a079d08eb5ade1f461cacf", "public/art/writer/cave-ore.png": "59905e9d6cbf1d943793a16ab8a79343", "AGENTS.project.md": "c4c3c2a6bf949bf286b4155e51b02f9b", "public/art/sprites/allies-dirs.png": "b2c7eee97c2a3e33cd8f2f433b303e22", "public/art/sprites/foes-dirs.png": "a15b42924e8891306b84b7df9316acde", "public/art/sprites/foes-dirs_em.png": "ed1c1c19a6a2be8f6c79c12f4b4f62d2", "public/art/sprites/folk-variants-dirs.png": "5e1bd2fad0a4c6f66c8dbfdd58433c1d", "public/art/sprites/krampus-dirs.png": "87ab9b7149351443b6e6b12d6ec64c6f", "public/art/sprites/krampus-dirs_em.png": "903f422553657b0b872126952453a086", "public/art/sprites/mimic-dirs.png": "6829bbbcfb6ba6f79be4bd7ca07a3f56", "public/art/sprites/moves-dirs.png": "a129c9d8ae45fcf4ed9a28af634a769e", "public/art/sprites/people-dirs.png": "e628090b27abf03efce07010629573d3", "public/art/sprites/pumpkin-lord-dirs.png": "b4f09b69d0eab04c18ffb1d608c5a5e9", "public/art/sprites/pumpkin-lord-dirs_em.png": "43195b77250e0f72d46f9964acefaa01"};
@@ -11131,6 +11234,7 @@ if (on("playtest1o")) {
 // from their own big sheets (boss_writer.py, public/art/sprites/big/) and fight as big bodies (bigboss.ts: a hurtbox, a
 // foot walls stop, lairs and halls with dodge room, a camera that frames the body and the hero). Nothing saved.
 if (on("playtest1p")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd, copyFileSync } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const { inflateSync } = await import("node:zlib");
@@ -11168,8 +11272,8 @@ if (on("playtest1p")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
-  const G1q = pt1qGame(dir); // playtest1r: group playtest1p plays on the game as playtest1q left it (the 5x bodies' BODY, FOOT, 80x160 cells; group playtest1r checks the live shapes)
+  const root = pt1uRoot();
+  const G1q = pt1qGame(dir, pt1uRoot()); // playtest1r: group playtest1p plays on the game as playtest1q left it (the 5x bodies' BODY, FOOT, 80x160 cells; group playtest1r checks the live shapes)
   writeFileSync(join(dir, "pt1p.ts"), `export * from "${G1q("sim")}";\nexport * from "${G1q("draw")}";\nexport * as BB from "${G1q("bigboss")}";\nexport * as F from "${root}/src/game/facing.ts";\nexport * as FE from "${root}/src/game/festivals.ts";\nexport * as SC from "${root}/src/game/screen.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport { DUNGEONS, dungeonById } from "${root}/src/game/content.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "pt1p.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "pt1p.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
@@ -11412,7 +11516,7 @@ if (on("playtest1p")) {
     const NEWF = ["src/game/bigboss.ts", "tools/sprite-writer/views_writer.py", "tools/sprite-writer/boss_writer.py"];
     check("playtest1p", "the frozen references (scripts/frozen/playtest1p/) are playtest1o's sim, draw, facing, fight lights, the three sprite-writer files, the eleven -dirs sheets and the owner notes byte for byte (as pushed at 9d87b3f), the new modules and writers carry the request tag and AGENTS.project.md its ## playtest1p with the scale rule; every older group, view, rest digest and live pin reads them (pt1oView under pt1nView; groups 1j and 1k fight on the frozen 1o game)", JSON.stringify(fz) === '{"AGENTS.project.md":"c4c3c2a6bf949bf286b4155e51b02f9b","allies-dirs.png":"b2c7eee97c2a3e33cd8f2f433b303e22","dirs_writer.py":"737b593acb669b8793b8159ccb16f34d","draw.ts":"9010f54b7aa9ab93eb8339d41c03dd8f","facing.ts":"6d072d081a82aefd540cb1d33f85857f","fightlights.ts":"9f81aedf78bef6883d282afc8da09ef9","foes-dirs.png":"a15b42924e8891306b84b7df9316acde","foes-dirs_em.png":"ed1c1c19a6a2be8f6c79c12f4b4f62d2","folk-variants-dirs.png":"5e1bd2fad0a4c6f66c8dbfdd58433c1d","krampus-dirs.png":"87ab9b7149351443b6e6b12d6ec64c6f","krampus-dirs_em.png":"903f422553657b0b872126952453a086","mimic-dirs.png":"6829bbbcfb6ba6f79be4bd7ca07a3f56","moves-dirs.png":"a129c9d8ae45fcf4ed9a28af634a769e","people-dirs.png":"e628090b27abf03efce07010629573d3","pumpkin-lord-dirs.png":"b4f09b69d0eab04c18ffb1d608c5a5e9","pumpkin-lord-dirs_em.png":"43195b77250e0f72d46f9964acefaa01","sim.ts":"53818e62dee77f19b591806bd9a2f37d","sprite-writer.make_gravewake.py":"e446539538c1af315e3bb7f36df9c278","sprite_writer.py":"6763fc75fc356d4e71d76fd8e592f8c9"}' && NEWF.every((f) => readFileSync(f, "utf8").includes(TAG)) && readFileSync("AGENTS.project.md", "utf8").includes(`## playtest1p (view polish, big bosses) — ${TAG}`) && /BOSS SCALE RULE \(src\/game\/bigboss\.ts BIG; keep it\): boss 5, mini 3 \(a remnant\), rare 2/.test(readFileSync("AGENTS.project.md", "utf8")) && /function pt1nView\(f\) \{ return f in PT1O_FROZEN \? `scripts\/frozen\/playtest1o\/\$\{PT1O_FROZEN\[f\]\}\.txt` : pt1oView\(f\); \}/.test(readFileSync("scripts/gravewake-check.mjs", "utf8")), JSON.stringify(fz));
     const MOVED = new Set(Object.keys(PT1P_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !MOVED.has(f)).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !pt1pNew(f) && !MOVED.has(f)).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1sView(f))}`).join("\n")).digest("hex"); // playtest1t: as playtest1s left them
     check("playtest1p", "every other source file, public file and writer file is playtest1o's byte for byte (beside bigboss.ts, the views and boss writers, the 108 big sheets, and the moved files)", rest === "d59bad7891ea477f5f7eb8272199071b", rest);
     const LIVE = {"AGENTS.project.md": "16a3dc66f6b2be1ff11312db42284d2b", "public/art/sprites/allies-dirs.png": "26ff75cc84976e7e90a155dffd0bcc0b", "public/art/sprites/foes-dirs.png": "0c0a6f1e2c48e0095410bca15bd74163", "public/art/sprites/foes-dirs_em.png": "cd3ded0cccff59eb297c39abdf0bcc97", "public/art/sprites/folk-variants-dirs.png": "255d5323fb27ac2a07bdc87e565ed8e1", "public/art/sprites/krampus-dirs.png": "757f6daf176c580bf61775d2e12d4929", "public/art/sprites/krampus-dirs_em.png": "77373a1e603edcd2012bceedf55e35ae", "public/art/sprites/mimic-dirs.png": "24f0b59d6b2eecca46c7e13d4cefbe44", "public/art/sprites/moves-dirs.png": "680c437495731378e20cd0a40918e3e7", "public/art/sprites/people-dirs.png": "3ac0ab395c900c6e4a0bab25226e42b8", "public/art/sprites/pumpkin-lord-dirs.png": "4390516f0a983bc4240e8a5cf0aa7d2c", "public/art/sprites/pumpkin-lord-dirs_em.png": "3dd8f8e65ea8ffb801c66f1766478b4a", "src/game/bigboss.ts": "b0aac5118b527777ad53d4d827396bf0", "src/game/draw.ts": "5017e352da3d3f7a97a9914d1b11e420", "src/game/facing.ts": "c0100b11f668614488339b27f3734880", "src/game/fightlights.ts": "01811408cca94b8679464316e226c4de", "src/game/sim.ts": "d05a16da2bc21da4e8260d949134ef4f", "tools/sprite-writer/boss_writer.py": "1ddf079b1cb615a86821ef4fbe9ac68f", "tools/sprite-writer/dirs_writer.py": "4086f8ed084cb8a5ac38f667bbd87042", "tools/sprite-writer/make_gravewake.py": "2df470b098d2e343f190f2a85f6ec029", "tools/sprite-writer/sprite_writer.py": "ebc111eae7e1da8798d4f681be83c46f", "tools/sprite-writer/views_writer.py": "b9c1a903c3ce88afa2a073ffe359676b", "public/art/sprites/big/bat-boss.png": "4b4b65830ecb7d5def109ebabab5e584", "public/art/sprites/big/bat-boss_em.png": "3a4ee26b76e24765194b064227cbcf0c", "public/art/sprites/big/bat-mini.png": "9a3e8791d90224a24bc7f3ab2046f84c", "public/art/sprites/big/bat-mini_em.png": "d69bc09bd04f56ed8b1a1df9ca5a89f6", "public/art/sprites/big/bat-rare.png": "5ff5830dbe0898279edaa00980cd5ec5", "public/art/sprites/big/bat-rare_em.png": "dc26f25913fba74c3c510e35e06e897f", "public/art/sprites/big/cat-boss.png": "bfe920b442686b6b5b7a8fa7db263466", "public/art/sprites/big/cat-boss_em.png": "bbdea5c03a66663274dd2da5d2cb7b47", "public/art/sprites/big/cat-mini.png": "11c2965faf64669be37c518ac75dc3c0", "public/art/sprites/big/cat-mini_em.png": "81a71abd81dca415d732420b973f78dd", "public/art/sprites/big/cat-rare.png": "229aa0027baa1c0b9a8c7d0480199408", "public/art/sprites/big/cat-rare_em.png": "88527bc884132479fcfcfc3f0840b27f", "public/art/sprites/big/ghost-boss.png": "a6ad4bbded616d1ff4d3b565a3669f34", "public/art/sprites/big/ghost-boss_em.png": "95739ae87a00ee96b9b79d3efa87920a", "public/art/sprites/big/ghost-mini.png": "a706b4a67c9eb5af1afc5dfa31d7b7cd", "public/art/sprites/big/ghost-mini_em.png": "2912f3419ebb1a7b40c2dac0bcd73222", "public/art/sprites/big/ghost-rare.png": "497fb9f5c399a68e348805a64c8b1c1d", "public/art/sprites/big/ghost-rare_em.png": "2619766f2ccd4f59c2d419b8cce6ae1e", "public/art/sprites/big/ghoul-boss.png": "8d3e7ef0c291705d93634beb95c344a6", "public/art/sprites/big/ghoul-boss_em.png": "ed5d01cad71a341a13695cfd7845b664", "public/art/sprites/big/ghoul-mini.png": "56dd774c052423268f85eb08d771a378", "public/art/sprites/big/ghoul-mini_em.png": "9e3d282b274accb8883710fb6c881740", "public/art/sprites/big/ghoul-rare.png": "aef1cd677fa933ab9676eeb402aa428f", "public/art/sprites/big/ghoul-rare_em.png": "a0ae867ec6fe16c679980756c77d8696", "public/art/sprites/big/goblin-boss.png": "82ffc55bfda4354732a97dda5f5cc73e", "public/art/sprites/big/goblin-boss_em.png": "e58a866b1ce256ea8b14581f17219e0c", "public/art/sprites/big/goblin-mini.png": "a74f1838cc11ef6646d6caa08c28b4d6", "public/art/sprites/big/goblin-mini_em.png": "60d3234799685932e7bc8198a27d6871", "public/art/sprites/big/goblin-rare.png": "f626259438d6c7a8f35e5ee4cd80e9f9", "public/art/sprites/big/goblin-rare_em.png": "2bae4f096d86e63b2db33f5d0872bcbb", "public/art/sprites/big/horse-boss.png": "64d38f5247f63bdedc5f59a53405baa5", "public/art/sprites/big/horse-boss_em.png": "07ab0ed37e7e2d353d3866647a6bc2ad", "public/art/sprites/big/horse-mini.png": "8f08284b17404b64b5374cecb16d0906", "public/art/sprites/big/horse-mini_em.png": "b8dd775495ef462c91a71f0c52159fe4", "public/art/sprites/big/horse-rare.png": "dce7de4da2f31f1f9df022597a08432c", "public/art/sprites/big/horse-rare_em.png": "51b5d264aa9814b07d4b0ca5a8900884", "public/art/sprites/big/krampus-boss.png": "de95f8234dc6db4850556a49c532d4e9", "public/art/sprites/big/krampus-boss_em.png": "7c5d6d0956590fd6cea41aebaa45ea7d", "public/art/sprites/big/lantern-boss.png": "8c53358c4a8ff009c1d8ad0556cb7816", "public/art/sprites/big/lantern-boss_em.png": "f3c693045632ca0a192619a878835c03", "public/art/sprites/big/lantern-mini.png": "d11b1d324a8f03084d6392f068244fa9", "public/art/sprites/big/lantern-mini_em.png": "f2278fa0035e24e4b3dc69f0a59a1d0b", "public/art/sprites/big/lantern-rare.png": "a5f17e43ee04759b8a143042fd2f4144", "public/art/sprites/big/lantern-rare_em.png": "5241f5d94be3373d34d811a505c127b6", "public/art/sprites/big/lich-boss.png": "da9aec3ab7480b979747717bddfaf4dc", "public/art/sprites/big/lich-boss_em.png": "4ab7a92bc262252a3f4d42925e2db147", "public/art/sprites/big/lich-mini.png": "b78f774ed9d39f539301ed5577238cf2", "public/art/sprites/big/lich-mini_em.png": "efa60e9c494ebecdb8d2ed7a33f6bda0", "public/art/sprites/big/lich-rare.png": "d53d0863594d9363784163a3db7732dc", "public/art/sprites/big/lich-rare_em.png": "b7ca3569406e0aee06365acf577e6ec1", "public/art/sprites/big/mimic-rare.png": "73af863006e9848cf900ead3e8dd06b7", "public/art/sprites/big/mimic-rare_em.png": "e4aaf76df8330f308d2681fc79f5e22a", "public/art/sprites/big/mummy-boss.png": "c9520098a6cee1342813f8ef126abdb5", "public/art/sprites/big/mummy-boss_em.png": "8902ff1f5f1f0a7afae94ba3d4c8c25b", "public/art/sprites/big/mummy-mini.png": "a72c1bbc38e1945bc56aad9a018d98d7", "public/art/sprites/big/mummy-mini_em.png": "a9cfb4d432e9287758c66da2b4430ddd", "public/art/sprites/big/mummy-rare.png": "2e2172d43173ee9b6236d8e03c49a632", "public/art/sprites/big/mummy-rare_em.png": "c208d6bb389725a275f274d5587f0404", "public/art/sprites/big/pumpkin-lord-boss.png": "e418d3dc2b4aa85a2f42ac254e8ae165", "public/art/sprites/big/pumpkin-lord-boss_em.png": "fc6cf2a320048a71963926c7702e5acd", "public/art/sprites/big/rat-boss.png": "3af48ca93d6359cf5906f7d89dd0330d", "public/art/sprites/big/rat-boss_em.png": "a2c55e9257252c2275c7755adf4a398f", "public/art/sprites/big/rat-mini.png": "d48b2b474332dcc5eb604ffb69ab9dea", "public/art/sprites/big/rat-mini_em.png": "8bb47b745cd6a45c24407b7dc6e226b2", "public/art/sprites/big/rat-rare.png": "42b71db8af763533955c7eff952f59b7", "public/art/sprites/big/rat-rare_em.png": "a20fdc2ab2602425b4394bcc08f0fc6c", "public/art/sprites/big/scarecrow-boss.png": "40692c95acdb56c233a0aa640c164211", "public/art/sprites/big/scarecrow-boss_em.png": "27f34196231cbf205ac9affa13c12daa", "public/art/sprites/big/scarecrow-mini.png": "d7c2d8e8636fb95e931253a842c682d8", "public/art/sprites/big/scarecrow-mini_em.png": "9604e227fb5f3f9d5272df775cdaaf3c", "public/art/sprites/big/scarecrow-rare.png": "d20deb68e6119d672064b1b834cc81f8", "public/art/sprites/big/scarecrow-rare_em.png": "0633982a8590337a22d9fbd994ef0a34", "public/art/sprites/big/skeleton-boss.png": "7f222d593ab11717ca2e463040dd9907", "public/art/sprites/big/skeleton-boss_em.png": "e3aab566d15185446b0a47c9cc9d1ff1", "public/art/sprites/big/skeleton-mini.png": "2da8b37c670966dfaa3e400e75a640be", "public/art/sprites/big/skeleton-mini_em.png": "18d65ce962f9c1313dfc485018b03df0", "public/art/sprites/big/skeleton-rare.png": "b32bcb77aaf6d1c5049ccea3d9cec12d", "public/art/sprites/big/skeleton-rare_em.png": "d9f1f4244a32d0da888da5e08d4d9da7", "public/art/sprites/big/tree-boss.png": "0a76d0bfff3aada8c62ba058824ab1ea", "public/art/sprites/big/tree-boss_em.png": "155dd89902d217213e84ac79a707b50b", "public/art/sprites/big/tree-mini.png": "7542e84f9356fbbfc78ef8bcf24234ad", "public/art/sprites/big/tree-mini_em.png": "cf9f6575e5fe70804aac8d4aa2355f84", "public/art/sprites/big/tree-rare.png": "a29292973683f5167110f7e74d7b2eb6", "public/art/sprites/big/tree-rare_em.png": "ac9a618ffe4ec028365de0a301da065c", "public/art/sprites/big/vampire-boss.png": "faae88e472044efccf5c857cde1a091f", "public/art/sprites/big/vampire-boss_em.png": "705124f64049bd33cbf792710c69e001", "public/art/sprites/big/vampire-mini.png": "9b06798b9012480d81cc961fadc41f34", "public/art/sprites/big/vampire-mini_em.png": "a8d3f3ea2625a5dee716319c65bf7584", "public/art/sprites/big/vampire-rare.png": "cf69285340f87e9f9805442e72c812cc", "public/art/sprites/big/vampire-rare_em.png": "7e7dce00e6cdd38019156027dc35208d", "public/art/sprites/big/witch-boss.png": "519775d763dbc9e981d1d73b6caca5b8", "public/art/sprites/big/witch-boss_em.png": "511a0edcf6d03466019f5bb6e86a7967", "public/art/sprites/big/witch-mini.png": "8c85b6bcb46c568d93a3503734893d9d", "public/art/sprites/big/witch-mini_em.png": "f717038b39c759607b4b11adf4be6cfb", "public/art/sprites/big/witch-rare.png": "5ccac540d0845d3c09e48df388333e8d", "public/art/sprites/big/witch-rare_em.png": "ad5e3d51ca91331d2809af89ea30add5", "public/art/sprites/big/wolf-boss.png": "a073b8ab6310454e2217cb1849ad7937", "public/art/sprites/big/wolf-boss_em.png": "c6afff17a524400ea6cf6da040f4197f", "public/art/sprites/big/wolf-mini.png": "ac71f8439237e0cdbdc8e7db3a583ddb", "public/art/sprites/big/wolf-mini_em.png": "29d128352da7ca8ae43ce0e2412ddcd3", "public/art/sprites/big/wolf-rare.png": "396bc8daf92d8d646e35a95e2bfdb871", "public/art/sprites/big/wolf-rare_em.png": "e4de19140660931cedd44a876cb94818", "public/art/sprites/big/zombie-boss.png": "473916201305aa7752b6e333ebe81903", "public/art/sprites/big/zombie-boss_em.png": "3f1e73df656d7f0015d25abf08be98cb", "public/art/sprites/big/zombie-mini.png": "bd5357e7b9c4881400d6f4b4b8a1453a", "public/art/sprites/big/zombie-mini_em.png": "a8d3f3ea2625a5dee716319c65bf7584", "public/art/sprites/big/zombie-rare.png": "52d826f425751781a8b3cd186ad3b164", "public/art/sprites/big/zombie-rare_em.png": "7e7dce00e6cdd38019156027dc35208d"};
@@ -11427,6 +11531,7 @@ if (on("playtest1p")) {
 // same alpha, feet and sizes as playtest1p), the wizard's back without the skin patch that read as a face (views_writer.py
 // back_head, every body checked), and on Phone a boss's name kept clear of the log and the HUD (hudsafe.ts). Nothing saved.
 if (on("playtest1q")) {
+  asLive();
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd, copyFileSync } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const { inflateSync } = await import("node:zlib");
@@ -11690,7 +11795,7 @@ print(json.dumps({"seen": seen[0], "bad": len(bad), "wiz": wiz[0], "some": bad[:
     for (const f of ["src/game/hudsafe.ts", "src/game/sim.ts"]) if (pt1pView(f) !== pt1qView(f) || (!(f in PT1P_FROZEN) && pt1oView(f) !== pt1qView(f))) viewBad.push(`live ${f}`); // playtest1r: past 1q's own copies the chain goes on to pt1qView
     check("playtest1q", "the frozen references (scripts/frozen/playtest1q/) are playtest1p's draw, views and boss writers, five -dirs sheets and foes-dirs_em, the 108 big sheets and the owner notes byte for byte (as pushed at c2b2d40); hudsafe.ts carries the request tag and AGENTS.project.md its ## playtest1q; every older group, rest digest and live pin reads them (pt1pView under pt1oView)", JSON.stringify(fz) === '{"AGENTS.project.md":"16a3dc66f6b2be1ff11312db42284d2b","allies-dirs.png":"26ff75cc84976e7e90a155dffd0bcc0b","boss_writer.py":"1ddf079b1cb615a86821ef4fbe9ac68f","draw.ts":"5017e352da3d3f7a97a9914d1b11e420","foes-dirs.png":"0c0a6f1e2c48e0095410bca15bd74163","foes-dirs_em.png":"cd3ded0cccff59eb297c39abdf0bcc97","folk-variants-dirs.png":"255d5323fb27ac2a07bdc87e565ed8e1","moves-dirs.png":"680c437495731378e20cd0a40918e3e7","people-dirs.png":"3ac0ab395c900c6e4a0bab25226e42b8","views_writer.py":"b9c1a903c3ce88afa2a073ffe359676b"}' && bigFz === "c0e15b0e03cbc3c58e268b44cf5a1b90" && NEWF.every((f) => readFileSync(f, "utf8").includes(TAG)) && agents.includes(`## playtest1q (detailed big bosses, wizard back view, Phone boss label) — ${TAG}`) && /BOSS SCALE RULE above is unchanged/.test(agents) && viewBad.length === 0, `${JSON.stringify(fz)} ${bigFz} views ${viewBad.join(" ")}`);
     const MOVED = new Set(Object.keys(PT1Q_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !pt1qNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1qView(f))}`).join("\n")).digest("hex"); // playtest1r: the moved files as playtest1q left them
     check("playtest1q", "every other source file, public file and writer file is playtest1p's byte for byte (beside hudsafe.ts, the moved files and the 108 big sheets): the sim, the big bodies' scale, feet, hurtboxes, arenas and camera untouched", rest === "f311267aa05295ef39aef4bc1d01e9ee", rest);
     const LIVE = {"AGENTS.project.md": "aa8c4565731bfd909d366c490cedef98", "public/art/sprites/allies-dirs.png": "c99fbe7f5b7f90dbe784d7f034068a96", "public/art/sprites/foes-dirs.png": "79f7c1b24cd7bddb13ccbd6069e49f89", "public/art/sprites/foes-dirs_em.png": "311ee3ddf5e9cc99d8c7bc47edae89b9", "public/art/sprites/folk-variants-dirs.png": "ea3e95a5816d624dde05fffa87dd5023", "public/art/sprites/moves-dirs.png": "45b5a33d826b3d663ab8d333b64d26b7", "public/art/sprites/people-dirs.png": "916bab56c8add30cf9ea4c2cfd525124", "src/game/draw.ts": "66cfacfad0d890d7bf00a6fa323995b0", "src/game/hudsafe.ts": "588c5e9e84430426415a38d318403eb9", "tools/sprite-writer/boss_writer.py": "f036c463ea9b3edf87ad502ca8c8375d", "tools/sprite-writer/views_writer.py": "9ae915a7b9c3f1453df662e00df0e8c0", "public/art/sprites/big/bat-boss.png": "686ec0329056700fe4877d1645db606f", "public/art/sprites/big/bat-boss_em.png": "147f19a561077c5aab4b144556885dba", "public/art/sprites/big/bat-mini.png": "0d6ec592444aee20f655f675ba903b9c", "public/art/sprites/big/bat-mini_em.png": "d0f854dc71916e4d4aa788c54944f5d1", "public/art/sprites/big/bat-rare.png": "084070673cc4bd5ea9783be57c24914a", "public/art/sprites/big/bat-rare_em.png": "eb84cf8c08a65f1940fd87b3c35064ed", "public/art/sprites/big/cat-boss.png": "39d9519807b4733572db617ed81c990d", "public/art/sprites/big/cat-boss_em.png": "fdea1b81e55f39d6e8a52adca8cb1d99", "public/art/sprites/big/cat-mini.png": "1f185c738e738e897b3da8feb87b66ff", "public/art/sprites/big/cat-mini_em.png": "a42e63296d4196386e430a629d2524f4", "public/art/sprites/big/cat-rare.png": "34206457722566e8a57cf45688a9d12e", "public/art/sprites/big/cat-rare_em.png": "8253e60b7b7f1edc78e27671e4f00644", "public/art/sprites/big/ghost-boss.png": "de1a53b13b71fb8c888f70309b12f28c", "public/art/sprites/big/ghost-boss_em.png": "11c43b0337c5826603067c69d148a72b", "public/art/sprites/big/ghost-mini.png": "d64e9d37949ea0c3f2ff070849e8fd06", "public/art/sprites/big/ghost-mini_em.png": "55988e60f7a7fa03a8f23ca9cde60b61", "public/art/sprites/big/ghost-rare.png": "ab28a114df32af9b861b2be59da01151", "public/art/sprites/big/ghost-rare_em.png": "2902d33a35fa6f35c27a69820ea11bff", "public/art/sprites/big/ghoul-boss.png": "463652f4d1a93d891e3c3ae973306bdc", "public/art/sprites/big/ghoul-boss_em.png": "2caa848b6232821d007eceed1b77878e", "public/art/sprites/big/ghoul-mini.png": "f49bd66a1d3912bce1c16de6c4750406", "public/art/sprites/big/ghoul-mini_em.png": "448adcedafe607148730c8e55565fc58", "public/art/sprites/big/ghoul-rare.png": "ba5b9b1651917ec16c413bc2d930e0b5", "public/art/sprites/big/ghoul-rare_em.png": "33d6c3e51945646c4fc23f2d67406684", "public/art/sprites/big/goblin-boss.png": "5fa4142751728f6956c81422a815fceb", "public/art/sprites/big/goblin-boss_em.png": "c64f2de9897bc39e4bd80d429fdaa438", "public/art/sprites/big/goblin-mini.png": "b8b37a666dad5cada9327fbf11a040fe", "public/art/sprites/big/goblin-mini_em.png": "7fee5cb55ebcf28a4ac994157ccb43bc", "public/art/sprites/big/goblin-rare.png": "5c2bc621511c3ff576b307f66366df8e", "public/art/sprites/big/goblin-rare_em.png": "3bcb9df1f963cdaf206c837a5586b005", "public/art/sprites/big/horse-boss.png": "ed7630becd3cca0ce4a1195eb690322e", "public/art/sprites/big/horse-boss_em.png": "9775f85185d7c507dd49e003d7090093", "public/art/sprites/big/horse-mini.png": "0dc4373d41fbe1387bbfc0f2db0a8ba8", "public/art/sprites/big/horse-mini_em.png": "4b06c24296981015317d3936350e031d", "public/art/sprites/big/horse-rare.png": "4daf8b8780668d6db94aec1c296abb8f", "public/art/sprites/big/horse-rare_em.png": "ec44f40f3f17d11493e07979617fec30", "public/art/sprites/big/krampus-boss.png": "3b0bd1c912e1e473e577fd4bccdd2f06", "public/art/sprites/big/krampus-boss_em.png": "e65cf7f4bd44bc668ddade7efb8f5aa7", "public/art/sprites/big/lantern-boss.png": "df49fa30bdbf52652009e3cc122187dd", "public/art/sprites/big/lantern-boss_em.png": "bc3b4a36dfa7ae7f2ac9f393f93f392b", "public/art/sprites/big/lantern-mini.png": "7d8ea61aaa17bab7d4055ce7432881c0", "public/art/sprites/big/lantern-mini_em.png": "82c7891c77c068ad3cd65fb839f10868", "public/art/sprites/big/lantern-rare.png": "bd81a8db44a150a0a5d5004405e9b058", "public/art/sprites/big/lantern-rare_em.png": "bcd37131a86325f925831a2e0262bf60", "public/art/sprites/big/lich-boss.png": "f86197fd9d16456ff4aa8a2eeadc5c06", "public/art/sprites/big/lich-boss_em.png": "696b45909b22a9c7788667bce01e7938", "public/art/sprites/big/lich-mini.png": "925ab1fd431e6122e3ff445e63197f22", "public/art/sprites/big/lich-mini_em.png": "7602c038f96bd7748ad56da35bcc0d89", "public/art/sprites/big/lich-rare.png": "a833137f936d7014633afd303ea0eda3", "public/art/sprites/big/lich-rare_em.png": "e220eb1bb560a1f994a40e7e5f5f34b1", "public/art/sprites/big/mimic-rare.png": "1a10c9ea67fcbaa627931b4ddb25995d", "public/art/sprites/big/mimic-rare_em.png": "ff0f05e6b8b3b8b1cb0bb3c2c64b4223", "public/art/sprites/big/mummy-boss.png": "d4880e68e8c55d32c6e11e97f8aebb25", "public/art/sprites/big/mummy-boss_em.png": "e10ad90516e73bc33c32c07b18587779", "public/art/sprites/big/mummy-mini.png": "5ae95bb5059cf3f1810c06c5431270d8", "public/art/sprites/big/mummy-mini_em.png": "3201117f9a8ee882c66094b9a6f6d5f6", "public/art/sprites/big/mummy-rare.png": "6637a7d335365a8474fcbdaf1b2e0165", "public/art/sprites/big/mummy-rare_em.png": "5f060a06ff934968aa51d15628981466", "public/art/sprites/big/pumpkin-lord-boss.png": "71104124ded568523037b75e5a9b0fbc", "public/art/sprites/big/pumpkin-lord-boss_em.png": "273c5c07ab84337ef2fd2d5b1f99715d", "public/art/sprites/big/rat-boss.png": "5f4a6536099377338316ef19b03ed6b2", "public/art/sprites/big/rat-boss_em.png": "2a7d25a1790bd370bb06eec63d6a3aa5", "public/art/sprites/big/rat-mini.png": "76be5da26f52ed5284b44c359f43a8b9", "public/art/sprites/big/rat-mini_em.png": "84838397a7aa5d5ed201ac0d86ff170d", "public/art/sprites/big/rat-rare.png": "810a3541ea921b31d287234683ca1e19", "public/art/sprites/big/rat-rare_em.png": "966c0809b4d46a9090ac35dfbb5136be", "public/art/sprites/big/scarecrow-boss.png": "c669d64752d1d5552c2f3c5c1f2e1041", "public/art/sprites/big/scarecrow-boss_em.png": "116ecdf05bec7cd1887e3dc1012ab029", "public/art/sprites/big/scarecrow-mini.png": "f672484d74f0be47675b0484bd1c63ad", "public/art/sprites/big/scarecrow-mini_em.png": "aeaf3c0052b2763f88e5544bc47ee1cc", "public/art/sprites/big/scarecrow-rare.png": "46de5b88a9796ef2991da7dcd392bfdc", "public/art/sprites/big/scarecrow-rare_em.png": "5870ff648993464e7d749227447d0978", "public/art/sprites/big/skeleton-boss.png": "51f4fe20dd516d33e70620c8770acbd0", "public/art/sprites/big/skeleton-boss_em.png": "08e50df2ad39f5264950cf3a9c220ef8", "public/art/sprites/big/skeleton-mini.png": "37bef289c7753ab38627bdf3f03ee228", "public/art/sprites/big/skeleton-mini_em.png": "135d12eb0a8c97fa0e2222d63d8ab175", "public/art/sprites/big/skeleton-rare.png": "4aa0361611f92c4c38eb4a7d770c1b7e", "public/art/sprites/big/skeleton-rare_em.png": "05217002891c112020cedac688b6eac4", "public/art/sprites/big/tree-boss.png": "99adc7e2cf5c410ae63b336680ce0cdd", "public/art/sprites/big/tree-boss_em.png": "727358034c846936adb2e999c1cddcb5", "public/art/sprites/big/tree-mini.png": "dd10226c1d784e6224a52014f9de154b", "public/art/sprites/big/tree-mini_em.png": "3020a90130df08c5282e4a11b458eafe", "public/art/sprites/big/tree-rare.png": "553f0b5f1aeaaa9b00ecc0b736753d65", "public/art/sprites/big/tree-rare_em.png": "9e3ca4d4feafcbf1ed2489678ae6ba1c", "public/art/sprites/big/vampire-boss.png": "474da833e06dcf815ce96861cf0bd846", "public/art/sprites/big/vampire-boss_em.png": "b1a4d7f75566634a1df3112bd48e2f71", "public/art/sprites/big/vampire-mini.png": "e456598f30a53fbbaf81b110bebb856c", "public/art/sprites/big/vampire-mini_em.png": "95f184962046225df77e46598b7290a5", "public/art/sprites/big/vampire-rare.png": "1ef345b9df016a576efb320c3041733c", "public/art/sprites/big/vampire-rare_em.png": "612b07b34f7acc8057af96c360815c6d", "public/art/sprites/big/witch-boss.png": "d9d895de06846638c21cfc1aaa75bdef", "public/art/sprites/big/witch-boss_em.png": "541e102b27cfb6cdacb055437fbd5268", "public/art/sprites/big/witch-mini.png": "2d41a305be9c9ca29be4f9c3c1365e02", "public/art/sprites/big/witch-mini_em.png": "a9e07217b7db242764cdbd4764e4dd1b", "public/art/sprites/big/witch-rare.png": "456f74eec70aaf798923aae71b2ce3d2", "public/art/sprites/big/witch-rare_em.png": "d2cb45528cc7c665226f0c0133d77381", "public/art/sprites/big/wolf-boss.png": "dcdcf3c5f97914cb8f2917382512e5b1", "public/art/sprites/big/wolf-boss_em.png": "a2c5f32a42612693e7b4b664415ac07e", "public/art/sprites/big/wolf-mini.png": "62d799c0a85b2f81f203e413a5230d9e", "public/art/sprites/big/wolf-mini_em.png": "326bfbc90a7886089072775da9671013", "public/art/sprites/big/wolf-rare.png": "fb1f2217c7ecdc8641da34d8f3a81bad", "public/art/sprites/big/wolf-rare_em.png": "367d3ab28faefc22403d665eb2ed4880", "public/art/sprites/big/zombie-boss.png": "9dac638d3785ef456a24f4be9432fe2d", "public/art/sprites/big/zombie-boss_em.png": "679b109c2315946bfa13885dce9b9ec2", "public/art/sprites/big/zombie-mini.png": "fc940a48f9a981eda9d0b7f9c53a8757", "public/art/sprites/big/zombie-mini_em.png": "353d573ce740c5d088e66717dc541b64", "public/art/sprites/big/zombie-rare.png": "ef87d1eb9239e29fc45a9a9190ea79d1", "public/art/sprites/big/zombie-rare_em.png": "f6f944e1dd7277f2825bd054f24b8a20"};
@@ -11707,6 +11812,7 @@ print(json.dumps({"seen": seen[0], "bad": len(bad), "wiz": wiz[0], "some": bad[:
 // reads for the hits, the feet and walls, the arenas, the name, the lights, the flash, the focus corners and the camera. The
 // scale rule (boss 5, mini 3, rare 2) is unchanged. Nothing saved.
 if (on("playtest1r")) {
+  asLive();
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const { inflateSync } = await import("node:zlib");
@@ -12123,7 +12229,7 @@ if (on("playtest1r")) {
     const tags = ["src/game/bigshapes.ts", "src/game/bigboss.ts", "tools/sprite-writer/boss_writer.py"].every((f) => readFileSync(f, "utf8").includes(TAG)) && ["src/game/draw.ts", "src/game/fightlights.ts", "src/game/sim.ts"].every((f) => /playtest1r/.test(readFileSync(f, "utf8")));
     check("playtest1r", "the frozen references (scripts/frozen/playtest1r/) are playtest1q's bigboss, draw, fight lights, sim, boss writer, the 108 big sheets and the owner notes byte for byte (as pushed at 279c2b5); every older view, rest digest and live pin reads them (pt1qView under pt1pView; bigshapes.ts a LATER_MODULE, in no older digest); the game as playtest1q left it (pt1qGame) is those four modules and roomdraw, pointing at each other; the new and moved files carry the request tag and AGENTS.project.md its ## playtest1r", JSON.stringify(fz) === '{"AGENTS.project.md":"aa8c4565731bfd909d366c490cedef98","bigboss.ts":"b0aac5118b527777ad53d4d827396bf0","boss_writer.py":"f036c463ea9b3edf87ad502ca8c8375d","draw.ts":"66cfacfad0d890d7bf00a6fa323995b0","fightlights.ts":"01811408cca94b8679464316e226c4de","sim.ts":"d05a16da2bc21da4e8260d949134ef4f"}' && bigFz === "d774880e66b96fcfb1952c0fdfa214f9" && viewBad.length === 0 && gameOk && tags && LATER_MODULES.has("src/game/bigshapes.ts") && pt1rNew("src/game/bigshapes.ts") && /## playtest1r /.test(agents) && agents.split("\n").some((l) => l.startsWith("## playtest1r ") && l.includes(TAG)) && /BOSS SCALE RULE above is unchanged/.test(agents.slice(agents.indexOf("## playtest1r "))), `${JSON.stringify(fz)} ${bigFz} views ${viewBad.join(" ")} game ${gameOk} tags ${tags}`);
     const MOVED = new Set(Object.keys(PT1R_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort(); // playtest1s: allyspace.ts is new
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !pt1rNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort(); // playtest1s: allyspace.ts is new
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1sView(f))}`).join("\n")).digest("hex"); // playtest1t: as playtest1s left them
     check("playtest1r", "every other source file, public file and writer file is playtest1q's byte for byte (beside bigshapes.ts, the moved files and the 108 big sheets): the scale rule, the -dirs views, the HUD-safe label, the saves untouched", rest === "582d8d7332e53678e950fd7200a4141e", rest);
     const LIVE = {"AGENTS.project.md": "557571b778881b0633ad700e77f183d9", "src/game/bigboss.ts": "6fc8e3edbae5ae0f06518489e8845825", "src/game/bigshapes.ts": "3555ed00844ecb6b37a9f7bdd7b35aa9", "src/game/draw.ts": "cde247452105044acf70f8654e53edd7", "src/game/fightlights.ts": "a6fa8fc3ddc0fbde18270a53c41b3a7f", "src/game/sim.ts": "78263b7f13a22a9c84ccb4a0fb54760b", "tools/sprite-writer/boss_writer.py": "8b8d604561ce3789f43bcfd4a973716b", "public/art/sprites/big/bat-boss.png": "a14b2d29893701277db524a45e805b23", "public/art/sprites/big/bat-boss_em.png": "b100af7824c64f2b79669c029cec3eed", "public/art/sprites/big/bat-mini.png": "38b4c42aa739a422b383378e4cbf54ba", "public/art/sprites/big/bat-mini_em.png": "d1512959ee97a9ec9a780343387849e8", "public/art/sprites/big/bat-rare.png": "bd045c633ee2507a584bd80245b43266", "public/art/sprites/big/bat-rare_em.png": "7cd19eeaa2ef2883b69eede2f80950a7", "public/art/sprites/big/cat-boss.png": "83b235816c65fa039c1a94a4630b4ea8", "public/art/sprites/big/cat-boss_em.png": "1ee178742c6661ba37f28663d0c069af", "public/art/sprites/big/cat-mini.png": "515967aa37cef94e7845610047574ded", "public/art/sprites/big/cat-mini_em.png": "0994e5571b93c9950bbfa73bb6cd909b", "public/art/sprites/big/cat-rare.png": "5be2409ec9d473fd4b9503c83943d31e", "public/art/sprites/big/cat-rare_em.png": "19df08c6fa23863c05ad1c147f3d7470", "public/art/sprites/big/ghost-boss.png": "54bf78ae8e4b5c3f50fab29a9fe36af5", "public/art/sprites/big/ghost-boss_em.png": "574869525e10b77dcfd4cab5d10c7efe", "public/art/sprites/big/ghost-mini.png": "b567fa12ed5217e82f72865118938d2b", "public/art/sprites/big/ghost-mini_em.png": "f5aca97137161282ac78b6947de4f89f", "public/art/sprites/big/ghost-rare.png": "1f8a754ea935429433cecfca9f64d417", "public/art/sprites/big/ghost-rare_em.png": "8e59b8e20b4e60e8cca002ba20c939bc", "public/art/sprites/big/ghoul-boss.png": "5575cbea40eb8cddb538cfe6baf15fbd", "public/art/sprites/big/ghoul-boss_em.png": "bad6c24b85b9f1df9bec2f3628e46aac", "public/art/sprites/big/ghoul-mini.png": "0c1522ec246cc212c9ba6fd879794a4b", "public/art/sprites/big/ghoul-mini_em.png": "d19a6638027fb1022ea50d5b887be250", "public/art/sprites/big/ghoul-rare.png": "1396c3ed51a34d52a692931769b08b55", "public/art/sprites/big/ghoul-rare_em.png": "bf55b67a0d463c2ff689dcb9208f4407", "public/art/sprites/big/goblin-boss.png": "ef65fe589929932be7dcf1ed318510d8", "public/art/sprites/big/goblin-boss_em.png": "a00df9173b633e285b95ec8e68fb0004", "public/art/sprites/big/goblin-mini.png": "9a139d52ab91e2d574278a1dfb9b5105", "public/art/sprites/big/goblin-mini_em.png": "9d9286ce825281e2c130c4eca830bddf", "public/art/sprites/big/goblin-rare.png": "3bee924f50f55ac774ae1d51851cc9c3", "public/art/sprites/big/goblin-rare_em.png": "5c2b2ca9be1b3bf03f3373c42c52e7cf", "public/art/sprites/big/horse-boss.png": "fb4863fb26fb9d921a9d17cc3c86aa29", "public/art/sprites/big/horse-boss_em.png": "ac0fc8212b1161579475e49320572573", "public/art/sprites/big/horse-mini.png": "a205201461ac3d5a0324089b0f5395dc", "public/art/sprites/big/horse-mini_em.png": "3001c78776e188999e3706da18bb1ce4", "public/art/sprites/big/horse-rare.png": "c8be49fd1cba0dea18d42217ce04fa73", "public/art/sprites/big/horse-rare_em.png": "5574a0fb34d1d2e7d0ab5f9ea34891b0", "public/art/sprites/big/krampus-boss.png": "a0533fc14210f379a37daccbf9f6700e", "public/art/sprites/big/krampus-boss_em.png": "a6460ae5d59d646d72c68cc853621873", "public/art/sprites/big/lantern-boss.png": "912bcaff0d453b6910b61db470472620", "public/art/sprites/big/lantern-boss_em.png": "0189a754e2c9e49e2be6f6463f32c697", "public/art/sprites/big/lantern-mini.png": "f129efcd688e7b3094634401de8ff635", "public/art/sprites/big/lantern-mini_em.png": "db34a34d57ea0e976379fd3f650367cf", "public/art/sprites/big/lantern-rare.png": "7179b2dc7c074eca5891e55ba5c73b79", "public/art/sprites/big/lantern-rare_em.png": "2c05d588ae0a6cc1d228d16eb0b84644", "public/art/sprites/big/lich-boss.png": "b4a9eb1e61cc7e3cd51f933d827e2b92", "public/art/sprites/big/lich-boss_em.png": "1b51e5c994f4c166a33e2d0fed51787d", "public/art/sprites/big/lich-mini.png": "0f69fbc2aaf85304175cc8dc5a10fad6", "public/art/sprites/big/lich-mini_em.png": "9a5a96f05639a9e843a4e5b75fef9dab", "public/art/sprites/big/lich-rare.png": "288f1bc5dcfd165e6cf18c91defa4287", "public/art/sprites/big/lich-rare_em.png": "ee33182dfd774b1ad818c1e350714f9a", "public/art/sprites/big/mimic-rare.png": "8158ac43c75aee6f38ee02317b5570b3", "public/art/sprites/big/mimic-rare_em.png": "2687771d1e761f33263dc2d128b6aee4", "public/art/sprites/big/mummy-boss.png": "e62cdb9955b2342af9acba5a57ea3cb0", "public/art/sprites/big/mummy-boss_em.png": "6d60a6dcba39a4be76c768d51b93550d", "public/art/sprites/big/mummy-mini.png": "c9425729702c435c8c905174fa3518fe", "public/art/sprites/big/mummy-mini_em.png": "5b48b054ff38e4b48928def3e7b13081", "public/art/sprites/big/mummy-rare.png": "41019f908ad36642f6b96409b274f53b", "public/art/sprites/big/mummy-rare_em.png": "2c08a33350e179215f7de9c69476fcc5", "public/art/sprites/big/pumpkin-lord-boss.png": "b779184c76c55db6f520a275b90a479b", "public/art/sprites/big/pumpkin-lord-boss_em.png": "892ee0d1cce3f2710029e14a3eb77272", "public/art/sprites/big/rat-boss.png": "af40a651ae1e146e172e3767fce882cf", "public/art/sprites/big/rat-boss_em.png": "fe67c0b61b9d4c5b615ed7f406c6aa09", "public/art/sprites/big/rat-mini.png": "050316889013199019093e5c0817d095", "public/art/sprites/big/rat-mini_em.png": "5590b6225b3911efce69337db1f5c1cf", "public/art/sprites/big/rat-rare.png": "43ef2b1f073d9849685dcf1123bbc421", "public/art/sprites/big/rat-rare_em.png": "475d01d30ce3358745de1d2ef3fbb5ad", "public/art/sprites/big/scarecrow-boss.png": "d37ce5ff94fdce4e0883c1f23662e335", "public/art/sprites/big/scarecrow-boss_em.png": "fe04ac38aeaf20aaa942a69c13b78f47", "public/art/sprites/big/scarecrow-mini.png": "1954eb3cb8af4f0376d2e45d57233e12", "public/art/sprites/big/scarecrow-mini_em.png": "b064810dddd534bf97f5e3c02fa24415", "public/art/sprites/big/scarecrow-rare.png": "c845270ab538466f8045b2af5e253113", "public/art/sprites/big/scarecrow-rare_em.png": "374ab0e667021162de402e7857f21485", "public/art/sprites/big/skeleton-boss.png": "50d4c0ce2b0a1bd532014223b6737fa7", "public/art/sprites/big/skeleton-boss_em.png": "3fa28c8d56db22410baabedd9f21daba", "public/art/sprites/big/skeleton-mini.png": "5b80b1d5f9ebbd90d22eafe90c35e17d", "public/art/sprites/big/skeleton-mini_em.png": "18050f464dc30ba41f7adc14b5712b3a", "public/art/sprites/big/skeleton-rare.png": "4ce84ef5599312eb6be931a507cc922b", "public/art/sprites/big/skeleton-rare_em.png": "3a3b7fc9815bb05f94c276a9f27f5cb9", "public/art/sprites/big/tree-boss.png": "c41005d8438582f61ffe2b74ea0bbc48", "public/art/sprites/big/tree-boss_em.png": "6ac9842afd12299c4b1aad33fa32c40c", "public/art/sprites/big/tree-mini.png": "7283bb422aea2b6a72ff259903d73f20", "public/art/sprites/big/tree-mini_em.png": "81b6146c6a0971d4ce2d47542804c72b", "public/art/sprites/big/tree-rare.png": "72169e56f07dad78f211e259cdf9a2e4", "public/art/sprites/big/tree-rare_em.png": "745258c40ad679f19e65b4e0acd3f552", "public/art/sprites/big/vampire-boss.png": "96f24e92618f4770fdae80189851d807", "public/art/sprites/big/vampire-boss_em.png": "9f9822558ca2d4d8f01ea3a5556fe61e", "public/art/sprites/big/vampire-mini.png": "4206dbbacd2d859d24a2f60776418809", "public/art/sprites/big/vampire-mini_em.png": "38fac0004b5a7455224949f1241b1e89", "public/art/sprites/big/vampire-rare.png": "c5c96911a502aadaffe5e4663ea8c8c1", "public/art/sprites/big/vampire-rare_em.png": "eb51dffcfd75dcc1b38583e955136c0c", "public/art/sprites/big/witch-boss.png": "ebe4f9b15926d34bf34ff39df07d7538", "public/art/sprites/big/witch-boss_em.png": "c82c0fca61136e6d9614fc0a7747ee61", "public/art/sprites/big/witch-mini.png": "84a4c36b46c33b12f3965f8f3b4c5b06", "public/art/sprites/big/witch-mini_em.png": "40d0e61c40b463a29985eb18074d33b9", "public/art/sprites/big/witch-rare.png": "dc74342459d19ef692e98468ec67f210", "public/art/sprites/big/witch-rare_em.png": "f267595ebb6a43df11ce6c0808192b3f", "public/art/sprites/big/wolf-boss.png": "8a635f8787561e0acf00e34df213f737", "public/art/sprites/big/wolf-boss_em.png": "ead780b73bb38ab0403ca150e9675d80", "public/art/sprites/big/wolf-mini.png": "e9ae5fabbc62c0dcd954a8723cc7e170", "public/art/sprites/big/wolf-mini_em.png": "fd66955ff51da8d4ef3bd9ddc6178c4a", "public/art/sprites/big/wolf-rare.png": "2e8a20b65dc35c1f04828f84ce6992b5", "public/art/sprites/big/wolf-rare_em.png": "d0ff7c06ffd3b76245cda7bfa53777d9", "public/art/sprites/big/zombie-boss.png": "442c9e9f3bb7db3ed32afe3e42b5ab3e", "public/art/sprites/big/zombie-boss_em.png": "53a9d64672acf0608465a7b9dee1e88b", "public/art/sprites/big/zombie-mini.png": "f70db7fde5d72fe93e2df2f2016b33e7", "public/art/sprites/big/zombie-mini_em.png": "4b70991fb9252da9e202c2ba693a3b80", "public/art/sprites/big/zombie-rare.png": "c030804b1d59931ae71f70091261a901", "public/art/sprites/big/zombie-rare_em.png": "cdeda4ebb869e1a08a90f75322475ab1"};
@@ -12141,14 +12247,15 @@ if (on("playtest1r")) {
 // companion to face the body. No fight number moved. Nothing saved. Then (Bill, 2026-10-04 14:08 ET, [OWNER-APPROVED 2026-10-04
 // 14:08 ET: playtest1s big sprite audit]) every big sheet audited frame by frame and the big-boss writer fixed (checks 10-11).
 if (on("playtest1s")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]";
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
-  const G1r = pt1rGame(dir);
+  const root = pt1uRoot();
+  const G1r = pt1rGame(dir, pt1uRoot());
   writeFileSync(join(dir, "pt1s.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as BB from "${root}/src/game/bigboss.ts";\nexport * as AS from "${root}/src/game/allyspace.ts";\nexport * as BS from "${root}/src/game/bigshapes.ts";\nexport * as TG from "${root}/src/game/telegraph.ts";\nexport * as FA from "${root}/src/game/facing.ts";\nexport { DUNGEONS } from "${root}/src/game/content.ts";\n`);
   writeFileSync(join(dir, "pt1s1r.ts"), `export * from "${G1r("sim")}";\n`);
   for (const n of ["pt1s", "pt1s1r"]) execFileSync("npx", ["esbuild", join(dir, `${n}.ts`), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, `${n}.mjs`)}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -12197,7 +12304,7 @@ if (on("playtest1s")) {
       near(e1.x, 48) && near(e1.y, 0) && near(e2.x, -48) && near(e3.x, 50) && near(e3.y, 24) && near(e4.y, -24) &&
       near(AS.sideAngle(o, { x: Math.cos(2), y: Math.sin(2) }, { x: 100, y: 0 }), S.side) && near(AS.sideAngle(o, { x: Math.cos(-0.5), y: Math.sin(-0.5) }, { x: 100, y: 0 }), -0.5) && near(AS.sideAngle(o, { x: Math.cos(0.5), y: Math.sin(0.5) }, { x: 100, y: 0 }, S.side, true), -0.5) &&
       near(AS.ringAt(o, 20, F, 0).x, 46) && near(AS.ringAt(o, 20, F, Math.PI / 2).y, 42) && near(AS.pushOut(circ, { x: 0, y: 30 }, o).y, 48) && AS.pushOut(circ, { x: 0, y: 60 }, o).y === 60;
-    check("playtest1s", `the rule (allyspace.ts ALLY_SPACE): a big body's edge (the wider of its hurt radius and its foot toward the companion) within ${S.near} px has walked up; it backs off to the ring ${S.ring} px past that edge (inside its own swing, 28 past the edge, and its Focus pick, 64 from the feet point, for every shape: widest edge ${maxEdge}), minds the body until ${S.ring + S.leave} px, stays within ${(S.side * 57.3).toFixed(0)} degrees of the hero's side and ${S.heroGap} px off the hero's feet, steps ${S.pad} px out of a mark (a sweep is the line's ${AS.SWEEP_HALF} px either side), tries the other side after ${S.stuck} s stuck; the geometry helpers measure as drawn`, nums && reach && geo && readFileSync("src/game/allyspace.ts", "utf8").includes(TAG) && AS.ALLY_SPACE_TAG === TAG, `${JSON.stringify(S)} reach ${reach} geo ${geo} tag ${AS.ALLY_SPACE_TAG === TAG}`); // playtest1s fail-proof tightening: the exported tag too
+    check("playtest1s", `the rule (allyspace.ts ALLY_SPACE): a big body's edge (the wider of its hurt radius and its foot toward the companion) within ${S.near} px has walked up; it backs off to the ring ${S.ring} px past that edge (inside its own swing, 28 past the edge, and its Focus pick, 64 from the feet point, for every shape: widest edge ${maxEdge}), minds the body until ${S.ring + S.leave} px, stays within ${(S.side * 57.3).toFixed(0)} degrees of the hero's side and ${S.heroGap} px off the hero's feet, steps ${S.pad} px out of a mark (a sweep is the line's ${AS.SWEEP_HALF} px either side), tries the other side after ${S.stuck} s stuck; the geometry helpers measure as drawn`, nums && reach && geo && readFileSync(V1("src/game/allyspace.ts"), "utf8").includes(TAG) && AS.ALLY_SPACE_TAG === TAG, `${JSON.stringify(S)} reach ${reach} geo ${geo} tag ${AS.ALLY_SPACE_TAG === TAG}`); // playtest1s fail-proof tightening: the exported tag too
   }
 
   // 2. Bill's ask: a boss that walks up to the companion. Every world boss walks 54 px at a companion told to Focus it,
@@ -12434,7 +12541,7 @@ if (on("playtest1s")) {
   //    arts and the taunt's hits, the reach and tell rules) is playtest1r's code byte for byte, and a fight with no big body
   //    in it (a dungeon's first floor, five orders) moves the companion exactly as playtest1r did.
   {
-    const live = readFileSync("src/game/sim.ts", "utf8"), old = readFileSync("scripts/frozen/playtest1s/sim.ts.txt", "utf8");
+    const live = readFileSync(V1("src/game/sim.ts"), "utf8"), old = readFileSync("scripts/frozen/playtest1s/sim.ts.txt", "utf8");
     const body = (s, name) => { const i = s.indexOf(`\n  private ${name}(`); if (i < 0) return null; return s.slice(i, s.indexOf("\n  }\n", i)); };
     const FNS = ["resolveCast", "landSpam", "hurtAlly", "tickAlly", "castAlly", "allyArt", "inReach", "stepFoe", "beginCast", "beginEcho", "tickField", "aimOf", "tauntOf", "companionAtk", "bite"];
     const moved = FNS.filter((n) => body(live, n) === null || body(live, n) !== body(old, n));
@@ -12458,7 +12565,7 @@ if (on("playtest1s")) {
   //    draw turns it that way (draw.ts faceOf with the body to look at, not its own step); backing west from a boss to its east
   //    it shows its face or its east side, never its back to the boss; with no big body near it names none.
   {
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
     const line = draw.includes("    const back = g.allyFace;\n    const af = faceOf(ally, ally.x, ally.y, !!ally.moving && !back, back ?? ((ally.actFor ?? 0) > 0 ? nearestOf(g.roamers, ally.x, ally.y) : null)).face; // playtest1o\n");
     seed(17);
     const [g, b] = fight(X, "wolfman", -70);
@@ -12626,10 +12733,10 @@ if (on("playtest1s")) {
     const mNow = sym(liveA), mWas = sym(oldA);
     const hoof = (A) => ["horse-boss", "horse-mini", "horse-rare"].map((n) => { const r = A[n]; return r.C[2 * 11].bottom - (34 * r.s - 1); });
     const hNow = hoof(liveA), hWas = hoof(oldA);
-    const wtxt = readFileSync("tools/sprite-writer/boss_writer.py", "utf8");
+    const wtxt = readFileSync(V1("tools/sprite-writer/boss_writer.py"), "utf8");
     const writer = wtxt.includes(`playtest1s ${TAG1S}: audited frame by frame`) && /\ndef _tidy\(img, glow, s\):/.test(wtxt) && /\ndef mimic_side\(/.test(wtxt) && wtxt.includes('P["_west"] = view == 3') && wtxt.includes("turn = (1 if hx > 40 else -1)") && /img = _tidy\(img, glow, s\)\n {4}if view == 3:/.test(wtxt);
     const parse = (t) => Object.fromEntries([...t.matchAll(/"([a-z-]+)": \{ top: (\d+), half: (\d+), body: (\d+), foot: \{ rx: (\d+), ry: (\d+) \} \}/g)].map((m) => [m[1], m.slice(2).map(Number)]));
-    const was = parse(readFileSync(pt1rView("src/game/bigshapes.ts"), "utf8")), now = parse(readFileSync("src/game/bigshapes.ts", "utf8"));
+    const was = parse(readFileSync(pt1rView("src/game/bigshapes.ts"), "utf8")), now = parse(readFileSync(V1("src/game/bigshapes.ts"), "utf8"));
     const moved = Object.keys(now).filter((n) => JSON.stringify(now[n]) !== JSON.stringify(was[n])).sort();
     const shapesOk = Object.keys(now).length === 54 && Object.keys(was).length === 54 && moved.every((n) => now[n].every((v, i) => Math.abs(v - was[n][i]) <= (n.startsWith("ghoul-") ? 9 : 2))) &&
       ["ghoul-boss", "ghoul-mini", "ghoul-rare"].every((n) => now[n][0] > was[n][0]) && now["ghoul-boss"][0] === 110 && was["ghoul-boss"][0] === 101 && JSON.stringify(Object.keys(BS).sort()) === JSON.stringify(Object.keys(now).sort());
@@ -12663,10 +12770,10 @@ if (on("playtest1s")) {
     const gq = Object.fromEntries(PT1R_GAME.map((m) => [m, readFileSync(G(m), "utf8")]));
     const strip = (t) => t.replace(/from "[^"]*"/g, "from ?");
     const gameOk = PT1R_GAME.every((m) => strip(gq[m]) === strip(readFileSync(`scripts/frozen/playtest1s/${m}.ts.txt`, "utf8"))) && /from "\.\/sim1r\.ts"/.test(gq.draw) && !/allyspace/.test(gq.sim) && !Object.values(gq).some((t) => /from "\.\/(?!(?:sim|draw)1r\.ts")/.test(t));
-    const tags = readFileSync("src/game/allyspace.ts", "utf8").includes(TAG) && ["src/game/sim.ts", "src/game/draw.ts"].every((f) => readFileSync(f, "utf8").includes(`playtest1s ${TAG}`));
+    const tags = readFileSync(V1("src/game/allyspace.ts"), "utf8").includes(TAG) && ["src/game/sim.ts", "src/game/draw.ts"].every((f) => readFileSync(f, "utf8").includes(`playtest1s ${TAG}`));
     check("playtest1s", "the frozen references (scripts/frozen/playtest1s/) are playtest1r's sim, draw, owner notes, big-boss writer, shapes and 108 big sheets byte for byte (as pushed at 83c0e70); every older view, rest digest and live pin reads them (pt1rView under pt1qView; allyspace.ts a LATER_MODULE, in no older digest); the game as playtest1r left it (pt1rGame) is those two modules, pointing at each other; the new and moved files carry the request tag and AGENTS.project.md its ## playtest1s", JSON.stringify(fz) === '{"AGENTS.project.md":"557571b778881b0633ad700e77f183d9","bigshapes.ts":"3555ed00844ecb6b37a9f7bdd7b35aa9","boss_writer.py":"8b8d604561ce3789f43bcfd4a973716b","draw.ts":"cde247452105044acf70f8654e53edd7","sim.ts":"78263b7f13a22a9c84ccb4a0fb54760b"}' && bigNames.length === 108 && bigFz === "7ca736136582f241c150a6e4fea94255" && viewBad.length === 0 && gameOk && tags && LATER_MODULES.has("src/game/allyspace.ts") && pt1sNew("src/game/allyspace.ts") && /## playtest1s /.test(agents) && /COMPANION SPACING RULE/.test(agents.slice(agents.indexOf("## playtest1s "))) && agents.includes(`## playtest1s (companion steps back from a boss) — ${TAG}`) && agents.slice(agents.indexOf("## playtest1s ")).includes(`- BIG SPRITE AUDIT RULE (${TAG1S};`), `${JSON.stringify(fz)} big ${bigFz} views ${viewBad.slice(0, 6).join(" ")} game ${gameOk} tags ${tags}`);
     const MOVED = new Set(Object.keys(PT1S_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !pt1sNew(f) && !MOVED.has(f) && !f.startsWith("public/art/sprites/big/")).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1sView(f))}`).join("\n")).digest("hex"); // playtest1t: as playtest1s left them
     check("playtest1s", "every other source file, public file and writer file is playtest1r's byte for byte (beside allyspace.ts, the moved sim and draw, and the audited big-boss writer, shapes and big sheets): the fight numbers, the 1x art, the saves untouched", rest === "cc8ebfff05ea1ae827de60fa911cd737", rest);
     const LIVE = {"AGENTS.project.md": "155c1e2b63d0492ebfb31d2c8cd38bad", "public/art/sprites/big/bat-boss.png": "9fe86809530af044bbfcd847e6baacd8", "public/art/sprites/big/bat-boss_em.png": "b100af7824c64f2b79669c029cec3eed", "public/art/sprites/big/bat-mini.png": "65f121ce8fb8c9f1bfcaf29be6040053", "public/art/sprites/big/bat-mini_em.png": "d1512959ee97a9ec9a780343387849e8", "public/art/sprites/big/bat-rare.png": "b00b6815dd5fec2d9ba07ecee5516a86", "public/art/sprites/big/bat-rare_em.png": "7cd19eeaa2ef2883b69eede2f80950a7", "public/art/sprites/big/cat-boss.png": "31313801294c33134616295932f2fb11", "public/art/sprites/big/cat-boss_em.png": "1ee178742c6661ba37f28663d0c069af", "public/art/sprites/big/cat-mini.png": "8343d609d61dc0a4dc959d70c12f62da", "public/art/sprites/big/cat-mini_em.png": "0994e5571b93c9950bbfa73bb6cd909b", "public/art/sprites/big/cat-rare.png": "4dbc66b07a6fbf8e570d512bab2693c1", "public/art/sprites/big/cat-rare_em.png": "19df08c6fa23863c05ad1c147f3d7470", "public/art/sprites/big/ghost-boss.png": "730c655635b113ec5e4c17529abad862", "public/art/sprites/big/ghost-boss_em.png": "49683b65d157d1d783c0364433ee4d1c", "public/art/sprites/big/ghost-mini.png": "19649d54ad8c6a575bb057a0a63f1f2d", "public/art/sprites/big/ghost-mini_em.png": "68ab3f9c56e9198e725de2552dae56e7", "public/art/sprites/big/ghost-rare.png": "8e32add3b38cde7414ac62876dd4c1e0", "public/art/sprites/big/ghost-rare_em.png": "1a19fc8916622b3fb156de1ea9e30c6a", "public/art/sprites/big/ghoul-boss.png": "920ed00c97e52ca24f3f2707af03181f", "public/art/sprites/big/ghoul-boss_em.png": "fa00bd9db6c8388e30f52ec3f4b229d6", "public/art/sprites/big/ghoul-mini.png": "92c34d4cf48303e19cd84a16a4dae929", "public/art/sprites/big/ghoul-mini_em.png": "db86e4a0974ae3a550b0dd742259c230", "public/art/sprites/big/ghoul-rare.png": "853da38043012bcc5fcd770b188bada4", "public/art/sprites/big/ghoul-rare_em.png": "f494f2b9345bc1b4c317e59358bab51b", "public/art/sprites/big/goblin-boss.png": "71ebcbe002f873d05f7f55f6d992a66f", "public/art/sprites/big/goblin-boss_em.png": "a00df9173b633e285b95ec8e68fb0004", "public/art/sprites/big/goblin-mini.png": "8c69e952d111e706d3eb4d07693033e1", "public/art/sprites/big/goblin-mini_em.png": "9d9286ce825281e2c130c4eca830bddf", "public/art/sprites/big/goblin-rare.png": "00a75e4884563a3a77c01a2f7b91f70c", "public/art/sprites/big/goblin-rare_em.png": "5c2b2ca9be1b3bf03f3373c42c52e7cf", "public/art/sprites/big/horse-boss.png": "e66fba7b2e6bd91da8750c45b73e5ab7", "public/art/sprites/big/horse-boss_em.png": "2bfbff4dedcaf7d5d5e79ebe194936ec", "public/art/sprites/big/horse-mini.png": "5caf3bd2ef4f333307c355aa0b732875", "public/art/sprites/big/horse-mini_em.png": "26f08d2782b5e802ec4667bbaecf4ca8", "public/art/sprites/big/horse-rare.png": "eac0d78f294da0916e9bf421e4e75401", "public/art/sprites/big/horse-rare_em.png": "cef8dfa96b44ee3d12062a7cc8552d46", "public/art/sprites/big/krampus-boss.png": "21be83100cce3ce73d2ab0d1443592d0", "public/art/sprites/big/krampus-boss_em.png": "c1c2be2f7728cc0e25c1d897e4079011", "public/art/sprites/big/lantern-boss.png": "7d7d8fd5c2df3540630e9f746a3010fd", "public/art/sprites/big/lantern-boss_em.png": "8142e78e03d4af3607c14980e094b102", "public/art/sprites/big/lantern-mini.png": "13c8606144c7220616fc381ed9715037", "public/art/sprites/big/lantern-mini_em.png": "15ce868e1553527e67ba89077b8c362f", "public/art/sprites/big/lantern-rare.png": "2dcda4cdc1db70ecb646d6492ebbaa64", "public/art/sprites/big/lantern-rare_em.png": "a58248aa76e118921274ebdcaf41f211", "public/art/sprites/big/lich-boss.png": "925f2f07892ec44db0dee647c940c672", "public/art/sprites/big/lich-boss_em.png": "8e169bcd215822dd6650ba89ed055cb3", "public/art/sprites/big/lich-mini.png": "5cf7d35d59f41509b3ab791036bb9f13", "public/art/sprites/big/lich-mini_em.png": "cac323946611e2afb108690adbde1592", "public/art/sprites/big/lich-rare.png": "41020cf94bc817b1fa138158a4090dcb", "public/art/sprites/big/lich-rare_em.png": "9362eabd1fe5d0548c9f41b4de30d1fa", "public/art/sprites/big/mimic-rare.png": "5137ba554a4ce174bab0ba991191f89d", "public/art/sprites/big/mimic-rare_em.png": "e44b007a794d2905cf8e19a2ecce82fb", "public/art/sprites/big/mummy-boss.png": "1657122cfe471263531c27d699698fb5", "public/art/sprites/big/mummy-boss_em.png": "cb335e85abd15823167dc01ea70c3bf4", "public/art/sprites/big/mummy-mini.png": "45bab27ec29e6628599efa76dbcd5e06", "public/art/sprites/big/mummy-mini_em.png": "164ff0108d1e1e5044db96a3ba6ba261", "public/art/sprites/big/mummy-rare.png": "156eb7f0d622babb4e5f046533aae35e", "public/art/sprites/big/mummy-rare_em.png": "d9d38c0c4b9c2e37ba5f1036dc5cb479", "public/art/sprites/big/pumpkin-lord-boss.png": "a24276ed6dfb638aac155c0386597889", "public/art/sprites/big/pumpkin-lord-boss_em.png": "01a9138f81733f5aa849edd03372b154", "public/art/sprites/big/rat-boss.png": "91e7258192a65d2231adbc747a657319", "public/art/sprites/big/rat-boss_em.png": "fe67c0b61b9d4c5b615ed7f406c6aa09", "public/art/sprites/big/rat-mini.png": "81080b259f6770636e7e7a23eda09316", "public/art/sprites/big/rat-mini_em.png": "5590b6225b3911efce69337db1f5c1cf", "public/art/sprites/big/rat-rare.png": "085a188f4aa01c000d1c5946717e7478", "public/art/sprites/big/rat-rare_em.png": "475d01d30ce3358745de1d2ef3fbb5ad", "public/art/sprites/big/scarecrow-boss.png": "2a6bc52fbcde002f9c8dca9c90764a2b", "public/art/sprites/big/scarecrow-boss_em.png": "a80e228976435944f4202d2d2c4c9946", "public/art/sprites/big/scarecrow-mini.png": "b2566b0c36b84ad3759c896686b00b39", "public/art/sprites/big/scarecrow-mini_em.png": "0335fb5c5d87c53edb9b14d870487e8b", "public/art/sprites/big/scarecrow-rare.png": "19ee1c5bda791896398690b8c6e59c60", "public/art/sprites/big/scarecrow-rare_em.png": "134f3a1b1e754c5abccc6954449d9b1c", "public/art/sprites/big/skeleton-boss.png": "42f1c8cf2d7376d07f38ef843e4628ae", "public/art/sprites/big/skeleton-boss_em.png": "7e8aed14183cf521526ffc706a72dfbf", "public/art/sprites/big/skeleton-mini.png": "363d285fd15520f2300fa3b6eda90d74", "public/art/sprites/big/skeleton-mini_em.png": "ce6e3fe427c7f6253f405d2a22ffa46b", "public/art/sprites/big/skeleton-rare.png": "c43fae08ad829ab2289f408efdb3e93d", "public/art/sprites/big/skeleton-rare_em.png": "0845e7ca6102a7e3d218b9e9878d9aab", "public/art/sprites/big/tree-boss.png": "ba59cb21fae36a3d6496298068412ebc", "public/art/sprites/big/tree-boss_em.png": "6ac9842afd12299c4b1aad33fa32c40c", "public/art/sprites/big/tree-mini.png": "189fe8cca648236aa97df7080e0ad3fa", "public/art/sprites/big/tree-mini_em.png": "81b6146c6a0971d4ce2d47542804c72b", "public/art/sprites/big/tree-rare.png": "e1ac6961dfdef0d3f2d83cf4126a7ed4", "public/art/sprites/big/tree-rare_em.png": "745258c40ad679f19e65b4e0acd3f552", "public/art/sprites/big/vampire-boss.png": "5b498c97ee086e9a2afced86f3e350d2", "public/art/sprites/big/vampire-boss_em.png": "9f9822558ca2d4d8f01ea3a5556fe61e", "public/art/sprites/big/vampire-mini.png": "5602ad2d3c35043df409f001153df5cd", "public/art/sprites/big/vampire-mini_em.png": "38fac0004b5a7455224949f1241b1e89", "public/art/sprites/big/vampire-rare.png": "13149d62b1c1ba23a9d57edbf56dfa47", "public/art/sprites/big/vampire-rare_em.png": "eb51dffcfd75dcc1b38583e955136c0c", "public/art/sprites/big/witch-boss.png": "b14ac82b697b84583ad62b5af3f64b94", "public/art/sprites/big/witch-boss_em.png": "20e930c57a8c31a5ddc55505cd399f65", "public/art/sprites/big/witch-mini.png": "74faf690ab976f97c975519b79d9a198", "public/art/sprites/big/witch-mini_em.png": "c6bb4f1250bf2761ea1862e7b3ae2d80", "public/art/sprites/big/witch-rare.png": "d9369c1bdf1901913270db817028dca5", "public/art/sprites/big/witch-rare_em.png": "8b4fb0ffdfdec81a39fac195f7cd31a8", "public/art/sprites/big/wolf-boss.png": "947b19de6ad543efedf9ffa7ce4f5d45", "public/art/sprites/big/wolf-boss_em.png": "06154f882def00eee5e91a5898941ca6", "public/art/sprites/big/wolf-mini.png": "93276450820a157090990ac103113182", "public/art/sprites/big/wolf-mini_em.png": "5e774f7cb37da9ccc923a406531a7ea2", "public/art/sprites/big/wolf-rare.png": "b00f9968b367577ef59e87d4b6048e7e", "public/art/sprites/big/wolf-rare_em.png": "9b620fef38c853e96ee74003eb4b2f60", "public/art/sprites/big/zombie-boss.png": "01aa50e72f3b7019459e84d680550a46", "public/art/sprites/big/zombie-boss_em.png": "7400b3892103afe91e22e722c63e0e93", "public/art/sprites/big/zombie-mini.png": "c0cf314140f7da05c457cc789699665b", "public/art/sprites/big/zombie-mini_em.png": "fd3cacd3c04b76fe189bdd02436e01be", "public/art/sprites/big/zombie-rare.png": "eb5c4b5fbffee41e0f99da46168e363e", "public/art/sprites/big/zombie-rare_em.png": "1bfd5ffbf7cb1743362440e39b4b76be", "src/game/allyspace.ts": "b85de4399e51ca35d592b4d0d476ed80", "src/game/bigshapes.ts": "92808cd412da61f08f13569a9d0bc265", "src/game/draw.ts": "c727dcff96e758ed31cad4a1e2f8361f", "src/game/sim.ts": "48ea7d0d566a6fe8a1b0db8c5370ad7d", "tools/sprite-writer/boss_writer.py": "4fd65fcc123a702a8b4796e65859226d"};
@@ -12684,6 +12791,7 @@ if (on("playtest1s")) {
 // ([OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t big-body silhouette hit flash]) a hit boss, mini or rare flashes in its
 // own silhouette instead of the white frame round its hurt box.
 if (on("playtest1t")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]";
@@ -12691,8 +12799,8 @@ if (on("playtest1t")) {
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
   const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
-  const G1s = pt1sGame(dir);
+  const root = pt1uRoot();
+  const G1s = pt1sGame(dir, pt1uRoot());
   writeFileSync(join(dir, "pt1t.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as BD from "${root}/src/game/buildings.ts";\nexport { ROOM_STYLE } from "${root}/src/game/interiors.ts";\nexport { PHASE } from "${root}/src/game/telegraph.ts";\nexport { T, CYCLE_MS } from "${root}/src/game/content.ts";\n`);
   writeFileSync(join(dir, "pt1t1s.ts"), `export * from "${G1s("draw")}";\n`);
   for (const n of ["pt1t", "pt1t1s"]) execFileSync("npx", ["esbuild", join(dir, `${n}.ts`), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, `${n}.mjs`)}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -12776,7 +12884,7 @@ if (on("playtest1t")) {
   {
     const r = py(`import json,sys,tempfile,pathlib\nsys.path.insert(0,'tools/pixel-writer')\nsys.dont_write_bytecode=True\nfrom PIL import Image\nimport make_gravewake as m\nt=pathlib.Path(tempfile.mkdtemp())\nmade=m.playtest1t(t)\nbad=[n for n in made if Image.open(t/n).convert('RGBA').tobytes()!=Image.open('public/art/writer/'+n).convert('RGBA').tobytes()]\nprint(json.dumps({'n':len(made),'bad':bad,'names':sorted(made)}))`);
     const want = ROOMS.flatMap((k) => [`town-bldg-${k}.png`, `town-bldg-${k}_em.png`]).sort();
-    const maker = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8"), hw = readFileSync("tools/pixel-writer/house_writer.py", "utf8");
+    const maker = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8"), hw = readFileSync(V1("tools/pixel-writer/house_writer.py"), "utf8");
     check("playtest1t", "the pixel writer draws every building (house_writer.py, code only, no image generator): make_gravewake.playtest1t() run fresh into a scratch folder makes the 32 sheets, byte for byte the shipped ones; the writer carries the request tag", !r.error && r.n === 32 && r.bad.length === 0 && JSON.stringify(r.names) === JSON.stringify(want) && /def playtest1t\(/.test(maker) && /playtest1t\(\)/.test(maker.slice(maker.indexOf("__main__"))) && hw.includes(TAG), r.error ?? `${r.n} ${r.bad}`);
   }
 
@@ -12787,7 +12895,7 @@ if (on("playtest1t")) {
     const mine = (room) => { let n = 2166136261; const s = `${BD.BLDG.seed}:${room}`; for (let i = 0; i < s.length; i++) n = Math.imul(n ^ s.charCodeAt(i), 16777619) >>> 0; n ^= n >>> 16; n = Math.imul(n, 2246822507) >>> 0; n = (n ^ (n >>> 13)) >>> 0; return n % LOTS[room].n; };
     const picks = Object.fromEntries(ROOMS.map((k) => [k, BD.variantOf(k)]));
     const agree = ROOMS.every((k) => picks[k] === mine(k));
-    const src = readFileSync("src/game/buildings.ts", "utf8"), vs = src.slice(src.indexOf("export function variantOf"), src.indexOf("\n}\n", src.indexOf("export function variantOf")));
+    const src = readFileSync(V1("src/game/buildings.ts"), "utf8"), vs = src.slice(src.indexOf("export function variantOf"), src.indexOf("\n}\n", src.indexOf("export function variantOf")));
     const pure = !/Math\.random|Date|performance|worldMs/.test(vs) && !/Math\.random/.test(src);
     const cells = (s) => { seed(s); const g = town(); return frame(X, g).filter((c) => BLDG_RE.test(c.u) && !c.u.endsWith("_em.png")).map((c) => `${c.u} ${c.a.slice(0, 6).join(",")}`).sort().join("|"); };
     const c1 = cells(1), c2 = cells(99);
@@ -12906,7 +13014,7 @@ if (on("playtest1t")) {
     const bigUrls = new Set(hit.filter((q) => q.tag === "main" && /\/art\/sprites\/big\//.test(q.u ?? "")).map((q) => q.u)); for (const u of bigUrls) OFF.add(u);
     const load = shot(X, 0.08); OFF.clear();
     const ok = { hit: mask(hit, "#f4f0ea") === 1 && box(hit) === 0, was: box(hit1s) >= 4 && mask(hit1s, "#f4f0ea") === 0, order, roarOn: mask(on, X.BIG_FLASH.roar) === 1 && box(on) === 0, roarOff: mask(off, X.BIG_FLASH.roar) === 0 && mask(off, "#f4f0ea") === 0 && box(off) === 0, mini: mask(mhit, "#f4f0ea") === 1 && box(mhit) === 0, rat: box(ratL) === 4 && box(ratY) === 4 && mask(ratL, "#f4f0ea") === 0, load: box(load) >= 4 && mask(load, "#f4f0ea") === 0 && bigUrls.size > 0 };
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readFileSync(V1("src/game/draw.ts"), "utf8");
     const nums = JSON.stringify(X.BIG_FLASH) === JSON.stringify({ hit: "#f4f0ea", roar: "#ff3a50", hitMax: 0.1, beat: 4 }) && draw.includes(FTAG);
     check("playtest1t", `the big bodies' hit flash is their own silhouette: a hit boss (the Carrion Saint) or mini draws a scratch copy of the very cell it drew, filled source-in with #f4f0ea, laid over itself, and no white frame (playtest1s's draw drew ${box(hit1s)} frame lines); the phase-two roar beats the mask in neon red (#ff3a50) on and off every ${X.BIG_FLASH.beat} frames; a small foe keeps its four-line frame; while a big sheet loads the frame stands in`, Object.values(ok).every(Boolean) && nums, JSON.stringify(ok) + ` nums ${nums}`);
   }
@@ -12914,7 +13022,7 @@ if (on("playtest1t")) {
   // 12. The notes: the new and moved files carry the request tags; AGENTS.project.md has its ## playtest1t.
   {
     const agents = readFileSync("AGENTS.project.md", "utf8"), a = agents.indexOf("## playtest1t"), sec = a >= 0 ? agents.slice(a, agents.indexOf("\n## ", a + 5) > 0 ? agents.indexOf("\n## ", a + 5) : undefined) : "";
-    const tags = readFileSync("src/game/buildings.ts", "utf8").includes(TAG) && readFileSync("src/game/draw.ts", "utf8").includes(`playtest1t ${TAG}`) && readFileSync("tools/pixel-writer/make_gravewake.py", "utf8").includes(TAG);
+    const tags = readFileSync(V1("src/game/buildings.ts"), "utf8").includes(TAG) && readFileSync(V1("src/game/draw.ts"), "utf8").includes(`playtest1t ${TAG}`) && readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8").includes(TAG);
     check("playtest1t", "the owner notes: buildings.ts, house_writer.py, the draw and the sheet maker carry the request tag; AGENTS.project.md's ## playtest1t has both tags, the BUILDING RULE and the HIT FLASH RULE, and names the writer, the seeded pick, the interior match, the fallback and the silhouette flash", tags && sec.includes(TAG) && sec.includes(FTAG) && ["BUILDING RULE (keep it)", "HIT FLASH RULE (keep it)", "house_writer.py", "buildings.ts", "seed", "ROOM_STYLE", "fallback", "silhouette"].every((w) => sec.includes(w)), `${tags} ${a}`);
   }
 
@@ -12931,7 +13039,7 @@ if (on("playtest1t")) {
     const gameOk = gd.replace(/from "[^"]*"/g, "from ?") === readFileSync("scripts/frozen/playtest1t/draw.ts.txt", "utf8").replace(/from "[^"]*"/g, "from ?") && !/from "\.\//.test(gd) && !/from "[^"]*buildings/.test(gd);
     check("playtest1t", "the frozen references (scripts/frozen/playtest1t/) are playtest1s's draw, sheet maker and owner notes byte for byte (as pushed at c53a082); every older view, rest digest and live pin reads them (pt1sView under pt1rView); pt1sGame's draw imports every other module live; buildings.ts is a LATER_MODULE and the 34 new files are in no older digest", JSON.stringify(fz) === '{"AGENTS.project.md":"155c1e2b63d0492ebfb31d2c8cd38bad","draw.ts":"c727dcff96e758ed31cad4a1e2f8361f","make_gravewake.py":"d6108841b06aa28b42c88529aaedd46d"}' && viewBad.length === 0 && newF === 34 && gameOk && LATER_MODULES.has("src/game/buildings.ts"), `${JSON.stringify(fz)} ${viewBad} ${newF} ${gameOk}`);
     const MOVED = new Set(Object.keys(PT1T_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1uNew(f) && !pt1tNew(f) && !MOVED.has(f)).sort();
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !pt1tNew(f) && !MOVED.has(f)).sort();
     const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(pt1tView(f))}`).join("\n")).digest("hex"); // playtest1u: as playtest1t left them
     check("playtest1t", "every other source file, public file and writer file is playtest1s's byte for byte (beside buildings.ts, the house writer, the 32 building sheets and the moved draw and sheet maker): the sim, the grid, the rooms, the fight numbers, the saves untouched", rest === "78b2694f91cd8f6a3e801b319801a5d6", rest);
     const LIVE = {"AGENTS.project.md": "d542780c14c7f8bf23ccd2b83b292fd8", "public/art/writer/town-bldg-alchemy.png": "6ab30b23af5ae48e4cc54ee322fb3820", "public/art/writer/town-bldg-alchemy_em.png": "f7c205195949cd6f573a961a04d1a5d2", "public/art/writer/town-bldg-bank.png": "c4fe235cd62771c3c650aed2cca2f4e8", "public/art/writer/town-bldg-bank_em.png": "3a2d6959f6cd5b847ce0f5ee7be7c499", "public/art/writer/town-bldg-bram.png": "de57e43ddabeaafdb4c8eb1263d42065", "public/art/writer/town-bldg-bram_em.png": "d972f80f066b3d5175700df4f4dead22", "public/art/writer/town-bldg-casino.png": "6fd27ae33adc6d352d5c32a6ccb5d33b", "public/art/writer/town-bldg-casino_em.png": "5c92e28a47cc0af0dcf4e8eb5c7aa05e", "public/art/writer/town-bldg-chapel.png": "0c52e5eedd5a0cc97956851e11fd97c3", "public/art/writer/town-bldg-chapel_em.png": "86896d74e3bf8019e702e04eecccac79", "public/art/writer/town-bldg-croft.png": "49850a1b61c1940a4cbe391183beb7f6", "public/art/writer/town-bldg-croft_em.png": "4241b7504e34a78ce3f1a746ab50f2ca", "public/art/writer/town-bldg-fisher.png": "3e3aaa2e442016c5fdc76e55e58fe04c", "public/art/writer/town-bldg-fisher_em.png": "bee1124c254adef5aa037c55ac8ca792", "public/art/writer/town-bldg-guild.png": "306a9421c210808017483d55d8c449fc", "public/art/writer/town-bldg-guild_em.png": "6a7cf359ad0ed80ce2fccb1ef288e3f5", "public/art/writer/town-bldg-inn.png": "f2e36ad30ed3b57b5b4af5be008eac90", "public/art/writer/town-bldg-inn_em.png": "c2cba890149586889e6fcbeca3c05589", "public/art/writer/town-bldg-ivy.png": "6d0b877674f6e8492baeaa457e665b0b", "public/art/writer/town-bldg-ivy_em.png": "5be19b56705545eb3b887d408e47fa50", "public/art/writer/town-bldg-mystic.png": "fc3f44c5e3a3e81c87ff3168123f49cb", "public/art/writer/town-bldg-mystic_em.png": "5b8373f19a6b199223be3c635e487f80", "public/art/writer/town-bldg-noll.png": "ef4911daa16a11bf1b07f438e33146b9", "public/art/writer/town-bldg-noll_em.png": "3d79b0de4234e7bb48281b8ae109760d", "public/art/writer/town-bldg-pell.png": "9304a40a69788b2842a34123a1cc4015", "public/art/writer/town-bldg-pell_em.png": "c71f5c299c31587ffbc89554a5016bb1", "public/art/writer/town-bldg-shop.png": "022d91d2e9dedcddd61a4f991ae244a9", "public/art/writer/town-bldg-shop_em.png": "13831b70f641ad9554e2854f4b584fbe", "public/art/writer/town-bldg-smith.png": "54d9b7b18ae9c23e03882fc9e84ba10f", "public/art/writer/town-bldg-smith_em.png": "1c6a1286be408dd38284a270db576451", "public/art/writer/town-bldg-tailor.png": "195e211194dad143533a49791f6b2fa8", "public/art/writer/town-bldg-tailor_em.png": "6c7dfb17cef521dda3ea27f0fb02b88d", "src/game/buildings.ts": "22497de27c241258a57da55f4c0a4f2e", "src/game/draw.ts": "9292788d96740c3816156ec4cc9a883a", "tools/pixel-writer/house_writer.py": "69a4d8b86b26589a329fd32c0a0b899b", "tools/pixel-writer/make_gravewake.py": "5fa54187ca27c2e81b6e64f17b80a3bd"};
@@ -12950,6 +13058,7 @@ if (on("playtest1t")) {
 // and quieter; and [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]: tap a monster to lock it, and the hero
 // walks in (never into a telegraph) and fights it with the fitting attack until it drops.
 if (on("playtest1u")) {
+  await as1u(); // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: the world as playtest1u laid it (group playtest1v runs this group live too)
   const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]";
@@ -12960,7 +13069,7 @@ if (on("playtest1u")) {
   const fnv1 = (arr) => { let h = 0x811c9dc5; for (const v of arr) { h ^= v & 0xff; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, "0"); };
   const fnvS = (s) => fnv1(Array.from(Buffer.from(s)));
   const dir = mkd(join(tmpdir(), "gravewake-"));
-  const root = process.cwd();
+  const root = pt1uRoot();
   writeFileSync(join(dir, "pt1u.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as HM from "${root}/src/game/hamlets.ts";\nexport * as TF from "${root}/src/game/tapfight.ts";\nexport * as HT from "${root}/src/game/hudtap.ts";\nexport * as HS from "${root}/src/game/hudsafe.ts";\nexport * as BB from "${root}/src/game/bigboss.ts";\nexport * as AS from "${root}/src/game/allyspace.ts";\nexport { T, CYCLE_MS, worldBiome, WORLD_DOOR, DUNGEONS, RIFTS } from "${root}/src/game/content.ts";\nexport { HARVEST, KRAMPUSNACHT } from "${root}/src/game/festivals.ts";\nexport { WAYRIFTS } from "${root}/src/game/wayrifts.ts";\nexport { GATE } from "${root}/src/game/bounty.ts";\nexport * as GW from "${root}/tools/map-writer/gravewake_world.ts";\n`);
   writeFileSync(join(dir, "pt1u2.ts"), `export { worldHamlets } from "${root}/src/game/sim.ts";\n`);
   for (const n of ["pt1u", "pt1u2"]) execFileSync("npx", ["esbuild", join(dir, `${n}.ts`), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, `${n}.mjs`)}`], { stdio: ["ignore", "ignore", "inherit"] });
@@ -13027,7 +13136,7 @@ if (on("playtest1u")) {
   {
     const K = X.HAMLET_KEEP;
     const keepSpec = JSON.stringify(K) === '{"lair":{"r":9,"ry":8},"door":14,"mouth":5,"wayrift":6,"cart":4,"landmark":3,"cache":2}';
-    const simSrc = readFileSync("src/game/sim.ts", "utf8");
+    const simSrc = readFileSync(V1("src/game/sim.ts"), "utf8");
     const bossSpots = [...simSrc.slice(simSrc.indexOf("const WORLD_BOSSES = ["), simSrc.indexOf("];", simSrc.indexOf("const WORLD_BOSSES = ["))).matchAll(/tx: (\d+), ty: (\d+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
     const keep = [];
     for (const b of bossSpots) keep.push({ ...b, r: K.lair.r, ry: K.lair.ry, why: "boss" });
@@ -13093,7 +13202,7 @@ if (on("playtest1u")) {
       if (r.y < (l.y + l.h) * TILE) bad.push(`foe in ${l.kind}`); else pushed++;
       for (const s of HM.HAMLET_SEASONS) { const c = HM.hamletCell(l, s); if (!c || c.dx !== l.x * TILE || c.w !== l.w * TILE || c.dy + c.h !== (l.y + l.h) * TILE) bad.push(`cell ${l.kind} ${s}`); }
     }
-    const walkSrc = readFileSync("src/game/sim.ts", "utf8").includes("walk: [...walk].filter((i) => tiles[i] !== T.wall).sort(");
+    const walkSrc = readFileSync(V1("src/game/sim.ts"), "utf8").includes("walk: [...walk].filter((i) => tiles[i] !== T.wall).sort(");
     const walkInLot = H.flatMap((m) => m.walk.filter((i) => lotTiles.has(i)));
     check("playtest1u", `collision matches the lots: solidAt (hero and foe) on all ${lotTiles.size} lot tiles, never on a hamlet's walk or doorstep (the walk list is filtered of walls, none of the ${H.reduce((n, m) => n + m.walk.length, 0)} walk tiles is a lot); from each of the ${walked} doorsteps the hero walks north and stops at the lot's south edge, a foe pushed in (${pushed}) stays out; each drawn building is its lot's width on its left edge, standing on its south edge, in all four seasons`, bad.length === 0 && walked === H.reduce((n, m) => n + m.lots.length, 0) && pushed === walked && walkSrc && walkInLot.length === 0, `${bad.slice(0, 6).join(" ")} walkSrc ${walkSrc} inLot ${walkInLot.length}`);
   }
@@ -13147,7 +13256,7 @@ if (on("playtest1u")) {
     const r = py(`import json,sys,tempfile,pathlib\nsys.path.insert(0,'tools/pixel-writer')\nsys.dont_write_bytecode=True\nfrom PIL import Image\nimport make_gravewake as m\nt=pathlib.Path(tempfile.mkdtemp())\nmade=m.playtest1u(t)\nbad=[n for n in made if Image.open(t/n).convert('RGBA').tobytes()!=Image.open('public/art/writer/'+n).convert('RGBA').tobytes() or (t/n).read_bytes()!=pathlib.Path('public/art/writer/'+n).read_bytes()]\nprint(json.dumps({'n':len(made),'bad':bad,'names':sorted(made)}))`);
     const want = [...HM.HAMLET_KIND_IDS.flatMap((k) => [`hamlet-${k}.png`, `hamlet-${k}_em.png`]), "hamlet-walk.png"].sort();
     const shipped = readdirSync("public/art/writer").filter((n) => n.startsWith("hamlet-")).sort();
-    const maker = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
+    const maker = readFileSync(V1("tools/pixel-writer/make_gravewake.py"), "utf8");
     check("playtest1u", "the pixel writer draws every hamlet (house_writer.py, code only): make_gravewake.playtest1u() run fresh into a scratch folder makes the 25 files (12 kinds and their glow masks, the walk), byte for byte the shipped ones, and no other hamlet file ships; the maker's main run makes them", !r.error && r.n === 25 && r.bad.length === 0 && JSON.stringify(r.names) === JSON.stringify(want) && JSON.stringify(shipped) === JSON.stringify(want) && /playtest1u\(\)/.test(maker.slice(maker.indexOf("__main__"))), r.error ?? `${r.n} ${r.bad} ${shipped.length}`);
   }
 
@@ -13202,7 +13311,7 @@ if (on("playtest1u")) {
   //    or the buttons pauses on a double tap; a single tap does nothing; the one-time hint is "Double-tap your portrait to
   //    pause", put away for good (gravewake-hint-pause-v1) once used or after 8 s.
   {
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8"), old = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8");
+    const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8"), old = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8");
     const dt = HT.doubleTap;
     const unit = [!dt(null, 100, 0, 0), dt({ t: 0, x: 0, y: 0 }, 300, 0, 0), dt({ t: 0, x: 0, y: 0 }, 120, 20, 20), !dt({ t: 0, x: 0, y: 0 }, 301, 0, 0), !dt({ t: 0, x: 0, y: 0 }, 100, 33, 0), !dt({ t: 50, x: 0, y: 0 }, 10, 0, 0)];
     const card = ui.slice(ui.indexOf('data-testid="hud-card"'), ui.indexOf("<HudPortrait", ui.indexOf('data-testid="hud-card"')));
@@ -13219,7 +13328,7 @@ if (on("playtest1u")) {
   //     sim; the key handler's pause lines, the auto-pause (away), "Tap to resume" and "Leave game?" are playtest1t's word
   //     for word; the pause menu has its own Resume.
   {
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8"), old = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8");
+    const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8"), old = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8");
     const cut = (s, a, b) => { const i = s.indexOf(a); return i < 0 ? null : s.slice(i, s.indexOf(b, i)); };
     const same = [["const away = (pause: boolean) => {", "const blur = () => {"], ["const vis = () => {", "const pageHide"], ['data-testid="leave-game"', 'data-testid="tap-resume"'], ['data-testid="tap-resume"', "{tip ? ("], ["const down = (e: KeyboardEvent) => {", "const up = "]].filter(([a, b]) => { const x = cut(ui, a, b), y = cut(old, a, b); return !x || x !== y; }).map(([a]) => a);
     const g = vale();
@@ -13233,7 +13342,7 @@ if (on("playtest1u")) {
   //      goes to tapAt at the point under the finger through the frame in force (view k, not the game's zoom), with
   //      TAP_SLOP css px of touch in world px; a drag walks there (setGoal); locked, a small drag holds, a long one lets go.
   {
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8");
     const a0 = ui.indexOf("  function aimAt(");
     const src = a0 < 0 ? "" : ui.slice(a0, ui.indexOf("\n  }\n", a0) + 4);
     let js = "";
@@ -13265,7 +13374,7 @@ if (on("playtest1u")) {
   // 10c. The shell's older rules hold on the live shell (Gravewake.tsx froze in playtest1u, so the groups that set them now
   //      read playtest1t's frozen copy): each still stands in the live file as often as in playtest1t's.
   {
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8"), old = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8");
+    const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8"), old = readFileSync(pt1tView("src/game/Gravewake.tsx"), "utf8");
     const n = (s, w) => s.split(w).length - 1;
     const rules = [
       ["screen1: Play anyway is kept for the session", 'sessionStorage.setItem("gravewake-portrait-ok", "1");'],
@@ -13286,7 +13395,7 @@ if (on("playtest1u")) {
   //     labels skip it); the corner map is 80 css px at 0.82; the right-hand buttons are smaller, see-through (bg-surface/80)
   //     and fade to 0.55 after 3 s idle; hudsafe skips a hidden panel.
   {
-    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const ui = readFileSync(V1("src/game/Gravewake.tsx"), "utf8");
     const card = ui.slice(ui.indexOf('data-testid="hud-card"'), ui.indexOf('data-testid="pause-hint"'));
     const menu = ui.slice(ui.indexOf('data-testid="pause-now"'), ui.indexOf("</div>\n              </div>", ui.indexOf('data-testid="pause-now"')) + 40);
     const folded = ["festival-line", "season-line", "phase-chip", "WX {game.weatherLabel()}", "Fish points", "escort-line", "Swimming", "Ice underfoot", "bond {game.bondOf().bond}"];
@@ -13520,23 +13629,436 @@ if (on("playtest1u")) {
     const fz = Object.fromEntries(Object.values(PT1U_FROZEN).sort().map((k) => [k, md5f(`scripts/frozen/playtest1u/${k}.txt`)]));
     const viewBad = [];
     for (const f of Object.keys(PT1U_FROZEN)) { const want = `scripts/frozen/playtest1u/${PT1U_FROZEN[f]}.txt`; if (pt1tView(f) !== want) viewBad.push(`1t ${f}`); if (!(f in PT1T_FROZEN) && pt1sView(f) !== want) viewBad.push(`1s ${f}`); }
-    for (const f of ["src/game/content.ts", "src/game/buildings.ts", "src/game/allyspace.ts"]) if (pt1tView(f) !== f) viewBad.push(`live ${f}`);
+    for (const f of ["src/game/content.ts", "src/game/buildings.ts", "src/game/allyspace.ts"]) if (pt1tView(f) !== pt1uView(f)) viewBad.push(`live ${f}`); // playtest1v: content as playtest1u left it
     const newF = walk("public/art/writer").filter((f) => pt1uNew(f)).length + ["src/game/hamlets.ts", "src/game/tapfight.ts", "src/game/hudtap.ts"].filter((f) => pt1uNew(f)).length;
     const later = ["src/game/hamlets.ts", "src/game/tapfight.ts", "src/game/hudtap.ts"].every((f) => LATER_MODULES.has(f));
     const simOk = typeof M1t.worldHamlets === "undefined" && typeof M1t.Game === "function" && !("tapAt" in M1t.Game.prototype);
     check("playtest1u", "the frozen references (scripts/frozen/playtest1u/) are playtest1t's sim, draw, shell, stylesheet, map writer, its adapter and check, house writer, sheet maker and owner notes byte for byte (as pushed at 8ecbff4); every older view, rest digest and live pin reads them (pt1tView under pt1sView); pt1tSim is playtest1t's sim (no hamlets, no tap lock) with every other module live; the three new modules are LATER_MODULES and the 28 new files are in no older digest", JSON.stringify(fz) === '{"AGENTS.project.md":"d542780c14c7f8bf23ccd2b83b292fd8","Gravewake.tsx":"e5ed3f7d8ca72282b3c35a7041ce2261","check_map_writer.mjs":"6eff5b0a10f20bcf678d1d8cd06c9fc4","draw.ts":"9292788d96740c3816156ec4cc9a883a","gravewake_world.ts":"3e1c2a70dce85efe73f460b664c84946","house_writer.py":"69a4d8b86b26589a329fd32c0a0b899b","make_gravewake.py":"5fa54187ca27c2e81b6e64f17b80a3bd","map_writer.ts":"b231f85001aee13f7fe5b1bb9a6ba67c","sim.ts":"48ea7d0d566a6fe8a1b0db8c5370ad7d","styles.css":"c415ed55989eeea05f71f6cf73278aa7"}' && viewBad.length === 0 && newF === 28 && later && simOk, `${JSON.stringify(fz)} ${viewBad} ${newF} ${later} ${simOk}`);
     const MOVED = new Set(Object.keys(PT1U_FROZEN));
-    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1uNew(f) && !MOVED.has(f)).sort();
-    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !pt1uNew(f) && !MOVED.has(f)).sort();
+    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(V1(f))}`).join("\n")).digest("hex"); // playtest1v: as playtest1u left them
     check("playtest1u", "every other source file, public file and writer file is playtest1t's byte for byte (beside the three new modules, the 25 hamlet sheets and the moved files): the fight numbers, the town, the rooms, the saves, the art untouched", rest === "00838e93499eb5bdf44430fb6186883c", rest);
     const LIVE = {"AGENTS.project.md": "60396e1b1a53db2c83d706f6a0cd539a", "public/art/writer/hamlet-ash_forge.png": "bd08ef9b178f3826753f74d0c613f5ca", "public/art/writer/hamlet-ash_forge_em.png": "0f8cec213c628e5c6c21e8ff8ed67bb5", "public/art/writer/hamlet-ash_hovel.png": "b468e37307825a7a0234a7373365fc23", "public/art/writer/hamlet-ash_hovel_em.png": "c7c280598905c3c1bcce4c75cf9fe3ac", "public/art/writer/hamlet-ash_kiln.png": "4523098a7386bcadc8a264dc6b9bb40c", "public/art/writer/hamlet-ash_kiln_em.png": "b8fe2ac4595fdcaa455138ae397e8692", "public/art/writer/hamlet-bog_hut.png": "bc6590725bd04eb0beda7888e5ab5982", "public/art/writer/hamlet-bog_hut_em.png": "67347427fcfb711193d4d394b59da603", "public/art/writer/hamlet-bog_shack.png": "75d75b9c88727d6bf9d749936d78e9af", "public/art/writer/hamlet-bog_shack_em.png": "54b22fd7bef27fc58cbd86b7105934ec", "public/art/writer/hamlet-bog_stilt.png": "5112dc68c0863a89753d5b0fe7414d59", "public/art/writer/hamlet-bog_stilt_em.png": "e46a8baf1473a1dd287d7dbd8c6eb851", "public/art/writer/hamlet-sand_dome.png": "dd86168ad7b4d0cd197d766510fb60da", "public/art/writer/hamlet-sand_dome_em.png": "f8411c65d6700d565c239a8fde5f9ceb", "public/art/writer/hamlet-sand_flat.png": "61fc41d6012fedcc5bbe3eaf4b766e95", "public/art/writer/hamlet-sand_flat_em.png": "e23c2466deb96a4ae24ceadea488f8b4", "public/art/writer/hamlet-sand_tower.png": "673a7c3f9522a01e0b10e89523a33871", "public/art/writer/hamlet-sand_tower_em.png": "1acc87e89f2e3182cf9584f2e8dcae33", "public/art/writer/hamlet-snow_hut.png": "dd3a290347683aa3983525f8ce3d107b", "public/art/writer/hamlet-snow_hut_em.png": "42da701761fb3f4e169b3f082f4ad9c7", "public/art/writer/hamlet-snow_lodge.png": "99747119eafcab31712453147674898b", "public/art/writer/hamlet-snow_lodge_em.png": "4193860b3416538a07bf3451975ddbc6", "public/art/writer/hamlet-snow_store.png": "fef3f5eefc8f4b5d11bf067a619adf9b", "public/art/writer/hamlet-snow_store_em.png": "75fa6372d718c862dd8a547d12799f35", "public/art/writer/hamlet-walk.png": "0e5c5450747dff6636fe650ada7688c2", "src/game/Gravewake.tsx": "468fc995fa76152d64be907d63ed2400", "src/game/draw.ts": "cdb5cd9ff4a0d98d5532e8d856be82f4", "src/game/hamlets.ts": "923e88feb4a8e4493b4cbc61c7f2911d", "src/game/hudtap.ts": "3e548ecd00bf44933e6456514afc9d52", "src/game/sim.ts": "937aee47ffc2cf41c4644deab894253e", "src/game/tapfight.ts": "3a2656bf1382197802df4b3c9208d5b7", "src/styles.css": "36ad168d3fad724f8575cf82290b5006", "tools/map-writer/check_map_writer.mjs": "e8f93c2ea6697c6616e66192309a30d8", "tools/map-writer/gravewake_world.ts": "77258abd20d85d661f9306a2662b4dfc", "tools/map-writer/map_writer.ts": "d6fad7acb5f1c9a7a5b4ca73dbf1dc54", "tools/pixel-writer/house_writer.py": "4b8e795c9145298c771e07731133e5b8", "tools/pixel-writer/make_gravewake.py": "5ca8fe8e297c6fe5b81427658fd4a301"};
+    const live = Object.entries(LIVE).filter(([f, h]) => md5f(V1(f)) !== h).map(([f]) => f); // playtest1v: as playtest1u left them
+    check("playtest1u", "the live files are byte for byte playtest1u's (the three new modules, the moved files, the 25 hamlet sheets)", Object.keys(LIVE).length === 38 && live.length === 0, live.map((f) => `${f}=${md5f(V1(f))}`).join(", "));
+  }
+  globalThis.Image = had.Image; globalThis.document = had.document; globalThis.localStorage = had.ls; Math.random = had.random;
+}
+// playtest1v (2026-10-05, [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]): Bill asked to double the area of
+// every wild biome (the town stays as it is), every place spread out with it, all of it still reached. With it,
+// [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a hamlet is a village icon whose doorstep zones into a small
+// map of its own; [OWNER-APPROVED 2026-10-05 21:15 ET: playtest1v prop scale + detail pass]: trees and rocks at a believable
+// scale against the 16x32 hero; and [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the maps start dark and
+// fill in where the hero has been, and a steam car of bones is sold in town and drives the vale at 2.25x the walk.
+if (on("playtest1v")) {
+  asLive();
+  const { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const TAG = "[OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]";
+  const VTAG = "[OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]";
+  const PTAG = "[OWNER-APPROVED 2026-10-05 21:15 ET: playtest1v prop scale + detail pass]";
+  const CTAG = "[OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]";
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return f === "__pycache__" ? [] : statSync(p).isDirectory() ? walk(p) : [p]; });
+  const fnv1 = (arr) => { let h = 0x811c9dc5; for (const v of arr) { h ^= v & 0xff; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, "0"); };
+  const fnvS = (s) => fnv1(Array.from(Buffer.from(s)));
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  const U = pt1uRoot();
+  const exportsOf = (r) => `export * from "${r}/src/game/sim.ts";\nexport * from "${r}/src/game/draw.ts";\nexport { T, WORLD, WORLD_DOOR, worldBiome, DUNGEONS, CYCLE_MS, DAY_MS } from "${r}/src/game/content.ts";\nexport { HARVEST, KRAMPUSNACHT } from "${r}/src/game/festivals.ts";\nexport { WAYRIFTS } from "${r}/src/game/wayrifts.ts";\nexport { GATE } from "${r}/src/game/bounty.ts";\nexport * as BB from "${r}/src/game/bigboss.ts";\nexport * as WL from "${r}/src/game/wild.ts";\n`;
+  writeFileSync(join(dir, "pt1v.ts"), exportsOf(root) + `export * as CAR from "${root}/src/game/bonecar.ts";\nexport * as MF from "${root}/src/game/mapfog.ts";\nexport * as VL from "${root}/src/game/villages.ts";\n`);
+  writeFileSync(join(dir, "pt1v2.ts"), `export { Game, worldHamlets } from "${root}/src/game/sim.ts";\n`);
+  writeFileSync(join(dir, "pt1u.ts"), exportsOf(U));
+  for (const n of ["pt1v", "pt1v2", "pt1u"]) execFileSync("npx", ["esbuild", join(dir, `${n}.ts`), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, `${n}.mjs`)}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
+  // A stand-in canvas (as group playtest1u's): every context records its drawImage and fillRect calls; images "load" at once
+  // unless their url is in OFF.
+  const OFF = new Set();
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return !OFF.has(this._s); } set src(u) { this._s = u; } get src() { return this._s; } };
+  let log = [], cn = 0;
+  const mkCtx = (tag) => {
+    const st = { fillStyle: "#000000", globalCompositeOperation: "source-over", globalAlpha: 1, imageSmoothingEnabled: true }, stack = [];
+    return new Proxy(st, {
+      get: (t, k) => k === "drawImage" ? (im, ...a) => log.push({ tag, u: im ? (im._s ?? `canvas:${im._tag}`) : "?", a, op: t.globalCompositeOperation, al: t.globalAlpha })
+        : k === "fillRect" ? (x, y, w, h) => log.push({ tag, fill: true, c: t.fillStyle, x, y, w, h, op: t.globalCompositeOperation })
+        : k === "save" ? () => stack.push({ ...t }) : k === "restore" ? () => { const s = stack.pop(); if (s) Object.assign(t, s); }
+        : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 })
+        : k === "createLinearGradient" || k === "createRadialGradient" || k === "createPattern" ? () => ({ addColorStop() {} }) : k in t ? t[k] : () => {},
+      set: (t, k, v) => { t[k] = v; return true; },
+    });
+  };
+  globalThis.document = { createElement: () => { const c = { _tag: `c${++cn}`, width: 16, height: 16, getContext() { return (c.ctx ??= mkCtx(c._tag)); } }; return c; } };
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  const X = await import(pathToFileURL(join(dir, "pt1v.mjs")).href);
+  const X2 = await import(pathToFileURL(join(dir, "pt1v2.mjs")).href); // a second copy of the sim, for "same seed, same world"
+  const Y = await import(pathToFileURL(join(dir, "pt1u.mjs")).href); // the game as playtest1u left it
+  const { CAR, SHOWROOM, CAR_LINES } = X.CAR;
+  const MF = X.MF;
+  const py = (code) => { try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 26 })); } catch (e) { return { error: String(e.stderr || e.message).slice(-400) }; } };
+  const mk = (M = X, ms = 5 * 60 * 1000) => { const g = new M.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; return g; };
+  const vale = (M = X, ms = 5 * 60 * 1000) => { const g = mk(M, ms); g.enterWorld(M.GATE.x * TILE + 8, M.GATE.y * TILE + 8); g.mode = "play"; g.roamers = []; g.critters = []; g.companion = null; return g; };
+  const run = (g, s, each) => { for (let i = 0; i < Math.round(s * 60); i++) { if (each) each(); g.update(1 / 60); } };
+  const count = (a) => a.reduce((n, b) => n + b, 0);
+  const g0 = vale(), g1u = vale(Y);
+  const W = g0.w, Hh = g0.h;
+  const SQ2 = Math.SQRT2;
+
+  // 1. The world is twice the area: 181x170 (128x120 x sqrt2 each way, WORLD records the scale), every wild biome
+  //    1.95-2.1x its playtest1u area, the town map untouched (40x30, the same grid as playtest1u's but the showroom lot),
+  //    worldBiome is playtest1u's at 1/sqrt2 the coordinates, and two separate games build the same grid byte for byte.
+  {
+    const area = (M, g) => { const a = {}; for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) { const b = M.worldBiome(x, y); a[b] = (a[b] ?? 0) + 1; } return a; };
+    const a1 = area(X, g0), a0 = area(Y, g1u);
+    const ratio = Object.fromEntries(Object.keys(a0).map((b) => [b, +(a1[b] / a0[b]).toFixed(3)]));
+    const ratioOk = Object.values(ratio).every((r) => r >= 1.95 && r <= 2.1) && Object.keys(a1).length === Object.keys(a0).length;
+    let biomeBad = 0; for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { const ox = Math.min(127, Math.floor(x / SQ2)), oy = Math.min(119, Math.floor(y / SQ2)); if (X.worldBiome(x, y) !== Y.worldBiome(ox, oy)) biomeBad++; }
+    const same = (() => { const q = new X2.Game(); q.start("warrior", "str", "Q"); q.enterWorld(X.GATE.x * TILE + 8, X.GATE.y * TILE + 8); return fnv1(q.tiles) === fnv1(g0.tiles); })();
+    const t1 = mk(), t0 = mk(Y); t1.enterTown(); t0.enterTown();
+    let townDiff = 0; for (let i = 0; i < t1.tiles.length; i++) if (t1.tiles[i] !== t0.tiles[i]) townDiff++;
+    check("playtest1v", `the world is twice the area: ${W}x${Hh} (playtest1u's ${g1u.w}x${g1u.h} x sqrt2 each way; WORLD scale ${X.WORLD.scale.toFixed(3)}, was ${X.WORLD.was.w}x${X.WORLD.was.h}), every wild biome about 2x its playtest1u area (${Object.entries(a0).map(([b, n]) => `${b} ${n}→${a1[b]}`).join(", ")}), worldBiome playtest1u's at 1/sqrt2 the coordinates (${biomeBad} tiles off, the rounding at the borders), two separate games build the same grid (FNV ${fnv1(g0.tiles)}); the town is 40x30 and playtest1u's grid (${townDiff} tiles differ)`, W === 181 && Hh === 170 && g1u.w === 128 && g1u.h === 120 && Math.abs(X.WORLD.scale - 2 * SQ2) < 1e-9 && ratioOk && biomeBad < W * Hh * 0.02 && same && fnv1(g0.tiles) === "871e3fdd" && t1.w === 40 && t1.h === 30 && townDiff === 0, `${JSON.stringify(ratio)} off ${biomeBad} same ${same} ${fnv1(g0.tiles)} town ${t1.w}x${t1.h} ${townDiff}`);
+  }
+
+  // 2. Every place spread out with it: each world boss's lair, dungeon and rift mouth, far wayrift, both festival spots, the
+  //    town door and gate at its playtest1u tile x sqrt2 (within a tile and a half; the hub wayrifts keep their row by the gate,
+  //    4 tiles apart), so the mean distance between places grows by sqrt2.
+  {
+    const bossesOf = (src) => [...src.slice(src.indexOf("const WORLD_BOSSES = ["), src.indexOf("];", src.indexOf("const WORLD_BOSSES = ["))).matchAll(/id: "(\w+)", tx: (\d+), ty: (\d+)/g)].map((m) => [m[1], +m[2], +m[3]]);
+    const B1 = bossesOf(readFileSync("src/game/sim.ts", "utf8")), B0 = bossesOf(readFileSync(pt1uView("src/game/sim.ts"), "utf8"));
+    const P1 = [], P0 = [];
+    const add = (id, a, b) => { P1.push([id, a.x, a.y]); P0.push([id, b.x, b.y]); };
+    for (const [id, x, y] of B1) { const o = B0.find((q) => q[0] === id); if (o) add(`boss:${id}`, { x, y }, { x: o[1], y: o[2] }); }
+    for (const d of X.DUNGEONS.filter((q) => !q.town && q.tx)) { const o = Y.DUNGEONS.find((q) => q.id === d.id); if (o) add(`mouth:${d.id}`, { x: d.tx, y: d.ty }, { x: o.tx, y: o.ty }); }
+    for (const w of X.WAYRIFTS.filter((q) => !q.hub)) { const o = Y.WAYRIFTS.find((q) => q.id === w.id); if (o) add(`wayrift:${w.id}`, w, o); }
+    add("lord", X.HARVEST.lord, Y.HARVEST.lord); add("krampus", X.KRAMPUSNACHT.spot, Y.KRAMPUSNACHT.spot); add("door", X.WORLD_DOOR, Y.WORLD_DOOR); add("gate", X.GATE, Y.GATE);
+    const off = P1.map(([id, x, y], i) => [id, Math.hypot(x - P0[i][1] * SQ2, y - P0[i][2] * SQ2)]).filter(([, d]) => d > 1.5).map(([id, d]) => `${id} ${d.toFixed(1)}`);
+    const hubs = X.WAYRIFTS.filter((q) => q.hub), hubOk = hubs.length === Y.WAYRIFTS.filter((q) => q.hub).length && hubs.every((h) => h.y === X.GATE.y + 1) && hubs.every((h, i) => i === 0 || h.x - hubs[i - 1].x >= 4);
+    const mean = (P) => { let s = 0, n = 0; for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { s += Math.hypot(P[i][1] - P[j][1], P[i][2] - P[j][2]); n++; } return s / n; };
+    const grow = mean(P1) / mean(P0);
+    const noSpot = (d) => JSON.stringify(Object.fromEntries(Object.entries(d).filter(([k]) => k !== "tx" && k !== "ty").sort(([a], [b]) => (a < b ? -1 : 1))));
+    const siteDiff = X.DUNGEONS.length !== Y.DUNGEONS.length ? [`count ${X.DUNGEONS.length}/${Y.DUNGEONS.length}`] : X.DUNGEONS.filter((d, i) => noSpot(d) !== noSpot(Y.DUNGEONS[i])).map((d) => `${d.id} L${d.level}`);
+    check("playtest1v", `every place spread out: ${P1.length} places (9 lairs, ${X.DUNGEONS.filter((q) => !q.town && q.tx).length} mouths, ${X.WAYRIFTS.filter((q) => !q.hub).length} far wayrifts, both festival spots, the door and the gate) each at its playtest1u tile x sqrt2 within 1.5 tiles (off: ${off.join(", ") || "none"}); the ${hubs.length} hub wayrifts keep their row a tile south of the gate, 4+ apart; the mean distance between places grows x${grow.toFixed(3)}; every dungeon keeps playtest1u's own numbers bar its spot (level, floors, boss, theme, flags: ${siteDiff.join(", ") || "all " + X.DUNGEONS.length + " same"})`, P1.length >= 30 && off.length === 0 && siteDiff.length === 0 && hubOk && grow > 1.38 && grow < 1.45 && B1.length === 9, `${off} hub ${hubOk} grow ${grow} bosses ${B1.length} sites ${siteDiff}`);
+  }
+
+  // 3. Everything is still reached from the town gate (the game's solidAt for the hero, props blocked): every road, door,
+  //    stair, mouth, wayrift, cache tile and village doorstep; the count is pinned.
+  {
+    const g = vale();
+    const free = (i) => !g.solidAt((i % W) * TILE + 8, Math.floor(i / W) * TILE + 8) && !g.blockedProp((i % W) * TILE + 8, Math.floor(i / W) * TILE + 8);
+    const start = X.GATE.y * W + X.GATE.x, seen = new Uint8Array(W * Hh); seen[start] = 1; const q = [start];
+    for (let k = 0; k < q.length; k++) { const i = q[k], x = i % W, y = Math.floor(i / W); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= Hh) continue; const j = ny * W + nx; if (seen[j]) continue; seen[j] = 1; if (free(j)) q.push(j); else seen[j] = 2; } }
+    const want = [], T = X.T;
+    for (let i = 0; i < W * Hh; i++) if ([T.road, T.door, T.stairD].includes(g.tiles[i]) || (T.cache !== undefined && g.tiles[i] === T.cache)) want.push(i);
+    for (const d of X.DUNGEONS.filter((q) => !q.town && q.tx)) want.push(d.ty * W + d.tx);
+    for (const m of X.worldHamlets()) want.push(m.entry.y * W + m.entry.x);
+    const lost = want.filter((i) => !seen[i]).map((i) => `${i % W},${Math.floor(i / W)}:${g.tiles[i]}`);
+    check("playtest1v", `everything is still reached: from the town gate ${q.length} tiles, and all ${want.length} roads, doors, stairs, caches, mouths and village doorsteps among them or beside them`, String(q.length) === "27131" && lost.length === 0, `${q.length} lost ${lost.slice(0, 8)}`);
+  }
+
+  // 4. Arena fit holds on the big map (the arena audit): every world lair and both festival spots give a 5x boss its foot plus
+  //    the dodge room; no fight number moved (the roster, the bosses' levels as playtest1u's).
+  {
+    const need = X.BB.arenaR({ boss: true });
+    const g = vale(X, 5 * 60 * 1000);
+    g.enterWorld(X.GATE.x * TILE + 8, X.GATE.y * TILE + 8);
+    const spots = [], bad = [];
+    for (const r of g.roamers.filter((q) => q.boss)) { const o = g.openRadius(r.x, r.y, need + 8); spots.push(`${r.id}:${o}`); if (o < need) bad.push(`${r.id} ${o}`); }
+    for (const [name, at] of [["lord", X.HARVEST.lord], ["krampus", X.KRAMPUSNACHT.spot]]) { const sp = g.roomyNear(at.x * TILE + 8, at.y * TILE + 8, need); const o = g.openRadius(sp.x, sp.y, need + 8); spots.push(`${name}:${o}`); if (o < need || Math.hypot(sp.x - at.x * TILE - 8, sp.y - at.y * TILE - 8) > TILE * 1.5) bad.push(`${name} ${o}`); }
+    const lv1 = g.roamers.filter((q) => q.boss).map((r) => `${r.id}:${r.level}`).sort().join(" ");
+    const g0b = vale(Y); g0b.enterWorld(Y.GATE.x * TILE + 8, Y.GATE.y * TILE + 8);
+    const lv0 = g0b.roamers.filter((q) => q.boss).map((r) => `${r.id}:${r.level}`).sort().join(" ");
+    check("playtest1v", `arena fit on the big map: every world lair and both festival spots give a 5x boss its foot plus the dodge room (${need} px: ${spots.join(" ")}); the lairs' bosses and levels are playtest1u's (${lv1})`, bad.length === 0 && spots.length === 11 && lv1 === lv0, `${bad} ${lv1} | ${lv0}`);
+  }
+
+  // 5. Old saves: a playtest1u vale save (worldV 2, 128x120) grows by sqrt2 and loads on open ground near its grown spot; a
+  //    pre-1e save (worldV 1) by 2 sqrt2; a town save keeps its spot; a new save passes untouched and is never grown twice.
+  {
+    const bad = [];
+    let tried = 0;
+    for (let oy = 4; oy < 116; oy += 7) for (let ox = 4; ox < 124; ox += 7) {
+      const u = vale(Y); u.px = ox * TILE + 8; u.py = oy * TILE + 8; if (u.solidAt(u.px, u.py)) continue;
+      tried++;
+      u.saveSlot(0);
+      const g = mk(); g.loadSlot(0);
+      const want = { x: u.px * SQ2, y: u.py * SQ2 };
+      if (g.mapId !== "world" || g.solidAt(g.px, g.py) || Math.hypot(g.px - want.x, g.py - want.y) > 3 * TILE) bad.push(`${ox},${oy}->${Math.floor(g.px / TILE)},${Math.floor(g.py / TILE)}`);
+      if (tried > 80) break;
+    }
+    const m1 = X.migrateWorldSave({ mapId: "world", px: 100, py: 200, worldV: 1 });
+    const m2 = X.migrateWorldSave({ mapId: "world", px: 100, py: 200, worldV: 2 });
+    const mt = X.migrateWorldSave({ mapId: "town", px: 100, py: 200, worldV: 2 });
+    const once = X.migrateWorldSave(m2);
+    const pure = Math.round(m1.px) === Math.round(100 * 2 * SQ2) && Math.round(m2.px) === Math.round(100 * SQ2) && mt.px === 100 && once === m2 && Math.abs(m2.worldV - X.WORLD.scale) < 1e-9 && Math.abs(m1.worldV - X.WORLD.scale) < 1e-9;
+    check("playtest1v", `old saves grow with the world: ${tried} playtest1u vale spots (worldV 2) load on open ground within 3 tiles of their spot x sqrt2; a pre-1e record (worldV 1) grows by 2 sqrt2; a town save keeps its spot; a grown record says so (worldV ${m2.worldV.toFixed(3)}) and passes through untouched after (never grown twice)`, tried > 60 && bad.length === 0 && pure, `${tried} ${bad.slice(0, 6)} pure ${pure}`);
+  }
+
+  // 6. Villages (hamlet zones): 13 village icons (snow 4, sand 3, ash 3, swamp 3), each a doorstep that zones into its own
+  //    small map (24x18, its biome's lots, a vendor), the exits lead back out a tile south of the doorstep, a save inside
+  //    loads inside, no foe ever spawns there, the corner map names it; seeded (a second copy of the sim lays the same).
+  {
+    const H = X.worldHamlets();
+    const by = {}; for (const m of H) by[m.biome] = (by[m.biome] ?? 0) + 1;
+    const bad = [];
+    for (const m of H) {
+      const g = mk(X, 20 * 60 * 1000); g.enterWorld(m.entry.x * TILE + 8, (m.entry.y + 2) * TILE + 8); g.roamers = [];
+      g.held.add(g.keyBind.up); for (let i = 0; i < 90 && g.mapId === "world"; i++) g.update(1 / 60); g.held.clear();
+      if (g.mapId !== "village" || g.inside !== m.id) { bad.push(`${m.id} in ${g.mapId}`); continue; }
+      const v = X.villageById(m.id);
+      if (!v || g.w !== X.VL.VILLAGE.w || g.h !== X.VL.VILLAGE.h || g.w !== 24 || g.h !== 18 || !v.vendor || v.hamlet.lots.length < 3) bad.push(`${m.id} map ${g.w}x${g.h}`);
+      g.saveSlot(0); const g2 = mk(); g2.loadSlot(0); if (g2.mapId !== "village" || g2.inside !== m.id) bad.push(`${m.id} load ${g2.mapId}`);
+      run(g, 6); if (g.roamers.length) bad.push(`${m.id} foes ${g.roamers.length}`);
+      { // the wild-encounter roll never fires in a village: walk with loaded dice past the encounter step
+        const rnd = Math.random; Math.random = () => 0.01;
+        try { g.px = v.arrive.x * TILE + 8; g.py = v.arrive.y * TILE + 8; g.walk = 3.3; g.held.add(g.keyBind.up); for (let i = 0; i < 40 && !g.roamers.length; i++) g.update(1 / 60); g.held.clear(); }
+        finally { Math.random = rnd; }
+        if (g.roamers.length || g.mapId !== "village") bad.push(`${m.id} encounter ${g.roamers.length} ${g.mapId}`);
+        g.roamers = []; g.mode = "play";
+      }
+      g.px = v.arrive.x * TILE + 8; g.py = v.arrive.y * TILE + 8; g.held.add(g.keyBind.down); for (let i = 0; i < 120 && g.mapId === "village"; i++) g.update(1 / 60); g.held.clear();
+      if (g.mapId !== "world" || Math.floor(g.px / TILE) !== m.entry.x || Math.floor(g.py / TILE) !== m.entry.y + 1) bad.push(`${m.id} out ${g.mapId} ${Math.floor(g.px / TILE)},${Math.floor(g.py / TILE)}`);
+    }
+    const sig = JSON.stringify(H.map((m) => [m.id, m.biome, m.x, m.y, m.entry.x, m.entry.y, m.lots.length]));
+    const same = JSON.stringify(X2.worldHamlets().map((m) => [m.id, m.biome, m.x, m.y, m.entry.x, m.entry.y, m.lots.length])) === sig;
+    check("playtest1v", `villages: ${H.length} village icons (snow ${by.snow}, sand ${by.sand}, ash ${by.ash}, swamp ${by.swamp}), each doorstep zones into its own ${X.VL.VILLAGE.w}x${X.VL.VILLAGE.h} map with its lots and a vendor; walking out lands a tile south of the doorstep; a save inside loads inside; 6 s of night there spawns no foe; a second copy of the sim lays the same (FNV ${fnvS(sig)})`, H.length === 13 && by.snow === 4 && by.sand === 3 && by.ash === 3 && by.swamp === 3 && bad.length === 0 && same && fnvS(sig) === "c925ae24", `${fnvS(sig)} ${bad.slice(0, 6)} ${same}`);
+  }
+
+  // 7. A tap on a village icon walks the hero round the trees to its doorstep and in (tap-lock pathing on the big map).
+  {
+    const res = [];
+    for (const m of X.worldHamlets().slice(0, 4)) {
+      const g = mk(); g.enterWorld((m.entry.x - 5) * TILE + 8, (m.entry.y + 5) * TILE + 8); g.roamers = []; g.unstick?.();
+      g.tapAt((m.x + 1) * TILE + 4, m.y * TILE + 4);
+      for (let i = 0; i < 900 && g.mapId === "world"; i++) { g.roamers = []; g.update(1 / 60); }
+      res.push(`${m.id}:${g.mapId}`);
+    }
+    check("playtest1v", `a tap on a village icon walks the route in: ${res.join(" ")}`, res.length === 4 && res.every((r) => r.endsWith(":village")), res.join(" "));
+  }
+
+  // 8. The props at scale (prop_scale_writer.py): the four seasons' trees 64x96 cells (512x96 sheets), the dead trees the same,
+  //    the rocks 24x24 (288x24), each with a glow mask of its size; in the v3 palette; PROP2 anchors them on the trunk tile;
+  //    the draw tries the new sheet first and, while it loads, draws the old one; a canopy over the hero is drawn veiled; the
+  //    trees still block only their trunk tile.
+  {
+    const files = ["wild-trees2-autumn", "wild-trees2-winter", "wild-trees2-spring", "wild-trees2-summer", "wild-deadwood2", "wild-rocks2"];
+    const r = py(`import json\nfrom PIL import Image\nout={}\nfor f in ${JSON.stringify(files)}:\n  a=Image.open('public/art/writer/'+f+'.png'); b=Image.open('public/art/writer/'+f+'_em.png')\n  out[f]=[a.size,b.size,a.mode]\nprint(json.dumps(out))`);
+    const sizes = !r.error && files.every((f) => JSON.stringify(r[f][0]) === JSON.stringify(f === "wild-rocks2" ? [288, 24] : [512, 96]) && JSON.stringify(r[f][1]) === JSON.stringify(r[f][0]));
+    const pal = py(`import json,sys\nsys.path.insert(0,'tools/sprite-writer')\nfrom palette_locked import LOCKED_V3\nfrom PIL import Image\nP=set(tuple(int(c[i:i+2],16) for i in (1,3,5)) for c in LOCKED_V3)\nbad=[]\nfor f in ${JSON.stringify(files)}:\n  im=Image.open('public/art/writer/'+f+'.png').convert('RGBA')\n  for px in set(im.getdata()):\n    if px[3] and px[:3] not in P: bad.append(f); break\nprint(json.dumps(bad))`);
+    const p2 = JSON.stringify(X.WL.PROP2) === '{"tree":{"w":64,"h":96,"dx":-24,"dy":-80},"rock":{"w":24,"h":24,"dx":-4,"dy":-10}}';
+    // drawing: a vale scene in the woods by day draws the new tree sheet; with it not loaded, the old one and never the new
+    const scene = () => { const g = vale(); let best = null, most = 0; for (let y = 6; y < Hh - 6; y++) for (let x = 6; x < W - 6; x++) { let n = 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -4; dx <= 4; dx++) if (g.tiles[(y + dy) * W + x + dx] === X.T.tree) n++; if (n > most && !g.solidAt(x * TILE + 8, y * TILE + 8) && !g.blockedProp(x * TILE + 8, y * TILE + 8) && X.worldBiome(x, y) === "vale") { most = n; best = [x, y]; } } g.px = best[0] * TILE + 8; g.py = best[1] * TILE + 8; g.zoom = 2; run(g, 0.1, () => { g.roamers = []; g.held.clear(); }); return g; };
+    const g = scene(); const season = g.season?.() ?? "autumn";
+    const c = document.createElement("canvas").getContext("2d");
+    log = []; X.drawWorld(c, g, 640, 400, 2); const urls1 = log.filter((e) => e.u).map((e) => e.u);
+    const newT = urls1.filter((u) => /wild-trees2-/.test(u)).length, oldT = urls1.filter((u) => /wild-trees-[a-z]+\.png/.test(u)).length;
+    for (const f of Object.values(X.WL.WILD_TREES2)) OFF.add(f);
+    log = []; X.drawWorld(c, g, 640, 400, 2); const urls2 = log.filter((e) => e.u).map((e) => e.u);
+    OFF.clear();
+    const newT2 = urls2.filter((u) => /wild-trees2-/.test(u)).length, oldT2 = urls2.filter((u) => /wild-trees-[a-z]+\.png/.test(u)).length;
+    // the veil: stand the hero right under a canopy (two tiles north of a lone trunk): that tree is drawn at CANOPY_VEIL
+    let veiled = 0;
+    { const h = vale(); let spot = null; for (let i = 0; i < W * Hh && !spot; i++) { const x = i % W, y = Math.floor(i / W); if (x > 4 && y > 4 && x < W - 4 && y < Hh - 4 && h.blockedProp(x * TILE + 8, y * TILE + 8) && !h.blockedProp(x * TILE + 8, (y - 1) * TILE + 8) && !h.solidAt(x * TILE + 8, (y - 1) * TILE + 8) && X.worldBiome(x, y) === "vale") spot = [x, y]; } h.px = spot[0] * TILE + 8; h.py = (spot[1] - 1) * TILE + 6; h.zoom = 2; run(h, 0.1, () => { h.roamers = []; }); h.px = spot[0] * TILE + 8; h.py = (spot[1] - 1) * TILE + 6; log = []; X.drawWorld(c, h, 640, 400, 2); veiled = log.filter((e) => e.u && /wild-trees2-/.test(e.u) && Math.abs(e.al - X.CANOPY_VEIL) < 1e-6).length; }
+    // collision: a tree blocks its trunk tile and not the tile above it
+    let one = 0, tall = 0; for (let i = W * 5; i < W * (Hh - 5); i++) { const x = i % W, y = Math.floor(i / W); if (!g.blockedProp(x * TILE + 8, y * TILE + 8)) continue; if (g.tiles[i] !== X.T.tree) continue; one++; if (g.tiles[i - W] !== X.T.tree && g.blockedProp(x * TILE + 8, (y - 1) * TILE + 8) && !g.solidAt(x * TILE + 8, (y - 1) * TILE + 8)) tall++; }
+    check("playtest1v", `the props at scale (prop_scale_writer.py): the four seasons' trees and the dead trees 64x96 cells (512x96), the rocks 24x24 (288x24), each with a glow mask its size, all in the v3 palette; PROP2 anchors them on the trunk (tree dx -24 dy -80); a ${season} woods scene draws the new trees (${newT} copies, ${oldT} old) and, the sheet not loaded, the old ones (${oldT2}, new ${newT2}); a canopy over the hero is drawn at ${X.CANOPY_VEIL} (${veiled}); trees still block only their trunk tile (${one} trees, ${tall} reaching above)`, sizes && Array.isArray(pal) && pal.length === 0 && p2 && newT > 10 && oldT === 0 && newT2 === 0 && oldT2 > 10 && veiled >= 1 && X.CANOPY_VEIL === 0.55 && one > 1000 && tall === 0, `${JSON.stringify(r).slice(0, 300)} pal ${JSON.stringify(pal)} p2 ${p2} new ${newT}/${oldT} off ${newT2}/${oldT2} veil ${veiled} one ${one} tall ${tall}`);
+  }
+
+  // 9. The map fog (mapfog.ts): a new life starts with every map dark; the hero opens an 11-tile disc round him as he goes;
+  //    the fog is kept per map (world, town, each village; a dungeon keeps its own fog) and saved as a short run-length string
+  //    ("all" when the map is open); an old save (no fog) starts with the town open and discs (14) round the gate, its spot,
+  //    its camp and every mouth it entered; a junk or wrong-size string is refused.
+  {
+    const bad = [];
+    const g = mk(); run(g, 0.05);
+    const tseen = g.seenNow(); const t0 = count(tseen), tN = g.w * g.h;
+    if (!(t0 > 0 && t0 < g.w * g.h)) bad.push(`town ${t0}`);
+    g.enterWorld(X.GATE.x * TILE + 8, X.GATE.y * TILE + 8); g.roamers = []; run(g, 0.05);
+    const a0 = count(g.seenNow());
+    let disc = 0; for (let dy = -11; dy <= 11; dy++) for (let dx = -11; dx <= 11; dx++) if (dx * dx + dy * dy <= 132) disc++; // r*r + r
+    if (a0 !== disc) bad.push(`first ${a0} disc ${disc}`);
+    const far = X.worldHamlets()[0]; if (g.seenAt(far.entry.x, far.entry.y)) bad.push("village seen");
+    g.held.add(g.keyBind.right); run(g, 2, () => { g.roamers = []; }); g.held.clear(); const a1 = count(g.seenNow());
+    if (!(a1 > a0 + 100)) bad.push(`walk ${a0}->${a1}`);
+    g.saveSlot(2); const raw = JSON.parse(store[Object.keys(store).find((k) => /saves/.test(k))])[2];
+    if (!raw.mapSeen || typeof raw.mapSeen.world !== "string" || raw.mapSeen.world.length > 4000 || raw.mapSeen.town === undefined) bad.push(`saved ${JSON.stringify(Object.keys(raw.mapSeen ?? {}))}`);
+    const g2 = mk(); g2.loadSlot(2); if (count(g2.seenNow()) !== a1) bad.push(`load ${count(g2.seenNow())}`);
+    g2.enterTown(); if (count(g2.seenNow()) < t0) bad.push(`town load ${count(g2.seenNow())}`);
+    const old = { ...raw }; delete old.mapSeen; old.visited = [X.DUNGEONS.find((d) => !d.town && !d.rift && d.tx).id];
+    const g3 = mk(); g3.loadRecord(old); g3.enterTown(); const t3 = count(g3.seenNow()), t3N = g3.w * g3.h;
+    const d0 = X.DUNGEONS.find((d) => d.id === old.visited[0]);
+    g3.enterWorld(X.GATE.x * TILE + 8, X.GATE.y * TILE + 8);
+    if (t3 !== t3N || !g3.seenAt(d0.tx, d0.ty) || !g3.seenAt(X.GATE.x, X.GATE.y + 14) || g3.seenAt(X.GATE.x, X.GATE.y + 17)) bad.push(`old ${t3} ${g3.seenAt(d0.tx, d0.ty)} ${g3.seenAt(X.GATE.x, X.GATE.y + 14)} ${g3.seenAt(X.GATE.x, X.GATE.y + 17)} ${d0.id}@${d0.tx},${d0.ty} spot ${Math.floor(old.px / TILE)},${Math.floor(old.py / TILE)} camp ${old.campX},${old.campY}`);
+    const v = X.worldHamlets()[0]; const g4 = mk(); g4.enterVillage(v.id); run(g4, 0.05); if (!(count(g4.seenNow()) > 0)) bad.push("village fog");
+    const g5 = mk(); g5.enterDungeon(X.DUNGEONS.find((d) => !d.town && !d.rift).id); if (g5.seenNow() !== null) bad.push("dungeon");
+    const a = new Uint8Array(W * Hh); MF.reveal(a, W, Hh, 40, 40, 11); MF.reveal(a, W, Hh, 170, 160, 11);
+    const s = MF.encodeSeen(a, W, Hh); const b = MF.decodeSeen(s, W, Hh);
+    const allRec = { ...raw, mapSeen: { world: "all" } }; const g6 = mk(); g6.loadRecord(allRec); g6.enterWorld(X.GATE.x * TILE + 8, X.GATE.y * TILE + 8); const allN = count(g6.seenNow());
+    const rt = b && b.every((x, i) => x === a[i]) && MF.decodeSeen(s, 128, 120) === null && MF.decodeSeen(s.replace(/^(\d+)x(\d+):/, (_, a, b) => `${b}x${a}:`), W, Hh) === null && MF.decodeSeen("junk", W, Hh) === null && allN === W * Hh;
+    const keys = MF.fogKey("world", "") === "world" && MF.fogKey("town", "") === "town" && MF.fogKey("village", "v1") === "village:v1" && MF.fogKey("dungeon", "") === null;
+    check("playtest1v", `the map fog: a new life starts dark (the town ${t0} of ${tN} tiles seen at the start), the hero opens an ${MF.MAPFOG.radius}-tile disc (${a0} on the first step) and more as he walks (${a1} after 2 s); kept per map (world, town, village:<id>; a dungeon keeps its own fog) and saved as a short string (world ${raw.mapSeen?.world?.length} chars), loaded back the same; an old save starts with the town open and ${MF.MAPFOG.oldRadius}-tile discs round the gate and every mouth it entered; the run-length code round-trips (${s.length} chars), "all" opens a map, a wrong-size or junk string is refused`, bad.length === 0 && rt && keys && MF.MAPFOG.radius === 11 && MF.MAPFOG.oldRadius === 14, `${bad} rt ${rt} keys ${keys}`);
+  }
+
+  // 10. The maps draw the fog: the full map and the corner map paint unseen cells dark, and a village, wayrift or dungeon mouth
+  //     shows only once its tile has been seen (opening one village doorstep adds its marker).
+  {
+    const g = vale(); g.zoom = 2;
+    const c = document.createElement("canvas").getContext("2d");
+    const H = X.worldHamlets(), v = H[0];
+    const fillN = (fn) => { log = []; fn(); return log.filter((e) => e.fill).length; };
+    const fs = g.seenNow(); fs.fill(0); X.MF.reveal(fs, W, Hh, X.GATE.x, X.GATE.y, 11);
+    const unseen0 = fs.reduce((a, x) => a + (x ? 0 : 1), 0);
+    const dark0 = fillN(() => X.drawMap(c, g, 960, 640));
+    const cells = (L) => { const sz = {}; for (const e of L) if (e.fill && e.w === e.h && e.w >= 2 && e.w <= 8) sz[e.c] = (sz[e.c] ?? 0) + 1; return sz; };
+    const c0 = cells(log); const darkC = Object.entries(c0).sort((a, b) => b[1] - a[1])[0][0];
+    const darkN0 = c0[darkC];
+    fs.fill(1); fillN(() => X.drawMap(c, g, 960, 640)); const darkAll = cells(log)[darkC] ?? 0;
+    fs.fill(0); X.MF.reveal(fs, W, Hh, X.GATE.x, X.GATE.y, 11);
+    const fogOk = darkN0 >= unseen0 && darkAll * 50 < unseen0;
+    fs.fill(1); fs[v.entry.y * W + v.entry.x] = 0;
+    const noV = fillN(() => X.drawMap(c, g, 960, 640));
+    fs[v.entry.y * W + v.entry.x] = 1;
+    const withV = fillN(() => X.drawMap(c, g, 960, 640));
+    const mini = (fill) => { fs.fill(fill); return fillN(() => X.drawMinimap(c, g, 120)); };
+    const m0 = mini(0), m1 = mini(1);
+    const vMark = withV - noV;
+    check("playtest1v", `the maps draw the fog: the full map draws ${dark0} fills with only the gate's disc seen (${darkN0} dark cells for ${unseen0} unseen) and ${withV} with all seen (${darkAll} dark); opening ${v.id}'s doorstep adds its village marker (+${vMark} fills); the corner map ${m0} fills dark, ${m1} explored`, vMark >= 4 && withV !== dark0 && m0 !== m1 && fogOk, `${dark0} ${noV} ${withV} ${m0} ${m1} fog ${darkC} ${darkN0}/${unseen0} all ${darkAll}`);
+  }
+
+  // 11. The bone car is sold in town (bonecar.ts): the salesman Ossian Sprocket stands by the roped lot (brass posts, red
+  //     velvet; the lot blocks the hero, his tile is open); talking offers it at CAR.price (240 silver: a croft is 80, a hire 15-40,
+  //     rank-4 gear 38-62); short of silver he says so and nothing moves; with it the silver goes and the car is yours, parked on
+  //     the vale road east of the gate, and he never offers it again; its car button does nothing in town.
+  {
+    const g = mk(); const startCoin = g.coin;
+    g.px = SHOWROOM.salesman.x + 14; g.py = SHOWROOM.salesman.y; g.facing = "w"; g.interact();
+    const talk = g.mode === "talk" && g.talk?.role === "carman" && g.talk?.who === "Ossian Sprocket" && SHOWROOM.salesman.name === "Ossian Sprocket";
+    const offered = g.choices().some((x) => x.id === "buycar");
+    g.choose("buycar"); const poor = !g.carOwned && g.coin === startCoin && g.talk.text.includes(`${CAR.price} silver`);
+    g.coin = 300; g.choose("buycar"); const sold = g.carOwned && g.coin === 300 - CAR.price && Math.floor(g.carX / TILE) === CAR.park.x && Math.floor(g.carY / TILE) === CAR.park.y;
+    const again = !g.choices().some((x) => x.id === "buycar");
+    const lot = g.blockedProp((SHOWROOM.x0 + 1) * TILE + 8, SHOWROOM.y0 * TILE + 8) && !g.blockedProp(SHOWROOM.salesman.x, SHOWROOM.salesman.y);
+    g.mode = "play"; g.talk = null; g.carAction(); const townNo = !g.driving && g.logLine === CAR_LINES.notHere;
+    const r = py(`import json\nfrom PIL import Image\nprint(json.dumps([Image.open('public/art/writer/bonecar.png').size, Image.open('public/art/writer/bonecar_em.png').size, Image.open('public/art/writer/velvet-rope.png').size]))`);
+    const sheets = JSON.stringify(r) === "[[192,144],[192,144],[48,24]]";
+    check("playtest1v", `the bone car is sold in town: Ossian Sprocket by the roped lot offers it (${talk} ${offered}) at ${CAR.price} silver; short of silver he says so and nothing moves (${poor}); paid, the silver goes and the car waits on the vale road east of the gate at ${CAR.park.x},${CAR.park.y} (${sold}), never offered again (${again}); the lot blocks, his tile is open (${lot}); its button does nothing in town (${townNo}); the sheets: bonecar 192x144 (64x48 cells: side, front, back) with its glow mask, velvet-rope 48x24`, talk && offered && poor && sold && again && lot && townNo && sheets && CAR.price === 240, JSON.stringify(r));
+  }
+
+  // 12. Driving: Use beside the car climbs in; it drives the vale at CAR.speed x the walk (2.25: ~2.2x measured), puffing steam
+  //     and rattling; no blow from the seat (Whirl, Smite and casts are refused, the attack key steps you down); a hit or a
+  //     noticing foe within 10 tiles puts you down; a save in the seat loads with the car parked where it stood.
+  {
+    const g = mk(); g.carOwned = true; g.carX = CAR.park.x * TILE + 8; g.carY = CAR.park.y * TILE + 8;
+    g.enterWorld(X.GATE.x * TILE + 8, X.GATE.y * TILE + 8); g.roamers = []; g.unstick?.();
+    const free = !g.carBlocked(g.carX, g.carY, "e");
+    g.px = g.carX - 20; g.py = g.carY; g.interact(); const inCar = g.driving;
+    const lane = { x: (X.GATE.x + 7) * TILE + 8, y: X.GATE.y * TILE + 8 }; // the open grass east of the gate (14 tiles clear for the car)
+    const laneFree = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].every((k) => !g.carBlocked(lane.x + k * TILE, lane.y, "e"));
+    g.px = lane.x; g.py = lane.y; const x0 = g.px; g.held.add(g.keyBind.right); run(g, 1, () => { g.roamers = []; }); g.held.clear(); const car = g.px - x0;
+    const w = mk(); w.enterWorld(lane.x, lane.y); w.roamers = []; const wx = w.px; w.held.add(w.keyBind.right); run(w, 1, () => { w.roamers = []; }); w.held.clear(); const walkD = w.px - wx;
+    const ratio = car / walkD;
+    const puffs = (g.carPuffs ?? []).length;
+    g.whirl(); const noWhirl = g.driving && g.logLine === CAR_LINES.noFight;
+    g.smite(); const noSmite = g.driving && g.logLine === CAR_LINES.noFight;
+    g.saveSlot(1); const g3 = mk(); g3.loadSlot(1);
+    const parked = g3.carOwned && !g3.driving && Math.abs(g3.carX - g.px) < 1 && Math.abs(g3.carY - g.py) < 1;
+    g.iframe = 0; g.bite(1, "test"); const hit = !g.driving;
+    g.carOn(); g.roamers = [{ def: "zombie", x: g.px + 40, y: g.py, hp: 10, max: 10, aggro: true }]; run(g, 0.1); const foe = !g.driving; g.roamers = [];
+    check("playtest1v", `driving: Use beside the car climbs in (${inCar}; the park spot is clear for its footprint: ${free}); 1 s east it goes ${car.toFixed(0)} px against the walk's ${walkD.toFixed(0)} (x${ratio.toFixed(2)}, CAR.speed ${CAR.speed}), puffing steam (${puffs} puffs); Whirl and Smite are refused from the seat; a hit (${hit}) or a noticing foe (${foe}) puts you down; a save in the seat loads with the car parked where it stood (${parked})`, free && laneFree && inCar && ratio > 2.0 && ratio < 2.5 && puffs > 0 && noWhirl && noSmite && parked && hit && foe && CAR.speed === 2.25, `${car} ${walkD} ${puffs} ${noWhirl} ${noSmite}`);
+  }
+
+  // 13. Where the car can't go: it stops outside the town door (you step down and walk in; it waits outside), at a dungeon mouth,
+  //     at a village doorstep; it is never in a town, village, dungeon or rift; and it collides with trees, rocks and water by its
+  //     footprint (44 px long side on, 14 px wide end on).
+  {
+    const bad = [];
+    { const g = mk(); g.carOwned = true; g.enterWorld(X.GATE.x * TILE + 8, (X.GATE.y + 2) * TILE + 8); g.roamers = []; g.unstick?.(); g.summonCar(); if (!g.driving) bad.push("summon");
+      g.held.add(g.keyBind.up); for (let i = 0; i < 240 && g.mapId === "world"; i++) { g.roamers = []; g.update(1 / 60); } g.held.clear();
+      const cy = Math.floor(g.carY / TILE); if (g.mapId !== "town" || g.driving || !(cy > X.GATE.y - 2 && cy <= X.GATE.y + 2)) bad.push(`door ${g.mapId} ${g.driving} ${cy}`); }
+    for (const d of X.DUNGEONS.filter((q) => !q.town && q.tx).slice(0, 3)) { const g = mk(); g.carOwned = true; g.enterWorld(d.tx * TILE + 8, (d.ty + 3) * TILE + 8); g.roamers = []; g.unstick?.(); g.summonCar();
+      g.held.add(g.keyBind.up); for (let i = 0; i < 300 && g.mapId === "world"; i++) { g.roamers = []; g.update(1 / 60); } g.held.clear(); if (g.driving && g.mapId !== "world") bad.push(`mouth ${d.id}`); if (g.mapId !== "world" && g.driving) bad.push(`in ${d.id}`); }
+    { const m = X.worldHamlets()[0]; const g = mk(); g.carOwned = true; g.enterWorld(m.entry.x * TILE + 8, (m.entry.y + 3) * TILE + 8); g.roamers = []; g.unstick?.(); g.summonCar();
+      g.held.add(g.keyBind.up); for (let i = 0; i < 200 && g.mapId === "world"; i++) { g.roamers = []; g.update(1 / 60); } g.held.clear(); if (g.driving) bad.push(`village ${g.mapId}`); }
+    const g = vale(); let side = 0, sideFree = 0;
+    for (let i = W * 6; i < W * (Hh - 6) && side < 40; i++) { const x = i % W, y = Math.floor(i / W); if (g.tiles[i] !== X.T.tree) continue; const cx = x * TILE + 30, cy = y * TILE + 8; if ([1, 2, 3, 4].some((k) => g.solidAt((x + k) * TILE + 8, cy) || g.blockedProp((x + k) * TILE + 8, cy))) continue; if (!g.carBlocked(cx + TILE, cy, "e")) sideFree += 0; else continue; side++; if (!g.carBlocked(cx, cy, "e")) sideFree++; }
+    let wet = 0, wetBlocked = 0; for (let i = W * 6; i < W * (Hh - 6) && wet < 20; i++) { if (g.tiles[i] !== X.T.water) continue; wet++; if (g.carBlocked((i % W) * TILE + 8, Math.floor(i / W) * TILE + 8, "e")) wetBlocked++; }
+    check("playtest1v", `where the car can't go: it stops outside the town door (you walk in, it waits a step from the gate), at dungeon mouths and a village doorstep, never driving into a town, village or dungeon; its footprint hits trees (${side - sideFree} of ${side} side-on spots with a trunk under its nose) and water (${wetBlocked} of ${wet})`, bad.length === 0 && side > 10 && sideFree === 0 && wet > 5 && wetBlocked === wet, `${bad} ${side}/${sideFree} ${wet}/${wetBlocked}`);
+  }
+
+  // 14. The shell: the car button (hud-car) shows only for an owner on the vale in play, B (keyboard) is the car key; the
+  //     pad's Use climbs in by the car; the saves carry carOwned, carX, carY and mapSeen after playtest1u's keys and nothing
+  //     else new; the sounds are the existing audio's (steam, rattle, hiss).
+  {
+    const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
+    const btn = /g\.carOwned && g\.mapId === "world"[^\n]*hud-car|hud-car[^\n]*g\.carOwned/.test(ui) || (ui.includes("hud-car") && /carOwned && [^\n]*mapId === "world"/.test(ui));
+    const keyLine = ui.split("\n").filter((l) => /game\.carAction\(\)/.test(l) && /e\.code/.test(l));
+    let key = keyLine.length === 1, keyWhy = `lines ${keyLine.length}`;
+    if (key) {
+      const fn = new Function("e", "game", "bind", keyLine[0].trim());
+      const press = (code, owned, repeat, bind) => { let n = 0; fn({ code, repeat }, { carOwned: owned, carAction: () => { n++; } }, bind); return n; };
+      const bind0 = { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD", use: "KeyE", area: "KeyQ", far: "KeyF", drink: "KeyP", pause: "Escape" };
+      const res = [press("KeyB", true, false, bind0), press("KeyN", true, false, bind0), press("KeyV", true, false, bind0), press("Space", true, false, bind0), press("KeyB", false, false, bind0), press("KeyB", true, true, bind0), press("KeyB", true, false, { ...bind0, area: "KeyB" })];
+      key = JSON.stringify(res) === "[1,0,0,0,0,0,0]"; keyWhy = `run ${res}`;
+    }
+    const a = mk(); a.saveSlot(0); const k1 = Object.keys(JSON.parse(store[Object.keys(store).find((k) => /saves/.test(k))])[0]);
+    const b = mk(Y); b.saveSlot(0); const k0 = Object.keys(JSON.parse(store[Object.keys(store).find((k) => /saves/.test(k))])[0]);
+    const added = k1.filter((k) => !k0.includes(k)), gone = k0.filter((k) => !k1.includes(k));
+    const audio = readFileSync("src/game/audio.ts", "utf8");
+    const snd = ["steam", "rattle", "hiss"].every((n) => new RegExp(`\\b${n}\\(`).test(audio));
+    check("playtest1v", `the shell: the car button only for an owner on the vale in play (${btn}), B is the car key (${key}: the shell's keydown line run: B climbs in for an owner, N/V/Space, no car, repeat and a B-bound verb do not, ${keyWhy}); a save adds only ${added.join(", ")} to playtest1u's ${k0.length} keys (${gone.length} gone); the car's sounds are the existing audio's steam, rattle and hiss (${snd})`, btn && key && JSON.stringify(added.sort()) === '["carOwned","carX","carY","mapSeen"]' && gone.length === 0 && snd, `${btn} ${key} ${keyWhy} ${added} ${gone}`);
+  }
+
+  // 15. The older world groups on the live tree (GW_PT1V_LIVE=1): every check they run on the game as playtest1u left it is run
+  //     again live; the ones that go red there are exactly the world's own numbers (its size, grid, spots, traces, the moved
+  //     files' pins), pinned per group by name, and every other check is green. Run alone (or with all) it runs all 25 groups;
+  //     run beside other groups it runs those of them that are older world groups (a fail-proof's own group), or none.
+  {
+    const ALL = ["move", "doors", "loop", "season", "daysweep", "festival", "mapwriter", "festival2", "mapwriter2", "gfx1", "fade1", "fade2", "playtest1", "playtest1b", "playtest1e", "playtest1f", "playtest1g", "playtest1j", "playtest1k", "playtest1n", "playtest1o", "playtest1p", "playtest1s", "playtest1t", "playtest1u"];
+    const asked = ALL.filter((g) => wanted.has(g));
+    const alone = wanted.size === 0 || wanted.has("all") || [...wanted].every((g) => g === "playtest1v");
+    const groups = alone ? ALL : asked; // beside other groups only those of them that are older world groups (none: nothing to run live)
+    const PINS = {"move": "5/1/a566f1ae", "doors": "6/2/eeb0676c", "loop": "9/1/78f900af", "season": "17/2/d633de2e", "daysweep": "3/2/de19a6eb", "festival": "19/2/5f3cc38c", "mapwriter": "37/1/aae474d4", "festival2": "21/3/0bb1a74b", "mapwriter2": "8/7/aab7bcf2", "gfx1": "21/1/91e6d5f4", "fade1": "13/2/2da4790b", "fade2": "14/5/cbdf7c3b", "playtest1": "25/1/662ef4fc", "playtest1b": "22/1/b3c7637b", "playtest1e": "16/12/07958d7d", "playtest1f": "23/8/6a591901", "playtest1g": "10/6/69af9cfc", "playtest1j": "13/1/b867f720", "playtest1k": "17/3/bb3e8bc6", "playtest1n": "19/1/4cd22b33", "playtest1o": "23/1/840eaa2d", "playtest1p": "9/2/50e00cf2", "playtest1s": "11/3/07e62a77", "playtest1t": "14/1/ba106be9", "playtest1u": "12/11/dd373f39"};
+    let outp = "";
+    try { outp = execFileSync("node", ["scripts/gravewake-check.mjs", ...groups], { cwd: root, env: { ...process.env, GW_PT1V_LIVE: "1" }, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }); } catch (e) { outp = String(e.stdout ?? ""); }
+    const per = {};
+    for (const gname of groups) {
+      const lines = outp.split("\n");
+      const oks = lines.filter((l) => l.startsWith(`ok  ${gname}  `)).length;
+      const reds = lines.filter((l) => l.startsWith(`FAIL ${gname}  `)).map((l) => l.slice(5).split(" — ")[0]).sort();
+      per[gname] = `${oks}/${reds.length}/${fnvS(reds.join("\n"))}`;
+    }
+    const off = groups.filter((gname) => per[gname] !== PINS[gname]);
+    const tot = Object.values(per).reduce((n, v) => [n[0] + Number(v.split("/")[0]), n[1] + Number(v.split("/")[1])], [0, 0]);
+    check("playtest1v", `the older world groups run live too (GW_PT1V_LIVE=1): ${groups.length} groups, ${tot[0]} checks green and ${tot[1]} red, the red ones exactly the world's own numbers and the moved files' pins (per group, by name)`, Object.keys(PINS).length === 25 && off.length === 0 && (!alone || groups.length === 25), `${off.map((gname) => `${gname} ${per[gname]} want ${PINS[gname]}`).join("; ")} PER ${JSON.stringify(per)}`);
+  }
+
+  // 16. Only these moved: the frozen copies are playtest1u's files byte for byte (as pushed at 4b118d2); every older view reads
+  //     them (pt1uView under pt1tView, pinFile and pt1dFile); the game as playtest1u left it (pt1uRoot) builds a 128x120 world
+  //     with no villages; the new modules are LATER_MODULES and the new files in no older digest; the tags and the notes.
+  {
+    const fz = Object.fromEntries(Object.values(PT1V_FROZEN).sort().map((k) => [k, md5f(`scripts/frozen/playtest1v/${k}.txt`)]));
+    const viewBad = [];
+    for (const f of Object.keys(PT1V_FROZEN)) { const want = `scripts/frozen/playtest1v/${PT1V_FROZEN[f]}.txt`; if (pt1uView(f) !== want) viewBad.push(`1u ${f}`); if (!(f in PT1U_FROZEN) && pt1tView(f) !== want) viewBad.push(`1t ${f}`); }
+    if (pinFile("src/game/audio.ts") !== "scripts/frozen/playtest1v/audio.ts.txt" || pt1dFile("wayrifts.ts") !== "scripts/frozen/playtest1v/wayrifts.ts.txt") viewBad.push("pin");
+    for (const f of ["src/game/villages.ts", "src/game/mapfog.ts", "src/game/bonecar.ts", "src/game/allyspace.ts"]) if (pt1uView(f) !== f) viewBad.push(`live ${f}`);
+    const newF = walk("public/art/writer").filter((f) => pt1vNew(f)).length + walk("src/game").filter((f) => pt1vNew(f)).length + walk("tools/pixel-writer").filter((f) => pt1vNew(f)).length;
+    const later = ["src/game/villages.ts", "src/game/mapfog.ts", "src/game/bonecar.ts"].every((f) => LATER_MODULES.has(f));
+    const old = typeof Y.villageById === "undefined" && g1u.w === 128;
+    const agents = readFileSync("AGENTS.project.md", "utf8"), a = agents.indexOf("## playtest1v"), sec = a >= 0 ? agents.slice(a, agents.indexOf("\n## ", a + 5) > 0 ? agents.indexOf("\n## ", a + 5) : undefined) : "";
+    const has = (f, t) => readFileSync(f, "utf8").includes(t);
+    const tags = has("src/game/villages.ts", VTAG) && has("src/game/mapfog.ts", CTAG) && has("src/game/bonecar.ts", CTAG) && has("tools/pixel-writer/prop_scale_writer.py", PTAG) && has("tools/pixel-writer/bone_car_writer.py", CTAG) && has("src/game/sim.ts", TAG) && has("src/game/sim.ts", CTAG) && has("src/game/content.ts", "playtest1v") && has("src/game/draw.ts", "playtest1v") && has("tools/map-writer/gravewake_world.ts", "playtest1v");
+    const notes = [TAG, VTAG, PTAG, CTAG].every((t) => sec.includes(t)) && /WORLD SIZE RULE/.test(sec) && /PROP SCALE RULE/.test(sec) && /MAP FOG RULE/.test(sec) && /BONE CAR RULE/.test(sec);
+    check("playtest1v", "the frozen references (scripts/frozen/playtest1v/) are playtest1u's sim, draw, shell, content, bounty, festivals, hamlets, wayrifts, wild, screen, audio, world adapter, map check, sheet maker and owner notes byte for byte (as pushed at 4b118d2); every older view reads them (pt1uView under pt1tView, pinFile, pt1dFile); the game as playtest1u left it builds the 128x120 world with no villages; villages.ts, mapfog.ts and bonecar.ts are LATER_MODULES and the 20 new files are in no older digest; the new and moved files carry the request tags and AGENTS.project.md its ## playtest1v with the four tags and the rules", JSON.stringify(fz) === '{"AGENTS.project.md":"60396e1b1a53db2c83d706f6a0cd539a","Gravewake.tsx":"468fc995fa76152d64be907d63ed2400","audio.ts":"98fbcef17779a2f944f6e71f913eba81","bounty.ts":"c7d2ddceadee04efd5bd502ef8b56dd4","check_map_writer.mjs":"e8f93c2ea6697c6616e66192309a30d8","content.ts":"d8ee5cbd237c2896fefbad760d0cad86","draw.ts":"cdb5cd9ff4a0d98d5532e8d856be82f4","festivals.ts":"d0e2b1052602741715c0279089762d8c","gravewake_world.ts":"77258abd20d85d661f9306a2662b4dfc","hamlets.ts":"923e88feb4a8e4493b4cbc61c7f2911d","make_gravewake.py":"5ca8fe8e297c6fe5b81427658fd4a301","screen.ts":"cc0750c767699b1d3936a9b04cc62c2d","sim.ts":"937aee47ffc2cf41c4644deab894253e","wayrifts.ts":"18c5b520de41612be6a31be18f5acbd2","wild.ts":"3556b437c111253f89c1d2425b7df206"}' && viewBad.length === 0 && newF === 20 && later && old && tags && notes, `${JSON.stringify(fz)} ${viewBad} ${newF} ${later} ${old} ${tags} ${notes}`);
+    const MOVED = new Set(Object.keys(PT1V_FROZEN));
+    const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => walk(d)).filter((f) => !pt1vNew(f) && !MOVED.has(f)).sort();
+    const rest = createHash("md5").update(files.map((f) => `${f} ${md5f(f)}`).join("\n")).digest("hex");
+    check("playtest1v", "every other source file, public file and writer file is playtest1u's byte for byte (beside the new modules, writers and sheets and the moved files): the fight numbers, the rooms, the dungeons, the art untouched", rest === "5e00e45aa6e28d9ec156eef21a924280", rest);
+    const LIVE = {"AGENTS.project.md": "e606abd658ece4354146a321b878d9ab", "public/art/writer/bonecar.png": "1b0dbacf72eedbaa79d2e61f4482d2b0", "public/art/writer/bonecar_em.png": "2c312b3d6e6087848786648385038fcc", "public/art/writer/velvet-rope.png": "3b49fb2896b3616cb86aae20e31121bf", "public/art/writer/wild-deadwood2.png": "a60f9b5400e95a60ab57ecff50b17982", "public/art/writer/wild-deadwood2_em.png": "0db9e54699eba578f5464e166b442173", "public/art/writer/wild-rocks2.png": "cac4cafa925b4575877ff514956ebdce", "public/art/writer/wild-rocks2_em.png": "f8e45cbaa003c1d005567e21dc4c64e6", "public/art/writer/wild-trees2-autumn.png": "d545a8faad66f638920e816183221189", "public/art/writer/wild-trees2-autumn_em.png": "63eefc346000930e8c4422a2197a4399", "public/art/writer/wild-trees2-spring.png": "aaddc2c3e35daef45099a51fa52abf3e", "public/art/writer/wild-trees2-spring_em.png": "63eefc346000930e8c4422a2197a4399", "public/art/writer/wild-trees2-summer.png": "c376587fed2e684fc223a9cf2cc24105", "public/art/writer/wild-trees2-summer_em.png": "63eefc346000930e8c4422a2197a4399", "public/art/writer/wild-trees2-winter.png": "0cf91f33d60f6bd539632c42d1eaed58", "public/art/writer/wild-trees2-winter_em.png": "63eefc346000930e8c4422a2197a4399", "src/game/Gravewake.tsx": "615221a62d92eceff0525920cfd52bd7", "src/game/audio.ts": "8a72c58c238ce7f75e582990c98f80c6", "src/game/bonecar.ts": "48edec1c8468ddecdbe3429282bc5a05", "src/game/bounty.ts": "061841bde9ee5511e9c56b99a7361c73", "src/game/content.ts": "9d55e5851832c38b7b06e37fb82747fa", "src/game/draw.ts": "1b5c3050f387099c2ef0bf97e3ba1e51", "src/game/festivals.ts": "60af3d99e0db48bb2d68306a2fcfeb01", "src/game/hamlets.ts": "338f24c853b3afa5e3c54d0e1e083486", "src/game/mapfog.ts": "de64ae77b5f8995f7bc8bd16ac8098e4", "src/game/screen.ts": "9de60369da69bee6452bbf242e91498e", "src/game/sim.ts": "fd40d084e9f488dbe3ca7666507d4b1d", "src/game/villages.ts": "4773e2898f1c00ffb01e203aba41d850", "src/game/wayrifts.ts": "05ee26d9c4f74559c3da619ec3767e23", "src/game/wild.ts": "7fae39d4045f22de3a2719b9c5e972ff", "tools/map-writer/check_map_writer.mjs": "e8f93c2ea6697c6616e66192309a30d8", "tools/map-writer/gravewake_world.ts": "2eb60baa16de316035fa3bd3529543a0", "tools/pixel-writer/bone_car_writer.py": "3d01744c75a75e57d35cea15f2c971a2", "tools/pixel-writer/make_gravewake.py": "724fb0f90950d81a5723ed0366bcc9a1", "tools/pixel-writer/prop_scale_writer.py": "174d59c6197857ead962744b75ef93ba"};
     const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
-    check("playtest1u", "the live files are byte for byte playtest1u's (the three new modules, the moved files, the 25 hamlet sheets)", Object.keys(LIVE).length === 38 && live.length === 0, live.map((f) => `${f}=${md5f(f)}`).join(", "));
+    check("playtest1v", "the live files are byte for byte playtest1v's (the new modules, writers and sheets, the moved files)", Object.keys(LIVE).length === 35 && live.length === 0, live.map((f) => `${f}=${md5f(f)}`).join(", "));
   }
   globalThis.Image = had.Image; globalThis.document = had.document; globalThis.localStorage = had.ls; Math.random = had.random;
 }
 if (!ran) {
-  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u");
+  console.log("No checks ran. Groups: move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

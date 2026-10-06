@@ -158,36 +158,6 @@ export class AudioBus {
     this.tone(130, 0.12, "sawtooth", 0.08);
   }
 
-  /** playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car's boiler hiss (a short
-   * noise breath through the same low-pass) and a whistle. */
-  steam() {
-    this.hiss(0.32, 0.14);
-    this.tone(1046, 0.12, "triangle", 0.06);
-  }
-
-  /** playtest1v: the bone car's rattle, three dry clacks of bone. */
-  rattle() {
-    this.tone(330, 0.03, "square", 0.05);
-    this.tone(247, 0.03, "square", 0.04);
-    this.tone(392, 0.025, "square", 0.035);
-  }
-
-  private hiss(dur: number, gain: number) {
-    const ctx = this.ctx;
-    if (!ctx || ctx.state !== "running" || !this.comp || this.sfx <= 0) return;
-    const n = Math.floor(ctx.sampleRate * dur);
-    const buf = ctx.createBuffer(1, n, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const g = ctx.createGain();
-    g.gain.value = gain * this.sfx;
-    src.connect(g);
-    g.connect(this.comp);
-    src.start();
-  }
-
   /** A rumble with enough mid in it that a phone speaker can carry it. */
   thunder() {
     this.tone(110, 0.42, "triangle", 0.3);

@@ -1,16 +1,15 @@
 import { yardPieces } from "./blocking";
 import { LOOT_SHEET, ORE_SHEET, lootCell } from "./loot";
 import { DIRS, DIRS_EM, DIRS_SHEETS, FACE, SIDE_NATIVE, axisFace, faceOf, heroFace, nearestOf, viewOf, type Face } from "./facing";
-import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worldBiome, type Item, type Tile, type WorldBiome } from "./content";
+import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worldBiome, type Item, type Tile } from "./content";
 import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
 import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
-import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_SHEET, WAYRIFT_SHEETS, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import type { Game } from "./sim";
-import { roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
+import { roomNameOf, townRoomAt, worldHamlets } from "./sim";
 import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, hamletEm, hamletLamps, hamletSheet, type HamletLotT, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
@@ -30,7 +29,7 @@ import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { BLDG, BLDG_SHEETS, bldgEm, bldgSheet, lotCell, townLots, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
-import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, WILD_TREES2, WILD_TREES2_EM, DEADWOOD2, DEADWOOD2_EM, ROCKS2, ROCKS2_EM, PROP2, PROP2_SLACK, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
+import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
 
 /**
  * Integer pixel drawing. Tiles are 16px, actors 16×32, zoom is a whole number.
@@ -146,17 +145,6 @@ function sheetCell(
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(im, col * stride, row * stride, w * 16, h * 16, dx, dy, w * 16, h * 16);
   return true;
-}
-/** playtest1v: has this sheet loaded (so a bigger prop draws whole, never half from the old sheet)? */
-function prop2Ready(url: string): boolean {
-  if (typeof Image === "undefined") return false;
-  let im = landSheet[url];
-  if (!im) {
-    im = new Image();
-    im.src = url;
-    landSheet[url] = im;
-  }
-  return im.complete && im.naturalWidth > 0;
 }
 if (typeof Image !== "undefined") {
   for (const url of [...DIRS_SHEETS, LOOT_SHEET, ORE_SHEET]) {
@@ -1148,10 +1136,7 @@ export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" 
   if (kind === "rock") {
     const cells = ROCK_CELL[biome] ?? ROCK_CELL.vale;
     const cell = cells[tileRoll(tx, ty, cells.length)];
-    // playtest1v: the 24x24 rock first (knee-to-waist on the hero), the 1c 16x16 while it loads
-    const r2 = PROP2.rock;
-    if (em) return ROCK_GLOW.has(cell) && (prop2Ready(ROCKS2) ? sheetCell(ctx, ROCKS2_EM, cell, 0, x + r2.dx, y + r2.dy, r2.w / 16, r2.h / 16, r2.w) : sheetCell(ctx, ROCKS_EM, cell, 0, x, y - 2, 1, 1));
-    if (prop2Ready(ROCKS2) && sheetCell(ctx, ROCKS2, cell, 0, x + r2.dx, y + r2.dy, r2.w / 16, r2.h / 16, r2.w)) return true;
+    if (em) return ROCK_GLOW.has(cell) && sheetCell(ctx, ROCKS_EM, cell, 0, x, y - 2, 1, 1);
     if (sheetCell(ctx, ROCKS, cell, 0, x, y - 2, 1, 1)) return true;
     px(ctx, ox - 8, oy - 6, 16, 7, "#4a4e54");
     px(ctx, ox - 6, oy - 10, 12, 6, "#7a8088");
@@ -1195,17 +1180,12 @@ export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" 
     const dead = biome === "ash" ? DEAD_CELL.cinder : biome === "swamp" ? DEAD_CELL.willow : biome === "sand" ? DEAD_CELL.thorn : null;
     if (dead) {
       const cell = dead[tileRoll(tx, ty, dead.length)];
-      const t2 = PROP2.tree; // playtest1v: the 64x96 dead tree first, the 1c 32x48 while it loads
-      if (em) return prop2Ready(DEADWOOD2) ? sheetCell(ctx, DEADWOOD2_EM, cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w) : sheetCell(ctx, DEADWOOD_EM, cell, 0, x - 8, y - 32, 2, 3, 32);
-      if (prop2Ready(DEADWOOD2) && sheetCell(ctx, DEADWOOD2, cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w)) return true;
+      if (em) return sheetCell(ctx, DEADWOOD_EM, cell, 0, x - 8, y - 32, 2, 3, 32);
       if (sheetCell(ctx, DEADWOOD, cell, 0, x - 8, y - 32, 2, 3, 32)) return true;
     } else {
       const season = biome === "snow" ? "winter" : seasonNow;
       const cell = tileRoll(tx, ty, 8);
-      const t2 = PROP2.tree; // playtest1v: the 64x96 tree first, the 1c 32x48 while it loads
-      const big = prop2Ready(WILD_TREES2[season]);
-      if (em) return TREE_GLOW.has(cell) && (big ? sheetCell(ctx, WILD_TREES2_EM[season], cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w) : sheetCell(ctx, WILD_TREES_EM[season], cell, 0, x - 8, y - 32, 2, 3, 32));
-      if (big && sheetCell(ctx, WILD_TREES2[season], cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w)) return true;
+      if (em) return TREE_GLOW.has(cell) && sheetCell(ctx, WILD_TREES_EM[season], cell, 0, x - 8, y - 32, 2, 3, 32);
       if (sheetCell(ctx, WILD_TREES[season], cell, 0, x - 8, y - 32, 2, 3, 32)) return true;
     }
     if (em) return false;
@@ -1855,30 +1835,17 @@ function paintMonster(
   ctx.restore();
 }
 
-/**
- * playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village map is drawn as the vale (theme
- * "over") in its own biome: zoneAt reads the village's biome there (set by syncZone at the top of each draw), the vale's
- * zone rule everywhere else.
- */
-let zoneNow: WorldBiome | null = null;
-function syncZone(g: Game) {
-  zoneNow = g.mapId === "village" ? (villageById(g.inside)?.biome ?? null) : null;
-}
-function zoneAt(x: number, y: number): WorldBiome {
-  return zoneNow ?? worldBiome(x, y);
-}
-
 /** Which outdoor band a world tile belongs to, for tree and rock colors. */
 function biomeOf(theme: string, ty: number, tx: number): string {
   if (theme !== "over") return theme;
-  return zoneAt(tx, ty); // playtest1e: the twice-size vale's zone rule (content.ts); playtest1v: a village's biome
+  return worldBiome(tx, ty); // playtest1e: the twice-size vale's zone rule (content.ts)
 }
 
 /** Ground showing under a tree or rock, so the trunk does not erase the shore or the road. */
 function propGround(theme: string, x: number, y: number, tile: number): Tile {
   if (theme === "town") return tile === T.grave ? T.dirt : T.grass;
   // playtest1e: the vale reads its twice-size zones; the camp keeps the old rule on its own small grid.
-  const z = theme === "over" ? zoneAt(x, y) : planBiome(x, y);
+  const z = theme === "over" ? worldBiome(x, y) : planBiome(x, y);
   return z === "snow" ? T.snow : z === "sand" ? T.sand : z === "ash" ? T.ash : z === "swamp" ? T.swamp : T.grass;
 }
 
@@ -2153,12 +2120,10 @@ export function lotShadow(w: number): HTMLCanvasElement | null {
 type HamletIndex = { tiles: ArrayLike<number>; lot: Map<number, { m: HamletT; l: HamletLotT }>; walk: Map<number, HamletT>; list: HamletT[] };
 let hamletIx: HamletIndex | null = null;
 export function hamletIndex(g: Game): HamletIndex | null {
-  if (g.mapId !== "world" && g.mapId !== "village") return null;
+  if (g.mapId !== "world") return null;
   if (hamletIx && hamletIx.tiles === g.tiles) return hamletIx;
-  // only the hamlets laid on this grid (every lot tile a wall): a grid from before playtest1u draws none.
-  // playtest1v: in a village, its own buildings (villages.ts)
-  const vh = g.mapId === "village" ? villageById(g.inside)?.hamlet : undefined;
-  const list = (g.mapId === "village" ? (vh ? [vh] : []) : worldHamlets()).filter((m) => m.lots.every((l) => { for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (g.tiles[y * g.w + x] !== T.wall) return false; return true; }));
+  // only the hamlets laid on this grid (every lot tile a wall): a grid from before playtest1u draws none
+  const list = worldHamlets().filter((m) => m.lots.every((l) => { for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (g.tiles[y * g.w + x] !== T.wall) return false; return true; }));
   const lot = new Map<number, { m: HamletT; l: HamletLotT }>();
   const walk = new Map<number, HamletT>();
   for (const m of list) {
@@ -2403,7 +2368,7 @@ function paintBites(ctx: CanvasRenderingContext2D, g: Game, skin: BlendResult | 
  */
 const WET: ReadonlySet<number> = new Set([T.water, T.pool, T.ice]);
 function paintShore(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: number, y: number, at: (j: number) => number) {
-  const row = tile === T.ice || (g.theme === "over" && zoneAt(x, y) === "snow") ? SHORE_ROW.snowbank : tile === T.pool ? SHORE_ROW.stone : SHORE_ROW.bank;
+  const row = tile === T.ice || (g.theme === "over" && worldBiome(x, y) === "snow") ? SHORE_ROW.snowbank : tile === T.pool ? SHORE_ROW.stone : SHORE_ROW.bank;
   const dry = (nx: number, ny: number) => nx >= 0 && ny >= 0 && nx < g.w && ny < g.h && !WET.has(at(ny * g.w + nx));
   const n = dry(x, y - 1);
   const e = dry(x + 1, y);
@@ -2686,7 +2651,7 @@ function paintTravel(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY:
 export function sceneAmbient(g: Game): RGB | null {
   if (g.mapId === "dungeon") return ambientOf(g.theme, palOf(g.theme).liquid);
   if (g.phase !== "night") return null;
-  if (g.mapId === "world" || g.mapId === "village") return LIGHT.worldNight; // playtest1v: a village's night is the vale's
+  if (g.mapId === "world") return LIGHT.worldNight;
   if (g.mapId === "town") return LIGHT.townNight;
   // playtest1b B2 (gloom and glow): the camp and the town's rooms dim at night too, so their cold-blue fires show.
   if (g.mapId === "camp") return LIGHT.worldNight;
@@ -2701,15 +2666,6 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   const out: Lamp[] = [];
   const below = g.mapId === "dungeon";
   out.push({ x: g.px, y: g.py - 10, r: below ? LIGHT.hero : LIGHT.heroNight, c: below ? LIGHTS.torch : LIGHTS.candle, seed: 0, flick: false });
-  // playtest1v: the bone car's skull headlamps throw two cold-fire pools ahead of it (a near one and a far one)
-  if (g.driving && g.mapId === "world") {
-    const f = g.carFacing;
-    const ax = f === "e" ? 1 : f === "w" ? -1 : 0;
-    const ay = f === "s" ? 1 : f === "n" ? -1 : 0;
-    out.push({ x: g.px + ax * 34, y: g.py - 4 + ay * 26, r: 72, c: NEON_LIGHT.blue, seed: 1, flick: false });
-    out.push({ x: g.px + ax * 76, y: g.py - 2 + ay * 60, r: 96, c: NEON_LIGHT.blue, seed: 2, flick: false });
-  } else if (g.mapId === "world" && g.carOwned) out.push({ x: g.carX + (g.carFacing === "e" ? 20 : g.carFacing === "w" ? -20 : 0), y: g.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
-  if (g.mapId === "town" && !g.carOwned) out.push({ x: SHOWROOM.carX + 20, y: SHOWROOM.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
   if (below) {
     for (const s of sconces(g)) if (sconceShows(g, s)) out.push({ x: s.x * TILE + 8, y: s.y * TILE - 1, r: LIGHT.sconce, c: LIGHTS.torch, seed: s.seed, flick: true });
     const rune = g.feats?.rune;
@@ -2762,15 +2718,14 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     }
     for (const d of [...(ROOM_DRESS[g.theme.slice(5)] ?? []), ...roomKitExtra(g.inside)]) if (d.lit) out.push({ x: d.lit.x, y: d.lit.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: true });
   }
-  // playtest1u: each hamlet lot's lantern casts its pool (neon blue, violet or red) on the ground at night (playtest1v:
-  // a village icon's roofs on the vale, and a village's own buildings in it)
-  for (const m of hamletIndex(g)?.list ?? []) {
-    if ((m.x + m.w) * TILE < camX - 64 || m.x * TILE > camX + vw + 64 || (m.y + m.h) * TILE < camY - 64 || m.y * TILE > camY + vh + 64) continue;
-    for (const l of hamletLamps(m)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT[l.c], seed: l.x & 3, flick: true });
-  }
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
     for (const r of g.riftMouths()) out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
+    // playtest1u: each hamlet lot's lantern casts its pool (neon blue, violet or red) on the ground at night
+    for (const m of hamletIndex(g)?.list ?? []) {
+      if ((m.x + m.w) * TILE < camX - 64 || m.x * TILE > camX + vw + 64 || (m.y + m.h) * TILE < camY - 64 || m.y * TILE > camY + vh + 64) continue;
+      for (const l of hamletLamps(m)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT[l.c], seed: l.x & 3, flick: true });
+    }
     // playtest1f: an awake wayrift lights the vale cold blue at night (a light at its mouth, spilling onto the ground
     // before it; the gate's four share one a pair, wayLights); a sealed one is dark
     for (const l of wayLights(g.season(), TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
@@ -3162,19 +3117,6 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
       drawLabel(ctx, wayLabel(w, season), m.x * TILE + 8, (w.y - 2) * TILE - 2, wayAwake(w, season) ? "violet" : "bone");
     }
   }
-  // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village icon's name in gold over its roofs
-  // when you are near; inside a village, its name over the green when you have just come in
-  if (g.mapId === "world") {
-    for (const m of hamletIndex(g)?.list ?? []) {
-      if (!m.entry || !m.name) continue;
-      if (Math.hypot(m.entry.x * TILE + 8 - g.px, m.entry.y * TILE + 8 - g.py) > 4 * TILE) continue;
-      drawLabel(ctx, m.name, (m.x + m.w / 2) * TILE, (m.y - 2) * TILE - 4, "gold");
-    }
-  }
-  if (g.mapId === "village") {
-    const v = villageById(g.inside);
-    if (v && Math.hypot(v.arrive.x * TILE + 8 - g.px, v.arrive.y * TILE + 8 - g.py) < 5 * TILE) drawLabel(ctx, v.name, (v.w / 2) * TILE, (v.arrive.y - 1) * TILE, "gold");
-  }
   // playtest1o: inside, the building's name in gold under its sign on the back wall.
   const here = g.mapId === "inside" ? roomNameOf(g.inside) : undefined;
   if (here) {
@@ -3276,104 +3218,7 @@ function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: num
   }
 }
 
-/** playtest1v map fog, read safely (a stand-in game in a check may not carry it): the seen tiles, or null (no map fog). */
-const seenOf = (g: Game): Uint8Array | null => (typeof g.seenNow === "function" ? g.seenNow() : null);
-const seenAtOf = (g: Game, x: number, y: number): boolean => (typeof g.seenAt === "function" ? g.seenAt(x, y) : true);
-
-/** playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car sheets. */
-export const BONECAR = "/art/writer/bonecar.png";
-export const BONECAR_EM = "/art/writer/bonecar_em.png";
-export const VELVET_ROPE = "/art/writer/velvet-rope.png";
-/** The car cell's top over the seat point (the wheels' bottoms 6 px under it), the rider's foot over it, the cushion row. */
-export const CAR_DY = 6 - CAR.cell.foot;
-export const CAR_RIDER_DY = 3;
-export const CAR_SEAT_ROW = 31;
-/** Steam puff shades, light to dark (palette v3, the wild writer's SNOW ramp). */
-const PUFF = ["#e8f2f8", "#d5e8f2", "#b7d2e0", "#8aa4b0"];
-const VELVET = ["#2a1018", "#6a2030", "#a02030", "#c43838"];
-
-/** Draw one bone car cell (layer body: wheel frame; front: the rider's front layer; em: the glow mask) at the seat point. */
-export function paintCar(ctx: CanvasRenderingContext2D, x: number, y: number, f: CarFacing, wheel: number, layer: "body" | "front" | "em"): boolean {
-  if (typeof Image === "undefined") return false;
-  const url = layer === "em" ? BONECAR_EM : BONECAR;
-  if (!prop2Ready(url)) return false;
-  const im = landSheet[url]!;
-  const W = CAR.cell.w;
-  const H = CAR.cell.h;
-  const col = layer === "front" ? 2 : wheel;
-  ctx.save();
-  ctx.imageSmoothingEnabled = false;
-  ctx.translate(Math.round(x), Math.round(y) + CAR_DY);
-  if (f === "w") ctx.scale(-1, 1);
-  ctx.drawImage(im, col * W, carRow(f) * H, W, H, -W / 2, 0, W, H);
-  ctx.restore();
-  return true;
-}
-
-/** A steam puff: a dithered cloud that swells, lifts and thins as it lives. */
-function paintPuff(ctx: CanvasRenderingContext2D, p: { x: number; y: number; life: number; drift: number }) {
-  const t = 1 - p.life / CAR.puffLife;
-  const r = 1.5 + t * 4;
-  const cx = Math.round(p.x + p.drift * t * 4);
-  const cy = Math.round(p.y - t * 16);
-  const shade = PUFF[Math.min(PUFF.length - 1, Math.floor(t * PUFF.length))];
-  for (let dy = -Math.ceil(r); dy <= Math.ceil(r); dy++) {
-    for (let dx = -Math.ceil(r); dx <= Math.ceil(r); dx++) {
-      if (dx * dx + dy * dy > r * r) continue;
-      if (t > 0.5 && (dx + dy + cx + cy) % 2 === 0) continue; // thinning: a checker as it fades
-      ctx.fillStyle = dy < 0 && dx < 0 ? PUFF[0] : shade;
-      ctx.fillRect(cx + dx, cy + dy, 1, 1);
-    }
-  }
-}
-
-/** The town showroom: brass posts with red velvet ropes round the lot, the bone car on show (a SOLD plaque once bought). */
-function paintShowroom(ctx: CanvasRenderingContext2D, g: Game, props: { y: number; fn: () => void }[], glow: ((c: CanvasRenderingContext2D) => void)[]) {
-  const S = SHOWROOM;
-  const post = (vx: number, vy: number) => sheetCell(ctx, VELVET_ROPE, 0, 0, vx * TILE - 8, vy * TILE - 22, 1, 1.5, 16);
-  const ropeH = (vx0: number, vx1: number, vy: number) => {
-    for (let x = vx0; x < vx1; x++) sheetCell(ctx, VELVET_ROPE, 1, 0, x * TILE, vy * TILE - 22, 1, 1.5, 16);
-  };
-  // the front rope hangs lower (knee height), so the car on show reads over it
-  const ropeHLow = (vx0: number, vx1: number, vy: number) => {
-    for (let x = vx0; x < vx1; x++) sheetCell(ctx, VELVET_ROPE, 1, 0, x * TILE, vy * TILE - 15, 1, 1.5, 16);
-  };
-  const ropeV = (vx: number, vy0: number, vy1: number) => {
-    const x = vx * TILE - 1;
-    for (let y = vy0 * TILE - 16; y < vy1 * TILE - 16; y++) {
-      ctx.fillStyle = (y >> 1) % 3 === 0 ? VELVET[3] : VELVET[2];
-      ctx.fillRect(x, y, 2, 1);
-      ctx.fillStyle = VELVET[1];
-      ctx.fillRect(x + 2, y, 1, 1);
-    }
-  };
-  const top = S.y0;
-  const bot = S.y1 + 1;
-  const left = S.x0;
-  const right = S.x1 + 1;
-  props.push({ y: top * TILE, fn: () => { ropeH(left, right, top); post(left, top); post(right, top); } });
-  props.push({ y: bot * TILE - 2, fn: () => { ropeV(left, top, bot); ropeV(right, top, bot); } });
-  if (!g.carOwned) {
-    props.push({ y: S.carY, fn: () => void paintCar(ctx, S.carX, S.carY, "e", 0, "body") });
-    glow.push((c) => void paintCar(c, S.carX, S.carY, "e", 0, "em"));
-  } else props.push({ y: S.carY, fn: () => void sheetCell(ctx, VELVET_ROPE, 2, 0, S.carX - 8, S.carY - 16, 1, 1.5, 16) });
-  props.push({ y: bot * TILE + 1, fn: () => { ropeHLow(left, right, bot); for (const [vx, vy] of S.posts) if (vy === bot) post(vx, vy); } });
-}
-
-/** playtest1v: how much of a tree shows while the hero stands behind its canopy. */
-export const CANOPY_VEIL = 0.55;
-/** playtest1v: does the tree on tile (tx, ty) stand in front of the hero (drawn after) and over the hero's body? */
-export function canopyHides(g: Game, tx: number, ty: number): boolean {
-  const t = PROP2.tree;
-  // the canopy's core (40 px across, from 24 px under the cell top) over the hero's middle
-  const fx = tx * TILE + t.dx + 12;
-  const fy = ty * TILE + t.dy + 24;
-  if (ty * TILE + 8 <= g.py) return false;
-  return g.px > fx && g.px < fx + t.w - 24 && g.py - 22 < ty * TILE && g.py - 8 > fy;
-}
-
 export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
-  syncZone(g); // playtest1v
   seasonNow = g.season();
   sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
   roomStyleNow = roomStyle(g.inside); // playtest1i
@@ -3385,14 +3230,13 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   const camY = cam.y;
   ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
   ctx.imageSmoothingEnabled = false;
-  // playtest1v: a tree is 6 tiles tall and 4 wide now (PROP2), so the slack is 6 rows below and 2 columns beside.
-  const x0 = Math.max(0, Math.floor(camX / TILE) - PROP2_SLACK.cols);
+  const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
   const y0 = Math.max(0, Math.floor(camY / TILE) - 1);
-  const x1 = Math.min(g.w, Math.ceil((camX + viewW / zoom) / TILE) + PROP2_SLACK.cols);
-  // Rows of slack below the view: a town grave is three tiles tall and a tree six, and their
+  const x1 = Math.min(g.w, Math.ceil((camX + viewW / zoom) / TILE) + 1);
+  // Three rows of slack below the view: a town grave is three tiles tall and a tree two, and their
   // base tile must still be visited while the top of the sprite is on screen, or it pops.
-  const y1 = Math.min(g.h, Math.ceil((camY + viewH / zoom) / TILE) + PROP2_SLACK.rows);
-  const night = g.phase === "night" && (g.mapId === "world" || g.mapId === "village");
+  const y1 = Math.min(g.h, Math.ceil((camY + viewH / zoom) / TILE) + 3);
+  const night = g.phase === "night" && g.mapId === "world";
   // gfx1: where the light layer runs, it is the night; the old speckle dimming is its fallback (no canvas).
   const lit = !!sceneAmbient(g) && typeof document !== "undefined";
   // actor: the same draw, for the light layer's actor clamp. glow: emissive draws, set to full light.
@@ -3404,10 +3248,10 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   kitNow = floorKit(g);
   // On the vale, open ground shows its skin biome; road verges read the skin too. Every other tile is as before.
   const look = (j: number, t: number) => (skin && SKIN_OPEN.has(t) && t !== T.tree && t !== T.rock && t !== T.pump && t !== T.grave ? VALE_GROUND[skin.biome[j]] : t);
-  const bx0 = Math.floor(camX / TILE) - PROP2_SLACK.cols;
+  const bx0 = Math.floor(camX / TILE) - 1;
   const by0 = Math.floor(camY / TILE) - 1;
-  const bx1 = Math.ceil((camX + viewW / zoom) / TILE) + PROP2_SLACK.cols;
-  const by1 = Math.ceil((camY + viewH / zoom) / TILE) + PROP2_SLACK.rows;
+  const bx1 = Math.ceil((camX + viewW / zoom) / TILE) + 1;
+  const by1 = Math.ceil((camY + viewH / zoom) / TILE) + 3;
   // playtest1e: only when the view itself reaches past the map (a map smaller than the screen; the vale's clamped
   // camera never does), and from a cache where the map has no fog, so the border costs one blit a frame.
   const past = camX < 0 || camY < 0 || camX + viewW / zoom > g.w * TILE || camY + viewH / zoom > g.h * TILE;
@@ -3549,11 +3393,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         props.push({
           y: by,
           fn: () => {
-            // playtest1v: a tall tree in front of the hero thins so the hero still reads through its canopy
-            const veil = kind === "tree" && canopyHides(g, x, y);
-            if (veil) ctx.globalAlpha = CANOPY_VEIL;
             propSprite(ctx, kind, x * TILE, y * TILE, biome, g.frame);
-            if (veil) ctx.globalAlpha = 1;
             if (dug) sheetCell(ctx, GRAVE_DUG, 0, 0, x * TILE, y * TILE + 9);
           },
         });
@@ -3815,34 +3655,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       actor: (c) => paintDrop(c, d.x, d.y, d.silver, d.item, g.frame),
     });
   }
-  // playtest1v: the bone car: parked on the vale, on show in town (velvet ropes, brass posts), its steam
-  if (g.mapId === "world" && g.carOwned && !g.driving) {
-    props.push({ y: g.carY, fn: () => paintCar(ctx, g.carX, g.carY, g.carFacing, 0, "body") });
-    glow.push((c) => paintCar(c, g.carX, g.carY, g.carFacing, 0, "em"));
-  }
-  if (g.mapId === "town") paintShowroom(ctx, g, props, glow);
-  for (const p of g.carPuffs ?? []) props.push({ y: p.y + 120, fn: () => paintPuff(ctx, p) });
-  if (g.driving && g.mapId === "world") {
-    glow.push((c) => paintCar(c, g.px, g.py, g.carFacing, Math.floor(g.frame / 2) % 2, "em"));
-    props.push({
-      y: g.py,
-      fn: () => {
-        const f = g.carFacing;
-        const wheel = g.moving ? Math.floor(g.frame / 2) % 2 : 0;
-        paintCar(ctx, g.px, g.py, f, wheel, "body");
-        // the rider: the hero's upper half in the seat, clipped at the cushion, then the ribs / skull / boiler over it
-        const dy = Math.round(g.py) + CAR_DY;
-        const sx = f === "e" ? -4 : f === "w" ? 4 : 0;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(Math.round(g.px) - 16, dy - 4, 32, CAR_SEAT_ROW + 4);
-        ctx.clip();
-        person(ctx, g.px + sx, Math.round(g.py) + CAR_RIDER_DY, g.cls, "#888888", heroFace(f), 0, 1, "stand", "hero", 1);
-        ctx.restore();
-        paintCar(ctx, g.px, g.py, f, wheel, "front");
-      },
-    });
-  } else props.push({
+  props.push({
     y: g.py,
     fn: () => {
       const role = g.cls;
@@ -4797,7 +4610,6 @@ function paintBattleFx(
 
 /** The full map opened with M. */
 export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {
-  syncZone(g); // playtest1v
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "#140e12";
@@ -4805,11 +4617,10 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
   const scale = Math.max(2, Math.min(8, Math.floor(Math.min((viewW - 24) / g.w, (viewH - 24) / g.h))));
   const ox = Math.floor((viewW - g.w * scale) / 2);
   const oy = Math.floor((viewH - g.h * scale) / 2);
-  const seen = seenOf(g); // playtest1v map fog: what has not been seen stays dark
   for (let y = 0; y < g.h; y++) {
     for (let x = 0; x < g.w; x++) {
       const i = y * g.w + x;
-      if ((g.fog && g.fog[i] === 0) || (seen && !seen[i])) {
+      if (g.fog && g.fog[i] === 0) {
         ctx.fillStyle = "#07060a";
         ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
         continue;
@@ -4827,32 +4638,8 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
     for (let y = 0; y < g.h; y++) {
       for (let x = 0; x < g.w; x++) {
         // playtest1b: the town's own icon (the walled hamlet); the old roof stamp is its fallback
-        if (g.tiles[y * g.w + x] === T.door && seenAtOf(g, x, y) && !drawTownMapIcon(ctx, ox + x * scale + scale / 2, oy + (y + 1) * scale, Math.max(1, Math.round(scale / 3)))) stampHamlet(ctx, ox, oy, scale, x, y);
+        if (g.tiles[y * g.w + x] === T.door && !drawTownMapIcon(ctx, ox + x * scale + scale / 2, oy + (y + 1) * scale, Math.max(1, Math.round(scale / 3)))) stampHamlet(ctx, ox, oy, scale, x, y);
       }
-    }
-  }
-  // playtest1v: every village icon on the full map (a lit gold roof), at its doorstep
-  if (g.mapId === "world") for (const m of worldHamlets()) if (m.entry && seenAtOf(g, m.entry.x, m.entry.y)) villageMarker(ctx, ox + Math.floor((m.entry.x + 0.5) * scale), oy + Math.floor(m.entry.y * scale), Math.max(1, Math.round(scale / 3)));
-  // playtest1v: a dungeon mouth or a rift shows on the full map once seen (a violet stud)
-  if (g.mapId === "world") {
-    for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
-      if (g.tiles[y * g.w + x] !== T.stairD || !seenAtOf(g, x, y)) continue;
-      const k = Math.max(1, Math.round(scale / 3));
-      ctx.fillStyle = "#07060a";
-      ctx.fillRect(ox + x * scale - k, oy + y * scale - k, scale + 2 * k, scale + 2 * k);
-      ctx.fillStyle = "#b07aff";
-      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
-    }
-    // the parked bone car, a bone-white stud with a blue eye
-    if (g.carOwned && !g.driving && seenAtOf(g, Math.floor(g.carX / TILE), Math.floor(g.carY / TILE))) {
-      const cx = ox + Math.floor((g.carX / TILE) * scale);
-      const cy = oy + Math.floor((g.carY / TILE) * scale);
-      ctx.fillStyle = "#07060a";
-      ctx.fillRect(cx - 4, cy - 3, 9, 7);
-      ctx.fillStyle = "#e6dcc8";
-      ctx.fillRect(cx - 3, cy - 2, 7, 5);
-      ctx.fillStyle = "#4ab8ff";
-      ctx.fillRect(cx + 1, cy - 1, 2, 2);
     }
   }
   // playtest1f: every wayrift on the full map (sealed ones dim), so a player can plan a journey
@@ -4860,7 +4647,6 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
     const season = g.season();
     const k = Math.max(1, Math.round(scale / 4));
     for (const w of WAYRIFTS) {
-      if (!seenAtOf(g, w.x + 1, w.y + 1)) continue; // playtest1v: once seen
       const mx = ox + Math.floor((w.x + 1.5) * scale);
       const my = oy + Math.floor((w.y + 1) * scale);
       if (!wayMarker(ctx, mx, my, wayAwake(w, season), k)) {
@@ -4885,8 +4671,8 @@ function mapColor(t: number, theme: string, y: number, x: number): string {
   if (t === T.dirt) return "#a07850";
   if (t === T.stairD || t === T.stairU || t === T.chest) return "#e07a2f";
   if (t === T.tree) return townish(theme) ? "#2f7a40" : "#1e4a34";
-  if (t === T.snow || (t === T.grass && theme === "over" && zoneAt(x, y) === "snow")) return "#d5e4ee";
-  if (t === T.sand || (theme === "over" && zoneAt(x, y) === "sand" && t !== T.road)) return "#c4b48a";
+  if (t === T.snow || (t === T.grass && theme === "over" && worldBiome(x, y) === "snow")) return "#d5e4ee";
+  if (t === T.sand || (theme === "over" && worldBiome(x, y) === "sand" && t !== T.road)) return "#c4b48a";
   if (t === T.ash) return "#4a4038";
   if (t === T.swamp) return "#243428";
   if (t === T.floor) return "#c4a574";
@@ -4921,13 +4707,11 @@ function stampHamlet(ctx: CanvasRenderingContext2D, ox: number, oy: number, scal
 
 /** Corner map. Dragging it is handled by the React shell, not here. */
 export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number) {
-  syncZone(g); // playtest1v
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "#140e12";
   ctx.fillRect(0, 0, size, size);
   const span = 24;
   const mhix = hamletIndex(g);
-  const mseen = seenOf(g); // playtest1v
   const cx = Math.floor(g.px / TILE);
   const cy = Math.floor(g.py / TILE);
   const s = size / span;
@@ -4937,7 +4721,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       const ty = cy - span / 2 + y;
       if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) {
         // playtest1e: past the edge outdoors the corner map shows the border forest too, not black
-        if (OUTDOOR_EDGE.has(g.theme) && seenAtOf(g, Math.max(0, Math.min(g.w - 1, tx)), Math.max(0, Math.min(g.h - 1, ty)))) {
+        if (OUTDOOR_EDGE.has(g.theme)) {
           ctx.fillStyle = mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
           ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
         }
@@ -4945,7 +4729,6 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       }
       const i = ty * g.w + tx;
       if (g.fog && g.fog[i] === 0) continue;
-      if (mseen && !mseen[i]) continue; // playtest1v map fog
       const hl = mhix?.lot.get(i); // playtest1u: a hamlet's lots show in its biome's roof colour
       ctx.fillStyle = hl ? HAMLET_MAP[hl.m.biome] : mapColor(g.hidden.has(i) ? T.wall : g.tiles[i], g.theme, ty, tx);
       ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
@@ -4956,7 +4739,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
     for (const d of townDoors(g)) {
       const mx = (d.x - (cx - span / 2)) * s;
       const my = (d.y - (cy - span / 2)) * s;
-      if (mx > -12 && my > -12 && mx < size + 12 && my < size + 12 && seenAtOf(g, d.x, d.y)) drawTownMapIcon(ctx, mx + s / 2, my + s, 1);
+      if (mx > -12 && my > -12 && mx < size + 12 && my < size + 12) drawTownMapIcon(ctx, mx + s / 2, my + s, 1);
     }
   }
   // playtest1b (owner-reported 2026-10-02 01:06 ET, "mini map needs a framed border and more detail"): markers for
@@ -4976,27 +4759,17 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       const ty = cy - span / 2 + y;
       if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) continue;
       const i = ty * g.w + tx;
-      if ((g.fog && g.fog[i] === 0) || g.hidden.has(i) || (mseen && !mseen[i])) continue;
+      if ((g.fog && g.fog[i] === 0) || g.hidden.has(i)) continue;
       const t = g.tiles[i];
       if (t === T.stairD || t === T.stairU) mark(x, y, "#b07aff", 1);
       else if (t === T.exit && (g.theme !== "town" || (tx + ty) % 4 === 0)) mark(x, y, "#4ab8ff", 0);
       else if (t === T.door && g.theme !== "over") mark(x, y, "#e0c060", 0);
     }
   }
-  // playtest1v: a village icon's marker (a lit gold roof) at its doorstep
-  if (g.mapId === "world") {
-    for (const m of worldHamlets()) {
-      if (!m.entry || !seenAtOf(g, m.entry.x, m.entry.y)) continue; // playtest1v: once seen
-      const mx = Math.floor((m.entry.x + 0.5 - (cx - span / 2)) * s);
-      const my = Math.floor((m.entry.y - (cy - span / 2)) * s);
-      if (mx > -8 && my > -8 && mx < size + 8 && my < size + 8) villageMarker(ctx, mx, my, 1);
-    }
-  }
   // playtest1f: the wayrifts, as the rift writer's marker (sealed ones dim), centred on the footprint
   if (g.mapId === "world") {
     const season = g.season();
     for (const w of WAYRIFTS) {
-      if (!seenAtOf(g, w.x + 1, w.y + 1)) continue; // playtest1v: once seen
       const mx = Math.floor((w.x + 1.5 - (cx - span / 2)) * s);
       const my = Math.floor((w.y + 1 - (cy - span / 2)) * s);
       if (mx < -6 || my < -6 || mx > size + 6 || my > size + 6) continue;
@@ -5014,27 +4787,6 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
   ctx.fillStyle = "#fff8ee";
   ctx.fillRect(hx, hy - 1, 1, 1);
   miniFrame(ctx, size);
-}
-
-/** playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village's map marker, centred on (cx, cy): an
- * ink-outlined gold roof over a dark wall with one lit (neon blue) window, k px a cell (7 x 6 cells). */
-export const VILLAGE_MARK = { roof: "#e0b050", wall: "#3a2c24", lit: "#7ad8ff", ink: "#07060a" } as const;
-export function villageMarker(ctx: CanvasRenderingContext2D, cx: number, cy: number, k: number) {
-  const M = VILLAGE_MARK;
-  const x0 = Math.round(cx - 3.5 * k);
-  const y0 = Math.round(cy - 3 * k);
-  const cell = (x: number, y: number, w: number, h: number, c: string) => {
-    ctx.fillStyle = c;
-    ctx.fillRect(x0 + x * k, y0 + y * k, w * k, h * k);
-  };
-  cell(-1, 2, 9, 5, M.ink);
-  cell(1, 0, 5, 3, M.ink);
-  cell(2, -1, 3, 1, M.ink);
-  cell(0, 2, 7, 1, M.roof);
-  cell(1, 1, 5, 1, M.roof);
-  cell(2, 0, 3, 1, M.roof);
-  cell(1, 3, 5, 3, M.wall);
-  cell(3, 4, 1, 1, M.lit);
 }
 
 /** playtest1b: the corner map's frame: ink edge, iron band, a bevel, and a cold-fire stud in each corner. */

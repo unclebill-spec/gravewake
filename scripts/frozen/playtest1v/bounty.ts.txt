@@ -27,7 +27,7 @@ export function nightOf(ms: number) {
 
 const GROUND = new Set<number>([T.grass, T.dirt, T.snow, T.ash, T.sand, T.swamp, T.bone]);
 /** The vale tile south of the town door (playtest1e: the old 32,46 on the twice-size vale). */
-export const GATE = { x: 91, y: 126 }; // playtest1v: the tile two south of the 1v town door (91,124)
+export const GATE = { x: 64, y: 90 };
 
 /**
  * Open ground a stalker can lair on: plain ground the hero can reach from the town gate, off the gate's

@@ -14,23 +14,21 @@ export const WORLD_SEED = "gravewake-world-1e";
 export const WORLD_BIOMES: readonly WorldBiome[] = ["vale", "snow", "sand", "ash", "swamp"];
 /** Each biome's dressing: tree and rock chances, its landmark kinds and how many, and its trail caches. */
 export const WORLD_DRESS: Record<WorldBiome, OverworldBiome> = {
-  // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: each biome has twice the room, so about
-  // half as many landmarks and caches again (spread wider: spacing 12 -> 15), not twice as many.
-  vale: { ground: T.grass, trees: 0.13, rocks: 0.02, pump: 0.012, pond: "water", landmarks: 10, caches: 6, kinds: ["stones", "graves", "patch", "glade", "pond"] },
-  snow: { ground: T.snow, trees: 0.12, rocks: 0.03, pond: "ice", landmarks: 9, caches: 4, kinds: ["pond", "stones", "glade", "graves"] },
-  sand: { ground: T.sand, trees: 0.05, rocks: 0.05, pond: "water", landmarks: 7, caches: 4, kinds: ["stones", "graves", "pond", "glade"] },
-  ash: { ground: T.ash, trees: 0.1, rocks: 0.04, pump: 0.01, pond: "water", landmarks: 9, caches: 4, kinds: ["patch", "graves", "stones", "glade"] },
-  swamp: { ground: T.swamp, trees: 0.16, rocks: 0.01, pond: "water", landmarks: 6, caches: 3, kinds: ["pond", "glade", "graves"] },
+  vale: { ground: T.grass, trees: 0.13, rocks: 0.02, pump: 0.012, pond: "water", landmarks: 7, caches: 4, kinds: ["stones", "graves", "patch", "glade", "pond"] },
+  snow: { ground: T.snow, trees: 0.12, rocks: 0.03, pond: "ice", landmarks: 6, caches: 3, kinds: ["pond", "stones", "glade", "graves"] },
+  sand: { ground: T.sand, trees: 0.05, rocks: 0.05, pond: "water", landmarks: 5, caches: 3, kinds: ["stones", "graves", "pond", "glade"] },
+  ash: { ground: T.ash, trees: 0.1, rocks: 0.04, pump: 0.01, pond: "water", landmarks: 6, caches: 3, kinds: ["patch", "graves", "stones", "glade"] },
+  swamp: { ground: T.swamp, trees: 0.16, rocks: 0.01, pond: "water", landmarks: 4, caches: 2, kinds: ["pond", "glade", "graves"] },
 };
 /** The fixed water: the old lake (18-23, 28-32) and ice sheet (8-13, 4-6) at twice the size; the bridge column crosses the lake. */
-export const WORLD_LAKE = { x: 51, y: 79, w: 17, h: 14 } as const; // playtest1v: x sqrt2
-export const WORLD_ICE = { x: 23, y: 11, w: 17, h: 8 } as const;
-export const WORLD_BRIDGE = { x: 59, y0: 79, y1: 92 } as const;
+export const WORLD_LAKE = { x: 36, y: 56, w: 12, h: 10 } as const;
+export const WORLD_ICE = { x: 16, y: 8, w: 12, h: 6 } as const;
+export const WORLD_BRIDGE = { x: 42, y0: 56, y1: 65 } as const;
 /** The old roads at twice the size: the north-south road through the town door, the east-west road, the winter road. */
 export const WORLD_ROADS = [
   { x0: WORLD_DOOR.x, y0: 0, x1: WORLD_DOOR.x, y1: WORLD.h - 1 },
-  { x0: 0, y0: 113, x1: WORLD.w - 1, y1: 113 },
-  { x0: 0, y0: 23, x1: WORLD.w - 1, y1: 23 },
+  { x0: 0, y0: 80, x1: WORLD.w - 1, y1: 80 },
+  { x0: 0, y0: 16, x1: WORLD.w - 1, y1: 16 },
   { x0: WORLD_BRIDGE.x, y0: WORLD_BRIDGE.y0 - 1, x1: WORLD_BRIDGE.x, y1: WORLD_BRIDGE.y1 + 1 },
 ];
 
@@ -50,7 +48,7 @@ export function gravewakeWorld(sites: Spot[]): OverworldResult {
       { ...WORLD_ICE, tile: T.ice },
     ],
     edge: 2,
-    spacing: 15,
+    spacing: 12,
   });
 }
 
@@ -68,25 +66,14 @@ export const HAMLET_PLANS: HamletPlan[] = [
   { w: 9, h: 9, lots: [lot(0, 0, 1), lot(6, 0, 0), lot(3, 6, 1)] },
   { w: 9, h: 7, lots: [lot(0, 0, 1), lot(5, 0, 0), lot(3, 4, 0)] },
   { w: 7, h: 7, lots: [lot(0, 0, 0), lot(4, 0, 0), lot(2, 4, 0)] },
-  // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: on the vale a hamlet is now a small village
-  // icon (a clutch of 2-3 roofs; its own little map is entered from the middle lot's doorstep, HAMLET_ENTRY). Plans 0-5
-  // are the village maps' layouts (sim.ts buildVillage).
-  { w: 9, h: 4, lots: [lot(0, 1, 0), lot(3, 0, 0), lot(6, 1, 0)] },
-  { w: 8, h: 3, lots: [lot(0, 0, 0), lot(4, 0, 1)] },
 ];
-/** playtest1v: per plan, the lot whose doorstep (the tile south of its door) is the village's way in (icon plans 6 and 7). */
-export const HAMLET_ENTRY: Record<number, number> = { 6: 1, 7: 1 };
-/** playtest1v: the icon plans the vale lays, and the village-map plans (3-4 lots each). */
-export const HAMLET_ICON_PLANS = [6, 7];
-export const VILLAGE_PLANS = [2, 3, 4, 5];
-/** Hamlets per biome (WORLD_BIOMES order): none in the vale (the town is there). playtest1v: each is a village icon now
- * (plans 6-7), four in the Winter hollow and three or four in each other biome, spread out (gap 18). */
+/** Hamlets per biome (WORLD_BIOMES order): none in the vale (the town is there), two to four in each other biome. */
 export const HAMLET_BIOMES: Record<WorldBiome, HamletBiome> = {
   vale: { count: [0, 0], plans: [], variants: 2 },
-  snow: { count: [4, 4], plans: HAMLET_ICON_PLANS, variants: 2 },
-  sand: { count: [3, 4], plans: HAMLET_ICON_PLANS, variants: 2 },
-  ash: { count: [3, 4], plans: HAMLET_ICON_PLANS, variants: 2 },
-  swamp: { count: [3, 4], plans: HAMLET_ICON_PLANS, variants: 2 },
+  snow: { count: [3, 4], plans: [0, 1, 2, 3], variants: 2 },
+  sand: { count: [3, 4], plans: [0, 1, 2, 3], variants: 2 },
+  ash: { count: [2, 3], plans: [0, 1, 2, 3, 4], variants: 2 },
+  swamp: { count: [2, 3], plans: [2, 3, 4, 5], variants: 2 },
 };
 /** Body-blocking tiles (sim.ts blockedProp's tile rule): what a hamlet's reach test walks round. */
 const HAMLET_BLOCK = new Set<number>([T.tree, T.rock, T.pump, T.grave, T.wall, T.water, T.pool, T.ice, T.shelf, T.cauldron, T.moon, T.door, T.chest, T.stairD]);
@@ -111,6 +98,6 @@ export function gravewakeHamlets(tiles: ArrayLike<number>, keep: (Spot & { r: nu
     walk: (t) => !HAMLET_BLOCK.has(t),
     from,
     edge: 4,
-    gap: 18,
+    gap: 6,
   });
 }

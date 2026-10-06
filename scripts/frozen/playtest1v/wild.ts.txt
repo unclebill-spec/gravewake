@@ -29,31 +29,6 @@ export const DEADWOOD = "/art/writer/wild-deadwood.png";
 export const DEADWOOD_EM = "/art/writer/wild-deadwood_em.png";
 /** 32x48 deadwood cells: three charred cinder trees, three drowned willows, two bleached waste thorns. */
 export const DEAD_CELL = { cinder: [0, 1, 2], willow: [3, 4, 5], thorn: [6, 7] } as const;
-// playtest1v [OWNER-APPROVED 2026-10-05 21:15 ET: playtest1v prop scale + detail pass]: the trees, dead trees and rocks
-// at their audited sizes (qa/playtest1v/prop_scale.md; tools/pixel-writer/prop_scale_writer.py). A full tree is 2.1-3.2
-// hero heights (64x96 cells, foot on row 94), a dead tree 1.9-2.4, a rock knee-to-waist (24x24, foot on row 22). Same
-// cell order as the 1c sheets, which stay as the not-yet-loaded fallback. Picture only: a trunk or a rock still blocks
-// its one tile.
-export const WILD_TREES2: Record<string, string> = {
-  autumn: "/art/writer/wild-trees2-autumn.png",
-  winter: "/art/writer/wild-trees2-winter.png",
-  spring: "/art/writer/wild-trees2-spring.png",
-  summer: "/art/writer/wild-trees2-summer.png",
-};
-export const WILD_TREES2_EM: Record<string, string> = {
-  autumn: "/art/writer/wild-trees2-autumn_em.png",
-  winter: "/art/writer/wild-trees2-winter_em.png",
-  spring: "/art/writer/wild-trees2-spring_em.png",
-  summer: "/art/writer/wild-trees2-summer_em.png",
-};
-export const DEADWOOD2 = "/art/writer/wild-deadwood2.png";
-export const DEADWOOD2_EM = "/art/writer/wild-deadwood2_em.png";
-export const ROCKS2 = "/art/writer/wild-rocks2.png";
-export const ROCKS2_EM = "/art/writer/wild-rocks2_em.png";
-/** Cell sizes (px) and where a cell sits over its tile (dx, dy from the tile's top-left). */
-export const PROP2 = { tree: { w: 64, h: 96, dx: -24, dy: -80 }, rock: { w: 24, h: 24, dx: -4, dy: -10 } } as const;
-/** Rows of slack the world draw visits below and columns beside the view, so a 6-tile tree's base is still drawn. */
-export const PROP2_SLACK = { rows: 6, cols: 2 } as const;
 export const ROCKS = "/art/writer/wild-rocks.png";
 export const ROCKS_EM = "/art/writer/wild-rocks_em.png";
 /** 16x16 boulder cells per biome (the swamp shares the vale's mossy stones). */
@@ -116,12 +91,6 @@ export const AURA_FRAMES = 4;
 
 /** Every wild sheet, so the draw can ask for them all up front (no first-frame pop from the fallback pixels). */
 export const WILD_SHEETS: string[] = [
-  ...Object.values(WILD_TREES2), // playtest1v
-  ...Object.values(WILD_TREES2_EM),
-  DEADWOOD2,
-  DEADWOOD2_EM,
-  ROCKS2,
-  ROCKS2_EM,
   ...Object.values(WILD_TREES),
   ...Object.values(WILD_TREES_EM),
   DEADWOOD,

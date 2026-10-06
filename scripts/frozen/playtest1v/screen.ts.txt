@@ -386,9 +386,6 @@ export const PRELOAD = [
   // wild writer's trees, rocks, water and town water stand in their place.
   "/art/writer/wild-trees-autumn.png",
   "/art/writer/wild-rocks.png",
-  // playtest1v: the audited-size trees and rocks
-  "/art/writer/wild-trees2-autumn.png",
-  "/art/writer/wild-rocks2.png",
   "/art/writer/wild-water.png",
   "/art/writer/wild-water-town.png",
 ];

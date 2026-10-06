@@ -64,10 +64,7 @@ import { curseFloor, pickCurse, placeCaptive, rescueFor } from "./runs";
 import { mimicChest } from "./mimic";
 // OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. Generated floors and rift zones come from the fourth writer.
 import { gravewakeFloor, gravewakeRift, guardPick } from "../../tools/map-writer/gravewake";
-import { HAMLET_ENTRY, WORLD_BRIDGE, WORLD_DRESS, gravewakeHamlets, gravewakeWorld } from "../../tools/map-writer/gravewake_world";
-import { VILLAGE_NAMES, buildVillage, type VillageT } from "./villages";
-import { MAPFOG, decodeSeen, encodeSeen, fogKey, reveal } from "./mapfog"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
-import { CAR, CAR_LINES, SHOWROOM, carPoints, inShowroom, type CarFacing } from "./bonecar"; // playtest1v // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]
+import { WORLD_BRIDGE, WORLD_DRESS, gravewakeHamlets, gravewakeWorld } from "../../tools/map-writer/gravewake_world";
 import { HAMLET_KINDS, type HamletBiomeId, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
 import { edgeBand, riftSeed, rng32, subSeed, type MapResult } from "../../tools/map-writer/map_writer";
 import { GATE, fromGate, lairTiles, nightOf, postBounty, type Posting } from "./bounty";
@@ -403,12 +400,6 @@ type SaveBlob = {
   campY?: number;
   /** playtest1e: 2 once world places are on the twice-size vale. A save without it is migrated on load (migrateWorldSave). */
   worldV?: number;
-  /** playtest1v: the map fog, per fogKey, as mapfog.ts encodeSeen strings ("all" = fully open). Absent on an old save. */
-  mapSeen?: Record<string, string>;
-  /** playtest1v: the bone car: owned, and where it stands on the vale (world px, the seat point). */
-  carOwned?: boolean;
-  carX?: number;
-  carY?: number;
   drops?: {
     x: number;
     y: number;
@@ -555,21 +546,6 @@ export class Game {
   h = 10;
   tiles: Uint8Array<ArrayBufferLike> = new Uint8Array(100);
   fog: Uint8Array<ArrayBufferLike> | null = null;
-  /** playtest1v map fog: the maps' seen tiles, per fogKey (world, town, village:<id>), and the saved strings not yet
-   * opened against their map (decoded when that map is next stood on). */
-  mapSeen: Record<string, { w: number; h: number; a: Uint8Array }> = {};
-  mapSeenRaw: Record<string, string> = {};
-  private fogMark = "";
-  /** playtest1v bone car: owned, where it stands on the vale (px; the seat point), driving, its facing, its puffs. */
-  carOwned = false;
-  carX = 0;
-  carY = 0;
-  driving = false;
-  carFacing: CarFacing = "e";
-  carPuffs: { x: number; y: number; life: number; drift: number }[] = [];
-  private carSteamT = 0;
-  private carRattleT = 0;
-  private carBump = "";
   theme = "town";
   npcs: Npc[] = [];
   roamers: Roamer[] = [];
@@ -615,8 +591,6 @@ export class Game {
   stickX = 0;
   stickY = 0;
   goal: { x: number; y: number } | null = null;
-  /** playtest1v: a tapped village icon's walk, tile centres in turn (move() takes the next when the goal is reached). */
-  route: { x: number; y: number }[] = [];
   audio: AudioBus | null = null;
   entrances: Record<string, string> = {};
   visited: string[] = [];
@@ -1483,15 +1457,6 @@ export class Game {
     this.floors = {};
     this.quest = 0;
     this.visited = [];
-    this.mapSeen = {}; // playtest1v: a new life starts with every map dark
-    this.mapSeenRaw = {};
-    this.fogMark = "";
-    this.carOwned = false;
-    this.carX = 0;
-    this.carY = 0;
-    this.driving = false;
-    this.carFacing = "e";
-    this.carPuffs = [];
     this.bestiary = [];
     this.portal = null;
     this.rentedUntil = 0;
@@ -1600,7 +1565,6 @@ export class Game {
 
   /** The vale. Walking off a town edge lands here. */
   enterWorld(x: number, y: number) {
-    this.route = [];
     this.mapId = "world";
     this.inside = "";
     this.theme = "over";
@@ -2513,7 +2477,6 @@ export class Game {
     if (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h) return true;
     const t = this.tiles[ty * this.w + tx];
     if (this.mapId === "inside" && this.inside === "croft" && this.decorAt(tx, ty)) return true;
-    if (this.mapId === "town" && inShowroom(tx, ty)) return true; // playtest1v: the bone car's roped lot
     return t === T.tree || t === T.rock || t === T.pump || t === T.grave || t === T.wall || t === T.water || t === T.pool || t === T.ice || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t);
   }
 
@@ -2996,7 +2959,6 @@ export class Game {
       const cost = cross ? 40 : 15;
       out.push({ id: "hire", label: this.companion?.id === hire.id ? "Already with you" : `Hire ${hire.name} · Lv ${need} · ${cost}s` });
     }
-    if (role === "carman" && !this.carOwned) out.push({ id: "buycar", label: `Buy the bone car · ${CAR.price}s` }); // playtest1v
     if (role === "wander" && this.talk.npcId === "acolyte" && this.cls !== "vampire") out.push({ id: "hire", label: "Ask Bren to walk with you" });
     if (role === "wander" && this.talk.npcId === "vetch" && this.cls !== "vampire") out.push({ id: "hire", label: "Ask Vetch to walk with you" });
     const folk = FOLK.find((f) => f.id === this.talk?.npcId);
@@ -3047,238 +3009,6 @@ export class Game {
     else if (id === "lanterns") this.startLanternRun();
     else if (id === "blooms") this.handBlooms();
     else if (id === "dance") this.startDance();
-    else if (id === "buycar") this.buyCar(); // playtest1v
-  }
-
-  // ---- playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car] ----
-
-  /** The seen tiles of the map you stand on (null where there is no map fog: dungeon floors, rooms, camp). */
-  seenNow(): Uint8Array | null {
-    const key = fogKey(this.mapId, this.inside);
-    if (!key) return null;
-    const have = this.mapSeen[key];
-    if (have && have.w === this.w && have.h === this.h) return have.a;
-    const raw = this.mapSeenRaw[key];
-    const a = raw === "all" ? new Uint8Array(this.w * this.h).fill(1) : decodeSeen(raw, this.w, this.h) ?? new Uint8Array(this.w * this.h);
-    delete this.mapSeenRaw[key];
-    this.mapSeen[key] = { w: this.w, h: this.h, a };
-    return a;
-  }
-
-  /** Has tile (tx, ty) of this map been seen? True where the map has no map fog. */
-  seenAt(tx: number, ty: number): boolean {
-    const a = this.seenNow();
-    if (!a) return true;
-    if (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h) return false;
-    return a[ty * this.w + tx] === 1;
-  }
-
-  /** Open the map fog round the hero, once per tile stepped on. */
-  private revealMap() {
-    const key = fogKey(this.mapId, this.inside);
-    if (!key || this.mode === "title") return;
-    const tx = Math.floor(this.px / TILE);
-    const ty = Math.floor(this.py / TILE);
-    const mark = `${key}:${tx},${ty}`;
-    if (mark === this.fogMark) return;
-    this.fogMark = mark;
-    const a = this.seenNow();
-    if (a) reveal(a, this.w, this.h, tx, ty, MAPFOG.radius);
-  }
-
-  /** Every map's fog as save strings (the open maps encoded, the not-yet-opened ones passed through as they came). */
-  private fogStrings(): Record<string, string> {
-    const out: Record<string, string> = { ...this.mapSeenRaw };
-    for (const [k, v] of Object.entries(this.mapSeen)) out[k] = v.a.every((b) => b === 1) ? "all" : encodeSeen(v.a, v.w, v.h);
-    return out;
-  }
-
-  /** An old save (no mapSeen): the town open, and on the vale a disc round the gate, the saved spot and every dungeon
-   * mouth already entered. Villages are new in 1v, so they start dark. */
-  private seedOldFog(raw: SaveBlob) {
-    this.mapSeenRaw.town = "all";
-    const a = new Uint8Array(WORLD.w * WORLD.h);
-    const open = (x: number, y: number) => reveal(a, WORLD.w, WORLD.h, Math.floor(x), Math.floor(y), MAPFOG.oldRadius);
-    open(GATE.x, GATE.y);
-    if (raw.mapId === "world") open(raw.px / TILE, raw.py / TILE);
-    if (raw.campX && raw.campY) open(raw.campX / TILE, raw.campY / TILE);
-    for (const id of raw.visited ?? []) {
-      const d = dungeonById(id);
-      if (d && !d.town && d.tx) open(d.tx, d.ty);
-    }
-    this.mapSeen.world = { w: WORLD.w, h: WORLD.h, a };
-  }
-
-  /** A tile the car may not roll onto: a way off the map (door, stair, hearth, exit, mouth, rift, wayrift, village). */
-  private carExitAt(tx: number, ty: number): boolean {
-    const t = this.tiles[ty * this.w + tx];
-    if (t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || t === T.exit) return true;
-    return this.mapId === "world" && (!!this.entrances[`${tx},${ty}`] || RIFTS.some((r) => r.tx === tx && r.ty === ty) || !!wayMouthAt(tx, ty) || !!villageEntryAt(tx, ty));
-  }
-
-  /** Does the car's footprint at (x, y) facing f hit anything? note: remember an exit or water touched (a stop). */
-  private carBlocked(x: number, y: number, f: CarFacing, note = false): boolean {
-    for (const [qx, qy] of carPoints(x, y, f)) {
-      if (this.solidAt(qx, qy, true)) return true;
-      const tx = Math.floor(qx / TILE);
-      const ty = Math.floor(qy / TILE);
-      if (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h) return true;
-      const t = this.tiles[ty * this.w + tx];
-      if (t === T.water || t === T.pool) {
-        if (note) this.carBump = "water";
-        return true;
-      }
-      if (t === T.tree || t === T.rock || t === T.pump || t === T.grave) return true; // a trunk, rock, pump or grave under any part of the car
-      if (this.carExitAt(tx, ty)) {
-        if (note) this.carBump = "door";
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /** Turn the car to f when its footprint that way is free (else it keeps its heading; the hero's facing still turns). */
-  private turnCar(f: CarFacing) {
-    if (f === this.carFacing) return;
-    if (!this.carBlocked(this.px, this.py, f)) this.carFacing = f;
-  }
-
-  /** Climb in (the car stands within reach on the vale). */
-  carOn(): boolean {
-    if (!this.carOwned || this.mapId !== "world" || this.mode !== "play" || this.fallen > 0) return false;
-    if (this.roamers.some((r) => this.liveFoe(r) && r.aggro && Math.hypot(r.x - this.px, r.y - this.py) < CAR.foeNear)) {
-      this.logLine = CAR_LINES.fight;
-      return true;
-    }
-    const f = ([this.carFacing, "e", "w", "s", "n"] as CarFacing[]).find((k) => !this.carBlocked(this.carX, this.carY, k));
-    if (!f) {
-      this.logLine = CAR_LINES.noRoom;
-      return true;
-    }
-    this.carFacing = f;
-    this.px = this.carX;
-    this.py = this.carY;
-    this.goal = null;
-    this.route = [];
-    this.clearLock("car");
-    this.driving = true;
-    this.carBump = "";
-    this.carSteamT = 0;
-    this.audio?.steam();
-    this.logLine = CAR_LINES.on;
-    return true;
-  }
-
-  /** Step down. The car stays where it stands (on the vale), the hero on its seat point (a free spot for a body). */
-  carOff(why: "step" | "door" | "fight" | "hit" | "water" | "fall" = "step") {
-    if (!this.driving) return;
-    this.driving = false;
-    if (this.mapId === "world") {
-      this.carX = this.px;
-      this.carY = this.py;
-    }
-    if (this.solidFeet()) this.unstick();
-    this.audio?.rattle();
-    this.logLine = why === "door" ? CAR_LINES.door : why === "fight" ? CAR_LINES.fight : why === "hit" ? CAR_LINES.hit : why === "water" ? CAR_LINES.water : CAR_LINES.off;
-  }
-
-  /** The car button (B, the HUD button, Use on open vale ground): step down, climb in, or call the car to you. */
-  carAction() {
-    if (!this.carOwned || this.mode !== "play") return;
-    if (this.driving) {
-      this.carOff("step");
-      return;
-    }
-    if (Math.hypot(this.carX - this.px, this.carY - this.py) < CAR.near && this.mapId === "world") {
-      this.carOn();
-      return;
-    }
-    this.summonCar();
-  }
-
-  /** Call the car to where you stand (vale only; room for its body; no foe on you), then climb in. */
-  summonCar() {
-    if (!this.carOwned || this.driving) return;
-    if (this.mapId !== "world") {
-      this.logLine = CAR_LINES.notHere;
-      return;
-    }
-    if (this.roamers.some((r) => this.liveFoe(r) && r.aggro && Math.hypot(r.x - this.px, r.y - this.py) < CAR.foeNear)) {
-      this.logLine = CAR_LINES.fight;
-      return;
-    }
-    const f = ([this.facing as CarFacing, "e", "w", "s", "n"] as CarFacing[]).find((k) => !this.carBlocked(this.px, this.py, k));
-    if (!f) {
-      this.logLine = CAR_LINES.noRoom;
-      return;
-    }
-    this.carX = this.px;
-    this.carY = this.py;
-    this.carFacing = f;
-    this.carOn();
-    if (this.driving) this.logLine = CAR_LINES.far;
-  }
-
-  /** Buy the car from the salesman (it then waits by the road gate on the vale). */
-  buyCar() {
-    if (this.carOwned) {
-      if (this.talk) this.talk.text = CAR_LINES.owned;
-      return;
-    }
-    if (this.coin < CAR.price) {
-      if (this.talk) this.talk.text = CAR_LINES.poor(this.coin);
-      this.logLine = `The bone car is ${CAR.price} silver.`;
-      return;
-    }
-    this.coin -= CAR.price;
-    this.carOwned = true;
-    this.carX = CAR.park.x * TILE + 8;
-    this.carY = CAR.park.y * TILE + 8;
-    this.carFacing = "e";
-    this.audio?.coin();
-    if (this.talk) this.talk.text = CAR_LINES.sold;
-    this.logLine = "The bone car is yours. It waits by the road gate.";
-  }
-
-  /** Each frame: stops (an exit or water touched, a foe on you, a fight, a fall, a map left), steam and rattle. */
-  private tickCar(dt: number) {
-    if (!this.driving) {
-      if (this.carPuffs.length) this.carPuffs = this.carPuffs.filter((p) => (p.life -= dt) > 0);
-      if (this.carBump) this.carBump = "";
-      return;
-    }
-    if (this.mapId !== "world") {
-      // a map left by any road (a portal, a fall): the car stays where it last stood on the vale
-      this.driving = false;
-      this.carPuffs = [];
-      return;
-    }
-    this.carX = this.px;
-    this.carY = this.py;
-    if (this.fallen > 0) return this.carOff("fall");
-    if (this.mode === "battle") return this.carOff("fight");
-    if (this.roamers.some((r) => this.liveFoe(r) && r.aggro && Math.hypot(r.x - this.px, r.y - this.py) < CAR.foeNear)) return this.carOff("fight");
-    if (this.carBump) {
-      const why = this.carBump as "door" | "water";
-      this.carBump = "";
-      return this.carOff(why);
-    }
-    this.carSteamT -= dt;
-    if (this.carSteamT <= 0) {
-      this.carSteamT = this.moving ? CAR.steamEvery : CAR.steamEvery * 3;
-      const back = this.carFacing === "e" ? -22 : this.carFacing === "w" ? 22 : 0;
-      const up = this.carFacing === "n" ? -6 : this.carFacing === "s" ? -30 : -40;
-      if (this.carPuffs.length >= CAR.puffMax) this.carPuffs.shift();
-      this.carPuffs.push({ x: this.px + back, y: this.py + up, life: CAR.puffLife, drift: ((this.frame * 7) % 5) - 2 });
-    }
-    this.carPuffs = this.carPuffs.filter((p) => (p.life -= dt) > 0);
-    if (this.moving) {
-      this.carRattleT -= dt;
-      if (this.carRattleT <= 0) {
-        this.carRattleT = CAR.rattleEvery;
-        this.audio?.rattle();
-      }
-    }
   }
 
   /** Take the guild hire for this class, if the level gate is met and the seat is empty. */
@@ -3525,8 +3255,6 @@ export class Game {
     if (this.askLeave) return;
     this.worldMs += dt * 1000;
     this.tickWeather();
-    this.revealMap(); // playtest1v map fog
-    this.tickCar(dt); // playtest1v bone car
     this.syncMood();
     this.derbyClock -= dt;
     if (this.derbyClock <= 0) {
@@ -3650,11 +3378,7 @@ export class Game {
     if (this.held.has(this.keyBind.down) || this.held.has("ArrowDown")) y += 1;
     if (this.held.has(this.keyBind.left) || this.held.has("ArrowLeft")) x -= 1;
     if (this.held.has(this.keyBind.right) || this.held.has("ArrowRight")) x += 1;
-    if (x !== 0 || y !== 0 || this.stickX || this.stickY) {
-      this.goal = null;
-      this.route = [];
-    }
-    if (!this.goal && this.route.length && x === 0 && y === 0) this.goal = this.route.shift() ?? null; // playtest1v
+    if (x !== 0 || y !== 0 || this.stickX || this.stickY) this.goal = null;
     if (this.stickX || this.stickY) {
       x += this.stickX;
       y += this.stickY;
@@ -3671,7 +3395,7 @@ export class Game {
     const len = Math.hypot(x, y);
     const wishX = len > 0.01 ? x / len : 0;
     const wishY = len > 0.01 ? y / len : 0;
-    const kind = this.driving ? "land" : this.groundKind(); // playtest1v: the car neither wades nor slides
+    const kind = this.groundKind();
     const beforeX = this.px;
     const beforeY = this.py;
     /** Accelerate, then bleed speed. A small leftover velocity is dropped so the hero does not creep. */
@@ -3704,8 +3428,7 @@ export class Game {
       this.wading = kind === "water";
       if (len > 0.01) {
         /** 37 is half of 74. Water never inherits the ice slide. */
-        const sp = this.driving ? CAR.walk * CAR.speed : kind === "water" ? 37 : this.running ? 110 : 74; // playtest1v: the bone car
-        if (this.driving) this.turnCar(Math.abs(x) > Math.abs(y) ? (x > 0 ? "e" : "w") : y > 0 ? "s" : "n");
+        const sp = kind === "water" ? 37 : this.running ? 110 : 74;
         this.try(wishX * sp * dt, wishY * sp * dt);
         if (Math.abs(x) > Math.abs(y)) this.facing = x > 0 ? "e" : "w";
         else this.facing = y > 0 ? "s" : "n";
@@ -3717,7 +3440,6 @@ export class Game {
       this.goalStuck = moved < 0.2 ? this.goalStuck + 1 : 0;
       if (this.goalStuck > 10) {
         this.goal = null;
-        this.route = [];
         this.goalStuck = 0;
       }
     }
@@ -3764,11 +3486,6 @@ export class Game {
 
   setGoal(x: number, y: number) {
     if (this.mode !== "play") return;
-    this.route = [];
-    // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a tap on a village icon's roofs walks you
-    // round to its doorstep (a short tile route), which zones you in
-    const vil = this.mapId === "world" ? villageArtAt(x, y) : undefined;
-    if (vil?.entry && this.routeTo(vil.entry.x, vil.entry.y)) return;
     // playtest1f: a tap on a wayrift's art walks you into its mouth (the stones would stop a straight line to the tap)
     const way = this.mapId === "world" ? wayArtAt(x, y, TILE) : undefined;
     if (way) {
@@ -3780,54 +3497,6 @@ export class Game {
     }
     this.goal = { x, y };
     this.goalStuck = 0;
-  }
-
-  /** playtest1v: walk to tile (tx, ty) by the shortest open tile route (within 40 tiles); false when there is none. */
-  routeTo(tx: number, ty: number): boolean {
-    const sx = Math.floor(this.px / TILE);
-    const sy = Math.floor(this.py / TILE);
-    const S = 40;
-    const W = 2 * S + 1;
-    const ox = sx - S;
-    const oy = sy - S;
-    const at = (x: number, y: number) => (y - oy) * W + (x - ox);
-    if (Math.abs(tx - sx) > S || Math.abs(ty - sy) > S) return false;
-    const prev = new Int32Array(W * W).fill(-2);
-    // never across a tile that leaves the map on the way (a door, a stair, a mouth, a rift, a wayrift, another doorstep)
-    const exit = (x: number, y: number) => {
-      const t = this.tiles[y * this.w + x];
-      return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || t === T.exit || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((r) => r.tx === x && r.ty === y) || !!wayMouthAt(x, y) || !!villageEntryAt(x, y)));
-    };
-    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < this.w && y < this.h && ((x === tx && y === ty) || !exit(x, y)) && !this.solidAt(x * TILE + 8, y * TILE + 8) && !this.blockedProp(x * TILE + 8, y * TILE + 8);
-    const q = [sx, sy];
-    prev[at(sx, sy)] = -1;
-    let hit = -1;
-    for (let k = 0; k < q.length && hit < 0; k += 2) {
-      const x = q[k];
-      const y = q[k + 1];
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < ox || ny < oy || nx >= ox + W || ny >= oy + W || prev[at(nx, ny)] !== -2) continue;
-        if (!free(nx, ny)) continue;
-        prev[at(nx, ny)] = at(x, y);
-        if (nx === tx && ny === ty) {
-          hit = at(nx, ny);
-          break;
-        }
-        q.push(nx, ny);
-      }
-    }
-    if (hit < 0) return false;
-    const path: { x: number; y: number }[] = [];
-    for (let k = hit; k >= 0 && prev[k] !== -1; k = prev[k]) path.push({ x: ((k % W) + ox) * TILE + 8, y: (Math.floor(k / W) + oy) * TILE + 8 });
-    path.reverse();
-    // keep the corners only (a straight run is one leg)
-    const legs = path.filter((p, i) => i === path.length - 1 || !(path[i + 1] && path[i - 1] && path[i + 1].x - p.x === p.x - path[i - 1].x && path[i + 1].y - p.y === p.y - path[i - 1].y));
-    this.goal = legs.shift() ?? null;
-    this.route = legs;
-    this.goalStuck = 0;
-    return true;
   }
 
   // ---- playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting] (tapfight.ts) ----
@@ -3863,7 +3532,6 @@ export class Game {
   }
 
   private setLock(r: Roamer) {
-    if (this.driving) this.carOff("fight"); // playtest1v: locking a foe is a fight: down from the car
     this.lock = r;
     this.lockSeen = { def: r.def, name: r.name ?? "", x: r.x, y: r.y, aggro: !!r.aggro, map: this.mapId };
     this.lockPlan = null;
@@ -4066,7 +3734,7 @@ export class Game {
     // never through a tile that leaves the map (a door or gate, a stair, a hearth, a dungeon or rift mouth): the lock walk stays here
     const exit = (x: number, y: number) => {
       const t = this.tiles[y * this.w + x];
-      return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || (this.mapId === "village" && t === T.exit) || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((q) => q.tx === x && q.ty === y) || !!villageEntryAt(x, y)));
+      return t === T.door || t === T.stairD || t === T.stairU || t === T.hearth || (this.mapId === "world" && (!!this.entrances[`${x},${y}`] || RIFTS.some((q) => q.tx === x && q.ty === y)));
     };
     const free = (x: number, y: number) => {
       const cx = x * TILE + 8;
@@ -4198,7 +3866,6 @@ export class Game {
   }
 
   private solidFeet() {
-    if (this.driving) return this.carBlocked(this.px, this.py, this.carFacing, true); // playtest1v: the car's own footprint
     const pts = [
       [this.px - 5, this.py - 2],
       [this.px + 5, this.py - 2],
@@ -4384,17 +4051,6 @@ export class Game {
       const m = held && wayMouth(held);
       if (!m || this.mapId !== "world" || tx !== m.x || (ty !== m.y && ty !== m.y + 1)) this.wayHold = "";
     }
-    // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village icon's doorstep zones you in;
-    // the gap in a village's south trees puts you back on the vale
-    if (this.mapId === "village" && here === T.exit) {
-      this.leaveVillage();
-      return;
-    }
-    const vil = this.mapId === "world" && !this.riftHold && !this.travel ? villageEntryAt(tx, ty) : undefined;
-    if (vil?.id) {
-      this.enterVillage(vil.id);
-      return;
-    }
     const way = this.mapId === "world" && !this.riftHold && !this.travel ? wayMouthAt(tx, ty) : undefined;
     if (way && way.id === this.wayHold) return;
     if (way) {
@@ -4548,7 +4204,7 @@ export class Game {
   }
 
   private rollEncounter() {
-    if (this.mode !== "play" || this.calm > 0 || this.mapId === "town" || this.mapId === "inside" || this.mapId === "camp" || this.mapId === "village") return;
+    if (this.mode !== "play" || this.calm > 0 || this.mapId === "town" || this.mapId === "inside" || this.mapId === "camp") return;
     if (this.mapId === "world" && this.phase === "night") return;
     const tx = Math.floor(this.px / TILE);
     const ty = Math.floor(this.py / TILE);
@@ -4619,7 +4275,7 @@ export class Game {
   }
 
   private tickRoamers(dt: number) {
-    if (this.mapId === "town" || this.mapId === "inside" || this.mapId === "camp" || this.mapId === "village") return;
+    if (this.mapId === "town" || this.mapId === "inside" || this.mapId === "camp") return;
     if (this.mapId === "world" && this.phase === "day") {
       // OWNER-APPROVED FIX 2026-10-01 (day-sweep): the day clears wanderers, never a foe already in a fight.
       // A festival boss leaves at dawn too, unless you are fighting it.
@@ -4841,12 +4497,6 @@ export class Game {
       return;
     }
     if (this.mode !== "play") return;
-    // playtest1v: Use in the seat steps down; Use beside the bone car on the vale climbs in
-    if (this.driving) {
-      this.carOff("step");
-      return;
-    }
-    if (this.mapId === "world" && this.carOwned && Math.hypot(this.carX - this.px, this.carY - this.py) < CAR.near && this.carOn()) return;
     if (this.mapId === "camp" && this.companion && Math.hypot(this.companion.x - this.px, this.companion.y - this.py) < 28) {
       const c = this.companion;
       this.talk = {
@@ -4915,10 +4565,6 @@ export class Game {
       this.fightAnimal(animal);
       return;
     }
-    if (!best && !this.nearFish() && this.mapId === "world" && this.carOwned && !animal) {
-      this.summonCar(); // playtest1v: Use on open vale ground with nothing to answer calls the bone car (pad and touch too)
-      return;
-    }
     if (!best && !this.nearFish()) {
       this.logLine = here === T.grave ? "A quiet stone. The open grave is the one with the ladder." : "Nothing here answers.";
       return;
@@ -4975,7 +4621,7 @@ export class Game {
       if (def?.town || this.dungeon === "grave" || this.dungeon === "hearth") {
         if (this.dungeon === "hearth") this.enterInside("chapel", true);
         else this.enterTown(this.dungeon === "grave" ? 14 * TILE : 6 * TILE, this.dungeon === "grave" ? 18 * TILE : 20 * TILE);
-      } else this.enterWorld(Math.max(TILE, (def?.tx ?? WORLD_DOOR.x) * TILE), Math.max(TILE, ((def?.ty ?? 113) + 1) * TILE));
+      } else this.enterWorld(Math.max(TILE, (def?.tx ?? WORLD_DOOR.x) * TILE), Math.max(TILE, ((def?.ty ?? 80) + 1) * TILE));
       this.logLine = home ? `You climb back into the open air. ${home}` : "You climb back into the open air.";
       return;
     }
@@ -5225,11 +4871,6 @@ export class Game {
       this.talkFestival(n);
       return;
     }
-    if (n.role === "carman") {
-      this.talk = { who: n.name, role: n.role, npcId: n.id, text: this.carOwned ? CAR_LINES.owned : CAR_LINES.pitch }; // playtest1v
-      this.mode = "talk";
-      return;
-    }
     const delivered = n.role === "undertaker" ? this.takeDelivery() : "";
     if (delivered) {
       this.talk = { who: n.name, role: n.role, npcId: n.id, text: delivered };
@@ -5270,11 +4911,6 @@ export class Game {
   /** Pay for the service that the open conversation offered. */
   acceptService() {
     if (!this.talk) return;
-    if (this.talk.role === "carman") {
-      this.mode = "play"; // playtest1v: the sale is its own choice; Continue just closes
-      this.talk = null;
-      return;
-    }
     if (this.talk.role === "companion") {
       this.mode = "play";
       this.talk = null;
@@ -5687,10 +5323,6 @@ export class Game {
     this.audio?.spell();
     if (p.mapId === "inside" && p.inside) {
       this.enterInside(p.inside, true);
-      this.px = p.px;
-      this.py = p.py;
-    } else if (p.mapId === "village" && p.inside && villageById(p.inside)) {
-      this.enterVillage(p.inside, true); // playtest1v
       this.px = p.px;
       this.py = p.py;
     } else if (p.mapId === "dungeon") {
@@ -6427,10 +6059,6 @@ export class Game {
   /** A learned class art. Mana, or blood for a vampire. The picture matches the tree. */
   castKnown(name: string) {
     if (this.mode !== "play" || this.fallen > 0 || !name) return;
-    if (this.driving) {
-      this.logLine = CAR_LINES.noFight; // playtest1v
-      return;
-    }
     this.noteManual();
     const look = HERO_SPELLS[name];
     if (!look || !CLASSES[this.cls].specials.includes(name)) return;
@@ -6580,10 +6208,6 @@ export class Game {
   /** Layout Two. Tap is Slash when a foe is in the cone. Otherwise it is the context verb. */
   slash() {
     if (this.mode !== "play" || this.fallen > 0) return;
-    if (this.driving) {
-      this.interact(); // playtest1v: the Use press in the car steps down; no swing from the seat
-      return;
-    }
     this.noteManual();
     this.actPose = "swing";
     this.actFor = 0.22;
@@ -6594,10 +6218,6 @@ export class Game {
   /** SEC. 18 stamina. Hits everyone at your feet. */
   whirl() {
     if (this.mode !== "play" || this.fallen > 0) return;
-    if (this.driving) {
-      this.logLine = CAR_LINES.noFight; // playtest1v
-      return;
-    }
     this.noteManual();
     if (!this.spend("whirl")) return;
     this.actPose = "swing";
@@ -6644,10 +6264,6 @@ export class Game {
   /** 3RD. 12 mana, or 12 blood. Breaks a telegraphed big move, then locks for 12s. */
   smite() {
     if (this.mode !== "play" || this.fallen > 0) return;
-    if (this.driving) {
-      this.logLine = CAR_LINES.noFight; // playtest1v
-      return;
-    }
     this.noteManual();
     if (!this.spend("smite")) return;
     this.actPose = "cast";
@@ -6759,7 +6375,7 @@ export class Game {
     st.poison = Math.max(0, (st.poison ?? 0) - dt);
     st.comboCool = Math.max(0, (st.comboCool ?? 0) - dt);
     const t = this.tileUnder(r.x, r.y);
-    const open = this.mapId === "world" || this.mapId === "camp" || this.mapId === "village";
+    const open = this.mapId === "world" || this.mapId === "camp";
     const wet = t === T.water || t === T.pool || t === T.swamp || (open && WET_WEATHER.has(weather));
     const cold = t === T.snow || t === T.ice || (open && COLD_WEATHER.has(weather)) || RIMED_FAMILIES.has(r.family);
     st.wet = wet ? STATUS.linger : Math.max(0, (st.wet ?? 0) - dt);
@@ -7788,7 +7404,6 @@ export class Game {
 
   private bite(dealt: number, label: string) {
     if (this.fallen > 0 || this.iframe > 0) return;
-    if (this.driving) this.carOff("hit"); // playtest1v: a hit throws you from the car
     if (this.wardUntil > this.worldMs) dealt = Math.max(1, dealt - 2);
     // playtest1k: "Guard me" (a companion without a heal): it stands at your side and every hit is cut.
     if (this.guardUntil > this.worldMs && this.allyUp()) dealt = Math.max(1, Math.round(dealt * ORDER.guardCut));
@@ -7815,7 +7430,6 @@ export class Game {
    */
   openBattle(foes: Foe[], flags: { guard: boolean; goblin: boolean; hunter: boolean; fromRole: string }) {
     if (this.mode === "shop" || this.mode === "talk" || this.mode === "title") return;
-    if (this.driving) this.carOff("fight"); // playtest1v
     this.goal = null;
     this.audio?.hit();
     const link = this.worldMs;
@@ -8673,61 +8287,6 @@ export class Game {
     this.leaveCamp();
   }
 
-  /**
-   * playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: into a village's own little map (villages.ts),
-   * from its icon's doorstep on the vale. inside holds the village id (saves, drops and a town portal keep it). keep skips the
-   * arrival spot (a save or a portal sets its own). No foe follows you in; the companion walks in at your side.
-   */
-  enterVillage(id: string, keep = false) {
-    const v = villageById(id);
-    if (!v) return;
-    this.mapId = "village";
-    this.inside = id;
-    this.theme = "over";
-    this.fog = null;
-    this.w = v.w;
-    this.h = v.h;
-    this.tiles = v.tiles.slice();
-    this.npcs = [{ id: `vendor-${id}`, name: v.vendor.name, x: v.vendor.x * TILE + 8, y: v.vendor.y * TILE + 8, coat: v.vendor.coat, role: "merchant" }];
-    this.roamers = [];
-    this.entrances = {};
-    this.critters = [];
-    this.route = [];
-    this.goal = null;
-    this.clearLock("zone");
-    if (!keep) {
-      this.px = v.arrive.x * TILE + 8;
-      this.py = v.arrive.y * TILE + 8;
-      this.facing = "n";
-      this.audio?.door();
-      this.logLine = `${v.name}. Lamps in the windows. The gap in the south trees leads back out.`;
-    }
-    if (this.companion) {
-      this.companion.x = this.px + 16;
-      this.companion.y = this.py;
-      if (this.solidAt(this.companion.x, this.companion.y) || this.blockedProp(this.companion.x, this.companion.y)) this.freeBody(this.companion);
-    }
-    this.doorCool = 0.45;
-    this.seenBiome = "";
-  }
-
-  /** playtest1v: out of a village through its south gap, onto the vale one tile south of the icon's doorstep, facing away. */
-  leaveVillage() {
-    const m = worldHamlets().find((h) => h.id === this.inside);
-    const v = villageById(this.inside);
-    const e = m?.entry ?? { x: GATE.x, y: GATE.y - 1 };
-    this.audio?.door();
-    this.enterWorld(e.x * TILE + 8, (e.y + 1) * TILE + 8);
-    this.facing = "s";
-    this.doorCool = 0.45;
-    if (this.companion) {
-      this.companion.x = this.px;
-      this.companion.y = this.py - 16;
-      if (this.solidAt(this.companion.x, this.companion.y) || this.blockedProp(this.companion.x, this.companion.y)) this.freeBody(this.companion);
-    }
-    this.logLine = v ? `You leave ${v.name}. The road is where you left it.` : "You step back onto the road.";
-  }
-
   /** A small clearing. The south mark breaks camp and puts you back where you were. */
   enterCamp(keep = false) {
     if (!keep) {
@@ -8999,10 +8558,6 @@ export class Game {
       campX: this.campX,
       campY: this.campY,
       worldV: WORLD.scale,
-      mapSeen: this.fogStrings(),
-      carOwned: this.carOwned,
-      carX: this.driving && this.mapId === "world" ? this.px : this.carX,
-      carY: this.driving && this.mapId === "world" ? this.py : this.carY,
       drops: this.drops.map((d) => ({ ...d, item: d.item ? { ...d.item } : null })),
     };
   }
@@ -9092,16 +8647,6 @@ export class Game {
     this.inv = raw.inv ?? [];
     this.equip = raw.equip ?? {};
     this.visited = raw.visited ?? [];
-    // playtest1v: the map fog (an old save opens the town and round where it has been) and the bone car
-    this.mapSeen = {};
-    this.mapSeenRaw = raw.mapSeen && typeof raw.mapSeen === "object" ? { ...raw.mapSeen } : {};
-    this.fogMark = "";
-    if (!raw.mapSeen) this.seedOldFog(raw);
-    this.carOwned = !!raw.carOwned;
-    this.carX = raw.carX ?? CAR.park.x * TILE + 8;
-    this.carY = raw.carY ?? CAR.park.y * TILE + 8;
-    this.driving = false;
-    this.carPuffs = [];
     this.bestiary = raw.bestiary ?? [];
     this.portal = raw.portal ?? null;
     this.rentedUntil = raw.rentedUntil ?? 0;
@@ -9132,15 +8677,6 @@ export class Game {
       // A save made inside a rift sits on its mouth: hold the mouth until you step off, as on the way out.
       this.riftHold = `${Math.floor(raw.px / TILE)},${Math.floor(raw.py / TILE)}`;
     } else if (raw.mapId === "camp") this.enterCamp(true);
-    else if (raw.mapId === "village") {
-      // playtest1v: a save made in a village loads there (inside = its id); a village that is gone puts you at the gate
-      if (raw.inside && villageById(raw.inside)) {
-        this.enterVillage(raw.inside, true);
-        this.px = raw.px;
-        this.py = raw.py;
-        this.unstick();
-      } else this.enterWorld(GATE.x * TILE + 8, GATE.y * TILE + 8);
-    }
     else if (raw.mapId === "inside" && raw.inside) {
       this.enterInside(raw.inside, true);
       this.px = raw.px;
@@ -9180,11 +8716,9 @@ export class Game {
  */
 export function migrateWorldSave(raw: SaveBlob): SaveBlob {
   if ((raw.worldV ?? 1) >= WORLD.scale) return raw;
-  // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: from whatever vale the save was made on
-  // (1 = the 64x60 plan, 2 = the 1e 128x120 vale) to this one (2 x sqrt2, 181x170): a 1e save grows by sqrt2.
-  const k = WORLD.scale / (raw.worldV ?? 1);
+  const k = WORLD.scale;
   const fit = (v: number, n: number) => Math.max(TILE + 8, Math.min(n * TILE - TILE - 8, Math.round(v * k)));
-  const out: SaveBlob = { ...raw, worldV: WORLD.scale }; // grown once: the record is now this vale's
+  const out: SaveBlob = { ...raw, worldV: k };
   if (raw.mapId === "world") {
     out.px = fit(raw.px, WORLD.w);
     out.py = fit(raw.py, WORLD.h);
@@ -9202,17 +8736,16 @@ export function migrateWorldSave(raw: SaveBlob): SaveBlob {
 const LAIR = { rx: 6, ry: 5 } as const;
 const HALL = { w: 12, h: 10 } as const;
 
-// playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v bigger biomes]: every world place at its 1e tile x sqrt2.
 const WORLD_BOSSES = [
-  { id: "bride", tx: 45, ty: 119, lv: 14 },
-  { id: "shade", tx: 40, ty: 102, lv: 18 },
-  { id: "saint", tx: 170, ty: 62, lv: 28 },
-  { id: "mummyboss", tx: 164, ty: 85, lv: 36 },
-  { id: "ashmare", tx: 136, ty: 147, lv: 38 },
-  { id: "wolfman", tx: 91, ty: 17, lv: 52 },
-  { id: "queen", tx: 34, ty: 59, lv: 58 },
-  { id: "tzar", tx: 107, ty: 91, lv: 72 },
-  { id: "leech", tx: 76, ty: 85, lv: 78 },
+  { id: "bride", tx: 32, ty: 84, lv: 14 },
+  { id: "shade", tx: 28, ty: 72, lv: 18 },
+  { id: "saint", tx: 120, ty: 44, lv: 28 },
+  { id: "mummyboss", tx: 116, ty: 60, lv: 36 },
+  { id: "ashmare", tx: 96, ty: 104, lv: 38 },
+  { id: "wolfman", tx: 64, ty: 12, lv: 52 },
+  { id: "queen", tx: 24, ty: 42, lv: 58 },
+  { id: "tzar", tx: 76, ty: 64, lv: 72 },
+  { id: "leech", tx: 54, ty: 60, lv: 78 },
 ];
 
 /** Loot Goblin odds by biome: the camp's numbers, shared with a rift's possible goblin. */
@@ -9533,7 +9066,6 @@ function buildTown() {
     { id: "guard1", name: "Guard", x: 21 * TILE + 8, y: 18 * TILE + 8, coat: "#2a3140", role: "guard" },
     { id: "guard2", name: "Bank Guard", x: 37 * TILE + 8, y: 10 * TILE + 8, coat: "#2a3140", role: "guard" },
     { id: "guard3", name: "Casino Guard", x: 31 * TILE + 8, y: 21 * TILE + 8, coat: "#2a3140", role: "guard" },
-    { ...SHOWROOM.salesman }, // playtest1v: the bone car's salesman, by its velvet ropes
   ];
   spreadProps(tiles, w, h, true);
   return { w, h, tiles, npcs };
@@ -9541,12 +9073,12 @@ function buildTown() {
 
 /** The world boss stands and the road carts, on the vale grid (twice the old plan). */
 const WORLD_CARTS: [number, number][] = [
-  [91, 119],
-  [57, 102],
-  [147, 68],
-  [113, 141],
-  [85, 34],
-  [96, 74],
+  [64, 84],
+  [40, 72],
+  [104, 48],
+  [80, 100],
+  [60, 24],
+  [68, 52],
 ];
 
 /**
@@ -9567,28 +9099,6 @@ export function worldHamlets(): HamletT[] {
   if (!worldMemo) worldMemo = layWorld();
   return worldMemo.hamlets;
 }
-/** playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: the village icon whose doorstep is tile (x, y). */
-export function villageEntryAt(x: number, y: number): HamletT | undefined {
-  return worldHamlets().find((m) => !!m.entry && m.entry.x === x && m.entry.y === y);
-}
-/** playtest1v: the village icon drawn at world px (x, y): its roofs' box with their headroom (two tiles over the box). */
-export function villageArtAt(x: number, y: number): HamletT | undefined {
-  const tx = x / TILE;
-  const ty = y / TILE;
-  return worldHamlets().find((m) => !!m.entry && tx >= m.x && tx < m.x + m.w && ty >= m.y - 2 && ty < m.y + m.h);
-}
-const villageMemo = new Map<string, VillageT>();
-/** playtest1v: a village's own map by id (built once, from its icon's biome and order). */
-export function villageById(id: string): VillageT | undefined {
-  const hit = villageMemo.get(id);
-  if (hit) return hit;
-  const m = worldHamlets().find((h) => h.id === id);
-  if (!m?.id) return undefined;
-  const k = Number(m.id.split("-").pop() ?? 0);
-  const v = buildVillage(m.id, m.biome, k);
-  villageMemo.set(id, v);
-  return v;
-}
 function buildWorld() {
   if (!worldMemo) worldMemo = layWorld();
   const m = worldMemo;
@@ -9604,17 +9114,17 @@ function layWorld() {
   for (const b of WORLD_BOSSES) sites.push({ x: b.tx, y: b.ty });
   for (const [x, y] of WORLD_CARTS) sites.push({ x, y });
   const npcs: Npc[] = [
-    { id: "m1", name: "Road Merchant", x: 93 * TILE, y: 119 * TILE, coat: "#6a5040", role: "merchant" },
-    { id: "m2", name: "Campfire Trader", x: 57 * TILE, y: 102 * TILE, coat: "#8a5a30", role: "merchant" },
-    { id: "m3", name: "Waste Cart", x: 147 * TILE, y: 68 * TILE, coat: "#c4b48a", role: "merchant" },
-    { id: "m4", name: "Ash Seller", x: 113 * TILE, y: 141 * TILE, coat: "#4a4038", role: "merchant" },
-    { id: "m5", name: "Snow Peddler", x: 85 * TILE, y: 34 * TILE, coat: "#d0d8e4", role: "merchant" },
-    { id: "m6", name: "Swamp Cart", x: 96 * TILE, y: 74 * TILE, coat: "#2a4030", role: "merchant" },
-    { id: "g1", name: "Vale Watch", x: 96 * TILE, y: 113 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g2", name: "Waste Watch", x: 141 * TILE, y: 113 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g3", name: "Cinder Watch", x: 113 * TILE, y: 133 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g4", name: "Winter Watch", x: 96 * TILE, y: 23 * TILE, coat: "#2a3140", role: "guard" },
-    { id: "g5", name: "Swamp Watch", x: 91 * TILE + 20, y: 85 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "m1", name: "Road Merchant", x: 66 * TILE, y: 84 * TILE, coat: "#6a5040", role: "merchant" },
+    { id: "m2", name: "Campfire Trader", x: 40 * TILE, y: 72 * TILE, coat: "#8a5a30", role: "merchant" },
+    { id: "m3", name: "Waste Cart", x: 104 * TILE, y: 48 * TILE, coat: "#c4b48a", role: "merchant" },
+    { id: "m4", name: "Ash Seller", x: 80 * TILE, y: 100 * TILE, coat: "#4a4038", role: "merchant" },
+    { id: "m5", name: "Snow Peddler", x: 60 * TILE, y: 24 * TILE, coat: "#d0d8e4", role: "merchant" },
+    { id: "m6", name: "Swamp Cart", x: 68 * TILE, y: 52 * TILE, coat: "#2a4030", role: "merchant" },
+    { id: "g1", name: "Vale Watch", x: 68 * TILE, y: 80 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g2", name: "Waste Watch", x: 100 * TILE, y: 80 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g3", name: "Cinder Watch", x: 80 * TILE, y: 94 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g4", name: "Winter Watch", x: 68 * TILE, y: 16 * TILE, coat: "#2a3140", role: "guard" },
+    { id: "g5", name: "Swamp Watch", x: 64 * TILE + 20, y: 60 * TILE, coat: "#2a3140", role: "guard" },
   ];
   for (const n of npcs) sites.push({ x: Math.floor(n.x / TILE), y: Math.floor(n.y / TILE) });
   sites.push({ x: WORLD_DOOR.x, y: WORLD_DOOR.y }, { x: HARVEST.lord.x, y: HARVEST.lord.y }, { x: KRAMPUSNACHT.spot.x, y: KRAMPUSNACHT.spot.y });
@@ -9664,18 +9174,8 @@ function layHamlets(tiles: Uint8Array, landmarks: { x: number; y: number }[], ca
   const laid = gravewakeHamlets(tiles, keep, GATE);
   tiles.set(laid.tiles);
   const W = WORLD.w;
-  const seen: Record<string, number> = {};
   return laid.hamlets.map((m) => {
     const biome = worldBiome(m.x, m.y) as HamletBiomeId;
-    // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: an icon plan (HAMLET_ENTRY) is a village's
-    // icon: its id and name (in the order its biome's icons were laid) and its way in, the entry lot's doorstep
-    const k = (seen[biome] = (seen[biome] ?? -1) + 1);
-    const el = HAMLET_ENTRY[m.plan] !== undefined ? m.lots[HAMLET_ENTRY[m.plan]] : undefined;
-    if (el) {
-      const lots = m.lots.map((l) => ({ ...l, kind: HAMLET_KINDS[biome][l.size] }));
-      const entry = { x: el.doorX, y: el.doorY + 1 };
-      return { x: m.x, y: m.y, w: m.w, h: m.h, biome, lots, walk: [entry.y * W + entry.x], id: `village-${biome}-${k}`, name: VILLAGE_NAMES[biome][k % VILLAGE_NAMES[biome].length], entry };
-    }
     const lots = m.lots.map((l) => ({ ...l, kind: HAMLET_KINDS[biome][l.size] }));
     // the walk: down from each north-row door to the green's middle row, along it, and out both sides of the box
     const north = lots.filter((l) => l.y === m.y);
