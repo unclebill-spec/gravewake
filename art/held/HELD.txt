@@ -1,0 +1,9 @@
+These are drawn in the game.
+
+trees.png — autumn trees in town, the sand, and the camp. Cozy pack, Ishtar Pixels, CC0.
+rocks.png — stones in town and on every other rock in the wild. Same pack.
+fence.png — log posts around the camp clearing. Same pack.
+
+dawn-floor.png, dawn-wall.png, dawn-pit0.png — DawnLike autotile sheets.
+They are corners and flat swatches, not a tile you can repeat, so they are not stamped on the caves.
+The cave floors are the brick strips from the pixel writer.
