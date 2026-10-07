@@ -10,7 +10,7 @@ import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./t
 import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
 import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
 import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, PARK_STATUE, PARK_ARCH, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
-import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM } from "./wildportals";
+import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM, isWildMap } from "./wildportals"; // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: isWildMap for the calm bone floor
 import type { Game } from "./sim";
 import { boulderAt, roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
 import { BOULDER, BOULDERS_EM, BOULDERS_SHEET, BOULDER_GLOW, BOULDER_SEASONS, boulderCol, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
@@ -983,6 +983,23 @@ const MIMIC_SLEEP = "/art/writer/mimic-sleep.png";
 const PROP_CHEST = "/art/writer/prop-chest.png";
 const PROP_MIMIC_LID = "/art/writer/prop-mimic-lid.png";
 const PROP_BONES = "/art/writer/prop-bones.png";
+/** playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: Bill (21:02 ET) "the floor with bones on it is really busy, change it to a less busy texture".
+ * The wild rift's bone rooms (the floors layout's `wildrift` and the Rift Warden's `wilddeep`) are all T.bone, and 1z drew a
+ * bright bone heap on every tile. There a T.bone tile now draws calm dark crypt earth (floor-bone2.png, 8 cells, seeded per
+ * tile) and a small muted bone accent (decal-bone2.png, 4 cells) on about one tile in ten; no heap. Looks only: the tiles,
+ * collision, foes and saves are untouched. Every other T.bone (a generated dungeon's single heap by the pool) keeps the 1h heap. */
+export const BONE_FLOOR = { sheet: "/art/writer/floor-bone2.png", accents: "/art/writer/decal-bone2.png", cells: 8, accentCells: 4, accentRate: 0.1, seed: 2021 } as const;
+/** playtest2a: does this scene draw its T.bone tiles as the calm bone floor (the wild rift's rooms)? */
+export function boneFloorScene(g: Game): boolean {
+  return g.mapId === "dungeon" && isWildMap(g.dungeon);
+}
+/** playtest2a: the floor cell of a bone-floor tile, and its accent cell or -1 (about BONE_FLOOR.accentRate of tiles). */
+export function boneFloorCells(x: number, y: number): { cell: number; accent: number } {
+  const cell = Math.floor(hash(x, y, BONE_FLOOR.seed) * BONE_FLOOR.cells);
+  const accent = hash(x, y, BONE_FLOOR.seed + 1) < BONE_FLOOR.accentRate ? Math.floor(hash(x, y, BONE_FLOOR.seed + 2) * BONE_FLOOR.accentCells) : -1;
+  return { cell, accent };
+}
+let boneFloorNow = false;
 export const caveLiquid = (theme: string) => `/art/writer/cave-liquid-${theme in CAVES ? theme : "cave"}.png`;
 function chestArt() {
   const im = landSheet[PROP_CHEST];
@@ -3763,6 +3780,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   const hix = hamletIndex(g); // playtest1u
   // gfx2: the floor kit of this dungeon floor (null elsewhere), read by drawTile; its decals go on below.
   kitNow = floorKit(g);
+  boneFloorNow = boneFloorScene(g); // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]
   // On the vale, open ground shows its skin biome; road verges read the skin too. Every other tile is as before.
   const look = (j: number, t: number) => (skin && SKIN_OPEN.has(t) && t !== T.tree && t !== T.rock && t !== T.pump && t !== T.grave ? VALE_GROUND[skin.biome[j]] : t);
   const bx0 = Math.floor(camX / TILE) - PROP2_SLACK.cols;
@@ -3808,6 +3826,12 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         if (!slab) drawTile(ctx, chestOn as Tile, x, y, n, g.theme, above, g.frame, left, right, below);
         sheetCell(ctx, PROP_CHEST, 0, 0, x * TILE, y * TILE);
       } else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
+      if (boneFloorNow && tile === T.bone) {
+        // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: calm earth, a rare small accent, no heap
+        const bf = boneFloorCells(x, y);
+        sheetCell(ctx, BONE_FLOOR.sheet, bf.cell, 0, x * TILE, y * TILE);
+        if (bf.accent >= 0) sheetCell(ctx, BONE_FLOOR.accents, bf.accent, 0, x * TILE, y * TILE);
+      }
       if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
@@ -3941,7 +3965,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         props.push({ y: (y + 1) * TILE - 1, fn: () => void paintEntrance(ctx, look, x, y, g.frame) });
         glow.push((c) => void paintEntrance(c, look, x, y, g.frame, true));
       }
-      if (caveBone(g, i, tile)) {
+      if (caveBone(g, i, tile) && !boneFloorNow) { // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: no heap on the calm bone floor
         props.push({
           y: y * TILE + 12,
           fn: () => {

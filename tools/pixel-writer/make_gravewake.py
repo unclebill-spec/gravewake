@@ -929,6 +929,18 @@ def playtest1z(out: Path = OUT) -> dict:
     return made
 
 
+def playtest2a(out: Path = OUT) -> dict:
+    """playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: the wild rift's bone rooms get a calm
+    floor (floor-bone2.png) and rare small bone accents (decal-bone2.png) from bonefloor_writer.py. prop-bones.png stays."""
+    import bonefloor_writer as bw
+
+    made = bw.sheets()
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
 if __name__ == "__main__":
     main()
     playtest1o()
@@ -938,3 +950,4 @@ if __name__ == "__main__":
     playtest1w()
     playtest1y()
     playtest1z()
+    playtest2a()

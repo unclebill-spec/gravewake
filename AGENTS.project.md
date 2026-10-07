@@ -439,3 +439,11 @@ Bill's 17:14 ET clarification (missed in 1z): the camp with Elder Thorn is a THI
 - WILD PORTALS ROLL IN PLAY: `tickWildPortal` runs in the normal play tick (1z only called it inside a wayrift swirl, where it returned at once, so no wild portal ever rose). A run left any other way (death, a load) is cleared there.
 - SAVES (keep it): a wild run is never saved. A save inside one is written at the run's return spot on the vale (`wildSaveSpot`, no new field). A 1z save made on a wild map (`wildrift` / `wildcamp` / `wildquest`, or `wilddeep`) lands on open vale ground by the road gate (`isWildMap` in `loadRecord`).
 - CHECKS: group `playtest1z2` (6 checks). Lighter policy. Group `playtest1z` still runs live.
+
+## playtest2a (calmer bone floor in the wild rift's rooms) — [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]
+
+Bill (2026-10-06 21:02 ET): "the floor with bones on it is really busy, change it to a less busy texture."
+
+- BONE FLOOR (keep it): in a wild rift room (`boneFloorScene`: `mapId === "dungeon"` and `isWildMap(dungeon)`, i.e. the floors layout's `wildrift` and `wilddeep`), a `T.bone` tile draws `floor-bone2.png` (calm dark crypt earth, 8 cells) and on about 1 tile in 10 a small muted accent from `decal-bone2.png` (4 cells); no bone heap. Drawn by `tools/pixel-writer/bonefloor_writer.py` via `make_gravewake.playtest2a()` (palette v3, hard alpha, nothing glows so no _em). `prop-bones.png` stays for the generated dungeons' single heap. Looks only: tiles, collision, foes, numbers and saves untouched.
+- QUICK PATH FOR ART-ONLY SWAPS [OWNER-APPROVED 2026-10-06 21:06 ET: quick path for art-only swaps]: an art-only swap (a sheet redrawn, its draw hook, no sim / numbers / saves) runs typecheck, build, one Phone screenshot and one before/after composite, then the usual publish (zip, gh-sync, pages build + pages_check, secret scan incl. PREVIEW_CLIENT_SECRET, gh-pages force-push, live verify). No freeze, edit_check, new check:game group, fail-proofs, test1/test2 or sweep. The next code batch's full lighter checks cover any pins such a swap left (2a did not freeze draw.ts / make_gravewake.py / AGENTS.project.md; floor-bone2/decal-bone2/bonefloor_writer.py are in no older digest's new-file list yet).
+
