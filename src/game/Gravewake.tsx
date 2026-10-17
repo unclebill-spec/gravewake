@@ -36,6 +36,7 @@ import {
 } from "./screen";
 import { BJ, CARD, CARD_SHEET, bjValue, pokerRank, type Card } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { InstallButton } from "../pwa/InstallButton"; // install1
+import { CreditsBody } from "./credits"; // playtest2b [OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs]: Credits and Licenses
 import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
 import { FxOptions } from "./FxOptions"; // playtest1l
 import { TAP } from "./tapfight"; // playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]
@@ -72,7 +73,7 @@ export function Gravewake() {
   const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
   const pinchD = useRef<number | null>(null);
   const lookRef = useRef<View | null>(null);
-  const [pauseTab, setPauseTab] = useState<"pack" | "guide" | "pad" | "display">("pack");
+  const [pauseTab, setPauseTab] = useState<"pack" | "guide" | "pad" | "display" | "credits">("pack"); // playtest2b: + credits
   // screen1: display settings (saved), the frame in force, the loading cover, the sideways prompt, the pad layer.
   const mainRef = useRef<HTMLElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,7 @@ export function Gravewake() {
   useIosTipRequest(() => setTip(true)); // install1: the Install button on iPhone opens screen1's tip
   const [padOn, setPadOn] = useState(false);
   const [titleDisplay, setTitleDisplay] = useState(false);
+  const [titleCredits, setTitleCredits] = useState(false); // playtest2b: the title's Credits panel
   const [fsAvail, setFsAvail] = useState(true);
   const cardRef = useRef<HTMLDivElement>(null);
   const campRef = useRef<HTMLButtonElement>(null);
@@ -890,6 +892,15 @@ export function Gravewake() {
           {titleDisplay ? (
             <div className="w-full max-w-lg rounded border border-border bg-surface p-3">
               <ScreenOptions s={screenSet} view={look} fs={fs} onSet={setScreen} onFullscreen={fullscreen} onClose={() => setTitleDisplay(false)} />
+              {/* playtest2b [OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs]: a row inside the existing Display panel, no new title button */}
+              <button type="button" data-testid="title-credits" className="mt-2 w-full rounded border border-border px-3 py-2 text-left text-sm" onClick={() => setTitleCredits(true)}>
+                Credits and Licenses
+              </button>
+            </div>
+          ) : null}
+          {titleCredits ? (
+            <div className="w-full max-w-lg rounded border border-border bg-surface p-3" data-testid="title-credits-panel">
+              <CreditsBody onClose={() => setTitleCredits(false)} />
             </div>
           ) : null}
           <p className="text-xs tracking-[0.28em] text-muted uppercase">Twilight vale</p>
@@ -1676,13 +1687,15 @@ export function Gravewake() {
                 </div>
               </div>
               <div className="flex gap-2">
-                {(["pack", "guide", "pad", "display"] as const).map((tab) => (
+                {(["pack", "guide", "pad", "display", "credits"] as const).map((tab) => (
                   <button key={tab} type="button" data-testid={`tab-${tab}`} className={`rounded border px-2 py-1 text-xs ${pauseTab === tab ? "border-primary" : "border-border"}`} onClick={() => setPauseTab(tab)}>
-                    {tab === "pack" ? "Pack" : tab === "guide" ? "Guide" : tab === "pad" ? "Controller" : "Display"}
+                    {tab === "pack" ? "Pack" : tab === "guide" ? "Guide" : tab === "pad" ? "Controller" : tab === "credits" ? "Credits" : "Display"}
                   </button>
                 ))}
               </div>
-              {pauseTab === "display" ? (
+              {pauseTab === "credits" ? (
+                <CreditsBody /> /* playtest2b: Credits and Licenses in the pause menu */
+              ) : pauseTab === "display" ? (
                 <ScreenOptions s={screenSet} view={look} fs={fs} onSet={setScreen} onFullscreen={fullscreen} />
               ) : pauseTab === "guide" ? (
                 <div className="text-sm text-muted">

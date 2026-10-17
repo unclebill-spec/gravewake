@@ -111,12 +111,15 @@ type SwWindow = {
   navigator: { serviceWorker?: { register: (url: string, o: { scope: string; updateViaCache: "none" }) => Promise<unknown> } };
   document: { readyState: string };
   addEventListener: (t: "load", f: () => void, o?: { once: boolean }) => void;
+  /** playtest2b: present only inside the Android app (Capacitor injects it); the app bundles the game, so no worker. */
+  Capacitor?: { isNativePlatform?: () => boolean };
 };
 
 /** Register `sw.js` from the site base (a GitHub Pages subpath build uses its own base). False when it does not. */
 export function registerServiceWorker(win: SwWindow, prod: boolean, base = "/"): boolean {
   const sw = win.navigator.serviceWorker;
   if (!prod || !sw || !swAllowed(win.location)) return false;
+  if (win.Capacitor?.isNativePlatform?.()) return false; // playtest2b [OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs]: the Android app is its own offline cache
   const root = base.endsWith("/") ? base : `${base}/`;
   const go = () => {
     sw.register(`${root}sw.js`, { scope: root, updateViaCache: "none" }).catch(() => {

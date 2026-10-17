@@ -1,0 +1,13 @@
+{
+  "_appIdStatus": "PROPOSED, Bill decides: com.gravewake.game is a placeholder. The package name is permanent on Google Play (it can never be changed or reused). See docs/PLAY_STORE.md for the options. Change it here BEFORE running `cap add android` / the first Play upload, and in android/android/app/build.gradle (namespace, applicationId) + the Java package folder if the native project is already generated.",
+  "appId": "com.gravewake.game",
+  "appName": "Gravewake",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

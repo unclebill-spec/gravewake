@@ -1,0 +1,940 @@
+"""Build Gravewake's missing ground with the pixel writer.
+
+Run from the repo root:
+
+    python3 tools/pixel-writer/make_gravewake.py
+
+Tiles land in public/art/writer. The game reads those strips.
+This file is the Gravewake job. The writer itself is tools/pixel-writer/pixel_writer.py.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+from PIL import Image
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from pixel_writer import GLYPHS, Canvas, big_slab, cells, flagstone, floor_decal, floor_ramp, lamp_bracket, lamp_flicker, portal_gate, wall_face, wall_ramp, wall_rim, wall_top, bloom_prop, border_mask, boss_plaque, fair_prop, festival_prop, flood_tile, bounty_board, croft_piece, derby_trophy, grave_dug, mimic_breath, brick, pressure_plate, shackle, spike_grate, crack, field, flame, glyph_strip, grass, pit, preview, rune_door, saint, sconce, season_remap, soil, strip, water
+from pixel_writer import basin, cobble, planks, road, town_fence
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sprite-writer"))
+from palette_locked import LOCKED, LOCKED_V2  # noqa: E402
+from palette_locked import LOCKED_V3, NEON  # noqa: E402  playtest1b
+from ramps import RAMPS  # noqa: E402
+
+OUT = Path(__file__).resolve().parents[2] / "public" / "art" / "writer"
+
+# Same floors the caves already use in draw.ts. Do not invent a new hue per theme.
+CAVES = {
+    "harrow": ("#5a463c", "#3a3028", "#6a5648", "#3a322c"),
+    "ossuary": ("#3a2844", "#241830", "#4a3854", "#2a1830"),
+    "wraps": ("#8a7048", "#5a4830", "#a08860", "#705838"),
+    "carrion": ("#2c3848", "#1a2430", "#3a4a5c", "#1e2834"),
+    "wick": ("#5a3424", "#3a2418", "#6a4430", "#3a2018"),
+    "warren": ("#6a5830", "#4a3c20", "#8a7040", "#4a3818"),
+    "chapel": ("#3a4458", "#242c38", "#4a5468", "#222a36"),
+    "vesper": ("#4a2428", "#2a1418", "#5a3438", "#301418"),
+    "drowned": ("#2a4034", "#142820", "#3a5044", "#163028"),
+    "blackroot": ("#2a3024", "#141810", "#3a4034", "#161c14"),
+    "grave": ("#2c3a2a", "#1a2418", "#3c4a38", "#182016"),
+    "hearth": ("#4a2a28", "#2a1614", "#5a3a34", "#2a1412"),
+    "cave": ("#5a3a32", "#3a2824", "#6a4a40", "#3a2420"),
+}
+
+# Cave wall and wall light, copied from CAVES in src/game/draw.ts. The secret tiles sit on those walls.
+WALLS = {
+    "harrow": ("#3c4652", "#5a6878"),
+    "ossuary": ("#4a3a58", "#6a5878"),
+    "wraps": ("#6a5840", "#a08860"),
+    "carrion": ("#3a4a5c", "#7aa0c0"),
+    "wick": ("#4a3428", "#6a4838"),
+    "warren": ("#5a4030", "#8a6840"),
+    "chapel": ("#465068", "#8aa0c8"),
+    "vesper": ("#3a2428", "#6a3840"),
+    "drowned": ("#2a4038", "#4a6858"),
+    "blackroot": ("#243028", "#3a5040"),
+    "grave": ("#3a4438", "#5a6854"),
+    "hearth": ("#3a2828", "#6a4038"),
+    "cave": ("#3a4450", "#6a7888"),
+}
+
+# Secret-tile colors. All of them are already in the game.
+LINE = "#140c10"
+IRON = ("#2a2428", "#4a4a50", "#6a6e78")
+ASH, EMBER = "#5a5e64", "#c45a18"
+FIRE = ("#c45a18", "#e07a2f", "#f0c080", "#f4e27a")
+STONE = ("#8a867c", "#6a6660", "#b7b2a6")
+RECESS = "#1a1418"
+# Glyph states: carved on a saint's plinth, dim on iron, lit.
+GLYPH_STATES = ["#3a3428", "#5a5e64", "#f0c878"]
+
+
+def feat_sheets() -> list:
+    """Sheets for the rune doors and the secret walls. Returns every image so the palette can be checked."""
+    made = []
+    for name, (wall, hi) in WALLS.items():
+        tiles = [
+            crack(0, LINE, hi),
+            crack(1, LINE, hi),
+            rune_door(wall, hi, IRON[0], IRON[1], IRON[2], LINE),
+            sconce(IRON[0], IRON[1], IRON[2], ASH, EMBER, LINE),
+            saint(RECESS, STONE[0], STONE[1], STONE[2], LINE),
+        ]
+        im = strip(tiles)
+        im.save(OUT / f"feat-{name}.png")
+        made.append(im)
+    fire = strip([flame(i, *FIRE) for i in range(3)])
+    fire.save(OUT / "feat-fire.png")
+    glyphs = glyph_strip(list(GLYPHS), GLYPH_STATES)
+    glyphs.save(OUT / "feat-glyphs.png")
+    # Traps: one sheet for every cave. 0 holes, 1 tips (tell), 2 spikes up, 3 plate, 4 plate pressed.
+    trap = strip(
+        [spike_grate(i, IRON[1], LINE, IRON[1], IRON[2], "#c8c8d0") for i in range(3)]
+        + [pressure_plate(p, LINE, STONE[1], STONE[0], "#4a4038", "#3a3428") for p in (False, True)]
+    )
+    trap.save(OUT / "trap.png")
+    # Rescue: 0 a captive's stake with the chain on, 1 the chain broken and the cuff open.
+    captive = strip([shackle(b, LINE, IRON[0], IRON[1], IRON[2]) for b in (False, True)])
+    captive.save(OUT / "captive.png")
+    # Night bounty board (item 7): 0 posted, 1 paid and slashed, 2 bare by day.
+    board = strip([bounty_board(k, LINE, "#5a4030", "#6a4830", "#e6dcc8", "#c4b48a", "#140c10", "#8f2d3a", "#e0c060") for k in (0, 1, 2)])
+    board.save(OUT / "bounty.png")
+    # Sleeping mimic (owner-approved 2026-09-30): 0 lid lifted a pixel, 1 lifted with a tooth glint.
+    # Colors are the game's chest lid and lock, and the ink line.
+    breath = strip([mimic_breath(g, "#c4a050", LINE, "#f0e2c8") for g in (False, True)])
+    breath.save(OUT / "mimic-sleep.png")
+    # Grave digging (item 8): fresh earth at the foot of a grave turned tonight. Camp dirt and the ink line.
+    dug = strip([grave_dug(LINE, "#3a2818", "#5a4030", "#3a2818", "#6a5040", LINE)])
+    dug.save(OUT / "grave-dug.png")
+    # Midnight Derby (item 9): the trophy on the croft wall. Board browns, the pond's blues, a witchlit spark.
+    trophy = strip([derby_trophy(LINE, "#5a4030", "#6a4830", "#3a78a0", "#7aa4b4", "#d5e8f2", "#c8e080", "#e0c060")])
+    trophy.save(OUT / "derby-trophy.png")
+    made += [fire, glyphs, trap, captive, board, breath]
+    made += [dug, trophy]
+    # Home decorating (item 10): six croft pieces in the order of DECOR.pieces, and the boss-trophy mount.
+    # Cottage browns, the pond's glass, candle and lantern golds, nightshade purple.
+    pieces = ("cabinet", "bookcase", "candelabra", "armchair", "perch", "planter")
+    decor = strip([croft_piece(k, LINE, "#1a1008", "#5a4030", "#8a6840", "#3a78a0", "#e6d2a2", "#2a2a2e", "#e0a040", "#6a1828", "#2a5838", "#7a5088") for k in pieces])
+    decor.save(OUT / "croft-decor.png")
+    plaque = strip([boss_plaque(LINE, "#5a4030", "#6a4830", "#1a1008", "#e0c060")])
+    plaque.save(OUT / "boss-plaque.png")
+    made += [decor, plaque]
+    # Festivals (items 12/14): 0 harvest lantern unlit, 1 lit, 2 Krampusnacht snow lantern, 3 Hessa's stall.
+    # Pumpkin oranges, the stem green, post browns, candle gold, lantern stone, snow whites, a stall cloth.
+    props = strip([festival_prop(k, LINE, "#e07a2f", "#c45a18", "#3d4a28", "#5a4030", "#8a6840", "#e0a040", "#fff8e0",
+                                 "#8a9098", "#4a4a50", "#e8f2f6", "#c5d4e8", "#6a2030") for k in ("harvest-unlit", "harvest-lit", "snow-lit", "stall")])
+    props.save(OUT / "festival-props.png")
+    made += [props]
+    # Drowned Bloom and Ashen Fair (owner-approved 2026-10-01 10:14 ET): 0 bloom bowl, 1 Ottla's stall, 2 a drowned
+    # bloom on its pad, 3 ember brazier, 4 brazier flaring, 5 Sallow's booth. The pond's blues, the cream of the bounty
+    # paper, a dusky rose heart, the swamp greens, lantern stone, post browns; brazier iron, the fire ramp, ash,
+    # a stall red and cream, the candle golds for the burning moon.
+    bloom = [bloom_prop(k, LINE, "#16344c", "#3a78a0", "#d5e8f2", "#f0e2c8", "#c4a898", "#c4a0b0", "#2a5838", "#1a2c22",
+                        "#8a9098", "#4a4a50", "#5a4030", "#8a6840", "#3a78a0") for k in ("bowl", "stall", "bloom")]
+    fair = [fair_prop(k, LINE, IRON[1], IRON[0], IRON[2], EMBER, "#e07a2f", "#f0c080", "#f4e27a", ASH, "#5a4030", "#8a6840",
+                      "#8f2d3a", "#e6dcc8", "#e0a040", "#c45a18") for k in ("brazier", "flare", "booth")]
+    props2 = strip(bloom + fair)
+    props2.save(OUT / "festival-props2.png")
+    flood = strip([flood_tile(i, "#16344c", "#2a4034", "#3a78a0", "#d5e8f2", "#3d4a28") for i in range(4)])
+    flood.save(OUT / "flood.png")
+    made += [props2, flood]
+    # Map writer phase 2 (owner-requested 2026-10-01): biome border fringe masks. 0-3 bands n e s w, 4-7 the same
+    # bands' second variant, 8-11 corners ne se sw nw. One locked ink (the line colour); only the alpha is used.
+    border = strip([border_mask(k, v, LINE) for v in (0, 1) for k in "nesw"] + [border_mask(k, 0, LINE) for k in ("ne", "se", "sw", "nw")])
+    border.save(OUT / "border-dither.png")
+    made += [border]
+    for im in made:
+        raw = im.tobytes()
+        for i in range(0, len(raw), 4):
+            r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
+            if a and a != 255:
+                raise SystemExit("feat sheet has a soft pixel")
+            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED:
+                raise SystemExit(f"feat sheet color #{r:02x}{g:02x}{b:02x} is not in the locked palette")
+    return made
+
+
+# Core Keeper-style graphics pass, batch 1 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11).
+# Wall kit per cave: 16x32 cells, the tile is the bottom 16 rows. 0 face plain, 1 face cracked, 2 face with the
+# cave's feature, 3 thin face plain, 4 thin face cracked, 5-7 wall tops, 8 rim n, 9 rim w, 10 rim e.
+WALL_FACE_H = {"chapel": 32}
+WALL_FEATURE = {"ossuary": "niche", "grave": "niche", "harrow": "niche", "carrion": "niche", "wraps": "niche", "chapel": "niche",
+                "drowned": "moss", "blackroot": "moss", "warren": "moss", "cave": "moss"}
+WALL_EXTRA = {"moss": ("#1e3a28", "#2f6a44"), "bone": ("#d8c8a0", LINE)}
+# Portal gates: one generator, three looks. stone (line .. top), rune (2), vortex (5, dark to light), core, spark, ash.
+PORTALS = {
+    "rift": {"stone": ["#140c10", "#241830", "#3a3030", "#4a4450", "#6a6660", "#8a867c"], "rune": ["#c45a18", "#e07a2f"],
+             "vortex": ["#140c28", "#2a1848", "#5a3080", "#7a5ad0", "#c9a0e8"], "core": "#07060a", "spark": ["#e07a2f", "#f0c080"],
+             "ash": ["#5a5e64", "#8a867c"]},
+    "teleport": {"stone": ["#140c10", "#1a2030", "#2a3140", "#3a4a68", "#5a6878", "#8aa0c8"], "rune": ["#3a78a8", "#7ec8e0"],
+                 "vortex": ["#0c2030", "#163044", "#3a78a8", "#7ec8e0", "#d0e4ff"], "core": "#07060a", "spark": ["#d0e4ff", "#f4fbff"],
+                 "ash": ["#5a6878"]},
+    "realm": {"stone": ["#140c10", "#3a2818", "#6a5a4a", "#a89470", "#d8c8a0", "#f4ecdc"], "rune": ["#c4a050", "#f0d060"],
+              "vortex": ["#102018", "#1e3a28", "#2f6a44", "#4a8a48", "#9ec060"], "core": "#07060a", "spark": ["#f0d060", "#fff0c0"],
+              "ash": ["#9ec060"]},
+}
+
+
+# Batch 3 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11, C1/C3): the two violet-grey stone caves take
+# palette v2's #9a8aa8 as the bright lip of their walls in place of the warm #9a958e. The ossuary takes the doc's
+# crypt ramp whole; the harrow keeps its own blue-grey steps. Steps 3 and 4 stay the cave's wall and rim colours.
+WALL_FIXED = {"ossuary": RAMPS["crypt"][0:6],
+              "harrow": ["#101014", "#1a2030", "#2a3140", "#3c4652", "#5a6878", "#9a8aa8"]}
+
+
+def gfx1_sheets() -> list:
+    """Wall kits, the lamp sheet and the portal gates. Returns every image so the palette can be checked."""
+    made = []
+    ramps = {}
+    lum = lambda c: 0.299 * int(c[1:3], 16) + 0.587 * int(c[3:5], 16) + 0.114 * int(c[5:7], 16)
+    for name, (wall, hi) in WALLS.items():
+        ramp = WALL_FIXED.get(name) or wall_ramp(wall, hi, LOCKED)
+        if ramp[3] != wall or ramp[4] != hi or any(lum(ramp[i]) >= lum(ramp[i + 1]) for i in range(5)):
+            raise SystemExit(f"wall ramp for {name} must be strictly lighter and keep {wall}/{hi} at steps 3/4: {ramp}")
+        ramps[name] = ramp
+        h = WALL_FACE_H.get(name, 24)
+        feat = WALL_FEATURE.get(name, "crack")
+        extra = {"moss": WALL_EXTRA["moss"], "bone": WALL_EXTRA["bone"]}
+        seed = 500 + 17 * list(WALLS).index(name)
+        kit = [wall_face(ramp, h, seed, "plain"), wall_face(ramp, h, seed + 1, "crack"), wall_face(ramp, h, seed + 2, feat, extra),
+               wall_face(ramp, 16, seed + 3, "plain"), wall_face(ramp, 16, seed + 4, "crack")]
+        kit += [wall_top(ramp, seed + 5 + i) for i in range(3)]
+        kit += [wall_rim(ramp, side) for side in "nwe"]
+        im = cells(kit)
+        im.save(OUT / f"wall-{name}.png")
+        made.append(im)
+    lamp = strip([lamp_bracket(LINE, IRON[0], IRON[2], "#5a4030", "#8a6840")] + [lamp_flicker(i, *FIRE) for i in range(4)])
+    lamp.save(OUT / "lamp.png")
+    made.append(lamp)
+    for name, pal in PORTALS.items():
+        im = cells([portal_gate(part, pal) for part in range(9)])
+        im.save(OUT / f"portal-{name}.png")
+        made.append(im)
+    (Path(__file__).resolve().parent / "wall-ramps.json").write_text(json.dumps(ramps, indent=1, sort_keys=True) + "\n")
+    for im in made:
+        raw = im.tobytes()
+        for i in range(0, len(raw), 4):
+            r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
+            if a and a != 255:
+                raise SystemExit("gfx1 sheet has a soft pixel")
+            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V2:
+                raise SystemExit(f"gfx1 sheet color #{r:02x}{g:02x}{b:02x} is not in palette v2")
+    return made
+
+
+# Core Keeper-style graphics pass, batch 2 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11).
+# Floor kit per cave, 16x16 cells: 0-4 single slabs, 5 split across, 6 split down, 7 offset, 8 broken (earth hole),
+# 9-12 a 2x2 grave slab (NW, NE, SW, SE). Decal strip per cave: 0 bones, 1 skull, 2 crack, 3 moss in the seam under
+# a wall (ash and embers in the ember caves), 4 wax pool, 5 rubble. Palette v2 (LOCKED_V2, C3). The ossuary takes
+# the doc's cool grey flag ramp against its violet crypt walls; every other cave keeps its own floor hue.
+FLOOR_FIXED = {"ossuary": RAMPS["flag"][0:1] + RAMPS["flag"][2:]}
+FLOOR_GAP = 28  # luminance between the wall's base and the slab: two ramp steps (doc: "at least 2 steps")
+# Batch 3: the harrow had the same grey floor as the ossuary. It keeps its own warm earth hue at full strength
+# (no pull toward grey) and sits a little higher over its wall, so its slab is #8a6858, unlike any other cave.
+FLOOR_TUNE = {"harrow": {"gap": 34.0, "pull": 0.0}}
+EMBER_CAVES = ("wick", "hearth", "warren")
+GROWTH = {"moss": ["#1e3a28", "#2f6a44", "#4a8a48"], "ember": ["#3a1810", "#8a3a18", "#c45a18"]}
+DECALS = ["bones", "skull", "crack", "moss", "wax", "rubble"]
+
+
+def gfx2_sheets() -> list:
+    """Floor kits and decal strips. Returns every image so the palette can be checked."""
+    made = []
+    walls = json.loads((Path(__file__).resolve().parent / "wall-ramps.json").read_text())
+    ramps = {}
+    for name in CAVES:
+        ramp = FLOOR_FIXED.get(name) or floor_ramp(CAVES[name][0], walls[name], LOCKED_V2, **FLOOR_TUNE.get(name, {}))
+        lum = lambda c: 0.299 * int(c[1:3], 16) + 0.587 * int(c[3:5], 16) + 0.114 * int(c[5:7], 16)
+        if any(lum(ramp[i]) >= lum(ramp[i + 1]) for i in range(5)):
+            raise SystemExit(f"floor ramp for {name} is not strictly lighter step by step: {ramp}")
+        if lum(ramp[4]) - lum(walls[name][3]) < FLOOR_GAP:
+            raise SystemExit(f"floor of {name} is within two steps of its wall: {ramp[4]} vs {walls[name][3]}")
+        ramps[name] = ramp
+        seed = 900 + 23 * list(CAVES).index(name)
+        kit = [flagstone(ramp, seed + i, "single") for i in range(5)]
+        kit += [flagstone(ramp, seed + 5, "split_h"), flagstone(ramp, seed + 6, "split_v"), flagstone(ramp, seed + 7, "offset"), flagstone(ramp, seed + 8, "broken")]
+        kit += big_slab(ramp, seed + 9)
+        floor = strip(kit)
+        floor.save(OUT / f"floor-{name}.png")
+        growth = GROWTH["ember" if name in EMBER_CAVES else "moss"]
+        decal = strip([floor_decal(k, ramp, RAMPS["bone"], growth, seed + 20 + i) for i, k in enumerate(DECALS)])
+        decal.save(OUT / f"decal-{name}.png")
+        made += [floor, decal]
+    (Path(__file__).resolve().parent / "floor-ramps.json").write_text(json.dumps(ramps, indent=1, sort_keys=True) + "\n")
+    for im in made:
+        raw = im.tobytes()
+        for i in range(0, len(raw), 4):
+            r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
+            if a and a != 255:
+                raise SystemExit("gfx2 sheet has a soft pixel")
+            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V2:
+                raise SystemExit(f"gfx2 sheet color #{r:02x}{g:02x}{b:02x} is not in palette v2")
+    return made
+
+
+# Batch 3 glow masks (C4/C9: emissives stay at full light). A copy of a sprite sheet that keeps only its flame and
+# eye pixels; the game draws it at full light over the dark. The mimic gets none: glowing eyes would give it away.
+EM_COLOURS = ("#f4e27a", "#fff8e0", "#e0a040")
+EM_SOURCES = ("foes", "pumpkin-lord", "krampus")
+
+
+def em_mask(src: Image.Image) -> Image.Image:
+    """The glow mask of one sheet: its solid flame and eye pixels, everything else clear."""
+    keep = {tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in EM_COLOURS}
+    src = src.convert("RGBA")
+    em = Image.new("RGBA", src.size, (0, 0, 0, 0))
+    sp, ep = src.load(), em.load()
+    for y in range(src.size[1]):
+        for x in range(src.size[0]):
+            r, g, b, a = sp[x, y]
+            if a == 255 and (r, g, b) in keep:
+                ep[x, y] = (r, g, b, 255)
+    return em
+
+
+def gfx3_sheets() -> list:
+    """Glow masks, from the sprite writer's sheets in public/art/sprites. Returns every mask."""
+    made = []
+    sprites = OUT.parent / "sprites"
+    for name in EM_SOURCES:
+        em = em_mask(Image.open(sprites / f"{name}.png"))
+        em.save(sprites / f"{name}_em.png")
+        made.append(em)
+    return made
+
+
+def season_sheets() -> list:
+    """Item 13: four season tints of the world grass, the camp grass, the town grass and both tree sheets.
+    Each is a colour-for-colour remap into the locked palette (pixel_writer.season_remap). Written after
+    vale.png and camp-grass.png, which are two of the sources."""
+    art = OUT.parent
+    sources = {
+        "vale": (OUT / "vale.png", "ground"),
+        "camp-grass": (OUT / "camp-grass.png", "ground"),
+        # playtest1d (owner-requested 2026-10-02, batch C2 "cozier town grass"): the writer's lawn, not the cozy pack's
+        "town-grass": (OUT / "town-grass.png", "ground"),
+        "trees": (art / "brileta" / "trees.png", "tree"),
+        "town-trees": (art / "held" / "trees.png", "tree"),
+    }
+    town_grass_strip().save(OUT / "town-grass.png")
+    made = []
+    maps = {}
+    for season in ("autumn", "winter", "spring", "summer"):
+        for name, (src, kind) in sources.items():
+            if name == "town-grass":
+                # playtest1d: the town lawn is drawn per season by town_writer (a remap turned it to mud in autumn)
+                im = town_grass_strip(season)
+                im.save(OUT / f"season-{season}-{name}.png")
+                maps[f"{season}-{name}"] = {"drawn": "town_writer.town_grass"}
+                made.append(im)
+                continue
+            im, used = season_remap(Image.open(src), season, kind, LOCKED)
+            im.save(OUT / f"season-{season}-{name}.png")
+            maps[f"{season}-{name}"] = used
+            made.append(im)
+    for im in made:
+        raw = im.tobytes()
+        for i in range(0, len(raw), 4):
+            r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
+            if a and a != 255:
+                raise SystemExit("season sheet has a soft pixel")
+            if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED:
+                raise SystemExit(f"season sheet color #{r:02x}{g:02x}{b:02x} is not in the locked palette")
+    (Path(__file__).resolve().parent / "season-maps.json").write_text(json.dumps(maps, indent=1, sort_keys=True) + "\n")
+    return made
+
+
+# playtest1 (owner-reported 2026-10-01, old ground textures): the town cobble and town water were the third-party
+# land pack (blue-greys and bright cyans, none locked), the town dirt was the cozy pack's striped orange soil, the vale
+# road, the room floors and the town pool were drawn in code with random marks. All five are writer strips now.
+TOWN_STONE = ("#2a2420", ["#4a4450", "#5a564e", "#6a6660", "#8a867c", "#b7b2a6"])
+PT1_GROUNDS = {
+    "town-cobble": lambda i: cobble(300 + i, TOWN_STONE[0], TOWN_STONE[1], i),
+    "town-dirt": lambda i: soil(320 + i * 5, "#6a5040", "#4a3424", "#8a6848", "#2a221c", i),
+    "vale-road": lambda i: road(340 + i, "#b09060", "#8a6844", "#6a5038", "#d8c4a0", "#8a7a64", i),
+    "room-floor": lambda i: planks(360 + i, "#6a5038", "#5a4030", "#2a1c14", "#4a3424", "#8a6848", "#c4b49a", i),
+    "town-pool": lambda i: basin(i, "#6a6058", "#8a867c", "#3a3028", "#1a3848", "#16344c", "#8ec4d4"),
+}
+
+
+def playtest1_grounds() -> list:
+    made = []
+    for name, make in PT1_GROUNDS.items():
+        tiles = [make(i) for i in range(4)]
+        for t in tiles:
+            for row in t.p:
+                for c in row:
+                    if c is None or c.lower() not in LOCKED:
+                        raise SystemExit(f"{name}: {c} is not in the locked palette (or a hole)")
+        strip(tiles).save(OUT / f"{name}.png")
+        made.append(tiles)
+    fence = [town_fence(k, "#1a1008", "#6a5038", "#8a6848", "#3a2818", "#8a867c") for k in ("h", "v", "end")]
+    for t in fence:
+        for row in t.p:
+            for c in row:
+                if c is not None and c.lower() not in LOCKED:
+                    raise SystemExit(f"town-fence: {c} is not in the locked palette")
+    strip(fence).save(OUT / "town-fence.png")
+    made.append(fence)
+    preview([t for ts in made for t in ts], 4).save(OUT / "preview-playtest1.png")
+    return made
+
+
+def main() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    vale = [grass(10 + i * 9, "#1a3828", "#102018", "#3a6840", "#c4b49a", i) for i in range(8)]
+    camp_grass = [grass(40 + i * 7, "#243428", "#142018", "#4a6840", "#c4a15a", i) for i in range(4)]
+    camp_dirt = [soil(80 + i * 5, "#5a4030", "#3a2818", "#6a5040", "#2a221c", i) for i in range(4)]
+    # playtest1c (owner-reported 2026-10-02, "the pixel writer recolors town water slightly wrong"): this recipe asked
+    # for #3a78a0 under the swell, so every re-run painted a pale band the shipped strip never had (the strip had been
+    # restored by hand with an unlocked #1c4060). The band is #2a4060 now, the locked step nearest the look that
+    # shipped, and the strip is the writer's own output again. The game draws the playtest1c wrapping water.
+    pond = [water("#16344c", "#2a4060", "#7aa4b4", i) for i in range(4)]
+    grounds = {
+        "swamp": ("#1a2c22", "#0e2418", "#4a8a58"),
+        "snow": ("#c5d8e6", "#8aa4b0", "#f4fbff"),
+        "sand": ("#b6a47c", "#8a7048", "#e6d6b0"),
+        "ash": ("#3a322c", "#1a1612", "#5a4030"),
+    }
+    strip(vale).save(OUT / "vale.png")
+    strip(camp_grass).save(OUT / "camp-grass.png")
+    strip(camp_dirt).save(OUT / "camp-dirt.png")
+    strip(pond).save(OUT / "water.png")
+    for name, (base, dark, light) in grounds.items():
+        tiles = [field(100 + i * 3, base, dark, light, i) for i in range(4)]
+        strip(tiles).save(OUT / f"{name}.png")
+    for name, (fill, mortar, hi, shade) in CAVES.items():
+        tiles = [brick(200 + i * 11, fill, mortar, hi, shade) for i in range(4)]
+        strip(tiles).save(OUT / f"brick-{name}.png")
+        strip([pit(fill, "#0c0808", mortar)]).save(OUT / f"pit-{name}.png")
+    # One sheet to look at. Nearest neighbor, so a bad pixel is obvious.
+    sheet = vale + camp_grass + camp_dirt + pond
+    preview(sheet, 4).save(OUT / "preview.png")
+    pt1 = playtest1_grounds()
+    print(f"playtest1 grounds {len(pt1)}, palette locked")
+    feats = feat_sheets()
+    print(f"feat sheets {len(feats)}, palette locked")
+    seasons = season_sheets()
+    print(f"season sheets {len(seasons)}, palette locked")
+    gfx = gfx1_sheets()
+    print(f"gfx1 sheets {len(gfx)}, palette locked")
+    floors = gfx2_sheets()
+    print(f"gfx2 sheets {len(floors)}, palette v2 locked")
+    masks = gfx3_sheets()
+    print(f"gfx3 glow masks {len(masks)}")
+    b1 = playtest1b_b1()
+    print(f"playtest1b B1 sheets {len(b1)}, palette v3 locked")
+    b2 = playtest1b_b2()
+    print(f"playtest1b B2 sheets {len(b2)}, palette v3 locked")
+    c1 = playtest1c_c1()
+    print(f"playtest1c C1 sheets {len(c1)}, palette v3 locked")
+    c2 = playtest1d_c2()
+    print(f"playtest1d C2 sheets {len(c2)}, palette v3 locked")
+    d2 = playtest1f_d2()
+    print(f"playtest1f D2 sheets {len(d2)}, palette v3 locked")
+    g1 = playtest1g()
+    print(f"playtest1g sheets {len(g1)}, palette v3 locked")
+    print(f"wrote {OUT}")
+
+
+# playtest1b (owner-requested 2026-10-02 00:52 ET, batch B1 looks): name-label font, shop signs, the town icon on the
+# vale and the map, the camp button. Palette v3 (LOCKED_V3: the locked set plus four neon tubes, Bill's "gloom and
+# glow"). Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1b_b1()"  (from this folder).
+def _check_v3(name: str, im: Image.Image) -> None:
+    for r, g, b, a in im.convert("RGBA").getdata():
+        if a not in (0, 255):
+            raise SystemExit(f"{name}: a soft pixel (alpha {a})")
+        if a and f"#{r:02x}{g:02x}{b:02x}" not in LOCKED_V3:
+            raise SystemExit(f"{name}: #{r:02x}{g:02x}{b:02x} is not in palette v3")
+
+
+def playtest1b_b1() -> dict:
+    from glow_writer import SIGN_KINDS, camp_icon, font_sheet, sign, town_icon, town_map_icon
+    made = {
+        "font-small.png": font_sheet().image(),
+        "town-signs.png": cells([sign(k, f, NEON) for k in SIGN_KINDS for f in (0, 1)]),
+        "town-icon.png": cells([town_icon(f, NEON) for f in (0, 1)]),
+        "town-map-icon.png": town_map_icon(NEON).image(),
+        "camp-icon.png": cells([camp_icon(k, NEON) for k in ("a", "b", "break")]),
+    }
+    # emissive copies (the game draws them in the light layer's glow pass): only the neon pixels, halo to hot
+    glow = {c for ramp in NEON.values() for c in ramp[1:]}
+    for name in ("town-signs.png", "town-icon.png"):
+        em = made[name].copy()
+        px = em.load()
+        for y in range(em.height):
+            for x in range(em.width):
+                r, g, b, a = px[x, y]
+                if a and f"#{r:02x}{g:02x}{b:02x}" not in glow:
+                    px[x, y] = (0, 0, 0, 0)
+        made[name.replace(".png", "_em.png")] = em
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    # one sheet to look at, x4 nearest
+    sheet = Image.new("RGBA", (420, 150), (12, 10, 8, 255))
+    x = 2
+    for name in ("town-icon.png", "camp-icon.png", "town-map-icon.png"):
+        sheet.alpha_composite(made[name], (x, 2))
+        x += made[name].width + 6
+    sheet.alpha_composite(made["town-signs.png"].crop((0, 0, 208, 16)), (2, 46))
+    sheet.alpha_composite(made["town-signs.png"].crop((208, 0, 416, 16)), (2, 64))
+    sheet.alpha_composite(made["font-small.png"], (2, 84))
+    sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(OUT / "preview-playtest1b.png")
+    return made
+
+
+def playtest1b_b2() -> dict:
+    """playtest1b B2 (owner-requested 2026-10-02): the camp and the room interiors, gloom and glow (hearth_writer)."""
+    from hearth_writer import GEAR, KIT, WALLS, camp_fire, camp_gear, camp_tent, room_boards, room_kit, room_rug, room_wall
+    made = {
+        "camp-tent.png": camp_tent(NEON).image(),
+        "camp-fire.png": cells([camp_fire(f, NEON) for f in range(4)]),
+        # GEAR order, then the lantern post's and the camp mark's second flicker frames
+        "camp-gear.png": cells([camp_gear(k, NEON) for k in GEAR] + [camp_gear("lantern", NEON, 1), camp_gear("mark", NEON, 1)]),
+        # WALLS order, then the sconce's second frame
+        "room-wall.png": cells([room_wall(k, NEON) for k in WALLS] + [room_wall("sconce", NEON, 1)]),
+        # KIT order, then the stove's second frame
+        "room-kit.png": cells([room_kit(k, NEON) for k in KIT] + [room_kit("stove", NEON, 1)]),
+        "room-rug.png": room_rug(NEON).image(),
+        "room-boards.png": cells([room_boards(i) for i in range(4)]),
+    }
+    glow = {c for ramp in NEON.values() for c in ramp[1:]}
+    glow -= {NEON["violet"][1], NEON["violet"][2], NEON["red"][1], NEON["red"][2]}  # patch cloth and pennant are not lit
+    for name in ("camp-tent.png", "camp-fire.png", "camp-gear.png", "room-wall.png", "room-kit.png"):
+        em = made[name].copy()
+        px = em.load()
+        for y in range(em.height):
+            for x in range(em.width):
+                r, g, b, a = px[x, y]
+                if a and f"#{r:02x}{g:02x}{b:02x}" not in glow:
+                    px[x, y] = (0, 0, 0, 0)
+        made[name.replace(".png", "_em.png")] = em
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    sheet = Image.new("RGBA", (300, 200), (12, 10, 8, 255))
+    sheet.alpha_composite(made["camp-tent.png"], (2, 2))
+    sheet.alpha_composite(made["camp-fire.png"], (90, 2))
+    sheet.alpha_composite(made["camp-gear.png"], (90, 40))
+    sheet.alpha_composite(made["room-wall.png"], (90, 60))
+    sheet.alpha_composite(made["room-kit.png"], (2, 90))
+    sheet.alpha_composite(made["room-rug.png"], (2, 130))
+    sheet.alpha_composite(made["room-boards.png"], (80, 130))
+    sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(OUT / "preview-playtest1b-b2.png")
+    return made
+
+
+def playtest1c_c1() -> dict:
+    """playtest1c C1 (owner-requested 2026-10-02, batch C art audit): the outdoor world in gloom and glow (wild_writer).
+    Trees (8 species x 4 seasons), cinder, swamp and waste deadwood, boulders, town headstones, dungeon mouths and
+    floor stairs, the wrapping water / ice / snow / ash / sand / swamp sheets, shore rims and the town pumpkins.
+    Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1c_c1()"  (from this folder)."""
+    import wild_writer as w
+
+    def em_of(pairs):
+        return [p[1] for p in pairs]
+
+    made = {}
+    for season in w.SEASONS:
+        pairs = [w.tree(k, season) for k in w.TREE_KINDS]
+        made[f"wild-trees-{season}.png"] = cells([p[0] for p in pairs])
+        made[f"wild-trees-{season}_em.png"] = cells(em_of(pairs))
+    pairs = [w.deadwood(k) for k in w.DEAD_KINDS]
+    made["wild-deadwood.png"] = cells([p[0] for p in pairs])
+    made["wild-deadwood_em.png"] = cells(em_of(pairs))
+    pairs = [w.rock(k) for k in w.ROCK_KINDS]
+    made["wild-rocks.png"] = cells([p[0] for p in pairs])
+    made["wild-rocks_em.png"] = cells(em_of(pairs))
+    # GRAVE_KINDS order, then the candle's second flicker frame
+    pairs = [w.grave(k) for k in w.GRAVE_KINDS] + [w.grave("candle", 1)]
+    made["wild-graves.png"] = cells([p[0] for p in pairs])
+    made["wild-graves_em.png"] = cells(em_of(pairs))
+    # ENTRANCE_KINDS order, two flicker frames each: stairwell 0 1, crypt 0 1, barrow 0 1
+    pairs = [w.entrance(k, f) for k in w.ENTRANCE_KINDS for f in (0, 1)]
+    made["wild-entrances.png"] = cells([p[0] for p in pairs])
+    made["wild-entrances_em.png"] = cells(em_of(pairs))
+    pairs = [w.opened_grave(f) for f in (0, 1)]
+    made["wild-opened-grave.png"] = cells([p[0] for p in pairs])
+    made["wild-opened-grave_em.png"] = cells(em_of(pairs))
+    made["wild-stairs.png"] = cells([w.stairs("down"), w.stairs("up")])
+    for kind, frames in (("water", 4), ("water-town", 4), ("ice", 3), ("snow", 1), ("ash", 1), ("sand", 1), ("swamp", 1)):
+        made[f"wild-{kind}.png"] = cells([w.sheet(kind, f) for f in range(frames)])
+    shore = Image.new("RGBA", (16 * len(w.SHORE_SIDES), 16 * len(w.SHORE_KINDS)), (0, 0, 0, 0))
+    for j, kind in enumerate(w.SHORE_KINDS):
+        shore.alpha_composite(cells([w.shore(kind, s) for s in w.SHORE_SIDES]), (0, 16 * j))
+    made["wild-shore.png"] = shore
+    pairs = [w.pumpkin(False, f) for f in (0, 1)]
+    made["wild-pumpkin-small.png"] = cells([p[0] for p in pairs])
+    made["wild-pumpkin-small_em.png"] = cells(em_of(pairs))
+    pairs = [w.pumpkin(True, f) for f in (0, 1)]
+    made["wild-pumpkin-big.png"] = cells([p[0] for p in pairs])
+    made["wild-pumpkin-big_em.png"] = cells(em_of(pairs))
+    # the soft fringe masks (border-dither layout): bands n e s w, their second variants, nooks ne se sw nw, then
+    # four convex corners (12-15) that round the square corner where two bands meet
+    made["wild-border.png"] = cells([w.drift_mask(k, 0) for k in w.BORDER_KINDS] + [w.drift_mask(k, 1) for k in w.BORDER_KINDS] + [w.drift_mask(k, 0) for k in ("ne", "se", "sw", "nw")] + [w.drift_mask(k, 0) for k in ("xne", "xse", "xsw", "xnw")])
+    # the neighbour biome's flecks over a fringed vale tile: one row per biome (snow sand ash swamp), sides n e s w
+    fl = Image.new("RGBA", (64, 16 * len(w.FLECK_BIOMES)), (0, 0, 0, 0))
+    for j, b in enumerate(w.FLECK_BIOMES):
+        fl.alpha_composite(cells([w.flecks(b, sd) for sd in "nesw"]), (0, 16 * j))
+    made["wild-flecks.png"] = fl
+    # a boss's cold-fire ground ring (bosses draw at the people's scale now), four turning frames
+    pairs = [w.boss_aura(f) for f in range(w.AURA_FRAMES)]
+    made["wild-boss-aura.png"] = cells([p[0] for p in pairs])
+    made["wild-boss-aura_em.png"] = cells(em_of(pairs))
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    # one sheet to look at, x3 nearest
+    sheet = Image.new("RGBA", (520, 330), (12, 10, 8, 255))
+    sheet.alpha_composite(made["wild-trees-autumn.png"], (2, 2))
+    sheet.alpha_composite(made["wild-trees-winter.png"], (260, 2))
+    sheet.alpha_composite(made["wild-trees-spring.png"], (2, 52))
+    sheet.alpha_composite(made["wild-trees-summer.png"], (260, 52))
+    sheet.alpha_composite(made["wild-deadwood.png"], (2, 102))
+    sheet.alpha_composite(made["wild-entrances.png"], (2, 152))
+    sheet.alpha_composite(made["wild-rocks.png"], (2, 202))
+    sheet.alpha_composite(made["wild-graves.png"], (200, 202))
+    sheet.alpha_composite(made["wild-stairs.png"], (290, 202))
+    sheet.alpha_composite(made["wild-opened-grave.png"], (300, 160))
+    sheet.alpha_composite(made["wild-pumpkin-big.png"], (330, 202))
+    sheet.alpha_composite(made["wild-shore.png"], (400, 202))
+    x = 2
+    for kind in ("water", "ice", "snow", "ash", "sand", "swamp"):
+        sheet.alpha_composite(made[f"wild-{kind}.png"].crop((0, 0, 64, 64)), (x, 240))
+        x += 66
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1c.png")
+    return made
+
+
+def town_grass_strip(season: str = "spring") -> Image.Image:
+    """playtest1d: the town lawn, seven 16x16 cells (town_writer.town_grass). town-grass.png (the not-yet-loaded
+    fallback) is the spring lawn; season_sheets draws each season's own."""
+    import town_writer as t
+
+    return cells([t.town_grass(i, season) for i in range(7)])
+
+
+def playtest1d_c2() -> dict:
+    """playtest1d C2 (owner-requested 2026-10-02, batch C2 of the art audit): the town houses and the cabin with lit
+    windows (and their glow masks), the town lawn, themed floor stairs and the biome rim lines (town_writer).
+    Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1d_c2()"  (from this folder).
+    The rim lines read wild-border.png, so playtest1c_c1() runs first in main()."""
+    import town_writer as t
+
+    made = {}
+    for kind in t.HOUSE_KINDS:
+        art, em = t.house(kind)
+        made[f"town-house-{kind}.png"] = art.image()
+        made[f"town-house-{kind}_em.png"] = em.image()
+    art, em = t.cabin()
+    made["town-cabin.png"] = art.image()
+    made["town-cabin_em.png"] = em.image()
+    made["town-grass.png"] = town_grass_strip()
+    # STAIR_KINDS order, down then up: stairwell 0 1, crypt 2 3, barrow 4 5
+    made["wild-stairs-themes.png"] = cells([t.stairs(k, way) for k in t.STAIR_KINDS for way in ("down", "up")])
+    border = Image.open(OUT / "wild-border.png").convert("RGBA")
+    masks = [[[border.getpixel((k * 16 + x, y))[3] > 0 for x in range(16)] for y in range(16)] for k in range(border.width // 16)]
+    rim = Image.new("RGBA", (border.width, 16 * len(t.RIM_BIOMES)), (0, 0, 0, 0))
+    for j, b in enumerate(t.RIM_BIOMES):
+        rim.alpha_composite(cells([t.rim_line(m, b) for m in masks]), (0, 16 * j))
+    made["wild-border-rim.png"] = rim
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    sheet = Image.new("RGBA", (380, 120), (12, 10, 8, 255))
+    x = 2
+    for kind in t.HOUSE_KINDS:
+        sheet.alpha_composite(made[f"town-house-{kind}.png"], (x, 2))
+        x += 66
+    sheet.alpha_composite(made["town-cabin.png"], (x, 2))
+    sheet.alpha_composite(made["town-grass.png"], (2, 100))
+    sheet.alpha_composite(made["wild-stairs-themes.png"], (120, 100))
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1d.png")
+    return made
+
+
+def playtest1f_d2() -> dict:
+    """playtest1f D2 (owner-requested 2026-10-02 09:42 ET, [OWNER-APPROVED 2026-10-02: playtest1f portals]): the
+    wayrifts (standing portals on the vale: 8 swirl frames and the sealed look, their glow masks, the map marker) and
+    the swamp's path cells (rift_writer). Runs on its own too:  python3 -c "import make_gravewake as m; m.playtest1f_d2()"
+    (from this folder)."""
+    import rift_writer as r
+
+    made = {}
+    pairs = [r.wayrift(f) for f in range(r.FRAMES + 1)]
+    made["wayrift2.png"] = cells([p[0] for p in pairs])
+    made["wayrift2_em.png"] = cells([p[1] for p in pairs])
+    made["wayrift-icon.png"] = cells([r.wayrift_icon(True), r.wayrift_icon(False)])
+    # masks 0-15 (1 N, 2 E, 4 S, 8 W), then the sunken-plank straights: 16 north-south, 17 east-west
+    paths = [r.swamp_path(m) for m in range(16)] + [r.swamp_path(5, 1), r.swamp_path(10, 1)]
+    made["swamp-path.png"] = cells([p[0] for p in paths])
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    sheet = Image.new("RGBA", (440, 160), (12, 10, 8, 255))
+    sheet.alpha_composite(made["wayrift.png"], (2, 2))
+    sheet.alpha_composite(made["wayrift-icon.png"], (2, 70))
+    sheet.alpha_composite(made["swamp-path.png"], (30, 70))
+    sheet.alpha_composite(made["wayrift_em.png"].crop((0, 0, 96, 64)), (2, 92))
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1f.png")
+    return made
+
+
+def playtest1g() -> dict:
+    """playtest1g (owner-requested 2026-10-02 11:30 ET, [OWNER-APPROVED 2026-10-02: playtest1g trail paths]): the trail
+    paths of the vale (one row a season), the Winter hollow, the Cinder and the Dry waste (trail_writer), 18 cells a
+    row: masks 0-15 (1 N, 2 E, 4 S, 8 W), then the N-S and E-W straights' variant. Runs on its own too:
+    python3 -c "import make_gravewake as m; m.playtest1g()"  (from this folder)."""
+    import trail_writer as t
+
+    made = {}
+    vale = Image.new("RGBA", (18 * 16, 16 * len(t.SEASONS)), (0, 0, 0, 0))
+    for j, season in enumerate(t.SEASONS):
+        vale.alpha_composite(cells(t.cells_for("vale", season)), (0, 16 * j))
+    made["trail-vale.png"] = vale
+    for biome in ("snow", "ash", "sand"):
+        made[f"trail-{biome}.png"] = cells(t.cells_for(biome))
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(OUT / name)
+    grounds = {"snow": (215, 230, 240), "ash": (42, 34, 28), "sand": (182, 164, 124)}
+    sheet = Image.new("RGBA", (296, 16 * 7 + 16), (12, 10, 8, 255))
+    for j in range(4):
+        row = Image.new("RGBA", (288, 16), (42, 74, 40, 255))
+        row.alpha_composite(vale.crop((0, 16 * j, 288, 16 * j + 16)))
+        sheet.alpha_composite(row, (4, 4 + 16 * j))
+    for k, biome in enumerate(("snow", "ash", "sand")):
+        row = Image.new("RGBA", (288, 16), grounds[biome] + (255,))
+        row.alpha_composite(made[f"trail-{biome}.png"])
+        sheet.alpha_composite(row, (4, 4 + 16 * (4 + k) + 4))
+    sheet.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(OUT / "preview-playtest1g.png")
+    return made
+
+
+def playtest1h(out: Path = OUT) -> dict:
+    """playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the props the audit found
+    still painted as flat blocks (prop_writer.py): the chest and the sleeping mimic's lid, the dungeon bone heaps, and
+    each dungeon's wrapping liquid. Runs on its own: python3 -c "import make_gravewake as m; m.playtest1h()"."""
+    import prop_writer as pw
+
+    made = pw.sheets()
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    themes = list(pw.CAVES)
+    sheet = Image.new("RGBA", (4 + 70 * 7, 40 + 70 * 2), (20, 14, 18, 255))
+    sheet.alpha_composite(made["prop-chest.png"], (4, 4))
+    sheet.alpha_composite(made["prop-mimic-lid.png"], (44, 4))
+    sheet.alpha_composite(made["prop-bones.png"], (84, 4))
+    for k, t in enumerate(themes):
+        sheet.alpha_composite(made[f"cave-liquid-{t}.png"].crop((0, 0, 64, 64)), (4 + 70 * (k % 7), 30 + 70 * (k // 7)))
+    sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST).save(out / "preview-playtest1h.png")
+    return made
+
+
+def playtest1i(out: Path = OUT) -> dict:
+    """playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2): every building's
+    inside to the finish of its outside (interior_writer.py): a wrapping floor and a wall per outside style (log cabin,
+    stone, slate boards, warm timber), each style's rug, and the trade furniture the rooms still painted as flat blocks.
+    Runs on its own: python3 -c "import make_gravewake as m; m.playtest1i()"."""
+    import interior_writer as iw
+
+    made = iw.sheets()
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    sheet = Image.new("RGBA", (8 + 132 * 4, 8 + 132 + 4 * 20 + 2 * 36 + 132), (20, 14, 18, 255))
+    for i, s in enumerate(iw.STYLES):
+        sheet.alpha_composite(made[f"room-floor-{s}.png"], (4 + 132 * i, 4))
+        sheet.alpha_composite(made[f"room-wall-{s}.png"], (4, 140 + 20 * i))
+        sheet.alpha_composite(made["room-rugs.png"].crop((0, 32 * i, 64, 32 * i + 32)), (130 + 68 * i, 140))
+    furn = made["room-furn.png"]
+    sheet.alpha_composite(furn.crop((0, 0, 320, 32)), (4, 224))
+    sheet.alpha_composite(furn.crop((320, 0, furn.width, 32)), (4, 260))
+    sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST).save(out / "preview-playtest1i.png")
+    return made
+
+
+
+def playtest1o(out: Path = OUT) -> dict:
+    """playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]: the loot icons
+    (loot_writer.py): the ground drops and the Pack's slots, which were the last painted art."""
+    import loot_writer
+
+    return {"loot.png": loot_writer.main(out), "cave-ore.png": loot_writer.ore(out)}
+
+
+def playtest1t(out: Path = OUT) -> dict:
+    """playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]: every town building drawn to its own lot
+    (house_writer.py): town-bldg-<room>.png and its _em, rows = variants, columns = seasons. Runs on its own:
+    python3 -c "import make_gravewake as m; m.playtest1t()"."""
+    import house_writer as hw
+
+    made = hw.sheets()
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
+def playtest1u(out: Path = OUT) -> dict:
+    """playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: the wild hamlets' buildings, each kind drawn to its
+    own lot (house_writer.py): hamlet-<kind>.png and its _em, rows = variants, columns = seasons, and hamlet-walk.png, the
+    path cells on a hamlet's green. Runs on its own: python3 -c "import make_gravewake as m; m.playtest1u()"."""
+    import house_writer as hw
+
+    made = hw.hamlet_sheets()
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
+
+def playtest1v(out: Path = OUT) -> dict:
+    """playtest1v [OWNER-APPROVED 2026-10-05 21:15 ET: playtest1v prop scale + detail pass]: the vale's trees, dead trees and rocks
+    at their audited sizes (prop_scale_writer.py; qa/playtest1v/prop_scale.md): wild-trees2-<season>.png (+ _em), 64x96 cells
+    in wild_writer TREE_KINDS order; wild-deadwood2.png (+ _em), 64x96 in DEAD_KINDS order; wild-rocks2.png (+ _em), 24x24 in
+    ROCK_KINDS order. The 1c sheets stay as they were. Runs on its own: python3 -c "import make_gravewake as m; m.playtest1v()"."""
+    import prop_scale_writer as ps
+    import wild_writer as w
+
+    made = {}
+    for season in w.SEASONS:
+        pairs = [ps.tree2(k, season) for k in w.TREE_KINDS]
+        made[f"wild-trees2-{season}.png"] = cells([p[0] for p in pairs])
+        made[f"wild-trees2-{season}_em.png"] = cells([p[1] for p in pairs])
+    pairs = [ps.deadwood2(k) for k in w.DEAD_KINDS]
+    made["wild-deadwood2.png"] = cells([p[0] for p in pairs])
+    made["wild-deadwood2_em.png"] = cells([p[1] for p in pairs])
+    pairs = [ps.rock2(k) for k in w.ROCK_KINDS]
+    made["wild-rocks2.png"] = cells([p[0] for p in pairs])
+    made["wild-rocks2_em.png"] = cells([p[1] for p in pairs])
+    # [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car (64x48 cells: rows side, front, back;
+    # columns wheel frames 0 and 1 and the rider's front layer) and the showroom's velvet ropes (bone_car_writer.py).
+    import bone_car_writer as bc
+
+    made["bonecar.png"], made["bonecar_em.png"] = bc.car_sheet()
+    made["velvet-rope.png"] = bc.rope_sheet()
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
+def playtest1w(out: Path = OUT) -> dict:
+    """playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the vale's big boulders (boulder_writer.py):
+    wild-boulders.png (+ _em), 48x56 cells, columns boulder_writer.KINDS, rows its SEASONS; and the buildings with doors
+    that fit the hero (door_writer.py): town-bldg2-<room>.png and hamlet2-<kind>.png (+ _em), the 1t/1u sheets redrawn with
+    a taller ground storey and a door 1.1-1.25x the hero (the old sheets stay as they were, the loading fallback).
+    Runs on its own: python3 -c "import make_gravewake as m; m.playtest1w()"."""
+    import boulder_writer as bw
+
+    made = {}
+    made["wild-boulders.png"], made["wild-boulders_em.png"] = bw.sheet()
+    import door_writer as dw
+
+    made.update(dw.sheets())
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
+
+def playtest1y(out: Path = OUT) -> dict:
+    """playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: half-size wayrifts as wayrift2 + hub platforms; larger interior doors as room-wall2-*.
+    The 1f wayrift.png and 1i room-wall-* stay for older checks. Door enlargement is applied here only (writers stay 1i's)."""
+    import rift_writer as r
+    import interior_writer as iw
+    from hearth_writer import WALLS, room_wall
+    from palette_locked import NEON
+    from wild_writer import Canvas
+    from PIL import Image, ImageDraw
+
+    made = {}
+    pairs = [r.wayrift_half(f) for f in range(r.FRAMES + 1)]
+    made["wayrift2.png"] = cells([p[0] for p in pairs])
+    made["wayrift2_em.png"] = cells([p[1] for p in pairs])
+    made["wayrift-platform.png"] = cells([r.wayrift_platform(True), r.wayrift_platform(False)])
+
+    def enlarge_door_cell(im: Image.Image) -> Image.Image:
+        """Redraw door cell (index 5) as a nearly full-tile door on top of the existing wall cell."""
+        out = im.copy()
+        # door is cell 5, 16x16
+        x0 = 5 * 16
+        door = out.crop((x0, 0, x0 + 16, 16)).convert("RGBA")
+        # paint large door over it
+        px = door.load()
+        # use colours from existing door panel if present, else wood
+        wood0, wood3, wood4, wood1, gold = (42, 24, 16, 255), (106, 80, 56, 255), (122, 104, 72, 255), (58, 40, 24, 255), (224, 192, 96, 255)
+        for y in range(16):
+            for x in range(16):
+                if x == 0 or x == 15:
+                    px[x, y] = (0, 0, 0, 0)  # keep side transparent? no — full cell door
+        for y in range(16):
+            for x in range(1, 15):
+                px[x, y] = wood0
+        for y in range(1, 16):
+            for x in range(2, 14):
+                px[x, y] = wood3 if x >= 7 else wood4
+            px[7, y] = wood1
+        for x in range(2, 14):
+            px[x, 0] = wood1
+        px[12, 9] = gold
+        px[1, 0] = wood1; px[14, 0] = wood1
+        for y in range(16):
+            px[1, y] = wood1; px[14, y] = wood1
+        out.paste(door, (x0, 0))
+        return out
+
+    # start from current 1i sheets (public) and enlarge door cell
+    for style in iw.STYLES:
+        base = Image.open(out / f"room-wall-{style}.png").convert("RGBA")
+        made[f"room-wall2-{style}.png"] = enlarge_door_cell(base)
+        em = Image.open(out / f"room-wall-{style}_em.png").convert("RGBA")
+        made[f"room-wall2-{style}_em.png"] = em  # em unchanged (lamp still over door)
+    base = Image.open(out / "room-wall.png").convert("RGBA")
+    made["room-wall2.png"] = enlarge_door_cell(base)
+    em = Image.open(out / "room-wall_em.png").convert("RGBA")
+    made["room-wall2_em.png"] = em
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
+
+
+def playtest1z(out: Path = OUT) -> dict:
+    """playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]:
+    octagon wayrift platforms, tiny wild portals (wayrift3), park statue and arch. wayrift2 kept."""
+    import rift_writer as r
+    made = {}
+    # rebuild octagon platforms (overwrite 1y's 48x32 sheet with 48x48)
+    made["wayrift-platform.png"] = cells([r.wayrift_platform(True), r.wayrift_platform(False)])
+    pairs = [r.wayrift_tiny(f) for f in range(r.FRAMES + 1)]
+    made["wayrift3.png"] = cells([p[0] for p in pairs])
+    made["wayrift3_em.png"] = cells([p[1] for p in pairs])
+    made["park-statue.png"] = cells([r.park_statue(0), r.park_statue(1)])
+    made["park-arch.png"] = cells([r.park_arch()])
+    for name, im in made.items():
+        _check_v3(name, im)
+        im.save(out / name)
+    return made
+
+
+if __name__ == "__main__":
+    main()
+    playtest1o()
+    playtest1t()
+    playtest1u()
+    playtest1v()
+    playtest1w()
+    playtest1y()
+    playtest1z()

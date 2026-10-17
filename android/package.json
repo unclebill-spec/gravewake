@@ -1,0 +1,21 @@
+{
+  "name": "gravewake-android",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Capacitor wrapper that bundles the Gravewake web game offline for Android (playtest2b). Not published; Bill decides the package name, signing and the Play release.",
+  "type": "module",
+  "scripts": {
+    "bundle": "node build-offline.mjs",
+    "sync": "node build-offline.mjs && cap sync android",
+    "check:offline": "node check-offline.mjs",
+    "apk:debug": "node build-offline.mjs && cap sync android && cd android && ./gradlew assembleDebug",
+    "aab:release": "node build-offline.mjs && cap sync android && cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

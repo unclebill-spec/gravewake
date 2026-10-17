@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gravewake</string>
+    <string name="title_activity_main">Gravewake</string>
+    <string name="package_name">com.gravewake.game</string>
+    <string name="custom_url_scheme">com.gravewake.game</string>
+</resources>

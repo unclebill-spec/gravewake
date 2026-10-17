@@ -15,6 +15,8 @@ export default tseslint.config(
       ".nitro/**",
       "node_modules/**",
       "src/routeTree.gen.ts",
+      // playtest2b: the Capacitor Android project (generated web copy and Gradle output)
+      "android/**",
     ],
   },
   js.configs.recommended,
