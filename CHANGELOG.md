@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: fun-early-sinks (branch, not published) [OWNER-APPROVED 2026-10-21: fun-early-sinks early encounter + silver sinks]
+- Early encounter: Old Mulch, the Grave-Warden (`src/game/sinks.ts` EARLY), a once-only elite ghoul plus one weak risen a few tiles south of the road gate (vale 91,131 via openNear; no map change, existing ghoul sprite). Fight level clamped 2-3, 1.8x ghoul HP, 0.85x swing. Pays 30 silver, 46 xp (level 1 to 2), a rank-2 weapon (starter atk +3), a draught and the free title Grave-Warden. The new-life log line hints at him.
+- Silver sinks (all via talk choices, no new UI): Corvin Tallow's counter: boss trophies for every felled world/dungeon boss (40 + 2 x lv, max 200), a trophy wall, casino silver prizes (draught crate 45, tonic pair 40, gilded dice 120, felt chandelier 320), titles Velvet Regular 140 / Lord of the Vale 500. Ossian Sprocket (car owned): titles Bone-Car Baron 90 / Lantern-Bearer 220. The mystic: wayrift attunement I/II/III (90/180/400: +25% energy, +25% HP, a 15 s ward on landing). Worn title shows on the level-up panel.
+- Saves: new optional fields earlyDone, sinks, title (old saves load with none). Movement, collision, doors, combat numbers, shops, audio and the map are unchanged.
+- Checks: typecheck 0, lint 0 errors (7 old warnings), test 159/153/0/6, check:game 1035 ok / 26 failed, all 26 are byte-for-byte freeze pins on sim.ts/Gravewake.tsx/src/game (no behaviour check failed); a refreeze needs Bill's OK. Headless Phone check: 0 JS errors. Shots: qa/fun-early-sinks/ on the build box.
+
 ## 2026-10-17: playtest2b, Play Store cleanup per Legal Bot's plan ([OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs])
 - Published 2026-10-17 11:01 ET: main 598f9ed, gh-pages 1d6e9b0 (https://unclebill-spec.github.io/gravewake/), Gravewake-playtest2b.zip md5 7ae44cc2. Final checks: typecheck 0, lint 0 errors, test 159/153/0/6, check:game 1061 passed, build 0, map-writer 34/0, offline check OK, play check 2/2; pages_check and live md5 11/11 clean; secret scan clean.
 - Bill, 2026-10-17: do the rest of Legal Bot's Play Store recommendations. Preparation only: nothing signed, uploaded or submitted. Baseline playtest2a (main 3c32a8e, gh-pages 35f07a6). No game rule changed (every src/game file but the shell and the new credits screen is 2a's byte for byte: movement, collision, doors, combat, damage, audio, shops, saves, the map).

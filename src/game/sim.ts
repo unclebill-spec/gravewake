@@ -1,3 +1,4 @@
+import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
 import {
   BAITS,
   WORLD,
@@ -118,7 +119,7 @@ export type Mode =
   | "crypt"
   | "fish";
 
-export type Foe = MonsterDef & { hp: number; max: number; helper?: boolean; rare?: boolean; affix?: string; mimic?: boolean; bounty?: boolean; festival?: string; naughty?: string; guard?: string };
+export type Foe = MonsterDef & { hp: number; max: number; helper?: boolean; rare?: boolean; affix?: string; mimic?: boolean; bounty?: boolean; festival?: string; naughty?: string; guard?: string; early?: boolean };
 
 type Kit = {
   personality: string;
@@ -243,6 +244,8 @@ export type Companion = {
   artCool?: number;
 };
 export type Roamer = {
+  /** fun-early-sinks: Old Mulch, the scripted level 1-3 elite by the road gate. */
+  early?: boolean;
   id: string;
   x: number;
   y: number;
@@ -422,6 +425,10 @@ type SaveBlob = {
   mapSeen?: Record<string, string>;
   /** playtest1v: the bone car: owned, and where it stands on the vale (world px, the seat point). */
   carOwned?: boolean;
+  /** fun-early-sinks: Old Mulch beaten, silver-sink purchases (ids), and the worn title. Absent on an old save. */
+  earlyDone?: boolean;
+  sinks?: string[];
+  title?: string;
   carX?: number;
   carY?: number;
   drops?: {
@@ -581,6 +588,9 @@ export class Game {
   private fogMark = "";
   /** playtest1v bone car: owned, where it stands on the vale (px; the seat point), driving, its facing, its puffs. */
   carOwned = false;
+  earlyDone = false;
+  sinks: string[] = [];
+  title = "";
   carX = 0;
   carY = 0;
   driving = false;
@@ -1516,6 +1526,9 @@ export class Game {
     this.mapSeenRaw = {};
     this.fogMark = "";
     this.carOwned = false;
+    this.earlyDone = false;
+    this.sinks = [];
+    this.title = "";
     this.carX = 0;
     this.carY = 0;
     this.driving = false;
@@ -1538,7 +1551,7 @@ export class Game {
     this.battle = null;
     this.talk = null;
     this.mode = "play";
-    this.logLine = "Twilight holds the town. A road gate at any edge leads to the vale. Walk into a door or a stair. E speaks and fights.";
+    this.logLine = "Twilight holds the town. A road gate at any edge leads to the vale. Walk into a door or a stair. E speaks and fights. " + EARLY_LINES.hint;
     this.enterTown(20 * TILE + 8, 14 * TILE + 8);
   }
 
@@ -2398,6 +2411,40 @@ export class Game {
         ang: hash(s.tx, s.ty) * Math.PI * 2,
       });
     }
+    this.placeEarly();
+  }
+
+  /** fun-early-sinks: Old Mulch waits by the road gate until beaten once. */
+  private placeEarly() {
+    if (this.earlyDone || this.roamers.some((r) => r.early)) return;
+    const spot = this.openNear(EARLY.tx * TILE + 8, EARLY.ty * TILE + 8);
+    this.roamers.push({ id: "early", x: spot.x, y: spot.y, family: "ghoul", tint: EARLY.tint, boss: false, mini: true, def: EARLY.def, level: EARLY.minLv, ang: 0, name: EARLY.name, early: true });
+  }
+
+  /** fun-early-sinks: his fight, tuned for level 1-3 (an elite ghoul and one weak risen). */
+  private earlyFoes(): Foe[] {
+    const lv = Math.max(EARLY.minLv, Math.min(EARLY.maxLv, this.level));
+    const g = scaleMonster(monsterById(EARLY.def), lv);
+    const hp = Math.round(g.hp * EARLY.hpMul);
+    const boss: Foe = { ...g, id: EARLY.def, name: EARLY.name, tint: EARLY.tint, hp, max: hp, atk: Math.max(2, Math.round(g.atk * EARLY.atkMul)), xp: EARLY.xp, silver: EARLY.silver, mini: true, early: true };
+    const h = scaleMonster(FAMILIES[0], 1);
+    h.hp = Math.round(h.hp * 0.45);
+    return [boss, { ...h, name: "Risen digger", hp: h.hp, max: h.hp, helper: true }];
+  }
+
+  /** fun-early-sinks: Mulch's prize: a rank-2 weapon one step past the starter, a draught, the title. Silver drops from his pile. */
+  private payEarly() {
+    this.earlyDone = true;
+    const main = this.equip.main;
+    const base = main?.atk ?? 5;
+    const wand = main?.name === "Grave Wand";
+    const dagger = main?.name === "Notched Dagger";
+    const name = wand ? "Sexton's Wand" : dagger ? "Gravedigger's Knife" : "Mulch's Spade-Blade";
+    this.gainItem(makeItem({ name, kind: "weapon", rank: 2, slot: "main", atk: base + 3 }));
+    this.potHp += 1;
+    if (!this.sinks.includes("title:warden")) this.sinks.push("title:warden");
+    if (!this.title) this.title = EARLY.title;
+    this.logLine = EARLY_LINES.won(EARLY.silver, name);
   }
 
   /** Nearest tile a body can stand on. Used when a boss or a roamer would be left inside a wall. */
@@ -3151,6 +3198,7 @@ export class Game {
       if (!this.derbyIn()) out.push({ id: "derby", label: "Enter the Midnight Derby" });
       else if (this.witchlit().length) out.push({ id: "weigh", label: `Weigh in: ${this.witchlit()[0].name}` });
     }
+    for (const c of this.sinkChoices(role)) out.push(c);
     const relic = RELIC_FOR[role];
     if (relic && this.cls === "vampire" && this.inv.some((i) => i.kind === "relic" && i.name === relic.name)) {
       out.push({ id: "pact", label: `Offer the ${relic.name}` });
@@ -3174,6 +3222,100 @@ export class Game {
     else if (id === "blooms") this.handBlooms();
     else if (id === "dance") this.startDance();
     else if (id === "buycar") this.buyCar(); // playtest1v
+    else if (id.startsWith("sink:")) this.buySink(id.slice(5));
+  }
+
+  // ---- fun-early-sinks: silver sinks (sinks.ts) ----
+
+  /** Bosses you have felled (world and dungeon), with a trophy price each. */
+  trophyList(): { id: string; name: string; price: number }[] {
+    const out: { id: string; name: string; price: number }[] = [];
+    for (const b of WORLD_BOSSES) if (this.bossDead[b.id] != null) out.push({ id: b.id, name: monsterById(b.id).name, price: trophyPrice(b.lv) });
+    for (const d of DUNGEONS) if (d.boss && this.bossDead[d.boss] != null && !out.some((o) => o.id === d.boss)) out.push({ id: d.boss, name: monsterById(d.boss).name, price: trophyPrice(d.level) });
+    return out;
+  }
+
+  private sinkChoices(role: string): { id: string; label: string }[] {
+    const out: { id: string; label: string }[] = [];
+    const has = (id: string) => this.sinks.includes(id);
+    if (role === "prizes") {
+      for (const t of this.trophyList()) if (!has(`trophy:${t.id}`)) out.push({ id: `sink:trophy:${t.id}`, label: `Mount a ${t.name} trophy · ${t.price}s` });
+      const wall = this.trophyList().filter((t) => has(`trophy:${t.id}`)).length;
+      if (wall) out.push({ id: "sink:wall", label: `Look at your trophy wall (${wall})` });
+      for (const p of PRIZES) if (!(p.give === "dice" || p.give === "chandelier") || !has(p.id)) out.push({ id: `sink:${p.id}`, label: `${p.name} · ${p.price}s` });
+    }
+    if (role === "mystic") {
+      const next = RIFT_TIERS.find((t) => !has(t.id));
+      if (next) out.push({ id: `sink:${next.id}`, label: `${next.name}: ${next.text} · ${next.price}s` });
+    }
+    for (const t of TITLES) {
+      if (has(t.id)) {
+        if (this.title !== t.name && (t.role === role || (t.id === "title:warden" && role === "prizes"))) out.push({ id: `sink:${t.id}`, label: `Wear the title "${t.name}"` });
+        continue;
+      }
+      if (t.role !== role || !t.price) continue;
+      if (t.need === "car" && !this.carOwned) continue;
+      out.push({ id: `sink:${t.id}`, label: `Title "${t.name}" · ${t.price}s` });
+    }
+    return out;
+  }
+
+  private buySink(id: string) {
+    const say = (text: string) => {
+      if (this.talk) this.talk.text = text;
+      this.logLine = text;
+    };
+    if (id === "wall") {
+      const names = this.trophyList().filter((t) => this.sinks.includes(`trophy:${t.id}`)).map((t) => t.name);
+      say(`Your trophy wall: ${names.join(", ")}.`);
+      return;
+    }
+    const title = TITLES.find((t) => t.id === id);
+    if (title && this.sinks.includes(id)) {
+      this.title = title.name;
+      say(`You will be known as ${title.name}.`);
+      return;
+    }
+    let price = 0;
+    let done = "";
+    const trophy = id.startsWith("trophy:") ? this.trophyList().find((t) => `trophy:${t.id}` === id) : undefined;
+    const prize = PRIZES.find((p) => p.id === id);
+    const tier = RIFT_TIERS.find((t) => t.id === id);
+    if (trophy) {
+      price = trophy.price;
+      done = `Corvin mounts the ${trophy.name} trophy on your wall.`;
+    } else if (title) {
+      price = title.price;
+      done = `You will be known as ${title.name}.`;
+    } else if (prize) {
+      price = prize.price;
+      done = `Corvin Tallow wraps the ${prize.name}.`;
+    } else if (tier) {
+      const i = RIFT_TIERS.indexOf(tier);
+      if (i > 0 && !this.sinks.includes(RIFT_TIERS[i - 1].id)) return;
+      price = tier.price;
+      done = `The veil hums. ${tier.name}: you ${tier.text}.`;
+    } else return;
+    const repeat = !!prize && (prize.give === "potions" || prize.give === "mana");
+    if (this.sinks.includes(id) && !repeat) return;
+    if (this.coin < price) {
+      say(`That is ${price} silver. You have ${this.coin}.`);
+      return;
+    }
+    this.coin -= price;
+    if (prize?.give === "potions") this.potHp += 3;
+    else if (prize?.give === "mana") this.potMana += 2;
+    else this.sinks.push(id);
+    if (title) this.title = title.name;
+    this.audio?.coin();
+    say(done);
+  }
+
+  /** fun-early-sinks: wayrift attunement on landing. */
+  private riftLanding() {
+    if (this.sinks.includes("rift:1")) this.energy = Math.min(this.maxEnergy, this.energy + Math.round(this.maxEnergy * 0.25));
+    if (this.sinks.includes("rift:2")) this.hp = Math.min(this.maxHp, this.hp + Math.round(this.maxHp * 0.25));
+    if (this.sinks.includes("rift:3")) this.wardUntil = Math.max(this.wardUntil, this.worldMs + RIFT_WARD_MS);
   }
 
   // ---- playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car] ----
@@ -4893,6 +5035,12 @@ export class Game {
     // OWNER-APPROVED COMBAT FIX 2026-09-30: a foe already in the fight is not a fresh meeting. It keeps
     // its HP, its pack-minion tag, its rare status, and its affix; nothing is rebuilt.
     if (r.aggro) return;
+    if (r.early) {
+      this.roamers = this.roamers.filter((o) => o !== r);
+      this.openBattle(this.earlyFoes(), { guard: false, goblin: false, hunter: false, fromRole: "" });
+      this.logLine = EARLY_LINES.open;
+      return;
+    }
     if (r.naughty && !r.boss) {
       this.roamers = this.roamers.filter((o) => o !== r);
       const pack = this.stalkerPack(monsterById(r.def), r.level, r.affix ?? "fast", r.name);
@@ -5897,6 +6045,7 @@ export class Game {
       this.critters = [{ x: this.px + 30, y: this.py + 16, kind: "rat", vx: 10 }];
       this.fx.portal(this.px, this.py - 20);
       this.logLine = `You step out by ${WAYRIFT_PLACE[to.id] ?? "the far rift"}.`;
+      this.riftLanding();
     }
     if (tr.t >= WAYRIFT.out + WAYRIFT.back) this.travel = null;
   }
@@ -7586,6 +7735,7 @@ export class Game {
           this.logLine = `${zone} is marked. The board pays ${pay} silver.`;
         }
       }
+      if (r.early) this.payEarly();
       this.payBounty(r);
       this.festivalFell(r);
       this.countErrandKill();
@@ -7610,6 +7760,7 @@ export class Game {
     if (this.wildRun && !this.wildRun.cleared && !this.roamers.some((o) => this.liveFoe(o))) this.payWildClear();
     this.audio?.coin();
     this.checkLevel();
+    if (r.early) this.logLine = `${EARLY_LINES.won(EARLY.silver, this.inv[this.inv.length - 1]?.name ?? "blade")} ${this.logLine}`;
   }
 
   /** Trash swings. A boss paints its named big move. Walk out or take it. */
@@ -8424,6 +8575,7 @@ export class Game {
         festival: f.festival || undefined,
         naughty: f.naughty || undefined,
         guard: f.guard || undefined,
+        early: f.early || undefined,
         link: f.affix === "linked" ? link : undefined,
         shell: f.affix === "shielded" ? Math.round(f.max * 0.2) : 0,
       });
@@ -9705,6 +9857,9 @@ export class Game {
       worldV: WORLD.scale,
       mapSeen: this.fogStrings(),
       carOwned: this.carOwned,
+      earlyDone: this.earlyDone,
+      sinks: [...this.sinks],
+      title: this.title,
       carX: this.driving && this.mapId === "world" ? this.px : this.carX,
       carY: this.driving && this.mapId === "world" ? this.py : this.carY,
       drops: this.drops.map((d) => ({ ...d, item: d.item ? { ...d.item } : null })),
@@ -9803,6 +9958,10 @@ export class Game {
     this.fogMark = "";
     if (!raw.mapSeen) this.seedOldFog(raw);
     this.carOwned = !!raw.carOwned;
+    this.earlyDone = !!raw.earlyDone;
+    this.sinks = Array.isArray(raw.sinks) ? raw.sinks.filter((x) => typeof x === "string") : [];
+    this.title = typeof raw.title === "string" ? raw.title : "";
+    if (this.earlyDone) this.roamers = this.roamers.filter((r) => !r.early);
     this.carX = raw.carX ?? CAR.park.x * TILE + 8;
     this.carY = raw.carY ?? CAR.park.y * TILE + 8;
     // playtest1w: a car parked where a boulder now stands waits by the road gate instead

@@ -1892,6 +1892,7 @@ export function Gravewake() {
           {game.mode === "level" ? (
             <Panel>
               <h2 className="font-display text-xl">Level {game.level}</h2>
+              {game.title ? <p className="text-xs text-muted" data-testid="hero-title">Known as {game.title}</p> : null}
               <p className="text-sm">Choose an art to learn, or sharpen one you know.</p>
               {game.levelOptions().map((s) => (
                 <button key={s.name} type="button" className="rounded border border-border px-3 py-2 text-left" onClick={() => { game.learn(s.name); bump(); }}>
