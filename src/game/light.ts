@@ -21,6 +21,12 @@ export const LIGHTS = {
   hex: [0.62, 0.38, 1],
   moon: [0.55, 0.62, 0.9],
   realm: [0.5, 0.9, 0.45],
+  /** gfx-lighting (Bill's 2026-10-21 BLACKTAIL ask): a rift's wide violet ground pool, a dungeon torch's cool violet
+   * fill (low, so it tints the room without washing it), a lit town window and a street lamp. */
+  riftPool: [0.62, 0.3, 1],
+  coolFill: [0.13, 0.1, 0.3],
+  window: [0.95, 0.7, 0.38],
+  street: [0.72, 0.84, 1],
 } as const satisfies Record<string, RGB>;
 
 export const LIGHT = {
@@ -73,8 +79,25 @@ export const LIGHT = {
   /** Outdoors at night the vale takes the moon; the town keeps its twilight (lighter), so its lamps still own the night.
    * gfx3 (OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights): the moon goes from [.38,.42,.62] to [.68,.72,.92]
    * (blue still leads, so it reads as night), and the town's twilight from [.5,.5,.7] to [.74,.76,.96], still lighter. */
-  worldNight: [0.68, 0.72, 0.92],
-  townNight: [0.74, 0.76, 0.96],
+  worldNight: [0.32, 0.34, 0.62],
+  townNight: [0.36, 0.38, 0.68],
+  /** gfx-lighting (Bill, 2026-10-21): cool blue-violet nights, clearly darker than day (the old moon and twilight were
+   * [0.68, 0.72, 0.92] and [0.74, 0.76, 0.96]); the town stays lighter than the vale on every channel. */
+  riftPool: 112,
+  coolFill: 112,
+  sconceLit: 96,
+  /** A torch's warm core on the floor under it, so the pool reads warm against the cool fill. */
+  sconceCore: 40,
+  window: 40,
+  street: 56,
+  /** Street lamps: one in this many tiles along a cobble edge. */
+  streetGap: 7,
+  /** Hard-edged tile shadows from dungeon torches, braziers and the hero's torch (walls block light). */
+  shadows: true,
+  /** Emissive pixels (eyes, flames) are added once more over the lit frame at this strength: crisp, no blur. */
+  emitBoost: 0.55,
+  /** Optional bloom: a 1 px hard halo round emissive pixels. Off by default (the pixel lock). */
+  bloomOn: false,
 } as const;
 
 /** Ambient per cave theme. Four from the doc; the rest are each cave's liquid hue at about 15% value. */
