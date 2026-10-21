@@ -2883,13 +2883,13 @@ export function sceneAmbient(g: Game): RGB | null {
 
 /** sh: the tile a shadow-casting light shines from (gfx-lighting: walls cut its pool on hard tile edges). low: a mood
  * light (a cool fill, a rift's ground pool, a window, a street lamp) that yields the budget to every other light. */
-type Lamp = { x: number; y: number; r: number; c: RGB; seed: number; flick: boolean; sh?: number; low?: boolean };
+type Lamp = { x: number; y: number; r: number; c: RGB; seed: number; flick: boolean; sh?: number; low?: boolean; wash?: number };
 
 /** Every light in the scene, culled to the view and trimmed to the budget, nearest the hero first. */
 export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh: number): Lamp[] {
   const out: Lamp[] = [];
   const below = g.mapId === "dungeon";
-  out.push({ x: g.px, y: g.py - 10, r: below ? LIGHT.hero : LIGHT.heroNight, c: below ? LIGHTS.torch : g.driving && g.mapId === "world" ? COLD_FIRE.seat : LIGHTS.candle, seed: 0, flick: false, sh: below && LIGHT.shadows ? Math.floor((g.py - 4) / TILE) * g.w + Math.floor(g.px / TILE) : undefined }); // playtest1w: cold in the car seat
+  out.push({ x: g.px, y: g.py - 10, r: below ? LIGHT.hero : LIGHT.heroNight, c: below ? LIGHTS.torch : g.driving && g.mapId === "world" ? COLD_FIRE.seat : LIGHTS.lantern, seed: 0, flick: false, sh: below && LIGHT.shadows ? Math.floor((g.py - 4) / TILE) * g.w + Math.floor(g.px / TILE) : undefined }); // playtest1w: cold in the car seat
   // playtest1v: the bone car's skull headlamps threw two pools ahead of it here; playtest1w: the driven car's beams are
   // paintColdFire's, after the night grade (the grade turned these pools warm or green on sand and grass)
   if (!g.driving && g.mapId === "world" && g.carOwned) out.push({ x: g.carX + (g.carFacing === "e" ? 20 : g.carFacing === "w" ? -20 : 0), y: g.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
@@ -2901,7 +2901,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
       const sh = LIGHT.shadows ? (s.y + 1) * g.w + s.x : undefined;
       out.push({ x: s.x * TILE + 8, y: s.y * TILE - 1, r: LIGHT.sconceLit, c: LIGHTS.torch, seed: s.seed, flick: true, sh });
       out.push({ x: s.x * TILE + 8, y: (s.y + 1) * TILE + 2, r: LIGHT.sconceCore, c: LIGHTS.torch, seed: s.seed, flick: true, sh });
-      out.push({ x: s.x * TILE + 8, y: (s.y + 1) * TILE + 8, r: LIGHT.coolFill, c: LIGHTS.coolFill, seed: 0, flick: false, sh, low: true });
+      out.push({ x: s.x * TILE + 8, y: (s.y + 1) * TILE + 8, r: LIGHT.coolFill, c: LIGHTS.coolFill, seed: 0, flick: false, sh, low: true, wash: LIGHT.wash.coolFill });
     }
     const rune = g.feats?.rune;
     if (rune) {
@@ -2967,28 +2967,28 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   if (g.mapId === "town") {
     for (const l of wayLights(g.season(), "town", TILE)) {
       out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
-      out.push({ x: l.x, y: l.y + 12, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: l.seed, flick: true, low: true }); // gfx-lighting
+      out.push({ x: l.x, y: l.y + 12, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: l.seed, flick: true, low: true, wash: LIGHT.wash.riftPool }); // gfx-lighting
     }
     // gfx-lighting: lit windows spill warm light on the ground, and street lamps pool cold light on the cobbles.
-    for (const b of townBuildings(g)) for (const wx of windowCols(b)) out.push({ x: wx * TILE + 8, y: (b.y + b.h) * TILE - 6, r: LIGHT.window, c: LIGHTS.window, seed: wx & 3, flick: true, low: true });
-    for (const p of streetLamps(g)) out.push({ x: p.x * TILE + 8, y: p.y * TILE + 6, r: LIGHT.street, c: LIGHTS.street, seed: p.x & 3, flick: false, low: true });
+    for (const b of townBuildings(g)) for (const wx of windowCols(b)) out.push({ x: wx * TILE + 8, y: (b.y + b.h) * TILE - 6, r: LIGHT.window, c: LIGHTS.window, seed: wx & 3, flick: true, low: true, wash: LIGHT.wash.window });
+    for (const p of streetLamps(g)) out.push({ x: p.x * TILE + 8, y: p.y * TILE + 6, r: LIGHT.street, c: LIGHTS.street, seed: p.x & 3, flick: false, low: true, wash: LIGHT.wash.street });
   }
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
     for (const r of g.riftMouths()) {
       out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
-      out.push({ x: r.x * TILE + 8, y: (r.y + 1) * TILE + 4, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: 2, flick: true, low: true }); // gfx-lighting: the violet ground pool
+      out.push({ x: r.x * TILE + 8, y: (r.y + 1) * TILE + 4, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: 2, flick: true, low: true, wash: LIGHT.wash.riftPool }); // gfx-lighting: the violet ground pool
     }
     // playtest1f: an awake wayrift lights the vale cold blue at night
     for (const l of wayLights(g.season(), "world", TILE)) {
       out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
-      out.push({ x: l.x, y: l.y + 12, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: l.seed, flick: true, low: true }); // gfx-lighting
+      out.push({ x: l.x, y: l.y + 12, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: l.seed, flick: true, low: true, wash: LIGHT.wash.riftPool }); // gfx-lighting
     }
     // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portal light
     if (g.wildPortal) {
       const p = g.wildPortal;
       out.push({ x: p.x * TILE + 8, y: p.y * TILE + 8, r: WILD_PORTAL.light, c: NEON_LIGHT.blue, seed: p.x & 3, flick: true });
-      out.push({ x: p.x * TILE + 8, y: p.y * TILE + 16, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: p.x & 3, flick: true, low: true }); // gfx-lighting
+      out.push({ x: p.x * TILE + 8, y: p.y * TILE + 16, r: LIGHT.riftPool, c: LIGHTS.riftPool, seed: p.x & 3, flick: true, low: true, wash: LIGHT.wash.riftPool }); // gfx-lighting
     }
     // playtest1c: each dungeon mouth's cold-fire braziers light the vale blue at night: one light between the pair,
     // brazier-sized, so the scene's light count stays inside retro1's limit.
@@ -3118,6 +3118,7 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
   lc.fillStyle = rgbCss(amb);
   lc.fillRect(0, 0, W, H);
   lc.globalCompositeOperation = "lighter";
+  const washes: { spr: HTMLCanvasElement; x: number; y: number; k: number }[] = [];
   for (const l of sceneLights(g, camX, camY, W, H)) {
     const r = bucket(l.r);
     const sx = Math.round(l.x) - r;
@@ -3125,6 +3126,7 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
     const spr = lightSprite(r, l.c, l.flick ? flickerStep(g.frame, l.seed) : 0, sx, sy);
     const cut = spr && l.sh !== undefined && g.mapId === "dungeon" ? shadowed(g, l.sh, spr, sx, sy) : spr;
     if (cut) lc.drawImage(cut, sx - camX, sy - camY);
+    if (cut && l.wash) washes.push({ spr: cut, x: sx, y: sy, k: l.wash });
   }
   lc.globalCompositeOperation = "source-over";
   if (g.mapId === "dungeon") {
@@ -3172,6 +3174,17 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(lightCanvas, 0, 0, W, H, camX, camY, W, H);
   ctx.restore();
+  // gfx-lighting: the mood lights' colour wash, added over the lit frame in the light's own hard bands.
+  if (washes.length) {
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = "lighter";
+    for (const w of washes) {
+      ctx.globalAlpha = w.k;
+      ctx.drawImage(w.spr, w.x, w.y);
+    }
+    ctx.restore();
+  }
   // gfx-lighting (7): emissive pixels (eyes, flames, vortex, neon) are added once more over the lit frame, so they glow
   // brighter than their own colour in the dark. Crisp: the same pixels, no blur; the optional 1 px halo is off by default.
   const emit = glow.filter((f) => !NO_BOOST.has(f));

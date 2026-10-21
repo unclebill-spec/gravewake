@@ -27,6 +27,8 @@ export const LIGHTS = {
   coolFill: [0.13, 0.1, 0.3],
   window: [0.95, 0.7, 0.38],
   street: [0.72, 0.84, 1],
+  /** The hero's lantern outdoors at night: cold, so the night never goes mud-brown round the hero. */
+  lantern: [0.78, 0.8, 1],
 } as const satisfies Record<string, RGB>;
 
 export const LIGHT = {
@@ -98,6 +100,9 @@ export const LIGHT = {
   emitBoost: 0.55,
   /** Optional bloom: a 1 px hard halo round emissive pixels. Off by default (the pixel lock). */
   bloomOn: false,
+  /** Mood lights also wash their colour over the lit frame (added, banded like the light): a rift's violet pool, a street
+   * lamp, a window, the dungeon's cool fill. Multiply alone cannot paint violet onto olive grass. */
+  wash: { riftPool: 0.2, street: 0.1, window: 0.1, coolFill: 0.12 },
 } as const;
 
 /** Ambient per cave theme. Four from the doc; the rest are each cave's liquid hue at about 15% value. */
