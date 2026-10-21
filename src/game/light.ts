@@ -87,7 +87,6 @@ export const LIGHT = {
    * [0.68, 0.72, 0.92] and [0.74, 0.76, 0.96]); the town stays lighter than the vale on every channel. */
   riftPool: 112,
   coolFill: 112,
-  sconceLit: 96,
   /** A torch's warm core on the floor under it, so the pool reads warm against the cool fill. */
   sconceCore: 40,
   window: 40,

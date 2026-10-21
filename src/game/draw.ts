@@ -2895,12 +2895,12 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   if (!g.driving && g.mapId === "world" && g.carOwned) out.push({ x: g.carX + (g.carFacing === "e" ? 20 : g.carFacing === "w" ? -20 : 0), y: g.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
   if (g.mapId === "town" && !g.carOwned) out.push({ x: SHOWROOM.carX + 20, y: SHOWROOM.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
   if (below) {
-    // gfx-lighting: a torch is a real light: a wider warm pool and a cool violet fill, both cut by the walls.
+    // gfx-lighting: a torch is a real light: its warm pool, a warm core on the floor under it and a cool violet fill, all cut by the walls.
     for (const s of sconces(g)) {
       if (!sconceShows(g, s)) continue;
       const sh = LIGHT.shadows ? (s.y + 1) * g.w + s.x : undefined;
-      out.push({ x: s.x * TILE + 8, y: s.y * TILE - 1, r: LIGHT.sconceLit, c: LIGHTS.torch, seed: s.seed, flick: true, sh });
-      out.push({ x: s.x * TILE + 8, y: (s.y + 1) * TILE + 2, r: LIGHT.sconceCore, c: LIGHTS.torch, seed: s.seed, flick: true, sh });
+      out.push({ x: s.x * TILE + 8, y: s.y * TILE - 1, r: LIGHT.sconce, c: LIGHTS.torch, seed: s.seed, flick: true, sh });
+      out.push({ x: s.x * TILE + 8, y: (s.y + 1) * TILE + 2, r: LIGHT.sconceCore, c: LIGHTS.torch, seed: s.seed, flick: true, sh, low: true });
       out.push({ x: s.x * TILE + 8, y: (s.y + 1) * TILE + 8, r: LIGHT.coolFill, c: LIGHTS.coolFill, seed: 0, flick: false, sh, low: true, wash: LIGHT.wash.coolFill });
     }
     const rune = g.feats?.rune;
@@ -3220,22 +3220,9 @@ const NO_BOOST = new WeakSet<(c: CanvasRenderingContext2D) => void>();
  */
 const shadowCache = new Map<string, HTMLCanvasElement>();
 function shadowed(g: Game, sh: number, spr: HTMLCanvasElement, sx: number, sy: number): HTMLCanvasElement {
-  const ox = sh % g.w, oy = Math.floor(sh / g.w);
   const tx0 = Math.floor(sx / TILE), ty0 = Math.floor(sy / TILE);
   const tx1 = Math.floor((sx + spr.width - 1) / TILE), ty1 = Math.floor((sy + spr.height - 1) / TILE);
-  const solid = (x: number, y: number) => x < 0 || y < 0 || x >= g.w || y >= g.h || wallLook(drawnTile(g, y * g.w + x));
-  let mask = "";
-  for (let ty = ty0; ty <= ty1; ty++) {
-    for (let tx = tx0; tx <= tx1; tx++) {
-      const n = Math.max(Math.abs(tx - ox), Math.abs(ty - oy)) * 2;
-      let seen = true;
-      for (let k = 1; k < n && seen; k++) {
-        const cx = Math.floor(ox + 0.5 + ((tx - ox) * k) / n), cy = Math.floor(oy + 0.5 + ((ty - oy) * k) / n);
-        if ((cx !== ox || cy !== oy) && (cx !== tx || cy !== ty) && solid(cx, cy)) seen = false;
-      }
-      mask += seen ? "1" : "0";
-    }
-  }
+  const mask = sightMask(g, sh, tx0, ty0, tx1, ty1);
   if (!mask.includes("0")) return spr;
   const key = `${sx},${sy},${spriteId(spr)},${mask}`;
   const hit = shadowCache.get(key);
@@ -3252,6 +3239,25 @@ function shadowed(g: Game, sh: number, spr: HTMLCanvasElement, sx: number, sy: n
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++, i++) if (mask[i] === "0") x.fillRect(tx * TILE - sx, ty * TILE - sy, TILE, TILE);
   shadowCache.set(key, c);
   return c;
+}
+
+/** gfx-lighting: which tiles of the box (tx0..tx1, ty0..ty1, row by row) a light on tile sh can see: "1" seen, "0" behind a wall. */
+export function sightMask(g: Game, sh: number, tx0: number, ty0: number, tx1: number, ty1: number): string {
+  const ox = sh % g.w, oy = Math.floor(sh / g.w);
+  const solid = (x: number, y: number) => x < 0 || y < 0 || x >= g.w || y >= g.h || wallLook(drawnTile(g, y * g.w + x));
+  let mask = "";
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const n = Math.max(Math.abs(tx - ox), Math.abs(ty - oy)) * 2;
+      let seen = true;
+      for (let k = 1; k < n && seen; k++) {
+        const cx = Math.floor(ox + 0.5 + ((tx - ox) * k) / n), cy = Math.floor(oy + 0.5 + ((ty - oy) * k) / n);
+        if ((cx !== ox || cy !== oy) && (cx !== tx || cy !== ty) && solid(cx, cy)) seen = false;
+      }
+      mask += seen ? "1" : "0";
+    }
+  }
+  return mask;
 }
 const spriteIds = new WeakMap<HTMLCanvasElement, number>();
 let nextSpriteId = 0;
