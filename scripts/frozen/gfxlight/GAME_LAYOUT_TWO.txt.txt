@@ -1,0 +1,1098 @@
+GAME LAYOUT TWO
+Gravewake pack — 30 September 2026
+This is Layout One (pad + feel + light + FX) bound to Ashfield combat and the full monster sheet.
+
+Files
+- GAME_LAYOUT_TWO.png / .svg     wireframe
+- GAME_LAYOUT_TWO.txt            this pack
+- GAME_LAYOUT_TWO_PROMPT.txt     paste into a build bot
+- GAME_LAYOUT_TWO_ROSTER.txt     names, scale, kits, tiles
+
+Do not use Bellwarden, Death Knight, Bone Tyrant, or Marrowstead farm/Sovereign rules.
+
+
+
+================================================================
+PAD + FEEL + LIGHT + FX (from Layout One)
+================================================================
+
+GAME LAYOUT ONE
+Updated 30 September 2026 (Gravewake binding + particles + FX pipeline)
+Reusable mobile HUD / combat pad. Live title binding: Gravewake.
+
+Files
+- GAME_LAYOUT_ONE.png  — wireframe preview
+- GAME_LAYOUT_ONE.svg  — editable source
+- GAME_LAYOUT_ONE.txt  — this spec
+- GAME_LAYOUT_ONE_LIGHTING_PROMPT.txt  — glow/lighting prompt
+- GAME_LAYOUT_ONE_GRAVEWAKE.txt  — Gravewake pad + loop binding
+- GAME_LAYOUT_ONE_GRAVEWAKE_PARTICLES.txt  — Gravewake particle prompt
+- GAME_LAYOUT_ONE_GRAVEWAKE_COMBAT.txt  — Ashfield real-time combat option
+- GAME_LAYOUT_ONE_FX_PIPELINE.txt  — particle optimization + shader-graph workflow
+
+Look
+Game Boy pad + Diablo 3 skill bar. One combat language in open world and dungeons.
+Monochrome wireframe. No second battle screen.
+
+================================================================
+SCREEN MAP
+================================================================
+- Portrait flush to left bezel (top-left). Flickers during i-frames.
+- Pause under the portrait. HOLD 0.35s to confirm (cheek-press guard).
+- Vitals right of portrait: LV, XP current/next, HP bar (hatch fill, not hue-only),
+  mana/stamina bar. Vampire: drop mana/stamina, show Blood only.
+- Day/Night chip BETWEEN bars and minimap. Shared clock cycleT 0..1.
+  Moon cover = abs(cycleT - 0.5) * 2. Weather tag under chip (WX).
+- Minimap top-right. Drag to move. Double-tap or pinch collapses to a 24px pip.
+  Fog unexplored. Player arrow only. No quest spam.
+- Playfield: shader grade + weather particles under HUD.
+- Right rail: max 4 visible slots (orb, ring, then spells). Empty slots HIDDEN.
+  Long-press to remap. Combat cannot open the pack. Overflow lives in Pause.
+- Lower left: on-screen joystick.
+- Lower right: two mediums (SEC, 3RD) + large MAIN below/between them + two potion pills
+  (old Start/Select) = HP pot / mana-or-blood pot.
+
+Left-hand flip: swap stick cluster with MAIN cluster. Rail stays on the outer thumb edge
+(right for right-hand, left for left-hand).
+[OWNER-APPROVED EXCEPTION 2026-10-01 18:48 ET: true 320x240 Retro view] The Retro 320x240 display preset (and only it) shows a fixed 320×240 game pixels (20×15 tiles) at 1 canvas px per game px, scaled up by a whole number with black bars; the zoom does not apply in Retro. Every other preset keeps the C10 view exactly. Combat numbers, aggro ranges, spawn rules and movement are unchanged; the HUD is DOM over the window and steps up on a big screen (1.25× from 720 px, 1.5× from 900 px on the short side). Code: src/game/screen.ts retroView. The check suite (group `retro1`) enforces this.
+- [OWNER-APPROVED 2026-10-01 22:14 ET: in-game Install button, web app manifest, offline service worker] The game installs as an app: public/gravewake.webmanifest (relative start_url/scope, fullscreen, landscape, #140e12, 192/512/maskable 512 icons from tools/pixel-writer/make_icons.py) and a build-time service worker (scripts/gravewake-sw-plugin.mjs: precache versioned by build hash, index network-first, skipWaiting + clients.claim, old caches deleted; production builds on https or localhost only). An Install button on the title and under Pause › Display (never the HUD) replays beforeinstallprompt; on iPhone it opens the Share → Add to Home Screen tip; it hides once installed. No change to play, the sim or saves. The check suite (group `install1`) enforces this.
+
+================================================================
+1. MAIN VERB + HOLD
+================================================================
+MAIN shows one glyph for the current verb:
+  sword   foe in range
+  talk    NPC
+  hoe     farm plot
+  door    threshold
+  hand    loot / chest / cairn
+Tap MAIN = do that verb. In a fight the verb is sword and tap also fires the main attack.
+Hold MAIN 0.35s = interact-only (talk / open / till). Never swings into Rook.
+No foe and no context = tap does nothing (no dirt-swing).
+
+================================================================
+2. HIT FEEDBACK
+================================================================
+On connect: 1-frame white flash on the struck sprite, 2–3 px knockback on the pixel grid.
+  [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] playtest1n: below ground a Slash or Whirl also shoves the foe it hits (110 px/s for 0.12 s, about 13 px; a mini or rare half that, a boss never) so it can be knocked onto spikes or into fire, oil or a blast. The 2–3 px knockback itself is unchanged, and above ground nothing else moves.
+Screen shake only on crit, warden, Fourfold, Sovereign, or vampire.
+No bloom. i-frames (Morrowstead 0.7s or title equivalent): portrait flickers.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
+Do not add extra HUD hit meters.
+
+================================================================
+3. POTION PILLS
+================================================================
+HP pot / mana pot (blood pot if vampire — never show a blue flask in vampire form).
+Empty = greyed, tap ignored. Hold 0.25s to chug (fat-finger guard).
+Cannot drink during the coffin / death toast.
+
+================================================================
+4. STICK
+================================================================
+Deadzone 12–15%.
+Marrowstead 16-bit: snap to 8 directions.
+Morrowstead 2.5D / 32-bit: free analog.
+Outer ring of the stick = sprint / run (no fourth face button).
+Pixel-perfect draw positions at native res (Layout One does not change that law).
+
+================================================================
+5. SOFT-LOCK
+================================================================
+No hard target button. MAIN favors the nearest foe in a 40° cone in front of facing.
+Cone lost = next nearest in cone, else context verb, else nothing.
+Does not steal facing from the stick.
+
+================================================================
+6. RAIL DISCIPLINE
+================================================================
+Visible cap 4. Hidden empties. Long-press remap. No pack in combat.
+Rail is triggerable gear-spells only (orb, ring, inscribed items). Not weather. Not pots.
+
+================================================================
+7. MINIMAP
+================================================================
+Draggable. Collapse to 24px pip (double-tap / pinch). Fog of war. Player arrow only.
+
+================================================================
+8. DAMAGE NUMBERS
+================================================================
+One floating integer, native pixel font, nearest-neighbor scale.
+Crit = same font, +2 px. No rainbow, no miss spam.
+Optional off in Pause. Skip chip-damage numbers if the 16-bit field is already busy.
+
+================================================================
+9. DEATH / CAMP  (per-game, not unified)
+================================================================
+Layout One only draws: pause-tint + short toast.
+Morrowstead toast: "You drop. The ash is patient." Continue from last save.
+Marrowstead toast: "The coffin shuts. You gather in the crypt." −8 gold, full HP, Home Crypt.
+Camp / sleep stays in each game bible. Cannot camp under attack (Marrowstead).
+Do not merge those rules.
+
+================================================================
+10. ACCESSIBILITY
+================================================================
+- Left-hand flip (stick <-> action cluster).
+- HP bar uses hatch + width, not color alone.
+- Pause requires 0.35s hold.
+- Potion chug requires 0.25s hold.
+- Damage numbers toggle in Pause.
+
+================================================================
+SHADER + WEATHER  (unchanged law)
+================================================================
+cycleT 0 midnight, 0.22 dawn, 0.32 morning, 0.50 noon, 0.62 afternoon, 0.75 dusk, 0.86 evening.
+Lerp stops. Indoor / cave: cave palette, overlay muted.
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C4: a cave is now dark: its own ambient (the style doc's table, times LIGHT.ambientLift) lit by the hero's torch, seeded wall torches and lit braziers. Houses inside are unchanged.
+Weather multiply after grade: rain #c0c8d0, ash #d8b090, fog #c8c8c0 + density, snow #e8eef2.
+Particles after world, before HUD. Caps: rain 80–140, ash 40–80, fog 12–24, snow 50–90.
+Backends: (1) CPU billboards  (2) fullscreen scroll tile — default  (3) GPU points if headroom.
+Velkash default weather = ash. Vampire sunburn uses the GAME day band, not color stops.
+
+================================================================
+DO NOT ADD
+================================================================
+New face buttons, second weather widget, combo meter, dodge-roll besides dash,
+hard target lock, or a separate battle screen.
+No bloom, TAA, god rays, HDR eye-adapt, neon UI, or glowing HUD buttons.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
+
+================================================================
+GLOW AND LIGHTING
+================================================================
+Full paste-ready prompt lives in GAME_LAYOUT_ONE_LIGHTING_PROMPT.txt.
+Short law: local cheap glow only. Playfield, not HUD. cycleT drives sun; lamps own night.
+Off-hand light is the only moving glow (3–5 tiles / 4–6 units). Vampire eyes at night.
+  [OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px] The hero's light is 96 px below ground and 72 px outdoors at night (see PLAYER LIGHT).
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C5 is approved; batch 1 adds no moving light beyond the hero's. Wall torches, door lamps, festival lights and the rift gate flicker in place.
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C5 (batch 2): moving lights built: spells and bolts in flight (yours, your companion's and theirs) light the world in their spell strip's emits colour (C11), and flame foes (Lantern Man, Lantern King, Pumpkin Lord, Headless Horseman) carry a flickering pumpkin glow. All inside the 24-light budget, nearest first, the hero always first.
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C5 (batch 3): ghosts (Ghost, Undead Priest, Gallows Bride, Drowned Tzar) carry a cold, steady ghost light, 40 px and 56 px on a boss; the Death Shade has none (shades are negative light). The Deathbolt's purple now reads as shadow, so it lights hex violet like its strip (C11). Foes' flame and eye pixels stay at full light through glow masks (public/art/sprites/*_em.png); the mimic has none.
+Place: warm windows + hearth at home; warm lamp punches on living streets; bio-glow in
+grove/fen; ember-only in wastes; cave threshold to #1c1814; cold barrow; one color per
+elemental gate; Sovereign lamps-out is the only cinematic beat.
+Combat uses existing orb/slash sheets. Build first: 4-frame lamp sheet, 2-frame light blob.
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Built: lamp.png (a bracket and 4 flame frames, pixel writer) and light sprites baked once at run time per radius bucket (light.ts) in place of the 2-frame blob.
+Nearest-neighbor. Soft-lock cone stays invisible.
+
+================================================================
+FX RULE  (particles + shaders — standing law)
+================================================================
+This rule binds the optimization notes and shader-graph workflow.
+Detail lives in GAME_LAYOUT_ONE_FX_PIPELINE.txt.
+
+PARTICLES
+- After world grade, before HUD. Never on stick, MAIN, rail, or panels.
+- Detail in the texture, not the count. Whirl = dust-ring quad, not 40 specks.
+- Pool every burst. SoA typed arrays (x,y,vx,life,hue). No new/destroy per Slash.
+- One instanced draw for all 2×2 chips. Wastes ash = scroll tile when cheaper.
+- Caps: weather per title (Gravewake ash 40–80 wastes, 8–12 hub, mute in delves);
+  combat 24; interact 16; hub ambient 12. Over cap = oldest dies.
+- Opaque / alpha-cut chips. No big additive clouds.
+- Damage numbers = 0–9 sprite strip in the same pool. No text meshes.
+- Offscreen or fogged = don't spawn. If frame spikes: cut weather first, never Slash chips.
+- [OWNER-APPROVED 2026-10-01 19:59 ET: night foe fade-in] A night roamer dissolves in over 0.5 s when it spawns instead of popping on: a pinned
+  4x4 Bayer dither on world pixels (drawn or not, never blended, so no new colour), plus a six-chip ground-mist
+  puff from the pool (interact channel, ash colours, once, on screen and unfogged only). Looks only: the foe is
+  live from its first tick; spawn rule, distance, timing, AI, aggro, HP, damage, collision and the sim tick are
+  unchanged, and nothing is saved. src/game/fade.ts; `scripts/gravewake-check.mjs` (group `fade1`) enforces this.
+- [OWNER-APPROVED 2026-10-01 21:20 ET: festival foe fade-in, minimal sim.ts spawn-time tag] Festival foes fade in the same way: the Harvest Moon and
+  Krampusnacht bosses and the named packs of Krampusnacht, Drowned Bloom and Ashen Fair as they appear on the vale,
+  the helpers and pack minions that join their fight, and anything they summon. sim.ts only writes spawnAt (the
+  world ms the foe appeared at) on those foes; play never reads it and it is never saved. A festival foe already
+  there when a scene starts (a load, entering the vale) draws solid. A 2x boss dithers through a 2x box.
+  Bounties, rift and dungeon foes do not fade. `scripts/gravewake-check.mjs` (group `fade2`) enforces this.
+
+SHADERS
+- Unlit particle path. Vertex color = lifetime + tint. One atlas sample (two max).
+- Pack ash/spark/ring/numbers into RGBA of one atlas.
+- Four programs only: WorldGrade (cycleT + weather mul), ChipParticle, AshTile,
+  LightBlob (nearest). No bloom, TAA, PBR-per-chip, or extra lighting model.
+  [OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C6: the light-buffer composite (an extended LightBlob, Canvas2D multiply, no shader) is allowed. Still no bloom.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
+- Web Gravewake: GLSL/WGSL, not a Unity graph at runtime. Shader Graph is the
+  authoring pattern if the title later moves engines (URP Unlit Particle + instancing).
+
+GRAVEWAKE BINDING
+MAIN=Slash, hold=interact; SEC=Whirl; 3RD=Smite. See GAME_LAYOUT_ONE_GRAVEWAKE.txt
+and GAME_LAYOUT_ONE_GRAVEWAKE_PARTICLES.txt.
+
+
+================================================================
+GRAVEWAKE BINDING
+================================================================
+
+GAME LAYOUT ONE — GRAVEWAKE BINDING
+Updated 30 September 2026
+Title in play: Gravewake (Diablo-like ARPG). Layout One pad + feel pack stay.
+Farm / coffin / elemental-gate / Sovereign rules do NOT apply.
+
+LOOP
+Town gate (32,46). Vale + winter / waste / cinder / swamp.
+12 families, 21 bosses, 21 remnants, Stalkers, Loot Goblin, 5 pockets.
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES] + 2 festival bosses (Pumpkin Lord, Krampus), each only on its own festival night.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] + 1 mimic: a 13th family, a solo rare that wakes from a dungeon chest.
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] + 1 generated dungeon (Shifting Barrow, barrow @88,64, L14, 3 floors) and 1 rift zone (Ashen Rift, riftvale @20,60), both laid by tools/map-writer. No boss in either: still 21 bosses, 21 remnants, 5 pockets.
+Do not use Bellwarden / Death Knight / Bone Tyrant on this title.
+Save: anvil_run_gravewake_run0. Death: fallen overlay, reload last save. No gold tax.
+
+PAD MAP
+MAIN tap        Slash (40° cone soft-lock). Also the phone stand-in for click-attack.
+MAIN hold 0.35s Interact only (shrine / chest / waypoint / loot). Never a swing.
+SEC             Whirl (18 stamina)
+3RD             Smite (12 mana)
+HP pot          Health flask (key 1). Hold 0.25s to chug.
+Second pill     Grey / ignored until a mana flask exists.
+Rail            Socketed gear spells / gems only. Cap 4. Hide empty.
+Pause hold      0.35s. Panels I/C/T/K/X stay off the combat pad.
+[OWNER-APPROVED 2026-10-03: elemental combos, companion commands] (playtest1k, Bill 2026-10-03 08:41 ET, re-confirmed
+10:03 ET, an owner-approved companion change: "Taunt, Heal or Guard me, Focus my target, and Stay or Follow ... a touch UI
+that fits the HUD and display presets, plus gamepad and keyboard binds"):
+  ORDERS      Pad RT Taunt, LT Heal or guard me, R3 Focus my target, L3 Stay or follow (no panel on them; the combat
+              verbs above keep their buttons). Keys Z, X, R, V (Gravewake has no X panel). All four are rebindable and
+              an old binds record merges with them. Touch: a row of four small buttons beside the stick, inside the safe
+              area, shown only while a companion walks with you; each dims while it cools down.
+  Taunt (12 s) turns foes within 72 px of the companion onto it for 4 s (6 s if it knows a taunting art; a boss half):
+  their swings and marks go to it. A field companion never falls (HP floor 1) and falls back under 30%.
+  Heal or guard me (10 s): a healer casts its best heal now; a companion without a heal guards instead (5 s at your
+  side, every hit on you cut to 70%, never under 1). Focus my target (3 s): the foe you last hit (else the nearest in
+  120 px) for 8 s. Stay or follow: it holds its spot and catches up by itself past 10 tiles or on another map.
+  Orders are never saved: a loaded game follows. src/game/commands.ts.
+
+PC vs PHONE
+PC keeps click-to-move + A* and keyboard 1/2/3/F.
+Phone / Layout One: stick moves (cancels click path), MAIN/SEC/3RD/pots as above.
+Same verbs. Two skins. No second battle screen.
+
+MAIN VERBS (Gravewake only)
+sword  foe in cone
+hand   loot / chest
+shrine shrine / waypoint in range
+none   tap does nothing (no dirt-swing)
+Drop hoe / door-farm / talk-Rook.
+
+See GAME_LAYOUT_ONE_GRAVEWAKE_PARTICLES.txt for emitters.
+See GAME_LAYOUT_ONE_FX_PIPELINE.txt for particle optimization + shader-graph workflow.
+See GAME_LAYOUT_ONE_GRAVEWAKE_COMBAT.txt for Ashfield law.
+See GAME_LAYOUT_ONE_GRAVEWAKE_ROSTER.txt for every name, scale, tile, kit.
+See GAME_LAYOUT_ONE_GRAVEWAKE_COMBAT_PROMPT.txt to paste.
+
+
+================================================================
+ASHFIELD COMBAT LAW
+================================================================
+
+GAME LAYOUT ONE — GRAVEWAKE COMBAT OPTION
+"Ashfield"  — real-time Diablo-3 open-world combat
+Replaces any turn-based / menu-fight layer. Same pad. Same field.
+Updated 30 September 2026
+
+================================================================
+LAW
+================================================================
+No second battle screen. Fights happen on the Wastes and in delves.
+Player verbs stay Layout One: MAIN Slash, hold Interact, SEC Whirl, 3RD Smite.
+Soft-lock 40° cone. i-frames + 1-frame flash + 2–3 px knockback already in Layout One.
+  [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] playtest1n: below ground a Slash or Whirl also shoves the foe it hits (110 px/s for 0.12 s, about 13 px; a mini or rare half that, a boss never) so it can be knocked onto spikes or into fire, oil or a blast. The 2–3 px knockback itself is unchanged, and above ground nothing else moves.
+Death: fallen overlay, reload run0. No gold tax.
+
+Threat is a pack problem, not a menu problem. You kite, interrupt, or die.
+
+================================================================
+PLAYER (unchanged verbs, real-time timing)
+================================================================
+Slash     MAIN     melee cone, no resource
+Whirl     SEC      18 stam, spin, hits around feet
+Smite     3RD      12 mana, bolt, interrupt-tag on telegraphed boss casts
+Potion    hold     0.25s chug, grey when empty
+Run       stick outer ring
+
+Stam / mana regen only out of hit-stun. Cannot drink during fallen overlay.
+
+================================================================
+MONSTER TIERS
+================================================================
+Trash     1 signature move + idle walk. Telegraphs never.
+Rare      1 pack affix + 1 personal trick. Short tell (0.35s).
+          [OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] Mimic: no pack affix; the trick is one bite lunge.
+Mini      2 abilities, one is a gap-closer or summon. 0.5s tell.
+Boss      3–5 abilities on a cycle. Big move always telegraphs 0.8–1.2s
+          with a ground decal + portrait pulse (not a HUD sparkle).
+          [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights] (playtest1j, Bill 2026-10-03 08:41 ET, an
+          owner-approved gameplay change): a boss with a big move turns to PHASE TWO at 50% HP (once; it roars and
+          stands glowing 0.8 s, no hit). Phase one's big aims at you every 8 s (the old cycle); phase two's comes every
+          6 s and alternates two patterns, the NOVA (a 52 px ring round the boss itself, 0.9 s: get away from it) and
+          AIM + ECHO (an aimed 0.8 s mark, then a 0.74 s echo ring where you stand next). A summon, shield or blink big
+          keeps its one form. Smite still breaks a big (the nova too), not the echo. src/game/telegraph.ts.
+
+All four tiers have a PERSONALITY (below). Personality picks which ability
+fires, not a random table.
+
+================================================================
+PERSONALITIES
+================================================================
+One word. Drives spacing and which ability they spend first.
+
+Brawler     walks into Slash range, swings, rarely flees
+Kiter       keeps 6–8 units, tosses, runs when you Whirl
+Anchor      plants, slams, summons; you must come to it
+Skirmisher  dash in, 2 hits, dash out
+Coward      fights only in a pack; flees at 30% if alone
+Zealot      ignores kiting, walks through Whirl, dies loud
+Warden      faces the player, holds a lane, big-move on a clock
+Tyrant      summons, links adds, big-move when bloodied (<40%)
+
+Trash gets Brawler / Kiter / Coward.
+Rare gets Skirmisher / Zealot + one affix.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] The mimic is a Skirmisher with no affix.
+Mini gets Anchor or Skirmisher.
+Bosses are named: Bellwarden = Warden, Death Knight = Skirmisher,
+Bone Tyrant = Tyrant.
+
+================================================================
+TRASH MOVES  (one each)
+================================================================
+Ash walker      swipe
+Bone rattler    bone toss (kiter)
+Grave hound     lunge (skirmisher-lite)
+Ashkite         peck + hop
+Bell thrall     slow smash (brawler)
+
+Never more. Personality is the variety, not a 12-move kit.
+
+================================================================
+RARE / CHAMPION PACKS  (Diablo "linked")
+================================================================
+A rare is a pack: 1 rare + 2–4 minions.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] The mimic is the ONE solo rare: 1 rare, no minions, no pack affix. Its personal trick is one bite lunge on the existing 0.35s rare tint (the existing "line" shape, 18 px mark: OWNER-APPROVED COMBAT CHANGE 2026-09-30 10:35 PM ET, so a sidestep beats it; no new hit shape). Skirmisher. Stats on the one curve (scaleMonster), Stalker numbers: L+2, HP*1.45. Every other rare is still a pack. The check suite enforces that only the mimic builds solo.
+
+AFFIXES (pick 1, never stack 3 on open-world trash):
+  Linked     shared HP pool on the minions; rare has its own bar.
+             Kill the rare OR drain the shared pool. Minions freeze-pose
+             when the pool hits 0.
+  Chained    2 rares tied together; damage splits 50/50 until one drops,
+             then the survivor enrages (+20% speed, lose the link).
+  Horde      rare summons 2 trash every 8s, cap 6 live.
+  Vortex     pulls 4 units once per 10s, 0.35s tell.
+  Mortar     arc shot at last stand position, 0.5s ground mark.
+  Fast       +25% move, no extra HP.
+  Shielded   first 20% HP is a breakable shell; Smite shatters it faster.
+
+Open world: one rare pack on screen at a time unless a delve script says else.
+Linked is the default "Diablo share a pool" read. Chained is the fancy one;
+use it on mini-boss intros, not every Wastes pack.
+
+================================================================
+MINI-BOSSES
+================================================================
+Two abilities + personality + optional Horde.
+Examples:
+  Bell-captain     slam (0.5s ring) + whistle (summon 2 thralls)
+  Catacomb knight  dash-stab + frost cone (0.5s)
+  Keep butcher     hook (gap close) + cleave
+
+HP about 6–8 trash packs. No enrage timer. If you leave the arena, they leash
+and reset HP — D3 pack leash, not a raid wipe.
+
+================================================================
+BOSSES  (milestone rooms)
+================================================================
+Always: 3–5 abilities, one SUMMON, one BIG (telegraphed), one SPAM.
+Big move: ground decal + boss flash + optional bell/howl sting. You can walk
+out. Smite on the flash interrupts the BIG once per phase (then locked 12s).
+
+BELLWARDEN  (Warden)
+  spam    clapper swipe
+  mid     toll — 0.8s ring expanding, stand inside or outside (alternates)
+  big     peal — full-room shock, 1.2s floor runes, interruptible
+  summon  3 bell thralls at 70% and 35%, cap 3
+
+DEATH KNIGHT  (Skirmisher)
+  spam    frost cut
+  mid     blink-stab behind the player
+  big     grave-vow — 1.0s cross on the floor, two slashes
+  summon  2 grave hounds once per phase, cap 2
+
+BONE TYRANT  (Tyrant)
+  spam    bone toss volley
+  mid     linked cage — two bone pillars, SHARED HP, must break one
+  big     throne-fall — 1.2s collapse circle under the player
+  summon  4 rattlers at 60% and 25%, and they are LINKED to each other
+
+Phases are HP gates, not timers. Leaving the room resets the fight.
+Packs outside the room stay asleep until you exit.
+
+================================================================
+TELEGRAPHS
+================================================================
+Trash     none
+Rare      0.35s tint on the actor
+Mini      0.5s ground mark
+Boss BIG  0.8–1.2s ground decal + portrait flicker (existing i-frame flicker language)
+[OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights] (playtest1j, Bill 2026-10-03 08:41 ET,
+an owner-approved gameplay change: "foes, and bosses most of all, show a readable warning before big attacks ... Keep it
+fair on touch controls"):
+  FAIR FLOOR. A mid or big mark is never shorter than the walk out of it from its centre at 74 px/s plus 0.2 s for a
+  thumb on the stick (ring 40 px 0.74 s, pull 56 px 0.96 s, cone 64 px 1.06 s, a line 16 px sideways 0.42 s); a big
+  stays inside 0.8-1.2 s. Mini and boss mids rise from 0.5 s to their floor. Trash still never telegraphs and the rare's
+  0.35 s tint is unchanged. Mark radii and hit tests are unchanged.
+  NEON MARKS. The ground mark is a pixel ellipse that fills from its centre over the tell and doubles its rim in the last
+  20% (big red #ff3a4f, mid violet #b07aff, rare blue #4ab8ff, plates violet, ash red), a line shows its dotted lane,
+  and the casting foe glows a wind-up ring at its feet. Drawn on the ground under the actors; over the Lightless dark,
+  rims only. Still no full-screen flash and no prompt.
+  FIGHT LIGHTS. Marks, wind-ups, the phase roar, each spell's neon core (its 1h fx element: fire red, ice, lightning and
+  holy blue, venom and shadow violet), impacts, ash fire and live plates cast moving light into the dark (night, rooms,
+  dungeons). A fixed pool of 12 lamps, reused every frame, inside light.ts's 24-light scene budget; marks are baked once
+  and cached. Looks only: the sim never reads them. src/game/fightlights.ts.
+Never a full-screen red flash. Never a "PRESS TO DODGE" prompt.
+If you stand in the mark, you eat it. That is the skill.
+[OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] (playtest1n, Bill 2026-10-03 15:41 ET, an
+owner-approved gameplay change: "knock foes into spike traps and hazards ... lanterns or braziers ... barrels ... pillars
+... foes a little hazard-aware ... keep it fair, telegraph the hazards with the 1j marks and glow"):
+  THE ROOM. Each dungeon floor stands up to 5 props from its seed (one per 30 floor tiles; never in a corridor, by a
+  stair, chest, trap or secret, or where the hero arrives; the floor stays whole): a hanging lantern, an oil barrel, a
+  powder barrel, a cracked pillar. Nothing is saved: the same floor stands the same props every load.
+  Numbers are shares of the floor's trap hit (trapAtk). A foe shoved onto a spike trap springs it at once (2x, a 0.4 s
+  reel); raised spikes bite foes too (2x, once a rise). A struck lantern swings off its hook AWAY from the blow and lands
+  14 px past its post after a 0.35 s red mark: a fire patch (r 20, 4 s; foes 0.6x every 0.5 s as a fire hit, so a
+  poisoned foe is VENOM BLAST and an oiled one WILDFIRE; the hero 0.4x). An oil barrel bursts into a slick (r 24, 10 s)
+  that oils foes for 6 s; fire on the slick or the barrel makes a big fire (r 28). A powder barrel's fuse burns 0.8 s
+  under a red blast mark (r 32: the walk out from its centre plus 0.2 s is 0.63 s), then foes in it take 3x and reel
+  0.6 s, the hero 1x, and props in it catch. A pillar takes 3 hits, then topples away from the blow under a violet lane
+  (44 px long, 10 px either side, 0.6 s): foes in it 2.5x and stunned 1.5 s (minis and rares half, bosses no stun), the
+  hero 1x. Fire spells light props and oil at their impact; with no foe in reach a class spell or Smite aims at a prop.
+  WARY FOES. Two foes in three (fixed per foe, never a boss) will not step into live fire, a burning fuse's mark or a
+  rising spike: they slide round or wait. Oil and falling pillars they do not read. Bold ones walk on.
+  FAIR. Every hazard that lands later wears a neon mark first (lantern and blast red, pillar violet) and a fire patch keeps
+  a red rim; marks, fire, fuses and lit lanterns cast fight light from their own pool of 10 inside the 24-light budget.
+  Art is the room writer's (tools/pixel-writer/room_writer.py, palette v3). src/game/room.ts, src/game/roomdraw.ts.
+
+================================================================
+WEAKNESSES — VERDICT
+================================================================
+Do NOT ship hard immunities ("only weak to Smite / only fire").
+Open-world ARPGs punish a 3-button kit when a pack is unkillable with Slash.
+Players feel the build is broken, not clever. D3 itself uses RESIST slivers
+and breakable shields, not "this skeleton ignores all physical."
+
+USE INSTEAD
+  Resist 30–50% to one damage family (slash / whirl-phys / smite-holy).
+  Shielded affix (above) as the "bring Smite" tease.
+  Bellwarden takes +25% from Smite on the BIG window only.
+  Bone-family takes +20% from Whirl (cracks).
+  Never 0% damage from a player verb.
+
+If a later expansion wants a puzzle mob, make it a MINI with a breakable
+shell, not a Wastes walker you cannot scratch.
+
+[OWNER-APPROVED 2026-10-03: elemental combos, companion commands] (playtest1k, Bill 2026-10-03 08:41 ET, an
+owner-approved combat change: "Fire on poisoned or oiled foes explodes, ice then lightning shatters for bonus damage, and
+lightning in water or on wet foes chains ... keep the balance modest"):
+  ELEMENTAL COMBOS are bonuses on top of a hit, never a gate: no foe is immune to anything and every verb still does its
+  full damage. Each hero spell and companion art carries the 1h fx element its colour draws (fire, ice, lightning,
+  venom, shadow, holy). STATUSES (run only, never saved): venom POISONS 6 s (no damage of its own); water, pool, swamp
+  and open-air rain make a foe WET; snow, ice and open-air snow CHILL it (a lich is rimed); lanterns, pumpkins,
+  scarecrows and mummies are OILED. Wet and chill linger 2 s.
+  REACTIONS: fire on poison VENOM BLAST (+50% and a 30% splash in 32 px; the poison is spent), fire on oil WILDFIRE
+  (the same), lightning on chill SHATTER (+60%; the chill is spent), lightning on a wet foe CHAIN (40% arcs to at most 2
+  foes in 56 px). One per foe per 3 s, at most two per cast. Each shows its name in the pixel font and its own burst
+  (red nova, blue ring and shards, gold arcs). Statuses show as small motes over a fighting foe. src/game/combos.ts.
+
+================================================================
+AGGRO / LEASH
+================================================================
+Trash aggro 8 units or on hit. Leash 18 units back to spawn, snap reset.
+Rares leash 24. Bosses do not leash mid-phase; door seals until dead or you die.
+No friendly fire on summons vs their boss.
+
+================================================================
+LOOT TIE-IN
+================================================================
+Trash: table 1. Rare: table 2 + chance at gem. Mini: table 2 guaranteed gem roll.
+Boss: milestone table + one skill choice if pending. Combat option does not
+invent new inventory rules.
+
+================================================================
+DO NOT
+================================================================
+Turn-based menus, ATB bars, action queues, "choose Smash / Guard / Item."
+Hard immunities. Three affixes on one Wastes pack. Uninterruptible big moves
+with no decal. Summon storms over cap 6. Particles over FX RULE caps.
+
+
+================================================================
+PASTE COMBAT + ROSTER SHORT
+================================================================
+
+GAME LAYOUT TWO — PASTE PROMPT
+Gravewake only. This is Layout One pad + Ashfield combat + the full monster sheet.
+Do not use Bellwarden, Death Knight, Bone Tyrant, farm verbs, or a second battle screen.
+
+PAD
+Portrait flush left. Pause under it, hold 0.35s. Vitals: LV XP HP (hatched) mana/stam.
+Vampire: Blood only. Day/night chip + WX tag. Draggable minimap, collapse to 24px pip.
+Right rail cap 4, hide empty. Stick lower left, deadzone 12–15%, outer ring = run.
+SEC + 3RD mediums. MAIN large below them. Two potion pills. Hold pot 0.25s.
+MAIN tap = Slash 40° cone. MAIN hold 0.35s = interact (never swing).
+SEC = Whirl 18 stam. 3RD = Smite 12 mana (interrupts BIG once per boss phase, then 12s).
+Death = fallen overlay + reload run0. No gold tax.
+
+FEEL
+1-frame flash + 2–3px knockback. Portrait flickers in i-frames. Soft-lock cone invisible.
+  [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat] playtest1n: below ground a Slash or Whirl also shoves the foe it hits (110 px/s for 0.12 s, about 13 px; a mini or rare half that, a boss never) so it can be knocked onto spikes or into fire, oil or a blast. The 2–3 px knockback itself is unchanged, and above ground nothing else moves.
+Damage numbers = 0–9 sprite strip. No HUD sparkles.
+
+LIGHT + FX
+Glow local and cheap. Playfield only. cycleT drives grade. Lamps own night.
+Particles AFTER world, BEFORE HUD. Detail in the texture. Pool + SoA. One instanced draw.
+Caps: combat 24, interact 16, hub 12, wastes ash 40–80, delves mute.
+Four shaders only: WorldGrade, ChipParticle, AshTile, LightBlob. No bloom.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
+[OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] C6: plus the light-buffer composite (Canvas2D, Option A); no new shader.
+
+COMBAT — ASHFIELD
+Trash: 1 move, no tell. Rare: 1 affix + 2–4 minions, 0.35s tint. Mini/remnant: SPAM+MID, 0.5s mark, no BIG.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] Mimic only: a solo rare, no affix, no minions, one bite lunge on the 0.35s tint. Every other rare is still a pack.
+Boss: spam / mid / BIG / helpers. BIG 0.8–1.2s decal. Walk out or eat it.
+Affixes (one): Linked, Chained, Horde cap 6, Vortex, Mortar, Fast, Shielded.
+No hard immunities. Never 0% from Slash/Whirl/Smite.
+
+SCALE
+HP = round(baseHP * (0.55+L*0.10) * bulk)
+ATK = round(baseATK * (0.70+L*0.06))
+AC  = baseAC + floor(L/10)
+XP  = round(baseXP * (0.80+L*0.08))
+Silver = round(baseSilver * (0.70+L*0.06))
+bulk 4.6 common, 2 boss and remnant.
+
+Zone L = round(you*0.35 + dist + biome), min 1.
+Dist from gate 32,46: <8 +0, <16 +2, <26 +5, else +8.
+Biome: vale +1, waste x>48 +3, cinder y>46 +3, winter y<16 +4, swamp x27-41 y23-39 +6.
+Wild = zone of tile. If L > you+4, TWO.
+Dungeon = max(floor, zone of entrance). World boss = max(floor, home tile).
+Grave / Hearth = entry L, min 10.
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] Generated dungeon = the Dungeon rule: max(listed 14, zone of entrance 44,32), every floor, trash and guard. Rift zone = zone of the rift tile.
+Stalker = L+2, HP*1.45. Goblin = your L, min 3.
+Helpers from YOUR level: 1/2/3/4/5/6 at 1-15/16-30/31-45/46-60/61-80/81+.
+Helper at round(bossL*0.55), HP*0.45.
+Boss dead two day-night cycles. Remnant same L, no helpers, rare loot. Then boss returns.
+
+ROSTER
+12 families: zombie, skeleton, ghost, bat, ghoul, witch, lantern man, scarecrow, werewolf, mummy, pale courtier, knot-faced elm.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC] One 13th creature family beyond these 12: mimic (Mimic, a chest that bites). It is never a trash family, never in a wild, night, or floor-roamer pick. It only wakes from a dungeon chest, as a rare.
+21 bosses: Frankenstein, Evil Warlock, Undead Priest, Cursed Abbot, Wrapped King, The Lich, Lantern King, Hay Saint, Headless Horseman, Dracula, Wicked Witch, Root Widow, Gallows Bride, Death Shade, Carrion Saint, Giant Mummy, Ash Mare, Wolfman, Vampire Queen, Drowned Tzar, Leech Bishop.
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES] Two festival bosses beyond the 21: Pumpkin Lord (Harvest Moon) and Krampus (Krampusnacht). Only these two.
+21 remnants: Surgeon's Aid, Parish Acolyte, Canopic Guard, Dry Psalm, Wick Acolyte, Straw Deacon, Dullahan's Mare, Blood Steward, Bog Sister, Knot-Faced Elm, Sexton, Prior, Gallows Witness, Carrion Choir, Cinder Foal, Winter Howl, Pale Afterimage, Tomb Bearer, Court Favorite, Drowned Page, Chapel Leech.
+Stalkers ~1/14. Loot Goblin flees at 4s. 5 pockets, no boss.
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER] The generated dungeon's boss room holds a Stalker pack (Stalker = L+2, HP*1.45, two minions), never a boss; felled, it stays down for the rest of that day-night cycle. Rift zones are not pockets.
+Kits, tiles, floors: GAME_LAYOUT_TWO_ROSTER.txt
+Wireframe: GAME_LAYOUT_TWO.png / .svg
+Full pack: GAME_LAYOUT_TWO.txt
+
+
+================================================================
+FULL ROSTER
+================================================================
+
+GAME LAYOUT ONE — GRAVEWAKE ROSTER (ASHFIELD)
+Source: GRAVEWAKE MONSTER DATA (user, 30 Sep 2026)
+Ashfield real-time rules still apply. This file is the named list the short prompt was missing.
+
+================================================================
+SCALING  (do not invent another curve)
+================================================================
+Base numbers are pre-scale. Fight level L:
+  HP     = round(base HP * (0.55 + L * 0.10) * bulk)
+  Attack = round(base ATK * (0.70 + L * 0.06))
+  Armor  = base AC + floor(L / 10)
+  XP     = round(base XP * (0.80 + L * 0.08))
+  Silver = round(base silver * (0.70 + L * 0.06))
+bulk = 4.6 common (about four hits), 2 boss/remnant.
+Remnant uses boss bulk and the same L. No helpers. Rare loot, not boss loot.
+
+Boss helpers: count from YOUR level, not boss L.
+  1–15:1  16–30:2  31–45:3  46–60:4  61–80:5  81+:6
+Helper = ordinary family at round(boss L * 0.55), HP * 0.45.
+
+Zone L of a tile:
+  round(yourL * 0.35 + distanceBand + biome), min 1.
+Distance from town gate (32,46): <8 +0, <16 +2, <26 +5, else +8.
+Biome: vale +1, dry waste (x>48) +3, cinder (y>46) +3,
+  winter (y<16) +4, scourge swamp (x 27–41 and y 23–39) +6.
+
+Who uses what
+  Wild / night: zone of tile. No floor. If fight L > you+4, spawn TWO.
+  East bridge under lv 3: zone + 2.
+  Dungeon: max(listed floor, zone of entrance). All floors + trash + boss share it.
+  World boss: max(listed floor, zone of home tile).
+  Remnant: same L as the boss it replaced.
+  Grave / Hearth Stair: your L on entry, min 10. Ignore the map.
+  Stalker: that fight L + 2, then HP * 1.45.
+  Loot Goblin: your L, min 3.
+A slain boss stays down two day-night cycles. Remnant stands in its place. Then the boss returns.
+
+================================================================
+12 FAMILIES  (trash = 1 move, no tell)
+================================================================
+id        name             personality  move
+zombie    Zombie           Brawler      swipe
+skeleton  Skeleton         Kiter        bone toss
+ghost     Ghost            Kiter        wail-shot
+bat       Bat              Skirmisher   dive
+ghoul     Ghoul            Zealot       rend
+witch     Witch            Kiter        hex bolt
+pumpkin   Lantern Man      Brawler      wick punch
+scare     Scarecrow        Anchor       rake
+wolf      Werewolf         Skirmisher   lunge
+mummy     Mummy            Anchor       wrap slam
+vamp      Pale Courtier    Skirmisher   cut + step
+tree      Knot-Faced Elm   Anchor       root swipe
+
+Winter: wolf, ghost, bat.
+Waste: mummy, skeleton, ghoul.
+Cinder: lantern, scarecrow, witch.
+Swamp: witch, tree, zombie.
+Vale: zombie, skeleton, ghost, bat.
+Dungeons: all except bat is left out of the two floor roamers.
+[OWNER-APPROVED EXCEPTION 2026-09-30: MIMIC]
+mimic     Mimic            Skirmisher   bite lunge (rare only, 0.35s tint, solo, from a dungeon chest)
+
+================================================================
+STALKER / GOBLIN
+================================================================
+~1/14 wild fights become Family Stalker. Same move + one rare trick (0.35s tint).
+Loot Goblin: not a boss. Flees toward map edge after 4s. MAIN hits still work.
+Do not give the Goblin a BIG. Do not seal a room on it.
+
+================================================================
+21 BOSSES  — spam / mid / BIG / summon-helpers
+Helpers use the family table and the helper-count rule above.
+BIG = 0.8–1.2s ground decal + portrait flicker. Smite interrupts once per phase.
+
+DUNGEON
+frank        Frankenstein      Zealot     slam / stitch-pull / BIG bolt-surge / zombie helpers
+warlock      Evil Warlock      Kiter      hex / circle-trap 0.5s / BIG black candle / witch helpers
+priest       Undead Priest     Warden     smite-bolt / kneel-ward / BIG grave-rite / ghost helpers
+             (Opened Grave; vampire only; L = entry, min 10)
+abbot        Cursed Abbot      Warden     staff / pew-line / BIG chapel-knell / skeleton helpers
+             (Hearth Stair; L = entry, min 10)
+wrapped      Wrapped King      Anchor     wrap-slam / canopic toss / BIG bandage-cage / mummy helpers
+lich         The Lich          Kiter      frost-bolt / phylactery shield / BIG death-word / skeleton helpers
+lanternking  Lantern King      Anchor     wick punch / lantern volley / BIG last-wick (room dark 1s) / lantern helpers
+haysaint     Hay Saint         Anchor     rake / straw storm / BIG scare-choir / scarecrow helpers
+horseman     Headless Horseman Skirmisher charge / pumpkin lob / BIG ride-through (line) / horse-tint helpers (use wolf body if no horse family)
+dracula      Dracula           Tyrant     cut / bat swarm mid / BIG crimson stare (0.9s cone) / vamp helpers
+witchboss    Wicked Witch      Kiter      hex / swamp pull / BIG drown-cauldron / witch helpers
+rootwidow    Root Widow        Anchor     root swipe / vine cage / BIG canopy-drop / tree helpers
+
+WORLD
+bride        Gallows Bride     Kiter      wail / rope lash / BIG vow-bell / ghost helpers
+shade        Death Shade       Skirmisher phase-cut / fade-step / BIG umbral split (leave a shade add) / ghost helpers
+saint        Carrion Saint     Warden     psalm-bolt / bone circle / BIG last-office / skeleton helpers
+mummyboss    Giant Mummy       Anchor     slam / sand-burst / BIG sarcophagus-fall / mummy helpers
+ashmare      Ash Mare          Skirmisher charge / cinder kick / BIG ash-gallop line / lantern helpers
+wolfman      Wolfman           Zealot     lunge / howl-pull 0.35s / BIG winter-maul / wolf helpers
+queen        Vampire Queen     Tyrant     cut / court-call mid / BIG throne-gaze cone / vamp helpers
+tzar         Drowned Tzar      Warden     wave-cut / undertow 0.5s / BIG flood-ring / ghost helpers
+leech        Leech Bishop      Tyrant     drain-tap / choir-leech / BIG mass (stand or be pulled) / vamp helpers
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES]
+FESTIVAL (beyond the 21; festival nights only; never in a dungeon, the world boss spots, a remnant table, or a pick list)
+pumpkinlord  Pumpkin Lord      Zealot     vine lash / seed volley / BIG harvest blaze (ring) / lantern helpers
+             (Harvest Moon, autumn festival night; Cinder patch 26,52; L = max(10, zone))
+krampus      Krampus           Tyrant     switch lash / basket snatch (pull) / BIG birch dark (room dark 1s) / wolf helpers
+             (Krampusnacht, winter festival night; Winter hollow 12,11; L = max(16, zone); a switch and a basket, no chains or bells)
+[OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES] Only these two may exceed the 21-boss roster. Stats on the one curve (scaleMonster, the normal boss bulk). No remnant, no trophy slot. The check suite (group `festival`) enforces this.
+[OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS]
+FESTIVAL NIGHTS, SPRING AND SUMMER (on the season hooks, the night of in-season day 4; no boss and no rule exception)
+Drowned Bloom (spring): the swamp floods 3 tiles past its banks (x 24-44, y 20-42; drawn only, walking unchanged).
+  Plaza: Weir-wife Ottla at the stall (26,14); bloom bowls on the six lantern posts.
+  Bloom gathering: 6 blooms on flooded open ground, 3+ tiles apart, 4+ off the court, 8+ clear of every world boss spot; walk onto one to pick it (Drowned bloom, junk rank 1).
+  Ottla pays 4 silver a bloom; all 6 of the night handed in earns a garland: one chest-table roll.
+  The Drowned Court: 3 named Ghost Stalker packs (ghost is the Tzar's helper family and the vale's own) on the flooded banks
+  (vale ground, not the swamp itself), 8 tiles apart and 8 clear of every world boss spot. Court seal (junk rank 1) each,
+  a drowned coffer (one chest-table roll) half the time.
+  The Drowned Tzar keeps his one home (38,32). He is not a festival encounter and gets no second spot.
+Ashen Fair (summer): carnival games under a burning moon.
+  Plaza: Barker Sallow at the stall (26,14) by a striped booth with a burning moon on its board; ember braziers on the six lantern posts.
+  Ember dance: 3 silver a turn, 3 turns a night. 4 of the 6 braziers flare in turn (0.8 s each); walk them in that order inside 60 s (the longest town route is about 31 s at walking pace).
+  4 silver a step, 10 more for all four; a wrong brazier ends the turn. The night's first perfect dance wins a fair prize: one chest-table roll.
+  The sideshow: 3 named Stalker packs on Cinder lairs (y > 46, x <= 48: lantern man, scarecrow, witch), 8 apart and 8 clear of
+  every world boss spot. Fair ticket (junk rank 1) each, a prize box (one chest-table roll) half the time.
+[OWNER-APPROVED 2026-10-01 10:14 AM ET: SPRING AND SUMMER FESTIVALS] Both nights: stats on the one curve (the Stalker pack: L+2, HP*1.45, two minions L-1). No new boss, no remnant, no new save field, loot from the existing junk row and chest table only. The check suite (group `festival2`) enforces this.
+
+World bosses notice from farther when your L is close to fight L.
+Bride climbs with you from 25. Wolfman, Queen, Tzar, Leech stay on floor through 100.
+
+================================================================
+21 REMNANTS  (minis)
+================================================================
+Same id/family/L/stats as the boss. No helpers. Rare table. Two day-night only.
+2 abilities: the boss SPAM + the boss MID. No BIG. 0.5s mark on the mid.
+Leash 24 and reset if you leave (open-world remnants). Dungeon remnant stays in the last floor.
+
+boss         remnant
+frank        The Surgeon's Aid
+warlock      Parish Acolyte
+wrapped      Canopic Guard
+lich         Dry Psalm
+lanternking  Wick Acolyte
+haysaint     Straw Deacon
+horseman     The Dullahan's Mare
+dracula      Blood Steward
+witchboss    Bog Sister
+rootwidow    Knot-Faced Elm          (remnant name collides with family tree — tint boss-dark)
+priest       The Sexton
+abbot        The Prior
+bride        Gallows Witness
+saint        Carrion Choir
+ashmare      Cinder Foal
+wolfman      Winter Howl
+shade        Pale Afterimage
+mummyboss    Tomb Bearer
+queen        Court Favorite
+tzar         Drowned Page
+leech        Chapel Leech
+
+================================================================
+POCKETS  (no boss)
+================================================================
+Two floors. Dungeon level rule. Trash only + possible Stalker + possible Goblin.
+pocketvale 4 @36,84 / pocketwaste 16 @100,44 / pocketcinder 26 @80,96 /
+pocketwinter 30 @36,16 / pocketswamp 40 @68,48
+
+================================================================
+[OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER]
+GENERATED SITES  (tools/map-writer; seeded, no Math.random)
+================================================================
+Generated dungeon (one): barrow  Shifting Barrow  L14 @88,64, 3 floors, cave tiles.
+  Rooms and corridors from the map writer; same seed, same floors. Trash: floor-roamer rule (all except bat).
+  Boss room (the deepest room) on the last floor: a Stalker pack guards it, never a boss.
+  Vault room: one chest (the mimic odds apply). Secrets, traps, mimic: the game's own placement on the writer's grid.
+  No captive (the site is not in the rescue list).
+  Hooks: zeppelin stop once visited; floor curses as any dungeon run; no bounty; no festival; no season pick (delves keep the even pick).
+Rift zone (a site type of its own; not a pocket, not a dungeon): riftvale  Ashen Rift  @20,60.
+  One floor. L = zone of the rift tile. Trash only (the rift tile's own families) + possible Stalker (~1/14) + possible Goblin (camp odds).
+  No boss, no secrets, no mimic, no captive, no curse, no zeppelin. Traps may lie on its floor.
+  The pocket rerolls each day-night cycle (seed = rift spot + cycle). You come back out on the exact spot you went in
+  from (the Portal record). No town portal inside. The mouth uses the Portal ash swirl (8 ash, 0.3s).
+The check suite (group `mapwriter`) enforces this.
+
+[OWNER-REQUESTED 2026-10-01: MAP WRITER PHASE 2]
+BIOME BORDERS  (tools/map-writer phase 2: blendBiomes + gravewake_vale.ts; seeded, no Math.random)
+  Looks only. The vale's borders are drawn ragged and lightly dithered instead of ruled: each open-ground tile
+  (and the ground under a tree, rock, pump, or grave) may show a neighbouring biome's ground from up to 2 tiles
+  away, picked by a fixed-seed noise warp (seed "gravewake-vale", reach 2, scale 6), plus a 3-6 px dithered fringe
+  of the higher ground's own art over the lower along each border (snow > sand > ash > swamp > grass; border-dither.png,
+  pixel writer). A tree or rock is drawn as the kind its skin biome has (frosted on snow, dead on ash and swamp).
+  Never re-skinned: road, door, water, ice, stairs, dirt. Unchanged: the tile grid, collision, the zone names,
+  zone levels, foe families and goblin odds (all still the rectangle rule above), every boss, merchant, rift,
+  and festival spot, the minimap, saves. The check suite (group `mapwriter2`) enforces this.
+
+================================================================
+AFFIXES ON THIS ROSTER
+================================================================
+Wild rares still: one affix. Stalker already has +2 L and 1.45 HP — do not also stack Shielded+Horde+Linked.
+Boss helpers may be Linked to each other (shared helper pool) on Tyrant fights only (Dracula, Queen, Leech, Root Widow).
+Chained = two remnants if two bosses in the same two-cycle window spawn near each other. Rare. Do not script it.
+
+================================================================
+WEAKNESS  (unchanged law)
+================================================================
+No hard immunity. 30–50% resist by family is allowed:
+  bone/skeleton/lich  whirl +20%
+  ghost/shade         smite +20%
+  vampire court       smite +25% on BIG window only
+  mummy/tree          slash full, whirl +15%
+Never 0% from Slash/Whirl/Smite.
+
+
+================================================================
+FX PIPELINE
+================================================================
+
+GAME LAYOUT ONE — FX PIPELINE
+STANDING RULE (also copied into GAME_LAYOUT_ONE.txt as FX RULE).
+Particle optimization + shader-graph workflow for Gravewake (web ARPG) and later titles.
+Updated 30 September 2026.
+
+================================================================
+PARTICLE OPTIMIZATION
+================================================================
+Goal: stay inside Layout One caps (weather 80 ash, combat 24, interact 16, hub ambient 12)
+on a phone, without GC hitch or HUD jank.
+
+1. Detail in the texture, not the count
+   One 8×8 chip with a good silhouette beats 20 dots.
+   Whirl is a dust RING texture (1–2 quads), not 40 specks.
+   PocketGamer midcore VFX: many effects drop from ~30 particles to 2–10
+   by painting motion into the sprite. That is the Gravewake default.
+
+2. Pool. Never new/destroy per Slash
+   Preallocate the cap. On emit: reset position/life/color. On death: return to pool.
+   Web/JS: typed arrays (SoA) — x[], y[], vx[], life[], hue[].
+   AoS objects per chip will GC stutter on Android.
+
+3. One draw
+   All combat chips share one atlas + one instanced draw (ANGLE_instanced_arrays / WebGL2).
+   Weather ash is a scrolling fullscreen tile (already Layout One backend 2), not 80 sprites
+   if fill-rate allows a 64px tile instead.
+
+4. Simulate cheap
+   Integrate on GPU only if WebGL2 + headroom. Else CPU on the SoA in one tight loop.
+   No per-particle collision. No noise texture sample per chip.
+
+5. LOD / distance
+   Offscreen = dead. Behind fog in delves = don't spawn. Hub crafts don't run in Wastes.
+
+6. Overdraw
+   Additive is expensive on mobile fill-rate. Gravewake chips are opaque 2×2 or alpha-cut,
+   not big soft additive clouds. Soft fog cards stay at 12–24 and only in Wastes edges.
+
+7. Damage numbers
+   Do not spawn a text mesh per hit (DRG Survivor lesson). Use a 0–9 sprite strip in the
+   same particle pool. Layout One already wants one native pixel integer.
+
+8. Budget check
+   If frame time spikes on a pack + Whirl + ash: cut weather first, then interact glints,
+   never the Slash chips (readability).
+
+================================================================
+SHADER GRAPH WORKFLOWS
+================================================================
+Gravewake ships on web (Vite / Anvil / WebGL). Unity Shader Graph and Unreal Material
+Editor are the *authoring pattern*, not the runtime unless the title moves engines.
+
+Workflow to steal from Shader Graph (Unity 6 / URP):
+- Start from an UNLIT particle template, not Lit PBR.
+- Vertex color = lifetime + tint (Layout One cycleT and weapon hue ride this).
+- Flipbook / atlas UV in the graph, one texture sample. Two samples max on mobile.
+- Pack masks into RGBA of that one atlas (ash / spark / ring / number strip).
+- Custom lighting, if any, is the cycleT grade already in Layout One — do it as a
+  multiply on the backbuffer or a hemisphere uniform, not per-particle PBR.
+- No bloom node. No TAA. No soft-particle depth fade unless delves need it later.
+  [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines] playtest1l: Bill asked for an optional Bloom glow (Off/Low/High) and Scanlines (Off/Subtle/Strong) setting. Scope: a player setting in the Display options only; a layer over the finished playfield frame (src/game/postfx.ts), so the art's own pixels stay crisp and untouched and the HUD, minimap and menus stay dry; bloom needs WebGL (off without it, and off by default on the Phone preset, a software renderer or a weak device); two small post shaders (bright-pass, blur) outside the world's four. Off, the frame is exactly the old one. Everywhere else: still no bloom.
+
+Recommended graphs to keep (even if written as GLSL/WGSL):
+A) WorldGrade     inputs: cycleT, weather mul    output: scene tint + fog
+B) ChipParticle   inputs: atlas, vertex color, instance pos
+C) AshTile        inputs: scroll UV, density     Wastes only
+D) LightBlob      2-frame off-hand / shrine glow, nearest filter
+
+Authoring loop
+1. Block the effect as 1–2 texels on paper (Layout One law).
+2. Paint the atlas cell.
+3. Wire Unlit graph or GLSL with vertex color lifetime.
+4. Cap emitter to the table in GRAVEWAKE particles.
+5. Profile overdraw (flash tint) before adding a second sample.
+
+If a future title is Unity: use URP Unlit Particle target + GPU instancing on the
+Renderer module; Custom Lighting sample for the cycleT sun, not HDRP.
+
+If Godot: VisualShader on particles, filter = nearest, process_material with
+preallocated amount = cap.
+
+Web Gravewake now: skip a visual editor; keep two GLSL programs (grade + chips)
+and one atlas. That is the shader-graph workflow with the nodes collapsed.
+
+
+================================================================
+LIGHTING PROMPT
+================================================================
+
+GAME LAYOUT ONE — GLOW AND LIGHTING PROMPT
+Paste this with Game Layout One. Do not add bloom, TAA, god rays, HDR eye-adapt, neon UI, or glowing HUD buttons.
+
+LAW
+Glow is local and cheap. Pixel titles: 1–2 extra shade steps around a lamp, never a blur halo. 32-bit field: one small additive sprite or a vertex tint, then stop. HUD stays dry — glow lives in the playfield only. Daylight is the sun grade from cycleT. Night is lamps. Dusk is when both fight. Same cycleT as the sun/moon chip and weather overlay.
+
+PLAYER LIGHT
+Off-hand slot is the only moving glow (torch / lantern / hex globe). Radius short: 3–5 tiles on 16-bit, 4–6 units on 32-bit. Vampire form: eye glow is enough at night; sun is the threat, not the dark. Sun charm may tick faint gold on the portrait at dawn only — no world bloom.
+[OWNER-APPROVED EXCEPTION 2026-10-01 15:59 ET: hero light 96/72 px] The hero's light is wider than the short radius above, by the owner's approval (for phone legibility): its light sprite is 96 px below ground and 72 px outdoors at night (src/game/light.ts LIGHT.hero, LIGHT.heroNight). The lit pool it visibly lifts (band 1 and up, light.ts litPool) is 57 px (3.5 tiles) below ground and 43 px (2.7 tiles) outdoors.
+
+PLACE LIGHT
+Homestead / Blightacre: hut windows warm after cycleT > 0.7. Well gets a thin moon sliver, not a spotlight. Hearth is the strongest indoor pool — 3-step orange, 2–3 frame flicker. Sleep-until-dawn snaps lights off.
+Ashwharf / Emberhollow: street lamps punch warm holes in a blue night overlay. One hanging lantern per stall. Living parish brighter than the dead parish.
+Marrowfen / Morelhold: bioluminescence, not fire — morel caps, moss, fen gas. Slow 2–3s pulse, never strobe. Grove blessing leaves a short green pool on the cairn.
+Wastes / Cinder Hollow: Ashkites and ember orbs are the only bright things. Cave mouth is a hard threshold — outdoor cycle grade outside, cave palette #1c1814 / fog #100e0c inside. Cinderhound eyes = 2 px only. Heat shimmer at noon only.
+Quiet Barrow / Catacomb: cold light — bone, shard, lantern-stone. Vampire eyes are the brightest point in the room. Cairn offering: brief white-gold flash, then quiet.
+Elemental halls (one color each, do not mix): Water teal caustics; Fire ceiling embers 1 px; Shades negative light (lamps dim near them); Nature briar pollen; Ice hard specular chips, almost no fill; Storm brief white ticks; Wind almost none, dust in shafts; Stone torch only; Crystal torch splits into 2–3 prism dots; Magic hex-globe / chalice, magenta not neon. Wardens get an elemental rim. Trash does not.
+Tenfold Throne: court lamps die when the Sovereign stands. His marrow glow is the only key light. On death, lamps return over 2 seconds. Only cinematic light in the game.
+
+COMBAT
+Use existing ember-orb and slash sheets. Crit = one extra slash frame, not a screen flash. Blood-mage leech = 2-frame red pull lines. Cleric barrier = 1-px rim (same as block). Soft-lock cone stays invisible.
+
+WEATHER × LIGHT
+Rain: 1-px wet cap on lamps; streaks stay dark. Ash: orange specks are the motes. Fog: hide distant lamps, keep near ones. Snow: moonlight only. Indoor / cave mutes the overlay.
+[OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11] Night: the vale takes a moon ambient; the town keeps a lighter twilight with a lamp at every lit door and the festival lights; a cave's own darkness replaces the muted overlay.
+[OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights] The vale's moon ambient is [0.68, 0.72, 0.92], up from [0.38, 0.42, 0.62]; blue still leads, so it reads as night. The town's twilight is [0.74, 0.76, 0.96], up from [0.5, 0.5, 0.7], so it stays lighter than the vale on every channel (src/game/light.ts LIGHT.worldNight, LIGHT.townNight).
+
+ASSETS TO BUILD FIRST
+4-frame lamp flicker sheet at native size. 2-frame off-hand light blob at native size. Nearest-neighbor only. No new face buttons. No second weather widget.
+
+
+================================================================
+PARTICLES
+================================================================
+
+GRAVEWAKE — PARTICLE + PAD PROMPT
+Use Game Layout One on Gravewake only. Ignore Marrowstead farm verbs, coffin tax, elemental gates, and Sovereign lamps.
+
+PAD
+MAIN tap = Slash (cone soft-lock). MAIN hold 0.35s = interact (shrine/chest/waypoint/loot), never a swing.
+SEC = Whirl (18 stam). 3RD = Smite (12 mana). HP pot = flask 1. Second pill grey until a mana flask exists.
+Rail = socketed gear spells. Death = fallen overlay + reload run0. No gold penalty.
+
+DRAW
+Particles AFTER world grade, BEFORE HUD. Hard pixels. Ash climate.
+
+WEATHER
+Lychgate: off or 8–12 slow ash. Wastes: ash 40–80. Delves: mute weather; optional 8–16 cave dust.
+
+COMBAT  (max 24)
+Slash 3–6 rust/bone chips 0.15s. Crit +2. Whirl: foot dust ring 8–12, 0.2s.
+Smite: 1 bolt mote + 4 white impact chips. Potion: 3 red ticks. Wastes run: 3 ash puffs.
+
+INTERACT  (max 16)
+Shrine 6 ash-gold. Chest 4 gold. Portal 8 ash swirl 0.3s. Hub craft 2 bench sparks. Vendor none.
+
+DEATHS
+Trash 3–5 ash/bone. Elite +3.
+Bellwarden: 8 bronze + 1 ring.
+Death Knight: 8 cold white inward.
+Bone Tyrant: 10 bone outward.
+Player: ash lift only.
+
+PICKUPS
+Loot 2 glints. Gem 2 ticks. Skill/level 6 cream ticks at feet 0.4s.
+
+FORBIDDEN
+Farm particles, blood pools, HUD sparkles, cone glitter, panel sparkles, rainbow level-up.
+
+OPTIMIZATION LAW (short)
+Put detail in the texture, not the count. Pool every burst. One instanced draw for all 2×2 chips.
+Over cap = kill oldest. See GAME_LAYOUT_ONE_FX_PIPELINE.txt.
+
+OWNER-REPORTED BUGS  [OWNER-REPORTED 2026-10-01 23:25 ET: playtest1 phone playtest fixes]
+Town: 40x30. Every house door is on its south face with a stoop; doors open only from the front (walking north
+into them). The back wall is solid. Only the ten road gates lead out; each leads to the vale on its own side, and
+the vale's town door brings you back at the gate on the side you came from. A writer fence rings the rest.
+Swim only when the whole foot box (py-2..py+3) is over water; the pond bank is land.
+The hero's look is the player's alone: NPCs, crowd and companions asking for a hero class wear sellsword,
+cutpurse, hedgemage or patron. Swim, slide, fish and climb are sprite-writer frames (moves.png).
+Walk: 2 3 4 3 at the game's 8 frames a second (125 ms a frame).
+Spells: 0.6 s on screen, drawn over the actors, a flight (55%) then an impact burst; picture only, no damage,
+targeting or cost moved. Smite or a rail spell that finds nothing shows a fizzle ring.
+Camp: breaking camp or stepping on the south mark asks "Leave camp?" (touch, keys, pad); the world waits.
+Leaving the page: autosave on hide, close, blur, fullscreen exit and every 45 s (gravewake-autosave-v1, a
+slot-shaped record; slots untouched); pause under "Tap to resume"; resume there on reload; the back gesture asks
+"Leave game?"; closing asks the browser's leave prompt.
+Ground: the town cobble, dirt, water, pool, fence, the vale road and room floors are pixel-writer strips.
+
+OWNER-REQUESTED LOOKS  [OWNER-REQUESTED 2026-10-02 00:52 ET: playtest1b looks, "gloom and glow"]
+Dark scenes full of glowing things. Signature glows: neon blue cold fire (first), violet neon, red neon, on
+lanterns, wisps, signs and town decor. Palette v3 = v2 + #4ab8ff #9ae4ff #b07aff #ff3a50 (NEON ramps).
+Every town room door hangs its trade's neon sign (emissive). Names float over people within 6 tiles; a room's
+name shows in gold by its door within 3. Homes (cottages, crofts, tradeless houses) keep a picket yard one tile
+out on grass, gap at the door path; looks only. Every building is house scale. The town on the vale is a walled
+hamlet icon with blue gate lamps. Camp button dims where you cannot camp. Minimap: iron frame, neon corner
+studs, markers for stairs (violet), gates (blue), doors (gold), and the hero.
+Playtest notes 2026-10-02: the phase chip names town twilight; "Lantern Night" is labelled a festival; the
+swim line is replaced when you climb out; jack-o'-lanterns drawn whole.
+
+OWNER-APPROVED BALANCE  [OWNER-APPROVED 2026-10-02 Bill]
+Mana: max MP = old formula x2.5, MP regen = old rate x3 (sim.ts MANA). Fresh wizard 83 MP (was 33): 6 Smites
+from full and most of a 7th, 0.90 MP/s regen (was 0.30). Spell costs and damage unchanged.
+
+OWNER-REQUESTED ART AUDIT  [OWNER-REQUESTED 2026-10-02 02:07 ET: playtest1c art audit, batch C part C1]
+No old graphics in play: trees, deadwood, rocks, graves, pumpkins, water, ice, the biome grounds, shore rims,
+dungeon mouths and floor stairs are the pixel writer's wild art (wild_writer.py, sheets public/art/writer/wild-*,
+constants src/game/wild.ts). The creature tilemap, fall pack, brileta/held trees and rocks, land dead trees and
+decoration sheet are out of the draw. Trees are 32x48 on their trunk tile; headstones 16x32 (house scale);
+bosses draw at 1x in a cold-fire ring. Water, pond, pool, ice and the snow/ash/sand/swamp grounds are cut from
+128x128 wrapping sheets by world position (no tile grid), with bank / stone kerb / snowbank rims. Dungeon mouths
+on the vale are 48x48 (stairwell, crypt mouth, barrow arch) with blue cold-fire braziers; the town's Opened
+Grave is 32x32. Fringes use the soft drift masks plus biome crumbs. Idle breathes on a 4 s beat per body.
+Looks only: g.tiles, collision, sim, saves untouched. Inventory and C2 list: specs/ART_AUDIT.md.
+
+OWNER-REQUESTED ART AUDIT C2  [OWNER-REQUESTED 2026-10-02 06:55 ET: playtest1d art audit C2]
+Town houses (64x96, three looks by lot) and the cabin (80x96) are the writer's town art (town_writer.py,
+public/art/writer/town-*), same footprints and cut, with _em glow masks drawn in the night glow pass (windows,
+chimney ember, door lamp). The town lawn is the writer's town-grass.png, drawn per season. Spells draw only from
+/art/spells/gen. Biomes get a dark rim line (wild-border-rim.png) where they meet the vale. Floor stairs take the
+dungeon's theme (wild-stairs-themes.png). Trap plates draw only inside a dungeon (fixes the grey square on the ice).
+Looks only: g.tiles, collision, sim, saves untouched.
+
+OWNER-APPROVED BIGGER WORLD (D1)  [OWNER-APPROVED 2026-10-02: playtest1e bigger world] [OWNER-APPROVED 2026-10-02: playtest1e no void]
+Bill: "the world and biomes feel super tiny". The vale is 128x120 (was 64x60): every biome has 4x the area. The
+zone rule is the old rectangles at twice the size (content.ts worldBiome / planBiome); every place above (@x,y)
+is given on the new grid. The grid is laid by the map writer's phase 3 (tools/map-writer writeOverworld via
+gravewake_world.ts, seed "gravewake-world-1e"): ground, groves, the old roads at twice the size (x=64, y=80, the
+winter road y=16, the lake bridge x=42), a winding trail from every mouth, rift, boss, cart, watch and the town
+door to the roads, and landmarks spread out per biome (standing stones, graveyards, ponds, pumpkin patches, hidden
+glades) with 14 trail caches (chests keyed world:cache:x:y). A forest band two tiles deep rings the edge. The town
+stays 40x30, the camp and dungeons as before. The "g.tiles never changes" rule is lifted for the vale only, by
+this approval. Zone levels count distance from the gate in old tiles, so the bands cover the same share.
+No void: the camera is clamped to the map (cameraFor), and a map smaller than the view is centred; past the edge
+outdoors (vale, camp, town) is drawn as the edge ground plus dense trees, below ground as rock (fog-dark until
+seen). Saves: a save without worldV (every save before playtest1e) has its vale position, camp spot, world portal
+and world drops doubled on load (migrateWorldSave); a tree or rock under the new spot pushes the hero off as
+always. New saves write worldV: 2.
+
+OWNER-APPROVED WAYRIFTS AND SWAMP PATH (D2)  [OWNER-APPROVED 2026-10-02: playtest1f portals]
+Bill: visible animated portals to the seasonal festival zones, the rifts and other special places, on the corner
+map and the full map, with a swirl on travel and a light at night; and a proper swamp path. Eleven wayrifts
+(src/game/wayrifts.ts): a 3x2 footprint of two solid standing stones on a dais with the open mouth between them
+(art 48x64, the rift writer's, palette v3: violet arms, red heart, neon-blue cold fire). Four stand by the town gate
+(y 91: the Ashen Rift x56, the festival rift x60, the Shifting Barrow x66, the Waste Pocket x70); far rifts by the
+Ashen Rift (23,60), the Shifting Barrow (95,59), the Waste Pocket (95,42) and one a season at each festival: Harvest
+Moon by the Pumpkin Lord's patch (46,104), Krampusnacht in the Winter hollow (27,19), the Drowned Bloom on the flood
+bank (72,42), the Ashen Fair in the Cinder (28,100). The gate's festival rift leads to this season's; the other three
+festival rifts are sealed (they say when they wake). Walk (or tap, or push the stick) into a mouth: an ink iris
+closes on the hero (0.55 s), you step out at the far rift's front, it opens (0.55 s); play, foes and input wait
+meanwhile. The arrival rift waits until you step off. Every front is 10+ tiles from a world boss. At night each
+awake far rift lights its mouth cold blue; the gate's four share one light per pair (the frame rate stays at 1e's). Laying the vale
+clears trees, rocks and pumps from each footprint, front and art rows (18 tiles change) and would cut a trail to the
+net if a front were walled in (it cuts none). Saves: no new key; a journey is never saved; a save standing on a
+stone is moved off on load. Swamp trails draw the swamp path (mossy mud with ragged edges and boardwalk planks on
+straight runs, picked by neighbour mask) over the swamp ground in place of the flat brown square. Looks only for
+the path: g.tiles still holds a trail there.
+
+OWNER-APPROVED TRAIL PATHS (playtest1g)  [OWNER-APPROVED 2026-10-02: playtest1g trail paths]
+Bill (2026-10-02 11:30 ET): give the trails in the vale, snow, ash and sand biomes proper path art in place of the
+flat brown squares, the swamp path's way. Drawing only. Each trail tile off the swamp draws its skin biome's ground
+(as its neighbours draw it) and then the trail writer's 16x16 cell for its NESW path neighbours (1 N, 2 E, 4 S, 8 W;
+the swamp path's rule, swampPathCell; a straight in five its variant), ragged edges letting the ground show through,
+palette v3, hard alpha: the vale's worn dirt with ruts and leaf litter, one row a season (autumn litter, winter
+frost, spring blossom, summer dry grass); packed snow with boot prints (variant: sled runners); cracked cinder with
+embers (variant: a glowing vent); wind-swept sand with ripples and pebbles (variant: a half-buried bone). For the
+frame rate each ground-and-path pair is composited once into an opaque trail atlas, so a trail tile is one copy where
+its flat square was one fill (no more canvas calls than 1f). Before a trail sheet loads the tile is the old flat
+square; while its ground sheet loads, the ground's fallback with the path cell on it. g.tiles, the sim and the saves
+are untouched.
+
+OWNER-REQUESTED ART AND LOADING AUDIT (playtest1h)  [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]
+Bill (2026-10-02 19:43 ET): "go through all the models, sprites, animations, textures, and make sure nothing is
+mismatched, everything is loading correctly, there's no placeholders, and that there are spell effects that show
+correctly when spells are cast". Drawing and loading only. Every art path the game names resolves (group playtest1h:
+source literals and templates, the runtime asks over every scene; the browser audit qa/playtest1h/audit.mjs saw zero
+failed loads). The last painted placeholders are writer art (tools/pixel-writer/prop_writer.py): the chest (iron-banded
+planks, a domed lid, a cold-blue keyhole) on the ground it stands on, a sleeping mimic lifting that chest's own lid, each
+dungeon's water and pools as a wrapping four-frame liquid in its own palette, bone heaps, and the Hollow Chapel's aisle
+in its floor-kit slabs. Spells keep their bolts and colours and gain three beats from tools/spell-writer/fx_writer.py
+(public/art/spells/fx): a cast sigil at the hand, a round impact at the target (the old 2x burst only while it loads),
+and an area burst on the ground for a self-centred art or a placed nova; a near-black spell (Summon Shade, Vanish)
+glows violet; Whirl = the fx writer's dust ring at the feet, held 0.36 s (the particle pool is read, never written).
+The sim, particles.ts, damage, timings and saves are untouched.
+
+OWNER-REQUESTED ART AUDIT PART 2: INTERIORS AND MAP CONSISTENCY (playtest1i)  [OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]
+Bill (2026-10-02 19:43 ET): "make sure the inside of buildings is up to date and quality of textures as the outside
+... make sure all the textures are high quality and all of the map looks good and matches each other". Drawing only.
+Every room is drawn in its building's outside style (src/game/interiors.ts ROOM_STYLE: the log cabin, the stone house,
+the slate-boarded house), from tools/pixel-writer/interior_writer.py: a wrapping 128 px floor (log planks, flagstones,
+blue-washed boards), the matching inside wall (logs, ashlar, slate boards) with each style's sconce glow (cabin and slate
+cold blue, stone violet), the style's rug, and the trade furniture (counters, bookcases, shelves, pews, altar, forge,
+anvil, card table, cauldron, orrery, nets, crates, potions, inn table, strongbox, mannequin, weapon racks) on the spots
+the painted shapes held, lit (forge red, cauldron and altar blue, orrery violet). The old painted furniture, boards,
+wall and rug draw only while the sheets load. The croft gets the hearth kit's bed and stove (decor slots untouched).
+Map: the vale's cart road, the town's dirt and the camp clearing blend into their grass through the wild writer's
+drift masks (a one-tile road keeps its middle). Room grids, NPC spots, collision, the sim and saves are untouched.

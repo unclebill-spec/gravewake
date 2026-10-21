@@ -280,8 +280,9 @@ const PT2B_GONE = {
 const PT2B_FROZEN = ["src/lib/app-data/client.server.ts", "src/lib/auth/use-current-user.ts", "scripts/check-auth-invariant.test.mjs", "scripts/migration-plan.test.mjs", "eslint.config.mjs", "vite.config.ts", "package.json"];
 // gfx-lighting (Bill's 2026-10-21 BLACKTAIL-style lighting ask, branch gfx-lighting): draw.ts and light.ts moved (looks only:
 // the light layer, night ambients, mood lights, tile shadows, the emissive add). Every older pin reads them as playtest2b left
-// them (main 8d99f71), frozen under scripts/frozen/gfxlight/; group gfxlight checks the live files.
-const GFXL_FROZEN = { "src/game/draw.ts": "draw.ts", "src/game/light.ts": "light.ts" };
+// them (main 8d99f71), frozen under scripts/frozen/gfxlight/ (with the rules file, which gains the gfx-lighting note); group
+// gfxlight checks the live files.
+const GFXL_FROZEN = { "src/game/draw.ts": "draw.ts", "src/game/light.ts": "light.ts", "rules/GAME_LAYOUT_TWO.txt": "GAME_LAYOUT_TWO.txt" };
 function gfxlView(f) { return f in GFXL_FROZEN ? `scripts/frozen/gfxlight/${GFXL_FROZEN[f]}.txt` : f; }
 function pt2bView(f) { return PT2B_FROZEN.includes(f) ? `scripts/frozen/playtest2b/${f.split("/").pop()}.txt` : f; }
 const pt2bWalk = (list, d) => [...new Set([...list, ...Object.keys(PT2B_GONE).filter((g) => g.startsWith(`${d}/`))])];
@@ -15601,7 +15602,7 @@ if (on("gfxlight")) {
   writeFileSync(join(dir, "gfxl.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as LT from "${root}/src/game/light.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport { GATE } from "${root}/src/game/bounty.ts";\n`);
   execFileSync("npx", ["esbuild", join(dir, "gfxl.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "gfxl.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const X = await import(pathToFileURL(join(dir, "gfxl.mjs")).href);
-  const L = X.LT.LIGHT, LS = X.LT.LIGHTS;
+  const L = X.LT.LIGHT;
   const CYC = 30 * 60 * 1000, NIGHT = CYC + 22 * 60000, DAY = 5 * 60000;
   const mk = (ms) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; return g; };
   const draw = readFileSync("src/game/draw.ts", "utf8");
