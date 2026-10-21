@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: earlysinks, fun-early-sinks merged into main, pins refrozen, warden finished
+- Merged fun-early-sinks (2893247) into main. Under Node 22, check:game on the merge showed 28 failures: 26 byte-freeze pins plus 2 roll-ups of them (playtest1p's live 1k pass and playtest1v's live world pass). Each red was confirmed to be a byte pin. A live-pass diff against pre-merge main showed no gameplay check changed.
+- Refroze the pins: sim.ts, draw.ts and Gravewake.tsx are frozen as playtest2b shipped them (`scripts/frozen/earlysinks/`, read through `esView`). Every other file counts at its 2b md5 (`scripts/frozen/earlysinks/base-md5.json`). Files added after 2b are later modules (`esNew`). playtest1v's live pins are re-pinned by name (only the byte pins went red).
+- Warden: his strike shows Art's blue rune ring (`runering_blue_64x32.png`, 8 frames: fills over his tell, lit on the hit, floor plus glow pass; `paintRuneRing` in draw.ts). The sheet faces right by default (staff and swing on the right), so the existing flip (hero on his left) is correct and was left as is. The other telegraph sheets were copied for later steps.
+- New group earlysinks (5): frozen copies, an old save without earlyDone, a beaten save, the ring and the facing. check:game 1066/1066 under Node 22. typecheck 0, test 159/153/0/6, phone run 0 JS errors.
+
 ## 2026-10-21: fun-early-sinks (branch, not published) [OWNER-APPROVED 2026-10-21: fun-early-sinks early encounter + silver sinks]
 - Early encounter: Old Mulch, the Grave-Warden (`src/game/sinks.ts` EARLY), a once-only elite ghoul plus one weak risen a few tiles south of the road gate (vale 91,131 via openNear; no map change, existing ghoul sprite). Fight level clamped 2-3, 1.8x ghoul HP, 0.85x swing. Pays 30 silver, 46 xp (level 1 to 2), a rank-2 weapon (starter atk +3), a draught and the free title Grave-Warden. The new-life log line hints at him.
 - Silver sinks (all via talk choices, no new UI): Corvin Tallow's counter: boss trophies for every felled world/dungeon boss (40 + 2 x lv, max 200), a trophy wall, casino silver prizes (draught crate 45, tonic pair 40, gilded dice 120, felt chandelier 320), titles Velvet Regular 140 / Lord of the Vale 500. Ossian Sprocket (car owned): titles Bone-Car Baron 90 / Lantern-Bearer 220. The mystic: wayrift attunement I/II/III (90/180/400: +25% energy, +25% HP, a 15 s ward on landing). Worn title shows on the level-up panel.

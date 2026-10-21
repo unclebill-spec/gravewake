@@ -12,3 +12,4 @@ __pycache__/
 *.keystore
 keystore.properties
 local.properties
+.vercel/

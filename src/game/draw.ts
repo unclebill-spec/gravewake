@@ -3543,6 +3543,35 @@ export function paintWarden(ctx: CanvasRenderingContext2D, x: number, y: number,
   return true;
 }
 
+/** Telegraph rune rings (Art's telegraphs sheets: 8 frames, 0-5 fill clockwise over the tell, 6 lit, 7 flash). */
+export type RingColour = "blue" | "violet" | "red";
+export function runeRingUrl(col: RingColour, big: boolean): string { return `/art/writer/runering_${col}_${big ? "128x64" : "64x32"}.png`; }
+export function paintRuneRing(ctx: CanvasRenderingContext2D, x: number, y: number, col: RingColour, big: boolean, frac: number, lit: boolean, frame: number): boolean {
+  if (typeof Image === "undefined") return false;
+  const url = runeRingUrl(col, big);
+  if (!prop2Ready(url)) return false;
+  const w = big ? 128 : 64, h = big ? 64 : 32;
+  const f = lit ? (frame % 8 < 4 ? 6 : 7) : Math.max(0, Math.min(5, Math.floor(frac * 6)));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(landSheet[url]!, f * w, 0, w, h, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+  ctx.restore();
+  return true;
+}
+/** The early boss's strike ring at his feet, filling over his wind-up; drawn on the floor and again on the glow pass. */
+function paintRuneRings(ctx: CanvasRenderingContext2D, g: Game, glow: ((c: CanvasRenderingContext2D) => void)[]) {
+  for (const r of g.roamers) {
+    if (!r.early) continue;
+    const tell = r.tell ?? 0, max = r.tellMax ?? 0, act = r.actFor ?? 0;
+    if (tell <= 0 && act <= 0) continue;
+    const frac = tell > 0 && max > 0 ? 1 - tell / max : 1;
+    const lit = tell <= 0;
+    const draw = (c: CanvasRenderingContext2D) => void paintRuneRing(c, r.x, r.y, "blue", false, frac, lit, g.frame);
+    draw(ctx);
+    glow.push(draw);
+  }
+}
+
 /** A steam puff: a dithered cloud that swells, lifts and thins as it lives. */
 function paintPuff(ctx: CanvasRenderingContext2D, p: { x: number; y: number; life: number; drift: number }) {
   const t = 1 - p.life / CAR.puffLife;
@@ -4278,6 +4307,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // playtest1j: every telegraph is a neon ground mark that fills over its tell (big red, mid violet, a rare's tint blue,
   // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
   paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
+  paintRuneRings(ctx, g, glow); // fun-early-sinks finish: the warden's blue rune ring under his strike
   roomScene(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // playtest1n: the room's props, patches and marks
   if (g.darkUntil > g.worldMs) {
     for (let i = 0; i < 40; i++) px(ctx, g.px - 70 + (i * 17) % 140, g.py - 50 + (i * 13) % 90, 2, 2, "#0c0a08");

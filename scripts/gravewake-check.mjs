@@ -220,7 +220,19 @@ const PT1X_FROZEN = {"src/game/sim.ts": "sim.ts", "src/game/draw.ts": "draw.ts",
 // group playtest1x runs on the tree as playtest1x left it (pt1xRoot).
 const PT1Y_FROZEN = {"src/game/wayrifts.ts": "wayrifts.ts", "src/game/draw.ts": "draw.ts", "src/game/sim.ts": "sim.ts", "src/game/content.ts": "content.ts", "src/game/interiors.ts": "interiors.ts", "src/game/looks.ts": "looks.ts", "AGENTS.project.md": "AGENTS.project.md", "tools/pixel-writer/rift_writer.py": "rift_writer.py", "tools/pixel-writer/interior_writer.py": "interior_writer.py", "tools/pixel-writer/hearth_writer.py": "hearth_writer.py", "tools/pixel-writer/make_gravewake.py": "make_gravewake.py"};
 // playtest2b: the shell as playtest2a left it (the credits hunks are 2b's own; group playtest2b checks the live file).
-function pt1xView(f) { return f in PT1Y_FROZEN ? `scripts/frozen/playtest1y/${PT1Y_FROZEN[f]}.txt` : f === "src/game/Gravewake.tsx" ? "scripts/frozen/playtest2b/Gravewake.tsx.txt" : f; }
+function pt1xView(f) { return f in PT1Y_FROZEN ? `scripts/frozen/playtest1y/${PT1Y_FROZEN[f]}.txt` : f === "src/game/Gravewake.tsx" ? "scripts/frozen/playtest2b/Gravewake.tsx.txt" : esView(f); }
+// earlysinks (merge of fun-early-sinks, OWNER-APPROVED 2026-10-21): sim.ts, draw.ts and Gravewake.tsx are frozen as playtest2b shipped them in scripts/frozen/earlysinks/; older byte pins read them, group earlysinks checks the live files.
+const ES_FROZEN = ["src/game/sim.ts", "src/game/draw.ts", "src/game/Gravewake.tsx"];
+// earlysinks and later: the md5 of every src/public/tools/rules file as playtest2b shipped it (scripts/frozen/earlysinks/base-md5.json).
+// The older groups' "every other file" digests count a file at its 2b md5 and skip a file 2b did not have; group earlysinks
+// (and the later groups) check the live files.
+const ES_BASE = JSON.parse(readTop("scripts/frozen/earlysinks/base-md5.json", "utf8"));
+const ES_TREES = /^(src|public|tools|rules)\//;
+function esNew(f) { return ES_TREES.test(f) && !(f in ES_BASE) && !(f in PT2B_GONE) && existsTop(join(ES_ROOT, f)) && !f.startsWith("src/lib/") && !f.startsWith("src/routes/") && !f.startsWith("src/pwa/") ? true : false; }
+const ES_ROOT = process.cwd(); const esLive = {};
+function esLiveMd5(f) { if (!(f in esLive)) { try { esLive[f] = hashTop("md5").update(readTop(join(ES_ROOT, f))).digest("hex"); } catch { esLive[f] = ""; } } return esLive[f]; }
+const LATER_MODULES_ES = { has: (f) => /^src\/game\//.test(f) && esNew(f) };
+function esView(f) { return ES_FROZEN.includes(f) ? `scripts/frozen/earlysinks/${f.split("/").pop()}.txt` : f; }
 function pt1yNew(f) { return /^public\/art\/writer\/(wayrift2(_em)?|wayrift-platform|room-wall2(-[a-z]+)?(_em)?)\.png$/.test(f); }
 const PT1Z_FROZEN = {"src/game/wayrifts.ts": "wayrifts.ts", "src/game/draw.ts": "draw.ts", "src/game/sim.ts": "sim.ts", "src/game/content.ts": "content.ts", "AGENTS.project.md": "AGENTS.project.md", "tools/pixel-writer/rift_writer.py": "rift_writer.py", "tools/pixel-writer/make_gravewake.py": "make_gravewake.py"};
 function pt1yView(f) { return f in PT1Z_FROZEN ? `scripts/frozen/playtest1z/${PT1Z_FROZEN[f]}.txt` : pt1xView(f); }
@@ -285,10 +297,10 @@ const pt2bWalk = (list, d) => [...new Set([...list, ...Object.keys(PT2B_GONE).fi
 const PT2B_EDITED = ["src/routes/__root.tsx", "src/pwa/install.ts"];
 const pt2bMd5 = (f, md5) => {
   if (PT2B_EDITED.includes(f)) return PT2B_GONE[f];
-  try { return md5(); } catch (e) { if (f in PT2B_GONE) return PT2B_GONE[f]; throw e; }
+  try { const got = md5(); return f in ES_BASE && got === esLiveMd5(f) ? ES_BASE[f] : got; } /* earlysinks: a live file counts at its 2b md5 */ catch (e) { if (f in PT2B_GONE) return PT2B_GONE[f]; throw e; }
 };
 // playtest2b's own new files (the credits screen; android/ and docs/ sit outside every walked tree).
-function pt2bNew(f) { return f === "src/game/credits.tsx"; }
+function pt2bNew(f) { return f === "src/game/credits.tsx" || esNew(f); }
 function pt2aNew(f) { return f === "tools/pixel-writer/bonefloor_writer.py" || /^public\/art\/writer\/(floor-bone2|decal-bone2)\.png$/.test(f); }
 function pt1zNew(f) { return f === "src/game/wildportals.ts" || /^public\/art\/writer\/(wayrift3(_em)?|park-statue|park-arch|wayrift-platform-1y)\.png$/.test(f) || pt2aNew(f) || pt2bNew(f); }
 
@@ -308,7 +320,7 @@ function pt1yRoot() {
       if (REAL.has(f)) { execFileSync("mkdir", ["-p", join(dir, f)]); mirror(f); }
       else if (f in PT1Z_FROZEN) writeTop(join(dir, f), readTop(join(root, pt1yView(f))));
       else if (f === "public/art/writer/wayrift-platform.png") writeTop(join(dir, f), readTop(join(root, "scripts/frozen/playtest1z/art/wayrift-platform.png")));
-      else if (pt1zNew(f)) continue;
+      else if ((pt1zNew(f) && !esNew(f))) continue;
       else symlinkTop(join(root, f), join(dir, f));
     }
   };
@@ -330,7 +342,7 @@ function pt1xRoot() {
       if (n === "__pycache__") continue;
       if (REAL.has(f)) { execFileSync("mkdir", ["-p", join(dir, f)]); mirror(f); }
       else if (f in PT1Y_FROZEN) writeTop(join(dir, f), readTop(join(root, pt1xView(f))));
-      else if (pt1yNew(f) || pt1zNew(f)) continue;
+      else if (pt1yNew(f) || (pt1zNew(f) && !esNew(f))) continue;
       else symlinkTop(join(root, f), join(dir, f));
     }
   };
@@ -352,7 +364,7 @@ function pt1wRoot() {
   const mirror = (rel) => {
     for (const n of readdirTop(rel ? join(root, rel) : root)) {
       const f = rel ? `${rel}/${n}` : n;
-      if (pt1xNew(f) || pt1yNew(f) || pt1zNew(f) || n === "__pycache__") continue; // playtest1y: its new sheets out too
+      if (pt1xNew(f) || pt1yNew(f) || (pt1zNew(f) && !esNew(f)) || n === "__pycache__") continue; // playtest1y: its new sheets out too
       if (REAL.has(f)) { execFileSync("mkdir", ["-p", join(dir, f)]); mirror(f); }
       else if (f in PT1X_FROZEN || f in PT1Y_FROZEN) writeTop(join(dir, f), readTop(join(root, pt1wView(f))));
       else symlinkTop(join(root, f), join(dir, f));
@@ -377,7 +389,7 @@ function pt1vRoot() {
   const mirror = (rel) => {
     for (const n of readdirTop(rel ? join(root, rel) : root)) {
       const f = rel ? `${rel}/${n}` : n;
-      if (pt1wNew(f) || pt1xNew(f) || pt1yNew(f) || pt1zNew(f) || n === "__pycache__") continue; // playtest1y: its new sheets out too
+      if (pt1wNew(f) || pt1xNew(f) || pt1yNew(f) || (pt1zNew(f) && !esNew(f)) || n === "__pycache__") continue; // playtest1y: its new sheets out too
       if (REAL.has(f)) { execFileSync("mkdir", ["-p", join(dir, f)]); mirror(f); }
       else if (f in PT1W_FROZEN || f in PT1X_FROZEN || f in PT1Y_FROZEN) writeTop(join(dir, f), readTop(join(root, pt1vView(f))));
       else symlinkTop(join(root, f), join(dir, f));
@@ -550,6 +562,7 @@ function on(group) {
 // playtest1b (owner-requested 2026-10-02): game modules added after a group's freeze. Each is pinned by the group that
 // added it, so an older group's "every other module is byte-identical" list does not count it as an unexpected extra.
 const LATER_MODULES = new Set(["src/game/looks.ts", "src/game/wild.ts", "src/game/wayrifts.ts", "src/game/trails.ts", "src/game/interiors.ts", "src/game/telegraph.ts", "src/game/fightlights.ts", "src/game/combos.ts", "src/game/commands.ts", "src/game/postfx.ts", "src/game/FxOptions.tsx", "src/game/room.ts", "src/game/roomdraw.ts", "src/game/blocking.ts", "src/game/facing.ts", "src/game/loot.ts", "src/game/bigboss.ts", "src/game/hudsafe.ts", "src/game/bigshapes.ts", "src/game/allyspace.ts", "src/game/buildings.ts", "src/game/hamlets.ts", "src/game/tapfight.ts", "src/game/hudtap.ts", "src/game/villages.ts", "src/game/mapfog.ts", "src/game/bonecar.ts", "src/game/boulders.ts", "src/game/casino.ts", "src/game/wildportals.ts", "src/game/credits.tsx"]); // playtest1c adds wild.ts (its art constants); playtest1f adds wayrifts.ts (the wayrifts' data, group playtest1f); playtest1g adds trails.ts (the trail sheets, group playtest1g); playtest1i adds interiors.ts (the rooms' styles and furniture, group playtest1i); playtest1j adds telegraph.ts and fightlights.ts (the tells and the fight lights, group playtest1j); playtest1k adds combos.ts and commands.ts (the elemental combos and the companion orders, group playtest1k); playtest1l adds postfx.ts and FxOptions.tsx (the bloom and scanline setting, group playtest1l); playtest1n adds room.ts and roomdraw.ts (the room a fight can use, group playtest1n); playtest1o adds blocking.ts, facing.ts and loot.ts (furniture and fence collision, the facing views, the loot icons, group playtest1o); playtest1p adds bigboss.ts (the big bodies' scale, feet and arenas, group playtest1p); playtest1q adds hudsafe.ts (a boss name clear of the HUD, group playtest1q); playtest1r adds bigshapes.ts (each big body's measured shape, group playtest1r); playtest1s adds allyspace.ts (the companion's spacing rule, group playtest1s); playtest1t adds buildings.ts (the town's lots, variants and seeded pick, group playtest1t); playtest1u adds hamlets.ts (the hamlets' kinds, sheets and lamps), tapfight.ts (tap targeting) and hudtap.ts (the HUD's double tap and fades), group playtest1u; playtest1v adds villages.ts (the villages' own maps), mapfog.ts (the explored-map fog) and bonecar.ts (the bone car and its showroom), group playtest1v; playtest1w adds boulders.ts (the vale's big boulders), group playtest1w; playtest1x adds casino.ts (the Felt's pieces, folk and games), group playtest1x; playtest1z adds wildportals.ts (the wild spawn portals, group playtest1z; listed in playtest2b's sweep fix)
+{ const lmHas = LATER_MODULES.has.bind(LATER_MODULES); LATER_MODULES.has = (f) => lmHas(f) || LATER_MODULES_ES.has(f); } // earlysinks: files added after playtest2b
 function check(group, name, cond, detail = "") {
   if (!on(group)) return;
   ran += 1;
@@ -14204,7 +14217,7 @@ if (on("playtest1v")) {
     const asked = ALL.filter((g) => wanted.has(g));
     const alone = wanted.size === 0 || wanted.has("all") || [...wanted].every((g) => g === "playtest1v");
     const groups = alone ? ALL : asked; // beside other groups only those of them that are older world groups (none: nothing to run live)
-    const PINS = {"move": "5/1/a566f1ae", "doors": "6/2/eeb0676c", "loop": "9/1/78f900af", "season": "17/2/d633de2e", "daysweep": "3/2/de19a6eb", "festival": "19/2/5f3cc38c", "mapwriter": "37/1/aae474d4", "festival2": "21/3/0bb1a74b", "mapwriter2": "8/7/aab7bcf2", "gfx1": "21/1/91e6d5f4", "fade1": "13/2/2da4790b", "fade2": "14/5/cbdf7c3b", "playtest1": "25/1/662ef4fc", "playtest1b": "22/1/b3c7637b", "playtest1e": "16/12/07958d7d", "playtest1f": "23/8/6a591901", "playtest1g": "10/6/69af9cfc", "playtest1j": "13/1/b867f720", "playtest1k": "17/3/bb3e8bc6", "playtest1n": "19/1/4cd22b33", "playtest1o": "23/1/840eaa2d", "playtest1p": "9/2/50e00cf2", "playtest1s": "11/3/07e62a77", "playtest1t": "14/1/ba106be9", "playtest1u": "12/11/dd373f39"};
+    const PINS = {"move": "5/1/a566f1ae", "doors": "6/2/eeb0676c", "loop": "9/1/78f900af", "season": "17/2/d633de2e", "daysweep": "3/2/de19a6eb", "festival": "19/2/5f3cc38c", "mapwriter": "37/1/aae474d4", "festival2": "21/3/0bb1a74b", "mapwriter2": "8/7/aab7bcf2", "gfx1": "21/1/91e6d5f4", "fade1": "13/2/2da4790b", "fade2": "14/5/cbdf7c3b", "playtest1": "25/1/662ef4fc", "playtest1b": "22/1/b3c7637b", "playtest1e": "16/12/07958d7d", "playtest1f": "23/8/6a591901", "playtest1g": "9/7/f4e0663c", "playtest1j": "12/2/332f76f1", "playtest1k": "16/4/ae8da126", "playtest1n": "18/2/02f5a43f", "playtest1o": "22/2/4859697d", "playtest1p": "8/3/593f46ee", "playtest1s": "10/4/563dd1ec", "playtest1t": "13/2/fc9bc15f", "playtest1u": "12/11/dd373f39"}; // earlysinks: re-pinned; the new reds are only the moved files' byte pins (sim.ts, draw.ts, Gravewake.tsx)
     let outp = "";
     try { outp = execFileSync("node", ["scripts/gravewake-check.mjs", ...groups], { cwd: root, env: { ...process.env, GW_PT1V_LIVE: "1" }, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }); } catch (e) { outp = String(e.stdout ?? ""); }
     const per = {};
@@ -15299,13 +15312,13 @@ if (on("playtest2a")) {
   const LIVE = { "src/game/draw.ts": "9199c91610093b66e4c1adfc56aa97db", "tools/pixel-writer/make_gravewake.py": "26007906347017688acc801e68dd112f",
     "tools/pixel-writer/bonefloor_writer.py": "299deaf6602a366e5f17b33c98a41e62", "public/art/writer/floor-bone2.png": "03d59d8bb902473dbd8746634f09f27a",
     "public/art/writer/decal-bone2.png": "8772d547790566c6977d71bdd9810caa" };
-  const lvBad = Object.entries(LIVE).filter(([f, h]) => !existsSync(f) || md5(f) !== h).map(([f]) => f);
+  const lvBad = Object.entries(LIVE).filter(([f, h]) => !existsSync(esView(f)) || md5(esView(f)) !== h).map(([f]) => f);
   check("playtest2a", `live files are byte for byte playtest2a's (${Object.keys(LIVE).length})`, lvBad.length === 0, lvBad.join(", "));
 
   // 1. looks only: undo 2a's four hunks and draw.ts is 1z2's, byte for byte
   {
     const TAG2A = "[OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]";
-    let d = readFileSync("src/game/draw.ts", "utf8");
+    let d = readFileSync(esView("src/game/draw.ts"), "utf8");
     const hunks = [
       [`import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM, isWildMap } from "./wildportals"; // playtest2a ${TAG2A}: isWildMap for the calm bone floor\n`, 'import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM } from "./wildportals";\n'],
       [`  boneFloorNow = boneFloorScene(g); // playtest2a ${TAG2A}\n`, ""],
@@ -15447,9 +15460,9 @@ if (on("playtest2b")) {
 
   // 1. the game itself did not move: every src/game file but the shell and the credits screen, digested (49 files as 2a shipped them)
   {
-    const files = walkAll("src/game").filter((f) => !/\/(Gravewake|credits)\.tsx$/.test(f));
+    const files = walkAll("src/game").filter((f) => !/\/(Gravewake|credits)\.tsx$/.test(f) && !LATER_MODULES_ES.has(f));
     const h = hashTop("md5");
-    for (const f of files) h.update(`${f}\0`).update(readFileSync(f));
+    for (const f of files) h.update(`${f}\0`).update(readFileSync(esView(f)));
     const got = h.digest("hex");
     check("playtest2b", `no game file changed: ${files.length} files in src/game (all but the shell and the credits screen) are playtest2a's byte for byte (movement, collision, doors, combat, damage, audio, shops, saves, the map)`,
       files.length === 49 && got === "c0a75fbcad1bc5f329b645e9dffd0da8", `${files.length} files, ${got}`);
@@ -15458,7 +15471,7 @@ if (on("playtest2b")) {
   // 2. the shell: 2a's Gravewake.tsx plus only the credits hunks, and no new title or HUD button
   {
     const fz = "scripts/frozen/playtest2b/Gravewake.tsx.txt";
-    const cur = rd("src/game/Gravewake.tsx");
+    const cur = rd(esView("src/game/Gravewake.tsx"));
     const was = existsSync(fz) ? rd(fz) : "";
     const frozenOk = md5(was) === "dfb09d00a4b3e6e7816ad4aea113503c";
     let back = cur;
@@ -15580,8 +15593,50 @@ if (on("playtest2b")) {
   function pkg2b() { return JSON.parse(readFileSync("package.json", "utf8")); }
 }
 
+// earlysinks (2026-10-21, merge of fun-early-sinks [OWNER-APPROVED 2026-10-21: fun-early-sinks]): Old Mulch, the level 1-3
+// early boss by the road gate, and the silver sinks (sinks.ts). The older groups read sim.ts, draw.ts and Gravewake.tsx as
+// playtest2b shipped them (scripts/frozen/earlysinks/) and count every other file at its 2b md5 (base-md5.json); this group
+// checks the live game: the frozen copies, an old save, Mulch's fight and his blue rune-ring telegraph.
+if (on("earlysinks")) {
+  asLive();
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const md5 = (p) => hashTop("md5").update(readFileSync(p)).digest("hex");
+  const FZ = { "sim.ts": "", "draw.ts": "", "Gravewake.tsx": "" };
+  let fzOk = true;
+  for (const f of Object.keys(FZ)) { const want = ES_BASE[`src/game/${f}`]; if (!existsSync(`scripts/frozen/earlysinks/${f}.txt`) || md5(`scripts/frozen/earlysinks/${f}.txt`) !== want) fzOk = false; }
+  check("earlysinks", "the frozen references (scripts/frozen/earlysinks/) are playtest2b's sim, draw and shell byte for byte, and base-md5.json lists 2b's files", fzOk && Object.keys(ES_BASE).length > 700);
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "es.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as S from "${root}/src/game/sinks.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "es.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "es.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
+  globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
+  const ctxGet = (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : () => ({ addColorStop() {} }));
+  globalThis.document = { createElement: () => ({ width: 16, height: 16, getContext: () => new Proxy({}, { get: ctxGet, set: (t, k, v) => { t[k] = v; return true; } }) }) };
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  try {
+    const X = await import(pathToFileURL(join(dir, "es.mjs")).href);
+    const mk = () => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = 5 * 60 * 1000; return g; };
+    const g = mk();
+    const rec = g.saveRecord();
+    const old = JSON.parse(JSON.stringify(rec)); delete old.earlyDone; delete old.title;
+    const g2 = mk(); g2.loadRecord(old);
+    check("earlysinks", "an old save (no earlyDone) loads: Old Mulch waits again and nothing else moves (level, silver, map)", g2.earlyDone === false && g2.level === g.level && g2.silver === g.silver && g2.mapId === g.mapId);
+    const done = { ...rec, earlyDone: true }; const g3 = mk(); g3.loadRecord(done);
+    check("earlysinks", "a save after his fight keeps him gone (earlyDone true, no early roamer)", g3.earlyDone === true && !g3.roamers.some((r) => r.early));
+  } finally { Object.assign(globalThis, { Image: had.Image, document: had.document, localStorage: had.ls }); Math.random = had.random; }
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const png = (p) => { const b = readFileSync(p); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
+  const ring = "public/art/writer/runering_blue_64x32.png";
+  check("earlysinks", "the warden's strike shows the blue rune ring (Art's telegraphs: 8 frames of 64x32, filling over his tell, lit on the hit, on the floor and the glow pass)", existsSync(ring) && png(ring).join("x") === "512x32" && /paintRuneRing\(c, r\.x, r\.y, "blue", false/.test(draw) && draw.includes("paintRuneRings(ctx, g, glow)"));
+  const w = png("public/art/writer/barrow_warden.png");
+  check("earlysinks", "the warden's sheet faces right (staff and swing on the right), so he flips only when the hero is on his left (wardenFlip = hero.x < r.x)", w.join("x") === "192x48" && draw.includes("const wardenFlip = hero.x < r.x;"));
+}
+
+
 if (!ran) {
-  console.log("No checks ran. Groups: playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a");
+  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);
