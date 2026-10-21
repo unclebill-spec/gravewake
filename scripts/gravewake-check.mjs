@@ -232,7 +232,7 @@ function esNew(f) { return ES_TREES.test(f) && !(f in ES_BASE) && !(f in PT2B_GO
 const ES_ROOT = process.cwd(); const esLive = {};
 function esLiveMd5(f) { if (!(f in esLive)) { try { esLive[f] = hashTop("md5").update(readTop(join(ES_ROOT, f))).digest("hex"); } catch { esLive[f] = ""; } } return esLive[f]; }
 const LATER_MODULES_ES = { has: (f) => /^src\/game\//.test(f) && esNew(f) };
-function esView(f) { return ES_FROZEN.includes(f) ? `scripts/frozen/earlysinks/${f.split("/").pop()}.txt` : f; }
+function esView(f) { return ES_FROZEN.includes(f) ? `scripts/frozen/earlysinks/${f.split("/").pop()}.txt` : gfxlView(f); } // gfx-lighting: light.ts and the rules file read frozen too
 function pt1yNew(f) { return /^public\/art\/writer\/(wayrift2(_em)?|wayrift-platform|room-wall2(-[a-z]+)?(_em)?)\.png$/.test(f); }
 const PT1Z_FROZEN = {"src/game/wayrifts.ts": "wayrifts.ts", "src/game/draw.ts": "draw.ts", "src/game/sim.ts": "sim.ts", "src/game/content.ts": "content.ts", "AGENTS.project.md": "AGENTS.project.md", "tools/pixel-writer/rift_writer.py": "rift_writer.py", "tools/pixel-writer/make_gravewake.py": "make_gravewake.py"};
 function pt1yView(f) { return f in PT1Z_FROZEN ? `scripts/frozen/playtest1z/${PT1Z_FROZEN[f]}.txt` : pt1xView(f); }
@@ -290,6 +290,12 @@ const PT2B_GONE = {
 // playtest2b: removed files the older groups still read (group playtest1m's lint, no-gameplay-change and live pin, and its
 // test1 notes) are read from their 2a copies under scripts/frozen/playtest2b/.
 const PT2B_FROZEN = ["src/lib/app-data/client.server.ts", "src/lib/auth/use-current-user.ts", "scripts/check-auth-invariant.test.mjs", "scripts/migration-plan.test.mjs", "eslint.config.mjs", "vite.config.ts", "package.json"];
+// gfx-lighting (Bill's 2026-10-21 BLACKTAIL-style lighting ask, branch gfx-lighting): draw.ts and light.ts moved (looks only:
+// the light layer, night ambients, mood lights, tile shadows, the emissive add). Every older pin reads them as playtest2b left
+// them (main 8d99f71), frozen under scripts/frozen/gfxlight/ (with the rules file, which gains the gfx-lighting note); group
+// gfxlight checks the live files.
+const GFXL_FROZEN = { "src/game/draw.ts": "draw.ts", "src/game/light.ts": "light.ts", "rules/GAME_LAYOUT_TWO.txt": "GAME_LAYOUT_TWO.txt" };
+function gfxlView(f) { return f in GFXL_FROZEN ? `scripts/frozen/gfxlight/${GFXL_FROZEN[f]}.txt` : f; }
 function pt2bView(f) { return PT2B_FROZEN.includes(f) ? `scripts/frozen/playtest2b/${f.split("/").pop()}.txt` : f; }
 const pt2bWalk = (list, d) => [...new Set([...list, ...Object.keys(PT2B_GONE).filter((g) => g.startsWith(`${d}/`))])];
 // The two edited files count at 2a's md5; every other removed file counts through the older views (the two playtest1m moved
@@ -6015,7 +6021,8 @@ if (on("gfx2")) {
     {
       if (g.fog) g.roamers.forEach((r) => (g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] = 2));
       const lsL = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160), ls1 = D1q.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
-      const norm = (a) => JSON.stringify(a.map((l) => (l.x === g.px - 40 ? { ...l, y: 0 } : l)));
+      // gfx-lighting: the mood lights (low) and the shadow tile (sh) are the live draw's own; the frozen draw's lights are the rest.
+      const norm = (a) => JSON.stringify(a.filter((l) => !l.low).map(({ sh: _sh, wash: _w, low: _lo, ...l }) => (l.x === g.px - 40 ? { ...l, y: 0 } : l)));
       const bL = lsL.find((l) => l.x === g.px - 40);
       let darkL = false;
       if (g.fog) { g.fog[Math.floor(g.py / TILE) * g.w + Math.floor((g.px + 24) / TILE)] = 0; darkL = !D.sceneLights(g, g.px - 120, g.py - 80, 240, 160).some((l) => l.x === g.px + 24); }
@@ -6092,9 +6099,11 @@ if (on("gfx3")) {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const canon = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
 
-  // Brighter vale nights (the owner's 15:59 ET approval).
+  // Brighter vale nights (the owner's 15:59 ET approval). gfx-lighting moved the live nights (group gfxlight); these read
+  // light.ts as gfx3 through playtest2b shipped it (scripts/frozen/gfxlight/light.ts.txt).
+  const L0 = (() => { const src = readFileSync(gfxlView("src/game/light.ts"), "utf8"); const get = (k) => JSON.parse(src.match(new RegExp(`\\n  ${k}: (\\[[^\\]]*\\])`))[1]); return { worldNight: get("worldNight"), townNight: get("townNight") }; })();
   {
-    const v = L.worldNight, t = L.townNight;
+    const v = L0.worldNight, t = L0.townNight;
     check("gfx3", "light: brighter vale nights: the moon is [0.68, 0.72, 0.92] (up from [0.38, 0.42, 0.62] on every channel); blue still leads and red is lowest, and every channel stays below day, so it reads as night", same(v, [0.68, 0.72, 0.92]) && v[2] > v[1] && v[1] > v[0] && v.every((x) => x < 1) && [0.38, 0.42, 0.62].every((x, i) => v[i] > x), JSON.stringify(v));
     check("gfx3", "light: the town's twilight is [0.74, 0.76, 0.96], lighter than the vale's moon on every channel (so town night stays lighter), blue leading, below day", same(t, [0.74, 0.76, 0.96]) && t.every((x, i) => x > v[i] && x < 1) && t[2] > t[1] && t[1] >= t[0], JSON.stringify(t));
   }
@@ -6115,7 +6124,7 @@ if (on("gfx3")) {
     const fmt = (a) => `[${a.join(", ")}]`;
     const night = under(rules, TAG + " Night: the vale takes a moon ambient", VALE);
     const nl = night >= 0 ? rules[night] : "";
-    check("gfx3", "rules: brighter vale nights is dated and tagged [OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights] on the line under the night rule, and gives the shipped moon and town values (read from light.ts) and the old ones; once only", night >= 0 && all.split(VALE).length - 1 === 1 && nl.includes(`${fmt(L.worldNight)}, up from [0.38, 0.42, 0.62]`) && nl.includes(`${fmt(L.townNight)}, up from [0.5, 0.5, 0.7]`), `${night} ${nl.slice(0, 80)}`);
+    check("gfx3", "rules: brighter vale nights is dated and tagged [OWNER-APPROVED 2026-10-01 15:59 ET: brighter vale nights] on the line under the night rule, and gives the shipped moon and town values (read from light.ts) and the old ones; once only", night >= 0 && all.split(VALE).length - 1 === 1 && nl.includes(`${fmt(L0.worldNight)}, up from [0.38, 0.42, 0.62]`) && nl.includes(`${fmt(L0.townNight)}, up from [0.5, 0.5, 0.7]`), `${night} ${nl.slice(0, 80)}`);
     const c5 = under(rules, TAG + " C5 (batch 2): moving lights built", TAG + " C5 (batch 3): ghosts");
     const c3 = under(agents, TAG + " C3 (batch 2): palette v2", TAG + " C3 (batch 3): the ossuary and harrow walls take palette v2's #9a8aa8");
     const em = under(agents, EXC, TAG + " Batch 3 glow masks:");
@@ -6148,7 +6157,8 @@ if (on("gfx3")) {
     {
       if (g.fog) g.roamers.forEach((r) => (g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] = 2));
       const lsL = D.sceneLights(g, g.px - 120, g.py - 80, 240, 160), ls1 = D1q.sceneLights(g, g.px - 120, g.py - 80, 240, 160);
-      const norm = (a) => JSON.stringify(a.map((l) => (l.x === g.px - 40 ? { ...l, y: 0 } : l)));
+      // gfx-lighting: the mood lights (low) and the shadow tile (sh) are the live draw's own; the frozen draw's lights are the rest.
+      const norm = (a) => JSON.stringify(a.filter((l) => !l.low).map(({ sh: _sh, wash: _w, low: _lo, ...l }) => (l.x === g.px - 40 ? { ...l, y: 0 } : l)));
       const bL = lsL.find((l) => l.x === g.px - 40);
       let darkL = false;
       if (g.fog) { g.fog[Math.floor(g.py / TILE) * g.w + Math.floor((g.px + 24) / TILE)] = 0; darkL = !D.sceneLights(g, g.px - 120, g.py - 80, 240, 160).some((l) => l.x === g.px + 24); }
@@ -6529,7 +6539,7 @@ if (on("retro1")) {
         if (g.fog) g.fog.fill(1);
         g.px = tx * TILE + 8;
         g.py = ty * TILE + 8;
-        const n = D.sceneLights(g, Math.round(g.px - 160), Math.round(g.py - 120), 320, 240).length;
+        const n = D.sceneLights(g, Math.round(g.px - 160), Math.round(g.py - 120), 320, 240).filter((l) => !l.low).length; // gfx-lighting: mood lights (low) yield the budget by design
         if (n > worst.n) Object.assign(worst, { n, at: `${name} @${tx},${ty}` });
       }
     };
@@ -14251,7 +14261,7 @@ if (on("playtest1v")) {
     check("playtest1v", "the frozen references (scripts/frozen/playtest1v/) are playtest1u's sim, draw, shell, content, bounty, festivals, hamlets, wayrifts, wild, screen, audio, world adapter, map check, sheet maker and owner notes byte for byte (as pushed at 4b118d2); every older view reads them (pt1uView under pt1tView, pinFile, pt1dFile); the game as playtest1u left it builds the 128x120 world with no villages; villages.ts, mapfog.ts and bonecar.ts are LATER_MODULES and the 20 new files are in no older digest; the new and moved files carry the request tags and AGENTS.project.md its ## playtest1v with the four tags and the rules", JSON.stringify(fz) === '{"AGENTS.project.md":"60396e1b1a53db2c83d706f6a0cd539a","Gravewake.tsx":"468fc995fa76152d64be907d63ed2400","audio.ts":"98fbcef17779a2f944f6e71f913eba81","bounty.ts":"c7d2ddceadee04efd5bd502ef8b56dd4","check_map_writer.mjs":"e8f93c2ea6697c6616e66192309a30d8","content.ts":"d8ee5cbd237c2896fefbad760d0cad86","draw.ts":"cdb5cd9ff4a0d98d5532e8d856be82f4","festivals.ts":"d0e2b1052602741715c0279089762d8c","gravewake_world.ts":"77258abd20d85d661f9306a2662b4dfc","hamlets.ts":"923e88feb4a8e4493b4cbc61c7f2911d","make_gravewake.py":"5ca8fe8e297c6fe5b81427658fd4a301","screen.ts":"cc0750c767699b1d3936a9b04cc62c2d","sim.ts":"937aee47ffc2cf41c4644deab894253e","wayrifts.ts":"18c5b520de41612be6a31be18f5acbd2","wild.ts":"3556b437c111253f89c1d2425b7df206"}' && viewBad.length === 0 && newF === 20 && later && old && tags && notes, `${JSON.stringify(fz)} ${viewBad} ${newF} ${later} ${old} ${tags} ${notes}`);
     const MOVED = new Set(Object.keys(PT1V_FROZEN));
     const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => pt2bWalk(walk(d), d)).filter((f) => !pt1yNew(f) && !pt1zNew(f) && !pt1xNew(f) && !pt1wNew(f) && !pt1vNew(f) && !MOVED.has(f)).sort();
-    const rest = createHash("md5").update(files.map((f) => `${f} ${pt2bMd5(f, () => md5f(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(files.map((f) => `${f} ${pt2bMd5(f, () => md5f(gfxlView(f)))}`).join("\n")).digest("hex");
     check("playtest1v", "every other source file, public file and writer file is playtest1u's byte for byte (beside the new modules, writers and sheets and the moved files): the fight numbers, the rooms, the dungeons, the art untouched", rest === "5e00e45aa6e28d9ec156eef21a924280", rest);
     const LIVE = {"AGENTS.project.md": "e606abd658ece4354146a321b878d9ab", "public/art/writer/bonecar.png": "1b0dbacf72eedbaa79d2e61f4482d2b0", "public/art/writer/bonecar_em.png": "2c312b3d6e6087848786648385038fcc", "public/art/writer/velvet-rope.png": "3b49fb2896b3616cb86aae20e31121bf", "public/art/writer/wild-deadwood2.png": "a60f9b5400e95a60ab57ecff50b17982", "public/art/writer/wild-deadwood2_em.png": "0db9e54699eba578f5464e166b442173", "public/art/writer/wild-rocks2.png": "cac4cafa925b4575877ff514956ebdce", "public/art/writer/wild-rocks2_em.png": "f8e45cbaa003c1d005567e21dc4c64e6", "public/art/writer/wild-trees2-autumn.png": "d545a8faad66f638920e816183221189", "public/art/writer/wild-trees2-autumn_em.png": "63eefc346000930e8c4422a2197a4399", "public/art/writer/wild-trees2-spring.png": "aaddc2c3e35daef45099a51fa52abf3e", "public/art/writer/wild-trees2-spring_em.png": "63eefc346000930e8c4422a2197a4399", "public/art/writer/wild-trees2-summer.png": "c376587fed2e684fc223a9cf2cc24105", "public/art/writer/wild-trees2-summer_em.png": "63eefc346000930e8c4422a2197a4399", "public/art/writer/wild-trees2-winter.png": "0cf91f33d60f6bd539632c42d1eaed58", "public/art/writer/wild-trees2-winter_em.png": "63eefc346000930e8c4422a2197a4399", "src/game/Gravewake.tsx": "615221a62d92eceff0525920cfd52bd7", "src/game/audio.ts": "8a72c58c238ce7f75e582990c98f80c6", "src/game/bonecar.ts": "48edec1c8468ddecdbe3429282bc5a05", "src/game/bounty.ts": "061841bde9ee5511e9c56b99a7361c73", "src/game/content.ts": "9d55e5851832c38b7b06e37fb82747fa", "src/game/draw.ts": "1b5c3050f387099c2ef0bf97e3ba1e51", "src/game/festivals.ts": "60af3d99e0db48bb2d68306a2fcfeb01", "src/game/hamlets.ts": "338f24c853b3afa5e3c54d0e1e083486", "src/game/mapfog.ts": "de64ae77b5f8995f7bc8bd16ac8098e4", "src/game/screen.ts": "9de60369da69bee6452bbf242e91498e", "src/game/sim.ts": "fd40d084e9f488dbe3ca7666507d4b1d", "src/game/villages.ts": "4773e2898f1c00ffb01e203aba41d850", "src/game/wayrifts.ts": "05ee26d9c4f74559c3da619ec3767e23", "src/game/wild.ts": "7fae39d4045f22de3a2719b9c5e972ff", "tools/map-writer/check_map_writer.mjs": "e8f93c2ea6697c6616e66192309a30d8", "tools/map-writer/gravewake_world.ts": "2eb60baa16de316035fa3bd3529543a0", "tools/pixel-writer/bone_car_writer.py": "3d01744c75a75e57d35cea15f2c971a2", "tools/pixel-writer/make_gravewake.py": "724fb0f90950d81a5723ed0366bcc9a1", "tools/pixel-writer/prop_scale_writer.py": "174d59c6197857ead962744b75ef93ba"};
     const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
@@ -14530,7 +14540,7 @@ if (on("playtest1w")) {
     check("playtest1w", "the frozen references (scripts/frozen/playtest1w/) are playtest1v's sim, draw, buildings, hamlets, sheet maker and owner notes byte for byte (as pushed at 7ad8117); every older view reads them (pt1uView falls through to pt1vView); group playtest1v reads the tree as playtest1v left it (pt1vRoot: the moved files frozen, the new ones absent); boulders.ts is a LATER_MODULE and the 61 new files are in no older digest; the new and moved files carry the request tag and AGENTS.project.md its ## playtest1w with the rules and the lighter-checks and token-saving policies", JSON.stringify(fz) === '{"AGENTS.project.md":"e606abd658ece4354146a321b878d9ab","buildings.ts":"22497de27c241258a57da55f4c0a4f2e","draw.ts":"1b5c3050f387099c2ef0bf97e3ba1e51","hamlets.ts":"338f24c853b3afa5e3c54d0e1e083486","make_gravewake.py":"724fb0f90950d81a5723ed0366bcc9a1","sim.ts":"fd40d084e9f488dbe3ca7666507d4b1d"}' && viewBad.length === 0 && mirror && LATER_MODULES.has("src/game/boulders.ts") && newF === 61 && tags && notes, `${JSON.stringify(fz)} ${viewBad} ${mirror} ${newF} ${tags} ${notes}`);
     const MOVED = new Set(Object.keys(PT1W_FROZEN));
     const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => pt2bWalk(walk(d), d)).filter((f) => !pt1yNew(f) && !pt1zNew(f) && !pt1xNew(f) && !pt1wNew(f) && !MOVED.has(f)).sort();
-    const rest = createHash("md5").update(files.map((f) => `${f} ${pt2bMd5(f, () => md5f(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(files.map((f) => `${f} ${pt2bMd5(f, () => md5f(gfxlView(f)))}`).join("\n")).digest("hex");
     check("playtest1w", "every other source file, public file and writer file is playtest1v's byte for byte (beside the new module, writers and sheets and the moved files): the fight numbers, the car, the villages, the fog, the art untouched", rest === "9f1f4a67445982ab724c7be3fdc1c47f", rest);
     const LIVE = {"AGENTS.project.md": "f579dd8d78fa160cde09165e9c8da845", "public/art/writer/hamlet2-ash_forge.png": "e6db39ff8b4e02cf218346ae55c5fc99", "public/art/writer/hamlet2-ash_forge_em.png": "fc818a58c41189dd72b634955cdae4bc", "public/art/writer/hamlet2-ash_hovel.png": "b57f2cb599ee81cff082c2bde03b3296", "public/art/writer/hamlet2-ash_hovel_em.png": "709a602d2bdd104b204ae2d3e1c72ecc", "public/art/writer/hamlet2-ash_kiln.png": "36dff86936c5a8e057678d8a9af4e354", "public/art/writer/hamlet2-ash_kiln_em.png": "3c05d03459b2c418123f17ffd278ad60", "public/art/writer/hamlet2-bog_hut.png": "18c96978d0045d0e27ab24d111fc7833", "public/art/writer/hamlet2-bog_hut_em.png": "65ca901b380317511f750a18b12088f6", "public/art/writer/hamlet2-bog_shack.png": "163f5e299d15877431d718fa919daa68", "public/art/writer/hamlet2-bog_shack_em.png": "54b22fd7bef27fc58cbd86b7105934ec", "public/art/writer/hamlet2-bog_stilt.png": "c3e639496378ddffc2bdcc73a711b90e", "public/art/writer/hamlet2-bog_stilt_em.png": "1aa54b9d36e0771c1ce968b51d1a4859", "public/art/writer/hamlet2-sand_dome.png": "c501dd15cec85ab8a3203f556612c558", "public/art/writer/hamlet2-sand_dome_em.png": "bb297c3c1c044b6e036f273361b1586e", "public/art/writer/hamlet2-sand_flat.png": "3eb67dceb25d2f02f927db4035209e5b", "public/art/writer/hamlet2-sand_flat_em.png": "c61bf95615a0a1a3aedaca986ba5d8c1", "public/art/writer/hamlet2-sand_tower.png": "97389722eddf851d50a650f4a4b54e7b", "public/art/writer/hamlet2-sand_tower_em.png": "8edc23c7b6a894d1df3ac00a9c8203e3", "public/art/writer/hamlet2-snow_hut.png": "2c20a312d46c30ad7da5a5d1a685774a", "public/art/writer/hamlet2-snow_hut_em.png": "a63acc737e49949ddee2ab183c7ab6ad", "public/art/writer/hamlet2-snow_lodge.png": "2f6c004a0a1217866dafbde26ee6b4ec", "public/art/writer/hamlet2-snow_lodge_em.png": "dbf2013c0fa31ab784713b4bf2048c75", "public/art/writer/hamlet2-snow_store.png": "c5d0abf4f4add48902ba3e2047e121a7", "public/art/writer/hamlet2-snow_store_em.png": "75fa6372d718c862dd8a547d12799f35", "public/art/writer/town-bldg2-alchemy.png": "315917269e94d12e38101465e1823ab4", "public/art/writer/town-bldg2-alchemy_em.png": "32f703a1357a3a22b4d86b921a312ef9", "public/art/writer/town-bldg2-bank.png": "d1d1265b324aee06f59826946a5f173c", "public/art/writer/town-bldg2-bank_em.png": "5a73d37ff314ce076391d2380e993e61", "public/art/writer/town-bldg2-bram.png": "897bcfd5ee2b6d6e2170a91d4b1873b2", "public/art/writer/town-bldg2-bram_em.png": "fbd3249944d212c0cde2e0aac9e02851", "public/art/writer/town-bldg2-casino.png": "562eb25f1fa9035c1a564fd00d38382f", "public/art/writer/town-bldg2-casino_em.png": "7350c081044e977b3564e68c0b579509", "public/art/writer/town-bldg2-chapel.png": "3f5527e0da6c1f3908176265c0e6f45a", "public/art/writer/town-bldg2-chapel_em.png": "7a5bc7c69e82476cd263a69bcc3f2dea", "public/art/writer/town-bldg2-croft.png": "dbaad171c3edce94fee357546298e6ff", "public/art/writer/town-bldg2-croft_em.png": "b1cd89ffdf1192cf224b944037c7e73d", "public/art/writer/town-bldg2-fisher.png": "1526e0fc9de091f00de1f3af90fe857d", "public/art/writer/town-bldg2-fisher_em.png": "bdb0c9691d628c754aacaf44e6c0842a", "public/art/writer/town-bldg2-guild.png": "ea264ac3db9304d3a4fcf1b09ac326d7", "public/art/writer/town-bldg2-guild_em.png": "3d6039bde21bd9881c4a49bdaaace031", "public/art/writer/town-bldg2-inn.png": "d4569e142b21b856a9800812bf6789ff", "public/art/writer/town-bldg2-inn_em.png": "04ee7471c5c387550eaa7faf0052a6f8", "public/art/writer/town-bldg2-ivy.png": "e6013252b4ac5d5240d455a8f3384f6d", "public/art/writer/town-bldg2-ivy_em.png": "7385521e21cd2d8950e7deeee5915c9c", "public/art/writer/town-bldg2-mystic.png": "a68fe8779f237123cdb1af93947dd400", "public/art/writer/town-bldg2-mystic_em.png": "016b483a8dc7435088e00059fa706ecb", "public/art/writer/town-bldg2-noll.png": "5fd7a6abff38b03144cfa533c4a2d6ee", "public/art/writer/town-bldg2-noll_em.png": "f9fcaea438ad2ad4827c830e415ac932", "public/art/writer/town-bldg2-pell.png": "ca4a4926cd16ca8885ba81e8d7678171", "public/art/writer/town-bldg2-pell_em.png": "c2d1f89d0283899e6ba2f728c9ae941c", "public/art/writer/town-bldg2-shop.png": "5372725f03d05f8fd08ea0d843a6e7c4", "public/art/writer/town-bldg2-shop_em.png": "0208d771d164b6d17e81b705754d4c80", "public/art/writer/town-bldg2-smith.png": "71a8af2ba69797f5d8854d58e872c1e1", "public/art/writer/town-bldg2-smith_em.png": "1e92f8cbb41d763da7d46bdf016f4597", "public/art/writer/town-bldg2-tailor.png": "79beefd947823e393706d6a8e5dcd52a", "public/art/writer/town-bldg2-tailor_em.png": "b2a2f19b898d17db7fe8b590ae39575b", "public/art/writer/wild-boulders.png": "035b09c73c5a212d2e8e4b4829c2bbd7", "public/art/writer/wild-boulders_em.png": "3b901ed2a3640c219199ff765c78f11d", "src/game/boulders.ts": "d63bab24f13a614ce405402bc886beaa", "src/game/buildings.ts": "084b9de823ee1796f55c591bacb4332e", "src/game/draw.ts": "7b3219b6a574331351009d9308850ed1", "src/game/hamlets.ts": "27117001e167797b7459c535ed2f0758", "src/game/sim.ts": "2cbb478c87909f7d97945247b7da4722", "tools/pixel-writer/boulder_writer.py": "acf1213f1dc7162b12ed37175973726a", "tools/pixel-writer/door_writer.py": "7cb41cce298f2db1a3317e11db23a693", "tools/pixel-writer/make_gravewake.py": "73bf4e76a878b1eb2ab42d0311fbe9c3"};
     const live = Object.entries(LIVE).filter(([f, h]) => md5f(f) !== h).map(([f]) => f);
@@ -14838,7 +14848,7 @@ if (on("playtest1x")) {
     check("playtest1x", "the frozen references (scripts/frozen/playtest1x/) are playtest1w's sim, draw, buildings, blocking, interiors, shell and owner notes byte for byte (as pushed at e882ea9); every older view reads them (pt1vView falls through to pt1wView); group playtest1w reads the tree as playtest1w left it (pt1wRoot: the moved files frozen, the new ones absent); casino.ts is a LATER_MODULE; the fight modules are playtest1w's; tagged, and the CASINO / STROLL / ROOM EDGE / ROOF rules are in AGENTS.project.md", JSON.stringify(fz) === '{"AGENTS.project.md":"f579dd8d78fa160cde09165e9c8da845","Gravewake.tsx":"615221a62d92eceff0525920cfd52bd7","blocking.ts":"431f7741f7746341edf57a802dd6efcf","buildings.ts":"084b9de823ee1796f55c591bacb4332e","draw.ts":"7b3219b6a574331351009d9308850ed1","interiors.ts":"76df93373a92cb65eaec6b53e6a4fee7","sim.ts":"2cbb478c87909f7d97945247b7da4722"}' && viewBad.length === 0 && mirror && later && fight && tags && notes, JSON.stringify({ viewBad, mirror, later, fight, tags, notes }));
     const MOVED = new Set(Object.keys(PT1X_FROZEN));
     const files = ["src", "public", "tools/map-writer", "tools/sprite-writer", "tools/pixel-writer"].flatMap((d) => pt2bWalk(walk(d), d)).filter((f) => !pt1yNew(f) && !pt1zNew(f) && !pt1xNew(f) && !MOVED.has(f)).sort();
-    const rest = createHash("md5").update(files.map((f) => `${f} ${pt2bMd5(f, () => md5f(f))}`).join("\n")).digest("hex");
+    const rest = createHash("md5").update(files.map((f) => `${f} ${pt2bMd5(f, () => md5f(gfxlView(f)))}`).join("\n")).digest("hex");
     check("playtest1x", "every other source file, public file and writer file is playtest1w's byte for byte (beside the Felt's module, the two writers and their sheets, and the moved files): the fight numbers, the car, the boulders, the villages, the art untouched", rest === "1f58ff92f4b24d728f60175af3d36daa", rest);
     const LIVE = {"AGENTS.project.md": "0d16b8c79566a5cc8857ebf6ba14f101", "public/art/writer/casino-cards.png": "a2b8aa13248a8006aa28a52338eb9f50", "public/art/writer/room-casino.png": "aefc19838873f4cac4e5bd9cdda7392a", "public/art/writer/room-casino_em.png": "a8447c7eb787ffabadfbd82a3b9e00fd", "public/art/writer/town-bldg3-alchemy.png": "da69cd7d9184abc596b3a281bf72814b", "public/art/writer/town-bldg3-alchemy_em.png": "b0fbc9b6cba14c64e18b1af4df125d68", "public/art/writer/town-bldg3-bank.png": "a159fe7a917517af60b0835c8d1b6a1f", "public/art/writer/town-bldg3-bank_em.png": "5a73d37ff314ce076391d2380e993e61", "public/art/writer/town-bldg3-bram.png": "84405209161d2f65f5381b4c210beef3", "public/art/writer/town-bldg3-bram_em.png": "8b48466e84a0d74ceb75c079a0a8ce6c", "public/art/writer/town-bldg3-casino.png": "dcdc87b21353e2a27bcb37cd36c22088", "public/art/writer/town-bldg3-casino_em.png": "95d0ab96a69965bfd8ca32cf99ab5146", "public/art/writer/town-bldg3-chapel.png": "ecd4ac96ec28d8d9d26668f1e8090bc4", "public/art/writer/town-bldg3-chapel_em.png": "07df446991e113f1ddcdfe460f874fdc", "public/art/writer/town-bldg3-croft.png": "f49358f53a3242d31d1859f2efb03035", "public/art/writer/town-bldg3-croft_em.png": "9e887918ba880345c6fb0002cac1e5b7", "public/art/writer/town-bldg3-fisher.png": "f7ca760dd2b0cd92ed3adaea6344db0c", "public/art/writer/town-bldg3-fisher_em.png": "e4daf4e927fec28c7bd8c54325369a40", "public/art/writer/town-bldg3-guild.png": "44663fc56ff155e0635533384067288f", "public/art/writer/town-bldg3-guild_em.png": "806dc6bb83430d66cc0b3f6ace7e6d3d", "public/art/writer/town-bldg3-inn.png": "a09949333ffed2a4e68dafc1444a7aff", "public/art/writer/town-bldg3-inn_em.png": "b5940f93f8cec39a8ee39465b9225dc6", "public/art/writer/town-bldg3-ivy.png": "43658bb57ca0eae3b8a78879280096f0", "public/art/writer/town-bldg3-ivy_em.png": "b8a802e71ab87af0ad979620d98b3360", "public/art/writer/town-bldg3-mystic.png": "707f362cb51526afd4d05cf6c670caca", "public/art/writer/town-bldg3-mystic_em.png": "e91ff4c92632fff9aeec79cf4fa9d395", "public/art/writer/town-bldg3-noll.png": "f199e564dd88a2322dc856e169d8a025", "public/art/writer/town-bldg3-noll_em.png": "b1e0e498e292bf95a6acaf1f7ace3dae", "public/art/writer/town-bldg3-pell.png": "c13ba7aee0472acac9f05226d55733c9", "public/art/writer/town-bldg3-pell_em.png": "d63b2dc5723914ce2bad5cad21c5a68e", "public/art/writer/town-bldg3-shop.png": "7c373bed0156cbe4b4df7ada162a9142", "public/art/writer/town-bldg3-shop_em.png": "49cf94c202599465d8099906316af842", "public/art/writer/town-bldg3-smith.png": "91c17ef7164dadf5b5d2fd5b7d90f86b", "public/art/writer/town-bldg3-smith_em.png": "4ae1bc2ba36e9a5acce2eb70fa190afb", "public/art/writer/town-bldg3-tailor.png": "a924c0510532a1c6e3b04b6cceb27e46", "public/art/writer/town-bldg3-tailor_em.png": "562b0882a48d268de6949f235e740df7", "src/game/Gravewake.tsx": "dfb09d00a4b3e6e7816ad4aea113503c", "src/game/blocking.ts": "4b58571f153125d86642b18413b9562a", "src/game/buildings.ts": "911e7b4a35ad681b7f291d4d5efcc22d", "src/game/casino.ts": "3e4118d153cc3961e8dc82c0b7339170", "src/game/draw.ts": "a9a43f1b3482f57f8f76ccd535cb2df6", "src/game/interiors.ts": "0db8114a7500be882e6e23ba6484d298", "src/game/sim.ts": "e66d25a45d4a515898405640e6d811af", "tools/pixel-writer/casino_writer.py": "b2a740a7593f078650c8a79c6bdae041", "tools/pixel-writer/roof_writer.py": "d7916bde1cdb069b6ef8b5ed4384e1f1"};
     // playtest2b: the shell reads as playtest2a left it (scripts/frozen/playtest2b/Gravewake.tsx.txt)
@@ -15634,6 +15644,81 @@ if (on("earlysinks")) {
   check("earlysinks", "the warden's sheet faces right (staff and swing on the right), so he flips only when the hero is on his left (wardenFlip = hero.x < r.x)", w.join("x") === "192x48" && draw.includes("const wardenFlip = hero.x < r.x;"));
 }
 
+
+// gfx-lighting (Bill's 2026-10-21 18:21 ET ask: BLACKTAIL-like moody lighting; branch gfx-lighting, looks only). draw.ts and light.ts
+// moved; every older pin reads them frozen as playtest2b shipped them (scripts/frozen/gfxlight/, gfxlView).
+if (on("gfxlight")) {
+  asLive();
+  const { readFileSync, writeFileSync, mkdtempSync: mkd } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
+  const dir = mkd(join(tmpdir(), "gravewake-"));
+  const root = process.cwd();
+  writeFileSync(join(dir, "gfxl.ts"), `export * from "${root}/src/game/sim.ts";\nexport * from "${root}/src/game/draw.ts";\nexport * as LT from "${root}/src/game/light.ts";\nexport { T } from "${root}/src/game/content.ts";\nexport { GATE } from "${root}/src/game/bounty.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "gfxl.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "gfxl.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "gfxl.mjs")).href);
+  const L = X.LT.LIGHT;
+  const CYC = 30 * 60 * 1000, NIGHT = CYC + 22 * 60000, DAY = 5 * 60000;
+  const mk = (ms) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; return g; };
+  const draw = readFileSync("src/game/draw.ts", "utf8");
+
+  // 1. frozen references and play untouched
+  {
+    const fz = md5f("scripts/frozen/gfxlight/draw.ts.txt") === "9199c91610093b66e4c1adfc56aa97db" && md5f("scripts/frozen/gfxlight/light.ts.txt") === "c87f3807e23eae891280b96731660c88";
+    check("gfxlight", "the frozen references are draw.ts and light.ts as playtest2b shipped them (main 8d99f71), and every older view reads them (gfxlView)", fz && pinFile("src/game/light.ts").endsWith("gfxlight/light.ts.txt"));
+    // Play untouched: group playtest2b's "no game file changed" digest reads draw.ts and light.ts through gfxlView, so every other
+    // src/game file (sim, content, fightlights, audio, shops, the map) is still playtest2a's byte for byte.
+  }
+  // 2. cool, darker nights
+  {
+    const v = L.worldNight, t = L.townNight;
+    const ok = v[2] > v[1] && v[1] >= v[0] && t[2] > t[1] && t[1] >= t[0] && t.every((x, i) => x > v[i]) && Math.max(...v, ...t) <= 0.7 && v[2] - v[0] >= 0.25 && t[2] - t[0] >= 0.25;
+    const g = mk(NIGHT); g.enterTown(); const tn = X.sceneAmbient(g); const gd = mk(DAY); gd.enterTown();
+    check("gfxlight", `nights are cool blue-violet and clearly darker than day: vale ${JSON.stringify(v)}, town ${JSON.stringify(t)} (blue leads by 0.25+, red never over green, no channel over 0.7, the town still lighter than the vale); by day the town has no light layer`, ok && JSON.stringify(tn) === JSON.stringify(t) && X.sceneAmbient(gd) === null);
+  }
+  // 3. the pixel lock
+  {
+    const lock = L.bloomOn === false && L.bands === 5 && Object.values(L.wash).every((k) => k > 0 && k <= 0.25) && L.emitBoost > 0 && L.emitBoost < 1 && !/imageSmoothingEnabled = true/.test(draw) && !/filter = "blur/.test(draw) && !/createRadialGradient/.test(draw.slice(draw.indexOf("function paintLight")));
+    check("gfxlight", "pixel lock: light stays five hard bands (wash and emissive add are flat alphas of the banded sprites), no smoothing, no blur, no gradients in the light code; the 1 px bloom is off by default", lock);
+    check("gfxlight", "the emissive add skips the must-read marks (the telegraphs and spells glow entry is NO_BOOST)", /NO_BOOST\.add\(tells\);\n\s*glow\.push\(tells\);/.test(draw) && /glow\.filter\(\(f\) => !NO_BOOST\.has\(f\)\)/.test(draw));
+  }
+  // 4. rifts pool violet at night on the vale
+  {
+    const g = mk(NIGHT); g.enterWorld(X.GATE.x * 16 + 8, X.GATE.y * 16 + 8); g.roamers = []; g.critters = [];
+    const r = g.riftMouths()[0];
+    g.px = r.x * 16 + 8; g.py = (r.y + 3) * 16 + 8;
+    const ls = X.sceneLights(g, g.px - 240, g.py - 160, 480, 320);
+    const pool = ls.find((l) => l.low && l.r === L.riftPool && Math.abs(l.x - (r.x * 16 + 8)) < 1);
+    const violet = !!pool && pool.c[2] > pool.c[0] && pool.c[0] > pool.c[1] && pool.wash > 0;
+    const gd = mk(DAY); gd.enterWorld(X.GATE.x * 16 + 8, X.GATE.y * 16 + 8);
+    check("gfxlight", `the rift casts a ${L.riftPool} px violet ground pool at night (washed in), beside its own gate light; by day the vale has no light layer`, violet && ls.some((l) => !l.low && l.r === L.gate) && X.sceneAmbient(gd) === null, JSON.stringify(pool));
+  }
+  // 5. dungeon torches: warm core, cool fill, hard shadows
+  {
+    const g = mk(DAY); g.enterDungeon("ossuary"); if (g.fog) g.fog.fill(1);
+    const sc = X.sconces(g);
+    let cut = 0, lit = 0, fills = 0;
+    for (const s of sc) {
+      g.px = s.x * 16 + 8; g.py = (s.y + 2) * 16 + 8;
+      const ls = X.sceneLights(g, g.px - 160, g.py - 120, 320, 240);
+      const mine = ls.filter((l) => l.sh === (s.y + 1) * g.w + s.x);
+      if (mine.some((l) => l.low && l.r === L.coolFill && l.c[2] > l.c[0]) && mine.some((l) => l.low && l.r === L.sconceCore) && mine.some((l) => !l.low && l.r === L.sconce)) fills++;
+      const m = X.sightMask(g, (s.y + 1) * g.w + s.x, s.x - 4, s.y - 3, s.x + 4, s.y + 5);
+      if (m[(4) * 9 + 4] === "1") lit++;
+      if (m.includes("0")) cut++;
+    }
+    check("gfxlight", `every shown torch is a real light: its warm pool, a warm core and a cool violet fill, all from the floor tile under it (${fills}/${sc.length}); its own tile is lit (${lit}) and walls cast hard tile shadows (${cut} torches have a shadowed tile)`, sc.length > 0 && fills === sc.length && lit === sc.length && cut > 0);
+  }
+  // 6. town at night: windows and street lamps
+  {
+    const g = mk(NIGHT); g.enterTown();
+    const lamps = X.streetLamps(g);
+    const onRoad = lamps.every((p) => [X.T.cobble, X.T.road].includes(g.tiles[p.y * g.w + p.x]));
+    let win = 0, st = 0;
+    for (let y = 4; y < g.h; y += 6) for (let x = 4; x < g.w; x += 8) { g.px = x * 16; g.py = y * 16; const ls = X.sceneLights(g, g.px - 240, g.py - 160, 480, 320); win = Math.max(win, ls.filter((l) => l.r === L.window && l.low).length); st = Math.max(st, ls.filter((l) => l.r === L.street && l.low).length); }
+    check("gfxlight", `town at night: ${lamps.length} street lamps on the cobble edges (none by a door), lit windows spill warm light (up to ${win} in a view) and the lamps pool cold light (up to ${st}); mood lights yield the budget to every other light`, lamps.length >= 4 && onRoad && win >= 2 && st >= 1 && /\(a\.low \? 1 : 0\) - \(b\.low \? 1 : 0\)/.test(draw));
+  }
+}
 
 if (!ran) {
   console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a");
