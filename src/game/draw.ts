@@ -3027,7 +3027,9 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
   const hero = seen.shift()!;
   seen.sort((a, b) => (a.low ? 1 : 0) - (b.low ? 1 : 0) || Math.hypot(a.x - g.px, a.y - g.py) - Math.hypot(b.x - g.px, b.y - g.py));
-  return [hero, ...seen.slice(0, LIGHT.budget - 1)];
+  let lows = 0;
+  const kept = seen.filter((l) => !l.low || ++lows <= LIGHT.lowBudget);
+  return [hero, ...kept.slice(0, LIGHT.budget - 1)];
 }
 
 /** The per-floor wall mask, baked once: wall tops at LIGHT.capLight, faces at full, AO strips at the wall feet. */
@@ -3174,35 +3176,41 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(lightCanvas, 0, 0, W, H, camX, camY, W, H);
   ctx.restore();
-  // gfx-lighting: the mood lights' colour wash, added over the lit frame in the light's own hard bands.
-  if (washes.length) {
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.globalCompositeOperation = "lighter";
-    for (const w of washes) {
-      ctx.globalAlpha = w.k;
-      ctx.drawImage(w.spr, w.x, w.y);
-    }
-    ctx.restore();
-  }
-  // gfx-lighting (7): emissive pixels (eyes, flames, vortex, neon) are added once more over the lit frame, so they glow
-  // brighter than their own colour in the dark. Crisp: the same pixels, no blur; the optional 1 px halo is off by default.
-  const emit = glow.filter((f) => !NO_BOOST.has(f));
-  if (LIGHT.emitBoost > 0 && emit.length) {
+  // gfx-lighting: one added layer at native size, blitted once: the mood lights' colour wash (each light's own hard bands at a
+  // flat alpha) and (7) the emissive pixels (eyes, flames, vortex, neon) once more, so they glow brighter than their own colour
+  // in the dark. Crisp: the same pixels, no blur; the optional 1 px halo (bloomOn) is off by default.
+  const emit = LIGHT.emitBoost > 0 ? glow.filter((f) => !NO_BOOST.has(f)) : [];
+  if (washes.length || emit.length) {
     emitCanvas = layerCanvas(emitCanvas, W, H);
     const e = emitCanvas.getContext("2d")!;
     e.setTransform(1, 0, 0, 1, 0, 0);
     e.globalCompositeOperation = "source-over";
+    e.globalAlpha = 1;
     e.clearRect(0, 0, W, H);
     e.imageSmoothingEnabled = false;
-    e.setTransform(1, 0, 0, 1, -camX, -camY);
-    for (const f of emit) f(e);
-    e.setTransform(1, 0, 0, 1, 0, 0);
+    e.globalCompositeOperation = "lighter";
+    for (const w of washes) {
+      e.globalAlpha = w.k;
+      e.drawImage(w.spr, w.x - camX, w.y - camY);
+    }
+    if (emit.length) {
+      emitStage = layerCanvas(emitStage, W, H);
+      const m = emitStage.getContext("2d")!;
+      m.setTransform(1, 0, 0, 1, 0, 0);
+      m.clearRect(0, 0, W, H);
+      m.imageSmoothingEnabled = false;
+      m.setTransform(1, 0, 0, 1, -camX, -camY);
+      for (const f of emit) f(m);
+      m.setTransform(1, 0, 0, 1, 0, 0);
+      e.globalAlpha = LIGHT.emitBoost;
+      if (LIGHT.bloomOn) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) e.drawImage(emitStage, dx, dy);
+      e.drawImage(emitStage, 0, 0);
+    }
+    e.globalAlpha = 1;
+    e.globalCompositeOperation = "source-over";
     ctx.save();
     ctx.imageSmoothingEnabled = false;
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = LIGHT.emitBoost;
-    if (LIGHT.bloomOn) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.drawImage(emitCanvas, 0, 0, W, H, camX + dx, camY + dy, W, H);
     ctx.drawImage(emitCanvas, 0, 0, W, H, camX, camY, W, H);
     ctx.restore();
   }
@@ -3210,6 +3218,7 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
 }
 
 let emitCanvas: HTMLCanvasElement | null = null;
+let emitStage: HTMLCanvasElement | null = null;
 /** Glow draws that are must-read marks (telegraphs, spells), set to full light but never boosted. */
 const NO_BOOST = new WeakSet<(c: CanvasRenderingContext2D) => void>();
 

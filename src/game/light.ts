@@ -86,7 +86,9 @@ export const LIGHT = {
   /** gfx-lighting (Bill, 2026-10-21): cool blue-violet nights, clearly darker than day (the old moon and twilight were
    * [0.68, 0.72, 0.92] and [0.74, 0.76, 0.96]); the town stays lighter than the vale on every channel. */
   riftPool: 112,
-  coolFill: 112,
+  coolFill: 96,
+  /** At most this many mood lights per frame (nearest first), inside the scene budget: phone fill rate. */
+  lowBudget: 8,
   /** A torch's warm core on the floor under it, so the pool reads warm against the cool fill. */
   sconceCore: 40,
   window: 40,
