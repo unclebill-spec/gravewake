@@ -3526,6 +3526,23 @@ export function paintCar(ctx: CanvasRenderingContext2D, x: number, y: number, f:
   return true;
 }
 
+/** fun-early-sinks: Old Mulch's own sheet (Art's barrow_warden, 32x48, 6 frames: idle0, idle1, wind-up, swing, strike, hurt) and its glow mask. */
+export const WARDEN = "/art/writer/barrow_warden.png";
+export const WARDEN_EM = "/art/writer/barrow_warden_em.png";
+export function paintWarden(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number, act: number, hurt: boolean, flip: boolean, layer: "body" | "em"): boolean {
+  if (typeof Image === "undefined") return false;
+  const url = layer === "em" ? WARDEN_EM : WARDEN;
+  if (!prop2Ready(url)) return false;
+  const col = hurt ? 5 : act >= 0 ? 2 + act : Math.floor(frame / 8) % 2;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y));
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(landSheet[url]!, col * 32, 0, 32, 48, -16, -48, 32, 48); // anchor: bottom centre on the foot
+  ctx.restore();
+  return true;
+}
+
 /** A steam puff: a dithered cloud that swells, lifts and thins as it lives. */
 function paintPuff(ctx: CanvasRenderingContext2D, p: { x: number; y: number; life: number; drift: number }) {
   const t = 1 - p.life / CAR.puffLife;
@@ -4106,7 +4123,9 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // playtest1o: a foe faces its walk; standing in a fight (or swinging) it faces its target; a shove or stun holds its face.
     const foeAt = (r.taunt ?? 0) > g.worldMs && g.companion ? g.companion : r.atEscort && g.escort ? g.escort : hero;
     const rv = faceOf(r, r.x, r.y, !!r.moving, r.aggro || (r.actFor ?? 0) > 0 ? foeAt : null, (r.shoveT ?? 0) > 0 || (r.stun ?? 0) > 0);
-    const body = (c: CanvasRenderingContext2D) => monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
+    const wardenAct = (r.actFor ?? 0) > 0 ? actPhase(r.actFor ?? 0) : -1;
+    const wardenFlip = hero.x < r.x;
+    const body = (c: CanvasRenderingContext2D) => (r.early && paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
     props.push({
       y: r.y,
       actor: body,
@@ -4144,6 +4163,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         }
       });
     }
+    if (r.early && !hasGlowMask(r.family)) glow.push((c) => void paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, "em"));
     // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.
     const fade = fadeOf(r, g.worldMs, sceneStart(g));
     if (fade < 1) {
