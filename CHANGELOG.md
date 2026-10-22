@@ -2,6 +2,14 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-22: townwide (a larger town)
+- The town grows from 40x30 to 58x42 (2.03x the area): wide streets and a gap round every building; every building keeps its size, outside, sign and door.
+- The cemetery has its own fenced yard west of the avenue (dirt walk, a path from both streets to the crypt stair, the three dig graves).
+- The festival wayrift park stands in its own cobbled plaza east of the avenue, in clear view.
+- The town lawn is drawn in patches (loam, its dithered edge, worn ground) from each season's own colours (tools/pixel-writer/town_ground_writer.py).
+- Old saves load: a town position, the town portal and town loot move to the same spot of the spread plan (or the spawn); the town map fog is regrown.
+- New check group: townwide.
+
 ## 2026-10-21: polish (labels, Car button, big-boss fit, harrow level)
 - Townsfolk names keep clear of the HUD panels and of each other (over the head, moved aside, or under the feet).
 - The Car/Step button sits beside Camp instead of under the minimap.

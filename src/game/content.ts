@@ -320,7 +320,7 @@ export const HOMES: HomeDef[] = [
   { id: "bram", x: 3, y: 11, w: 6, h: 4, outX: 5, outY: 15, who: "Bram" },
   { id: "pell", x: 12, y: 11, w: 6, h: 4, outX: 14, outY: 15, who: "Pell" },
   { id: "ivy", x: 36, y: 11, w: 6, h: 4, outX: 38, outY: 15, who: "Ivy" },
-  { id: "noll", x: 11, y: 32, w: 6, h: 5, outX: 13, outY: 31, who: "Noll" },
+  { id: "noll", x: 11, y: 32, w: 6, h: 5, outX: 13, outY: 37, who: "Noll" }, // the lane before her door (north of the house is under its roof)
 ];
 
 export function insideHome(home: HomeDef, tx: number, ty: number) {

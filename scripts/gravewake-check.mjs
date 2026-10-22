@@ -15801,6 +15801,107 @@ if (on("gfxlight")) {
   }
 }
 
+// townwide [OWNER-APPROVED 2026-10-22 Bill: "make the Gravewake town larger inside so it isn't cramped. The cemetery and the
+// wayrift portal park need open room and must not sit behind buildings"]: the 58x42 town (src/game/townplan.ts).
+if (on("townwide")) {
+  asLive();
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-tw-"));
+  const root = process.cwd();
+  writeTop(join(dir, "tw.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as TP from "${root}/src/game/townplan.ts";\nexport * as BL from "${root}/src/game/buildings.ts";\nexport { WAYRIFTS } from "${root}/src/game/wayrifts.ts";\nexport { SHOWROOM } from "${root}/src/game/bonecar.ts";\nexport { FOLK, HOMES, T } from "${root}/src/game/content.ts";\nexport { HARVEST } from "${root}/src/game/festivals.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "tw.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "tw.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "tw.mjs")).href);
+  const { TP, T } = X;
+  const mk = (ms = 5 * 60 * 1000) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; return g; };
+  const g = mk();
+  g.enterTown();
+  const at = (x, y) => g.tiles[y * g.w + x];
+  const OPEN = new Set([T.grass, T.cobble, T.dirt, T.road]);
+  // 1. size, and every door reachable on foot from every gate (bodies' own solid rule)
+  const solid = (x, y) => g.solidAt(x * 16 + 8, y * 16 + 8);
+  const doors = []; const gates = [];
+  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) { if (at(x, y) === T.door) doors.push([x, y]); if (X.townGateSide(x, y)) gates.push([x, y]); }
+  const reach = (sx, sy) => { const seen = new Set([`${sx},${sy}`]); const q = [[sx, sy]]; while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= g.w || ny >= g.h || seen.has(`${nx},${ny}`) || solid(nx, ny)) continue; seen.add(`${nx},${ny}`); q.push([nx, ny]); } } return seen; };
+  const unreached = [];
+  for (const [gx, gy] of gates) { const seen = reach(gx, gy); for (const [x, y] of doors) if (!seen.has(`${x},${y + 1}`)) unreached.push(`${x},${y}`); }
+  const area = (g.w * g.h) / (40 * 30);
+  check("townwide", `the town is ${g.w} x ${g.h} (${area.toFixed(2)}x the old 40 x 30), ${doors.length} doors and ${gates.length} gates, every door's stoop reachable on foot from every gate`, g.w === TP.TOWN_W && g.h === TP.TOWN_H && area >= 1.5 && area <= 2.1 && doors.length === 16 && gates.length === 10 && unreached.length === 0, unreached.slice(0, 6).join(" "));
+  // 2. separate buildings: no two lots touch (a one-tile gap at least, the croft and Noll's cottage too), each lot one door, each door a room
+  const lots = X.BL.townLots(g.w, g.h, g.tiles, T.wall, T.door, X.townRoomAt);
+  const touch = [];
+  for (let i = 0; i < lots.length; i++) for (let j = i + 1; j < lots.length; j++) { const a = lots[i], b = lots[j]; if (a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h) touch.push(`${a.room}/${b.room}`); }
+  check("townwide", `sixteen separate buildings (${lots.length} lots), none touching another, each with its room behind its one door`, lots.length === 16 && touch.length === 0 && doors.every(([x, y]) => X.townRoomAt(x, y)), touch.join(" "));
+  // 3. the cemetery: its yard holds the three graves and the crypt stair, no wall, fenced all round but the path's gaps, the
+  //    path open from both streets; nothing built north of it within a roof's rise (in view of the street)
+  const C = TP.CEMETERY;
+  let walls = 0; const graves = [];
+  for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0; x <= C.x1; x++) { if (at(x, y) === T.wall || at(x, y) === T.door) walls++; if (at(x, y) === T.grave) graves.push(`${x},${y}`); }
+  const fence = TP.cemeteryFence();
+  const ring = 2 * (C.x1 - C.x0 + 1) + 2 * (C.y1 - C.y0 - 1);
+  const pathOpen = [...Array(TP.STREETS.south[0] - TP.STREETS.north[1] - 1).keys()].every((k) => C.path.every((x) => !solid(x, TP.STREETS.north[1] + 1 + k) || at(x, TP.STREETS.north[1] + 1 + k) === T.stairD));
+  const stairReach = reach(TP.STREETS.avenue[0], TP.STREETS.south[0]).has(`${C.stair.x},${C.stair.y + 1}`);
+  const fenceBlocks = fence.every((f) => g.blockedProp(f.x * 16 + 8, f.y * 16 + 8) || solid(f.x, f.y));
+  const graveTiles = [...Array(g.w * g.h).keys()].filter((i) => g.tiles[i] === T.grave).length;
+  check("townwide", `the cemetery is its own yard (${C.x0}-${C.x1} x ${C.y0}-${C.y1}): no building in it (${walls}), the three graves (${graves.join(" ")}) and the crypt stair inside, a picket fence on every edge tile but the path's two gaps (${fence.length} of ${ring - 4}) that stops bodies (${fenceBlocks}), the path open from street to street (${pathOpen}) and the stair reached from the avenue (${stairReach})`, walls === 0 && graves.length === 3 && graveTiles === 3 && at(C.stair.x, C.stair.y) === T.stairD && C.stair.x > C.x0 && C.stair.x < C.x1 && C.stair.y > C.y0 && C.stair.y < C.y1 && graves.every((k) => { const [x, y] = k.split(",").map(Number); return x > C.x0 && x < C.x1 && y > C.y0 && y < C.y1; }) && fence.length === ring - 4 && fenceBlocks && pathOpen && stairReach);
+  // 4. the portal plaza: cobble round the park, no building in it or within a tile, the wayrift's mouth open and reached on foot
+  const P = TP.PLAZA;
+  let pw = 0;
+  for (let y = P.y0 - 1; y <= P.y1 + 1; y++) for (let x = P.x0 - 1; x <= P.x1 + 1; x++) if (at(x, y) === T.wall || at(x, y) === T.door) pw++;
+  const rift = X.WAYRIFTS.find((r) => r.id === "hub-fest");
+  const riftIn = rift.x > P.x0 && rift.x < P.x1 && rift.y > P.y0 && rift.y < P.y1 && rift.x === TP.PARK_AT.rift.x && rift.y === TP.PARK_AT.rift.y;
+  const mouthReach = reach(TP.STREETS.avenue[0], TP.STREETS.north[0]).has(`${rift.x},${rift.y}`);
+  const cob = [P.x0, P.x1].every((x) => [...Array(P.y1 - P.y0 + 1).keys()].every((k) => at(x, P.y0 + k) === T.cobble));
+  check("townwide", `the portal plaza (${P.x0}-${P.x1} x ${P.y0}-${P.y1}) is open cobble with the park in its middle: no building in it or a tile round it (${pw}), the festival wayrift at its centre (${riftIn}), its mouth reached on foot from the avenue (${mouthReach}), cobble edges (${cob})`, pw === 0 && riftIn && mouthReach && cob);
+  // 5. no prop on a prop's or a building's edge, no body on a solid tile or behind a roof, nobody piled
+  const PROP = new Set([T.tree, T.pump, T.grave, T.rock]);
+  const crowd = [];
+  for (let y = 1; y < g.h - 1; y++) for (let x = 1; x < g.w - 1; x++) if (PROP.has(at(x, y))) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const n = at(x + dx, y + dy); if (n === T.wall || n === T.door || n === T.water || (PROP.has(n) && n !== T.grave)) crowd.push(`${x},${y}`); }
+  const roofLots = X.BL.townLots(g.w, g.h, g.tiles, T.wall, T.door, X.townRoomAt);
+  const stand = [];
+  const bodies = [...g.npcs.map((n) => ({ id: n.id, x: n.x, y: n.y })), ...X.FOLK.map((f) => ({ id: f.id, x: f.dayX * 16 + 8, y: f.dayY * 16 + 8 })), ...X.HOMES.map((h) => ({ id: `${h.id}-step`, x: h.outX * 16 + 8, y: h.outY * 16 + 8 })), { id: "stall", x: X.HARVEST.stall.x * 16 + 8, y: X.HARVEST.stall.y * 16 + 8 }];
+  for (const b of bodies) { const tx = Math.floor(b.x / 16), ty = Math.floor(b.y / 16); if (!OPEN.has(at(tx, ty)) || X.BL.roofedAt(roofLots, tx, ty)) stand.push(b.id); }
+  let piled = "";
+  for (let i = 0; i < g.npcs.length; i++) for (let j = i + 1; j < g.npcs.length; j++) if (Math.hypot(g.npcs[i].x - g.npcs[j].x, g.npcs[i].y - g.npcs[j].y) < 12) piled = `${g.npcs[i].id}/${g.npcs[j].id}`;
+  check("townwide", `no tree, pump or grave against a wall, door, the pool or another prop (${crowd.length}); every townsperson, day spot, doorstep and the festival stall on open ground and clear of every roof (${bodies.length}, off: ${stand.join(" ") || "none"}); nobody piled`, crowd.length === 0 && stand.length === 0 && !piled, `${crowd.slice(0, 6).join(" ")} ${piled}`);
+  // 6. the strollers walk the new town: a day of ticks, every folk body stays on open ground, off roofs, and moves
+  {
+    const s = mk(5 * 60 * 1000); s.enterTown();
+    const start = new Map(s.npcs.map((n) => [n.id, [n.x, n.y]]));
+    const bad = new Set(); let moved = 0;
+    for (let i = 0; i < 1200; i++) { s.update(0.05); s.px = TP.TOWN_SPAWN.x * 16 + 8; s.py = TP.TOWN_SPAWN.y * 16 + 8; if (i % 20 === 0) for (const n of s.npcs) { const tx = Math.floor(n.x / 16), ty = Math.floor(n.y / 16); if (s.solidAt(n.x, n.y) || X.BL.roofedAt(roofLots, tx, ty)) bad.add(n.id); } }
+    for (const n of s.npcs) { const a = start.get(n.id); if (a && Math.hypot(n.x - a[0], n.y - a[1]) > 8) moved++; }
+    check("townwide", `the town folk stroll the spread town (60 s): ${moved} walked, none on a solid tile or behind a roof (${[...bad].join(" ") || "none"})`, moved >= 3 && bad.size === 0);
+  }
+  // 7. the bone car's lot, the gates' arrivals and the spawn on open ground; the lawn is in patches (four cell rows per season)
+  const arrive = Object.values(X.TOWN_ARRIVE).every((a) => OPEN.has(at(Math.floor(a.x / 16), Math.floor(a.y / 16))));
+  const lotOk = g.blockedProp((X.SHOWROOM.x0 + 1) * 16 + 8, X.SHOWROOM.y0 * 16 + 8) && !g.blockedProp(X.SHOWROOM.salesman.x, X.SHOWROOM.salesman.y) && X.SHOWROOM.x1 < g.w - 2 && X.SHOWROOM.posts.every(([x, y]) => y < g.h - 1 && OPEN.has(at(x, y)));
+  const py = (code) => { try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })); } catch (e) { return { error: String(e.stderr || e.message).slice(-300) }; } };
+  const ground = py(`import json\nfrom PIL import Image\nout=[]\nfor s in ["autumn","winter","spring","summer"]:\n  a=Image.open(f"public/art/writer/season-{s}-town-ground.png").convert("RGBA"); b=Image.open(f"public/art/writer/season-{s}-town-grass.png").convert("RGBA")\n  pa=set(a.getdata()); pb=set(b.getdata())\n  out.append([a.size[0], a.size[1], pa<=pb, len(set(a.crop((0,0,16,16)).getdata())^set(a.crop((224,0,240,16)).getdata()))>0])\nprint(json.dumps(out))`);
+  const groundOk = Array.isArray(ground) && ground.every(([w, h, sub, diff]) => w === 448 && h === 16 && sub && diff);
+  check("townwide", `the gates' arrival spots and the spawn stand on open ground (${arrive}); the bone car's roped lot blocks, its salesman's tile is open, all inside the fence (${lotOk}); the town lawn has patch cells (season-<s>-town-ground.png, 28 cells, only its season's own colours: ${JSON.stringify(ground)})`, arrive && OPEN.has(at(TP.TOWN_SPAWN.x, TP.TOWN_SPAWN.y)) && lotOk && groundOk);
+  // 8. old saves: every open tile of the old 40x30 town loads onto open ground of the new one, anything else at the spawn;
+  //    the town fog grows with it; the portal and town loot move too
+  {
+    const base = mk().saveRecord();
+    const oldG = await pt1uSim().then((M) => { const o = new M.Game(); o.start("warrior", "str", "Q"); o.enterTown(); return o; });
+    let ok = 0, all = 0, bad = [];
+    for (let y = 1; y < 29; y++) for (let x = 1; x < 39; x++) {
+      if (oldG.solidAt(x * 16 + 8, y * 16 + 8)) continue;
+      all++;
+      const b = { ...base, townV: undefined, mapId: "town", px: x * 16 + 8, py: y * 16 + 8, portal: { mapId: "town", px: x * 16 + 8, py: y * 16 + 8 }, drops: [{ mapId: "town", x: x * 16 + 8, y: y * 16 + 8, dungeon: "", floor: 0, inside: "", age: 0, silver: 1, item: null, told: false }] };
+      const m = X.migrateTownSave(b);
+      const h = new X.Game(); h.loadRecord(b);
+      const fine = h.mapId === "town" && h.w === TP.TOWN_W && !h.solidAt(h.px, h.py) && OPEN.has(h.tiles[Math.floor(h.py / 16) * h.w + Math.floor(h.px / 16)]) && m.portal.px === m.px && m.drops[0].x === m.px && m.townV === TP.TOWN_PLAN;
+      if (fine) ok++; else bad.push(`${x},${y}`);
+    }
+    const out = X.migrateTownSave({ ...base, townV: undefined, mapId: "town", px: -50, py: 99999 });
+    const spawnOk = out.px === TP.TOWN_SPAWN.x * 16 + 8 && out.py === TP.TOWN_SPAWN.y * 16 + 8;
+    const fog = X.migrateTownSave({ ...base, townV: undefined, mapId: "world", mapSeen: { town: `40x30:${(600).toString(36)}.${(600).toString(36)}`, world: "keep" } });
+    const fogOk = /^58x42:/.test(fog.mapSeen.town) && fog.mapSeen.world === "keep";
+    const newer = X.migrateTownSave({ ...base });
+    check("townwide", `an old save loads: each of the old town's ${all} open tiles lands on open ground of the new town (${ok}), its town portal and town loot move with it; off the old town it wakes at the spawn (${spawnOk}); its town map fog is regrown to 58 x 42, other maps' fog kept (${fogOk}); a new save (townV ${base.townV}) is left as it is`, ok === all && all > 400 && spawnOk && fogOk && base.townV === TP.TOWN_PLAN && newer === undefined ? false : ok === all && all > 400 && spawnOk && fogOk && base.townV === TP.TOWN_PLAN && newer.px === base.px, bad.slice(0, 6).join(" "));
+  }
+}
+
 if (!ran) {
   console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a");
   process.exit(1);
