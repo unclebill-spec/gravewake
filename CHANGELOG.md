@@ -2,6 +2,14 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: wake leftovers (the Wake Hall built out)
+- The Wake Hall is its own 24x25 floor with a 20x20 hall: rounded corners, 4 cold-fire braziers at the compass points (solid; out in phase 3), 8 graves that open as 2x1 pits in phase 2 (solid; anyone standing there is moved to open ground), 9 stained-glass windows in the north wall (one lights per story boss laid to rest), the cracked bell hung over the centre.
+- The Toll: three rings out from him, 350 ms apart, each a 16 px band (gaps at the grave angles from phase 2). The Procession: 4 lanes of 32 px, coffins with mourners down every lane but one, alternating direction (no two empty lanes on the hero's lane in a row); a hit shoves one tile. Lights Out: the hall goes dark but for 3 drifting glow-orbs (28 px of light; one is always reachable); below 20% one orb is a red false one. All three land for the same number as before (attack + 4, less half armour).
+- New pixel-writer art (tools/pixel-writer/wake_writer.py): floor-wake (8 cells), brazier, grave, window, coffin, mourner, orb, bell. The Bellringer (Hollowmourn's mini) has its own 16x32 6-frame sheet (tools/sprite-writer/bellringer_writer.py), drawn x3.
+- His intro plays a line at a time with a class line; he drops the Sexton's Spade (weapon) and the Bell-Shard (relic); after the ending, the first night out reads "Night. The restless wake."
+- decal-bone2 ships its remap by rerunning bonefloor_writer.py (freshness check unchanged).
+- Desktop 960x540: his fight zooms 4 -> 2 so he and the hero fit (verified by screenshot).
+
 ## 2026-10-21: wake batch (art, audio, the ending, boss variety)
 - Merged gfx-lighting (ccceeb6) into main (7108c82); both freezes hold (esView chains to gfxlView).
 - Art: palette remap, Art's ghost foes (their own sheets beside foes.png) and ghost trees, six-element spell bolts/trails/impacts, rune-ring and charge telegraphs, four mini-bosses (Wraith Knight, Frost Golem, Vampire Lord, Storm Elemental) on the middle floor of the XP-gap dungeons, emissive masks on the glow pass (ghosts, minis, Hollowmourn). decal-bone2 stays the bone writer's (its remap is not shipped).
