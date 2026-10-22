@@ -168,8 +168,9 @@ export function Gravewake() {
       // The world view uses the chosen preset. The fight and the map keep the Auto frame (their layout is in canvas pixels).
       // Wake batch (design/ending.md 3.4): in the Wake Hall the view zooms down so Hollowmourn (176 px) and the hero fit
       // follow-up: any big body in a fight (a 5x boss is 160+ px tall) zooms down the same way until it and the hero fit
-      const cf = game.wakeFight ? null : game.camFocus;
-      const fitH = game.wakeFight ? 232 : cf ? Math.round(cf.ry * 2 + 72) : 0;
+      const hallNow = game.wakeFight || (game.mode === "ending" && game.mapId === "dungeon" && game.dungeon === "wake"); // the epilogue opens on the hall at dawn
+      const cf = hallNow ? null : game.camFocus;
+      const fitH = hallNow ? 232 : cf ? Math.round(cf.ry * 2 + 72) : 0;
       const zoomNow = fitH ? Math.min(game.zoom, Math.max(1, Math.floor((Math.max(1, rect.height) * dprRaw) / fitH))) : game.zoom;
       const look = computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: zoomNow, s, coarse: coarseNow });
       const scene = game.mode === "battle" || game.mode === "map";
