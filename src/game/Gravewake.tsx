@@ -88,7 +88,8 @@ export function Gravewake() {
   const [coarse, setCoarse] = useState(false);
   // billvid item 9 (Bill, 2026-10-22: "on PC, default to keyboard controls"): keys mode hides the touch stick and the
   // action buttons. On at start on a fine pointer with no touch screen; the first touch turns it off, keys or a mouse on again.
-  const [keysMode, setKeysMode] = useState(() => typeof window !== "undefined" && keyboardFirst(window));
+  const [keysMode, setKeysMode] = useState(false); // billvid: decided after hydration, so the server's HTML matches
+  useEffect(() => { setKeysMode(keyboardFirst(window)); }, []);
   const [portraitOk, setPortraitOk] = useState(false);
   const [tip, setTip] = useState(false);
   const [fs, setFs] = useState(false);

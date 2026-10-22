@@ -2,6 +2,18 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## billvid (2026-10-22)
+Fixes from Bill's phone video of main e2f4c6f.
+- Doors: the trigger reaches a little past the door art, both entering and leaving, so the exits at Noll's Cottage, The Needle and The Smithy are no longer tight. You still enter by touching it, and you never spawn back into a door.
+- The South Croft opens: it is bare and for sale. All 16 town doors lead inside.
+- Collision at the base of things: street lamps, the bone car display with its velvet ropes and posts, the park statues and the arch pillars.
+- The plaza portal: the arch pillars stand on grounded, solid bases, and the pad has an open front lane with a glowing neon step. The Festival Park frame is layered correctly, so you can no longer walk under its top edge.
+- The Smithy's fire pit burns with flickering flame frames and a forge light. Every street lamp has a flickering flame and glow, within the 8-light mood cap and culled to the view.
+- One fade-behind rule covers trees, big rocks, fence posts, statues, the arch, lamps and the wayrift frames.
+- Blackjack: both hands are laid out in clean rows, the dealer's hole card sits face down beside his up card, and the table fits any window height.
+- On a computer (fine pointer, no touch), keys mode is the default: the stick and action buttons are hidden. A touch brings them back, and keys or the mouse hide them again. K camps. A key hint shows once.
+- New check group: billvid.
+
 ## outskirts + carlot (2026-10-22)
 - The bone car, its velvet ropes and Ossian Sprocket moved into their own fenced yard by the south gate (x 32-39, rows 38-40), where the tree left of the car stood; purchase and summon unchanged. Nothing else inside the town fence changed.
 - The ring outside the town fence (10 tiles deep) is sparse, gloomy and dead: ash/slate ground with patches, scattered skulls, bones, crooked, fallen and broken crosses and dead tufts (one per tile, never on a gate road), the forest thinned to a few trees at the ring's far edge, a darker night past the fence.

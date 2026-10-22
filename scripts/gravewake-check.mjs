@@ -15117,7 +15117,7 @@ if (on("playtest1z")) {
     const dims = py(`from PIL import Image; import json; print(json.dumps({k: list(Image.open("public/art/writer/"+k).size) for k in ["wayrift-platform.png","park-statue.png","park-arch.png","wayrift2.png"]}))`);
     const dimOk = dims["wayrift-platform.png"]?.[0] === 96 && dims["wayrift-platform.png"]?.[1] === 48 && dims["park-arch.png"]?.[0] === 48;
     // platform solid: octagon rim (corners open), mouth open
-    const plat = !X.waySolid(33, 22, "town") && !X.waySolid(34, 22, "town") && X.waySolid(33, 23, "town") && !X.waySolid(35, 22, "town"); // (35,22) is NE corner of 3x3 → open (townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: was (18,15)..(20,15))
+    const plat = !X.waySolid(33, 22, "town") && !X.waySolid(34, 22, "town") && X.waySolid(35, 23, "town") && !X.waySolid(33, 23, "town") && !X.waySolid(35, 22, "town"); // billvid [OWNER-REQUESTED 2026-10-22 Bill's video: a clear way in to the plaza portal]: (33,23) is now the pad's open front lane, the rim holds at (35,23). (35,22) is NE corner of 3x3 → open (townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: was (18,15)..(20,15))
     seed(2);
     const g = mk();
     g.enterTown(33 * 16 + 8, 24 * 16 + 8);
