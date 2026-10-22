@@ -1,3 +1,4 @@
+import { BOSS_PLANS, planPhase, planMove } from "./bossvariety";
 import { WAKE_MINI_AT, wakeMiniFloor, WAKE_PHASES, wakeBig, WAKE_LAST, epilogue } from "./wake";
 import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
 import {
@@ -7909,14 +7910,16 @@ export class Game {
       // playtest1j: a boss with a big move turns to phase two at half HP: it roars (stands and glows, no hit), then its
       // big moves come quicker and in patterns (telegraph.ts).
       if (r.final) this.wakeLordBeats(r, dt);
-      if (r.boss && r.big && !r.final && (r.phase ?? 1) < 2 && (r.hp ?? 1) <= (r.max ?? 1) * PHASE.at && !(r.tell ?? 0)) {
-        r.phase = 2;
+      const plan = r.boss && !r.final ? BOSS_PLANS[r.def] : undefined; // wake step 5: the boss's own gates (66/33 or 50)
+      const gateTo = plan ? planPhase(plan, (r.hp ?? 1) / (r.max ?? 1)) : 2;
+      if (r.boss && r.big && !r.final && (r.phase ?? 1) < gateTo && (plan || (r.hp ?? 1) <= (r.max ?? 1) * PHASE.at) && !(r.tell ?? 0)) {
+        r.phase = (r.phase ?? 1) + 1;
         r.wave = Math.floor((r.age ?? 0) / PHASE.cycle2);
         r.cool = Math.max(r.cool ?? 0, PHASE.roar);
         r.act = "cast";
         r.actFor = PHASE.roar;
         r.flash = PHASE.roar;
-        this.logLine = `${r.name ?? "It"} roars. Its second phase begins.`;
+        this.logLine = `${r.name ?? "It"} roars. Its ${r.phase === 3 ? "third" : "second"} phase begins.`;
       }
       if ((r.tell ?? 0) > 0) {
         r.moving = false;
@@ -7944,6 +7947,7 @@ export class Game {
       if ((r.cool ?? 0) > 0) continue;
       if (r.boss && r.big && this.wantBig(r)) {
         if (r.final) this.wakeLordBig(r);
+        else if (BOSS_PLANS[r.def]) this.planBig(r);
         else this.beginCast(r, "big", r.big, r.bigTag ?? "ring", 1);
       }
       else if ((r.boss || r.mini) && r.mid && (r.age ?? 0) > 3.2) this.beginCast(r, "mid", r.mid, r.midTag ?? "ring", 0.5);
@@ -8020,6 +8024,39 @@ export class Game {
       this.logLine = "Hollowmourn lifts the hand-bell. The Toll.";
     } else if (m.tag === "dark") this.logLine = "Hollowmourn closes his hand. Lights Out.";
     else this.logLine = "The windows light violet. The Procession.";
+  }
+
+  /** Wake step 5: this boss's own big move for its phase (bossvariety.ts), in place of the shared aimed ring. */
+  private planBig(r: Roamer) {
+    const m = planMove(BOSS_PLANS[r.def], r.phase ?? 1);
+    r.big = m.name;
+    r.bigTag = m.tag;
+    this.beginCast(r, "big", m.name, m.tag, 1);
+    if (m.pat === "nova" && m.tag === "ring") {
+      r.markX = r.x;
+      r.markY = r.y;
+      r.markR = PHASE.novaR + bodyR(r);
+      r.pattern = "nova";
+      this.logLine = `${r.name ?? "It"} gathers ${m.name} around itself.`;
+    } else if (m.pat === "echo") {
+      if (r.pattern === "nova") {
+        const aim = this.aimOf(r);
+        r.markX = aim.x;
+        r.markY = aim.y;
+        r.markR = markRadius(m.tag);
+      }
+      r.pattern = "echo";
+      this.logLine = `${r.name ?? "It"} marks ${m.name}.`;
+    } else {
+      if (r.pattern === "nova") {
+        const aim = this.aimOf(r);
+        r.markX = aim.x;
+        r.markY = aim.y;
+        r.markR = markRadius(m.tag);
+      }
+      r.pattern = "";
+      this.logLine = `${r.name ?? "It"} marks ${m.name}.`;
+    }
   }
 
   /** Wake batch: the epilogue (eight scenes, then the credits), then the world, post-game. */
