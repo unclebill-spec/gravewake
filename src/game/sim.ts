@@ -97,7 +97,7 @@ import { CASINO_FOLK, OLD_ROOM, SONG, bjPays, bjSettle, bjValue, dealerDraws, de
 import { roofedAt, townLots } from "./buildings"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the town walk keeps off roofed tiles
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
-import { CEMETERY, PARK_AT, PLAZA, STREETS, TOWN_BLOCKS, TOWN_H, TOWN_PLAN, TOWN_SPAWN, TOWN_W, ZEP_PAD, OLD_TOWN, blockOf, cemeteryFence, townX, townY } from "./townplan"; // townwide (Bill, 2026-10-22: a larger town)
+import { CEMETERY, PARK_AT, PLAZA, STREETS, TOWN_BLOCKS, TOWN_H, TOWN_PLAN, TOWN_SPAWN, TOWN_W, ZEP_PAD, OLD_TOWN, blockOf, cemeteryFence, carLotFence, townX, townY } from "./townplan"; // townwide (Bill, 2026-10-22: a larger town)
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -4676,6 +4676,7 @@ export class Game {
     if (!hit) {
       hit = yardFenceTiles(this.w, this.h, this.tiles, T.wall, T.door, T.grass, townRoomAt);
       for (const f of cemeteryFence()) hit.add(f.y * this.w + f.x); // townwide: the cemetery's fence
+      for (const f of carLotFence()) hit.add(f.y * this.w + f.x); // carlot: the bone car yard's fence
       fenceCache.set(this.tiles, hit);
     }
     return hit;
@@ -10926,7 +10927,7 @@ function buildTown() {
   // trees in the gardens between the north houses and the cottages, and by the gates; two pumps
   for (const [tx, ty] of [
     [10, 9], [19, 9], [25, 12], [31, 9], [34, 12], [44, 9], [48, 13],
-    [11, 27], [26, 19], [49, 26], [10, 38], [36, 38],
+    [11, 27], [26, 19], [49, 26], [10, 38], // carlot: the tree at (36, 38) gave way to the bone car's yard
   ]) {
     if (at(tx, ty) === T.grass) set(tx, ty, T.tree);
   }

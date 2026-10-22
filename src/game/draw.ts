@@ -32,7 +32,7 @@ import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, typ
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
 import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, scaleOf, topOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
-import { PARK_AT, cemeteryFence } from "./townplan"; // townwide
+import { PARK_AT, cemeteryFence, carLotFence } from "./townplan"; // townwide
 import * as OSK from "./outskirts"; // outskirts
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
@@ -2154,7 +2154,7 @@ export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
   // playtest1o: the pieces come from blocking.ts, so the fence the town draws is the fence that stops you (and the lane
   // along the next row of houses stays open: it used to shut in the inn's and the shop's doors).
   const out = yardPieces(g.w, g.h, g.tiles, T.wall, T.door, T.grass, townRoomAt, YARD_KINDS);
-  if (g.mapId === "town") out.push(...cemeteryFence()); // townwide: the cemetery's picket fence
+  if (g.mapId === "town") out.push(...cemeteryFence(), ...carLotFence()); // townwide: the cemetery's picket fence; carlot: the car yard's
   yardCache.set(g.tiles, out);
   return out;
 }
