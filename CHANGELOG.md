@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: follow-up (fit, dark glass, queued lines, ghost eyes, dawn)
+- A fight with a big body (5x boss, mini) zooms down like the Wake Hall until it and the hero fit; the epilogue keeps the hall's zoom.
+- Lights Out: the stained glass adds no glow. The intro queues the fight's own lines (up to 4) and plays them after it, 1.2 s apart.
+- The plain ghost's eyes glow (tools/sprite-writer/ghost_eyes_em.py rebuilds ghost_mob_em.png).
+- Dawn through the roots: from phase 3 thin grey-gold dithered shafts and roots come through the north wall, more as his HP falls; all six in the ending.
+
 ## 2026-10-21: charfix (character art fix pack)
 - public/art/sprites/ is staging charfix 14_palette_pass/sprites/ (20 colours or fewer per body, LOCKED palette, lime rares violet, the redrawn Count, mummy, ghost, tree, horseman, rat, bat, wolf, ghoul, scarecrow and cat, the folk back-of-head fix, and the 54 big sheets rebuilt chunky from the 16x32 cells). ORDER.txt kept.
 - The ghost stand-ins are 03_ghost's ghost_<rank>.png plus their -dirs rows (now in DIRS); glow masks rebuilt with dirs_writer.em_mask.
