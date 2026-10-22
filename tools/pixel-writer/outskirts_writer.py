@@ -5,8 +5,9 @@ tools/sprite-writer/palette_locked.py, every shape ringed by a 1px warm dark out
   outskirts-ground.png  8 cells: ash/slate ground, 0-3 plain, 4-5 darker slate patch, 6-7 pale ash patch
   outskirts-props.png  10 cells: 0 skull, 1 bones, 2 skull and bones, 3 cross leaning left, 4 cross leaning right,
                         5 fallen cross, 6 broken cross, 7-9 dead grass tufts
-  outskirts-candle.png  4 cells: a skull with a lit candle, flame frames 0-3   (+ _em glow mask)
-  outskirts-wisp.png   4 colours x 4 frames: will-o'-wisp ghost lanterns (rows blue, red, violet, green) (+ _em)
+  outskirts-candle.png  6 hues x 4 frames: a skull with a lit neon candle (rows HUES) (+ _em glow mask)
+  outskirts-wisp.png   6 hues x 4 frames: will-o'-wisp ghost lanterns (rows HUES) (+ _em)
+  outskirts-halo.png   6 hues, 32x16: each light's stepped, dithered ground pool (drawn in the glow pass)
   outskirts-tree.png   32x48: a dead tree, whole
   outskirts-raven.png  6 cells: 0 idle, 1 head turned, 2 wing ruffle, 3 blink, 4-5 flying (+ _em: its red eye)
 Run from the repo root: python3 tools/pixel-writer/outskirts_writer.py
@@ -15,7 +16,7 @@ import sys
 from PIL import Image
 
 sys.path.insert(0, "tools/sprite-writer")
-from palette_locked import LOCKED  # noqa: E402
+from palette_locked import LOCKED_V4 as LOCKED, NEON_V4  # noqa: E402
 
 OUT = "public/art/writer"
 OUTLINE = "#2a1c14"  # the warm dark outline
@@ -27,13 +28,9 @@ BARK = ["#2a2420", "#3a3428", "#4a4038", "#5a564e"]
 RAVEN = ["#16161a", "#2a2a2e", "#4a4a50"]
 WAX = ["#b7b2a6", "#d0c8b0"]
 FLAME = ["#c45a18", "#c4a050", "#d0c8b0"]
-NEON = {
-    "blue": ["#163044", "#3a78c8", "#7ec8e0", "#d0e4ff"],
-    "red": ["#4a1020", "#c43838", "#c46878", "#d2c0b4"],
-    "violet": ["#2a1848", "#7a5ad0", "#c9a0e8", "#c4b4e0"],
-    "green": ["#102818", "#48a060", "#8fd18a", "#c8e080"],
-}
-for c in [OUTLINE, *SLATE, *BONE, *STONE, *GRASS, *BARK, *RAVEN, *WAX, *FLAME, *[x for v in NEON.values() for x in v]]:
+HUES = ("blue", "cyan", "violet", "magenta", "red", "green")
+NEON = NEON_V4  # (deep halo, mid, mid2, tube, pale, near-white core)
+for c in [OUTLINE, *SLATE, *BONE, *STONE, *GRASS, *BARK, *RAVEN, *WAX, *FLAME, *[x for h in HUES for x in NEON[h]]]:
     assert c in LOCKED, c
 
 
@@ -196,37 +193,59 @@ def props():
     return [s0, b, sb, cross(-1.4), cross(1.6), fallen(), broken(), tuft(0), tuft(1), tuft(2)]
 
 
-def candle(f):
+def candle(f, hue="green"):
+    """a skull with a candle; its flame is neon: a 1px near-white core, the tube hue, a mid tip (frames move it)."""
+    n = NEON[hue]
     c = Cell()
     c.art(SKULL, ["#2a2a2e", BONE[0], BONE[2]], 4, 8)
     c.rect(7, 4, 8, 8, WAX[1]); c.put(7, 8, WAX[0]); c.put(9, 7, WAX[0])  # the candle and a drip
-    fl = [(7, 2), (8, 3), (7, 1)][f % 3] if f < 3 else (8, 2)
-    c.put(7, 3, FLAME[0]); c.put(8, 3, FLAME[0])
-    c.put(fl[0], fl[1], FLAME[1]); c.put(fl[0], fl[1] - 1 if fl[1] > 1 else fl[1], FLAME[2])
+    tip = [(7, 0), (8, 1), (7, 1), (8, 0)][f]
+    c.put(7, 3, n[3]); c.put(8, 3, n[3]); c.put(7, 2, n[5]); c.put(8, 2, n[3] if f % 2 else n[4])
+    c.put(tip[0], tip[1], n[2])
     c.outline()
     em = Cell()
     for (x, y), col in c.p.items():
-        if col in FLAME:
+        if col in n:
             em.put(x, y, col)
     return c, em
 
 
 def wisp(color, f):
+    """a ghost lantern: near-white core, the saturated tube ring, a darker hue rim, a swaying tail."""
     n = NEON[color]
     c = Cell()
-    body = ["..1111..", ".122221.", "12233221", "12333321", "12233221", ".122221.", "..1221..", "...11..."]
-    c.art(body, [None, n[0], n[1], n[2]], 4, 3)
-    # the trailing wisp tail sways by frame (different pixels per frame)
-    tail = [[(7, 11), (6, 12), (6, 13)], [(8, 11), (8, 12), (9, 13)], [(7, 11), (7, 12), (8, 13)], [(8, 11), (7, 12), (7, 13)]][f]
+    body = ["..1111..", ".122221.", "12344321", "12455421", "12455421", "12344321", ".122221.", "..1221.."]
+    c.art(body, [None, n[1], n[2], n[3], n[4], n[5]], 4, 2)
+    tail = [[(7, 10), (6, 11), (6, 12)], [(8, 10), (8, 11), (9, 12)], [(7, 10), (7, 11), (8, 12)], [(8, 10), (7, 11), (7, 12)]][f]
     for (x, y) in tail:
-        c.put(x, y, n[1])
-    c.put(7, 6, n[3]); c.put(8, 6 if f % 2 else 5, n[3])  # the bright core flickers
+        c.put(x, y, n[2])
+    if f % 2:  # the core pulses: a frame with its ring fat, one with it thin
+        c.put(6, 4, n[4]); c.put(9, 7, n[4])
     c.outline()
     em = Cell()
     for (x, y), col in c.p.items():
         if col != OUTLINE:
             em.put(x, y, col)
     return c, em
+
+
+def halo(hue):
+    """the light's pool on the ground, 32x16: three stepped, dithered bands of the hue (mid, deep, deep halo) into black."""
+    n = NEON[hue]
+    c = Cell(32, 16)
+    for y in range(16):
+        for x in range(32):
+            d = ((x - 15.5) / 15) ** 2 + ((y - 7.5) / 7) ** 2
+            if d < 0.12:
+                c.put(x, y, n[2] if (x + y) % 2 else n[1])
+            elif d < 0.35:
+                c.put(x, y, n[1])
+            elif d < 0.65:
+                c.put(x, y, n[1] if (x + y) % 2 == 0 else n[0])
+            elif d < 1:
+                if (x + y) % 2 == 0:
+                    c.put(x, y, n[0])
+    return c
 
 
 def tree():
@@ -288,18 +307,22 @@ def raven(f):
     return c, em
 
 
+def rows(name, grid, w=16, h=16):
+    im = Image.new("RGBA", (w * len(grid[0]), h * len(grid)), (0, 0, 0, 0))
+    for r, row in enumerate(grid):
+        for i, c in enumerate(row):
+            im.paste(c.img(), (i * w, r * h))
+    im.save(f"{OUT}/{name}.png")
+
+
 def main():
     strip([ground(k) for k in range(8)]).save(f"{OUT}/outskirts-ground.png")
     strip(props()).save(f"{OUT}/outskirts-props.png")
-    cd = [candle(f) for f in range(4)]
-    strip([a for a, _ in cd]).save(f"{OUT}/outskirts-candle.png")
-    strip([b for _, b in cd]).save(f"{OUT}/outskirts-candle_em.png")
-    ws = [[wisp(col, f) for f in range(4)] for col in ("blue", "red", "violet", "green")]
-    sheet = Image.new("RGBA", (64, 64), (0, 0, 0, 0)); em = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    for r, row in enumerate(ws):
-        for f, (a, b) in enumerate(row):
-            sheet.paste(a.img(), (f * 16, r * 16)); em.paste(b.img(), (f * 16, r * 16))
-    sheet.save(f"{OUT}/outskirts-wisp.png"); em.save(f"{OUT}/outskirts-wisp_em.png")
+    cd = [[candle(f, h) for f in range(4)] for h in HUES]
+    rows("outskirts-candle", [[a for a, _ in r] for r in cd]); rows("outskirts-candle_em", [[b for _, b in r] for r in cd])
+    ws = [[wisp(h, f) for f in range(4)] for h in HUES]
+    rows("outskirts-wisp", [[a for a, _ in r] for r in ws]); rows("outskirts-wisp_em", [[b for _, b in r] for r in ws])
+    rows("outskirts-halo", [[halo(h)] for h in HUES], 32)
     tree().img().save(f"{OUT}/outskirts-tree.png")
     rv = [raven(f) for f in range(6)]
     strip([a for a, _ in rv]).save(f"{OUT}/outskirts-raven.png")
