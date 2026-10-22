@@ -129,6 +129,6 @@ export function festivalHook(day: number): FestivalHook | null {
 }
 
 /** The season sheet for one of the tinted ground/tree sheets (made by the pixel writer). */
-export function seasonSheet(season: SeasonId, name: "vale" | "camp-grass" | "town-grass" | "trees" | "town-trees") {
+export function seasonSheet(season: SeasonId, name: "vale" | "camp-grass" | "town-grass" | "town-ground" | "trees" | "town-trees") {
   return `/art/writer/season-${season}-${name}.png`;
 }

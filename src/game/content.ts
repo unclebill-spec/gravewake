@@ -279,15 +279,15 @@ export type Folk = {
   dayY: number;
 };
 
-/** Townsfolk who can be hired or bitten. dayX and dayY are tiles, not pixels. */
+/** Townsfolk who can be hired or bitten. dayX and dayY are tiles, not pixels (townwide: tiles of the 56x42 town). */
 export const FOLK: Folk[] = [
-  { id: "mara", name: "Mara", kit: "devout", gate: 10, gift: "chocolate", night: "out", coat: "#6a5040", dayX: 6, dayY: 14 },
-  { id: "bram", name: "Bram", kit: "brawn", gate: 10, gift: "flowers", night: "home", home: "bram", coat: "#5a4030", dayX: 8, dayY: 14 },
-  { id: "pell", name: "Pell", kit: "cunning", gate: 15, gift: "violin", night: "home", home: "pell", coat: "#405060", dayX: 14, dayY: 14 },
-  { id: "ivy", name: "Ivy", kit: "arcane", gate: 15, gift: "perfume", night: "home", home: "ivy", coat: "#704050", dayX: 30, dayY: 14 },
-  { id: "sera", name: "Sera", kit: "devout", gate: 15, gift: "ring", night: "sometimes", coat: "#8a6070", dayX: 10, dayY: 14 },
-  { id: "noll", name: "Noll", kit: "arcane", gate: 20, gift: "mirror", night: "home", home: "noll", coat: "#3a4060", dayX: 15, dayY: 20 },
-  { id: "lute", name: "Lute", kit: "cunning", gate: 20, gift: "paintbrush", night: "sometimes", coat: "#6a5838", dayX: 12, dayY: 20 },
+  { id: "mara", name: "Mara", kit: "devout", gate: 10, gift: "chocolate", night: "out", coat: "#6a5040", dayX: 6, dayY: 18 },
+  { id: "bram", name: "Bram", kit: "brawn", gate: 10, gift: "flowers", night: "home", home: "bram", coat: "#5a4030", dayX: 8, dayY: 17 },
+  { id: "pell", name: "Pell", kit: "cunning", gate: 15, gift: "violin", night: "home", home: "pell", coat: "#405060", dayX: 14, dayY: 17 },
+  { id: "ivy", name: "Ivy", kit: "arcane", gate: 15, gift: "perfume", night: "home", home: "ivy", coat: "#704050", dayX: 44, dayY: 17 },
+  { id: "sera", name: "Sera", kit: "devout", gate: 15, gift: "ring", night: "sometimes", coat: "#8a6070", dayX: 10, dayY: 18 },
+  { id: "noll", name: "Noll", kit: "arcane", gate: 20, gift: "mirror", night: "home", home: "noll", coat: "#3a4060", dayX: 23, dayY: 28 },
+  { id: "lute", name: "Lute", kit: "cunning", gate: 20, gift: "paintbrush", night: "sometimes", coat: "#6a5838", dayX: 13, dayY: 28 },
 ];
 
 export const GIFTS: { gift: string; name: string; price: number }[] = [
@@ -316,10 +316,11 @@ export type HomeDef = { id: string; x: number; y: number; w: number; h: number; 
 
 /** Cottage footprints. They must match the houses stamped in buildTown. outX/outY is the dawn doorstep. */
 export const HOMES: HomeDef[] = [
-  { id: "bram", x: 3, y: 8, w: 6, h: 4, outX: 5, outY: 12, who: "Bram" },
-  { id: "pell", x: 12, y: 8, w: 6, h: 4, outX: 14, outY: 12, who: "Pell" },
-  { id: "ivy", x: 24, y: 8, w: 6, h: 4, outX: 26, outY: 12, who: "Ivy" },
-  { id: "noll", x: 11, y: 22, w: 6, h: 5, outX: 13, outY: 21, who: "Noll" },
+  // townwide: the cottages of the spread town (townplan.ts TOWN_BLOCKS); the doorstep is the tile before the door
+  { id: "bram", x: 3, y: 11, w: 6, h: 4, outX: 5, outY: 15, who: "Bram" },
+  { id: "pell", x: 15, y: 11, w: 6, h: 4, outX: 17, outY: 15, who: "Pell" },
+  { id: "ivy", x: 38, y: 11, w: 6, h: 4, outX: 40, outY: 15, who: "Ivy" },
+  { id: "noll", x: 14, y: 32, w: 6, h: 5, outX: 16, outY: 31, who: "Noll" },
 ];
 
 export function insideHome(home: HomeDef, tx: number, ty: number) {

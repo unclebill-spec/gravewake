@@ -63,12 +63,12 @@ export const WAYRIFT = {
 /**
  * playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]:
  * one seasonal hub in the town park; other portals scattered in biomes (no half-circle hub north of town).
- * Town park footprint at (18,15) — center plaza west of the north-south cobble, north of the graves.
+ * Town park footprint at (32,22) — townwide: its own cobbled plaza east of the avenue (townplan.ts PLAZA).
  * Biome far twins kept clear of villages/lairs (near their places, slightly deeper into each biome).
  */
 export const WAYRIFTS: readonly Wayrift[] = [
   // town center park — seasonal only
-  { id: "hub-fest", name: "Festival wayrift", x: 18, y: 15, map: "town", hub: true, platform: true, festival: true },
+  { id: "hub-fest", name: "Festival wayrift", x: 32, y: 22, map: "town", hub: true, platform: true, festival: true },
   // festival zones (one awake a season) — scattered, on octagon pads
   { id: "fest-harvest", name: "Harvest Moon wayrift", x: 65, y: 147, map: "world", hub: false, platform: true, to: "hub-fest", season: "autumn" },
   { id: "fest-krampus", name: "Krampusnacht wayrift", x: 38, y: 27, map: "world", hub: false, platform: true, to: "hub-fest", season: "winter" },

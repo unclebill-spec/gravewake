@@ -97,6 +97,7 @@ import { CASINO_FOLK, OLD_ROOM, SONG, bjPays, bjSettle, bjValue, dealerDraws, de
 import { roofedAt, townLots } from "./buildings"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the town walk keeps off roofed tiles
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
+import { CEMETERY, PARK_AT, PLAZA, STREETS, TOWN_BLOCKS, TOWN_H, TOWN_PLAN, TOWN_SPAWN, TOWN_W, ZEP_PAD, OLD_TOWN, blockOf, cemeteryFence, townX, townY } from "./townplan"; // townwide (Bill, 2026-10-22: a larger town)
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -436,6 +437,8 @@ type SaveBlob = {
   campY?: number;
   /** playtest1e: 2 once world places are on the twice-size vale. A save without it is migrated on load (migrateWorldSave). */
   worldV?: number;
+  /** townwide: the town plan the save was made on (absent: the old 40x30 town). */
+  townV?: number;
   /** playtest1x: the width of the room a save was made in (absent: 14, every room before the casino grew). */
   roomW?: number;
   /** playtest1v: the map fog, per fogKey, as mapfog.ts encodeSeen strings ("all" = fully open). Absent on an old save. */
@@ -1602,11 +1605,11 @@ export class Game {
     this.talk = null;
     this.mode = "play";
     this.logLine = "Twilight holds the town. A road gate at any edge leads to the vale. Walk into a door or a stair. E speaks and fights. " + EARLY_LINES.hint;
-    this.enterTown(20 * TILE + 8, 14 * TILE + 8);
+    this.enterTown(TOWN_SPAWN.x * TILE + 8, TOWN_SPAWN.y * TILE + 8);
   }
 
   /** Rebuild the town from scratch and drop the hero at a pixel. */
-  enterTown(x = 20 * TILE + 8, y = 14 * TILE + 8) {
+  enterTown(x = TOWN_SPAWN.x * TILE + 8, y = TOWN_SPAWN.y * TILE + 8) {
     this.mapId = "town";
     this.inside = "";
     this.theme = "town";
@@ -1623,7 +1626,7 @@ export class Game {
     this.entrances = {};
     this.critters = [
       { x: 120, y: 220, kind: "cat", vx: 14 },
-      { x: 16 * TILE + 8, y: 15 * TILE + 4, kind: "bat", vx: -12 },
+      { x: 19 * TILE + 8, y: 21 * TILE + 4, kind: "bat", vx: -12 },
     ];
     this.hunterPhase = "";
     this.folkKey = "";
@@ -2860,8 +2863,8 @@ export class Game {
     const night = phase === "night";
     this.npcs.push(
       night
-        ? { id: "hunter", name: "Vampire Hunter", x: 23 * TILE + 8, y: 21 * TILE + 8, coat: "#3a3228", role: "hunter" }
-        : { id: "hunter", name: "Vampire Hunter", x: 11 * TILE + 8, y: 5 * TILE + 8, coat: "#3a3228", role: "hunter" },
+        ? { id: "hunter", name: "Vampire Hunter", x: 37 * TILE + 8, y: 29 * TILE + 8, coat: "#3a3228", role: "hunter" }
+        : { id: "hunter", name: "Vampire Hunter", x: 12 * TILE + 8, y: 5 * TILE + 8, coat: "#3a3228", role: "hunter" },
     );
   }
 
@@ -2869,7 +2872,7 @@ export class Game {
     if (this.mapId !== "town") return;
     this.npcs = this.npcs.filter((n) => n.role !== "portal");
     if (!this.portal) return;
-    this.npcs.push({ id: "portal", name: "Town portal", x: 22 * TILE + 8, y: 13 * TILE + 8, coat: "#7a5ad0", role: "portal" });
+    this.npcs.push({ id: "portal", name: "Town portal", x: 31 * TILE + 8, y: 16 * TILE + 8, coat: "#7a5ad0", role: "portal" });
   }
 
   /** Place townsfolk for this day or night. Home bodies sleep inside; the rest keep their day tiles. */
@@ -4672,6 +4675,7 @@ export class Game {
     let hit = fenceCache.get(this.tiles);
     if (!hit) {
       hit = yardFenceTiles(this.w, this.h, this.tiles, T.wall, T.door, T.grass, townRoomAt);
+      for (const f of cemeteryFence()) hit.add(f.y * this.w + f.x); // townwide: the cemetery's fence
       fenceCache.set(this.tiles, hit);
     }
     return hit;
@@ -5440,7 +5444,7 @@ export class Game {
       this.curse = "";
       if (def?.town || this.dungeon === "grave" || this.dungeon === "hearth") {
         if (this.dungeon === "hearth") this.enterInside("chapel", true);
-        else this.enterTown(this.dungeon === "grave" ? 14 * TILE : 6 * TILE, this.dungeon === "grave" ? 18 * TILE : 20 * TILE);
+        else this.enterTown(this.dungeon === "grave" ? CEMETERY.stair.x * TILE : townX(6) * TILE, this.dungeon === "grave" ? CEMETERY.stair.y * TILE : (blockOf("chapel").doorY + 1) * TILE);
       } else this.enterWorld(Math.max(TILE, (def?.tx ?? WORLD_DOOR.x) * TILE), Math.max(TILE, ((def?.ty ?? 113) + 1) * TILE));
       this.logLine = home ? `You climb back into the open air. ${home}` : "You climb back into the open air.";
       return;
@@ -9811,8 +9815,8 @@ export class Game {
   }
 
   revive() {
-    if (this.cls === "vampire") this.enterTown(14 * TILE + 8, 19 * TILE);
-    else this.enterTown(5 * TILE + 8, 19 * TILE);
+    if (this.cls === "vampire") this.enterTown(CEMETERY.stair.x * TILE + 8, (CEMETERY.stair.y + 1) * TILE);
+    else this.enterTown(blockOf("chapel").doorX * TILE + 8, (blockOf("chapel").doorY + 1) * TILE);
     this.mode = "play";
     this.hp = Math.max(this.hp, Math.round(this.maxHp / 3));
   }
@@ -10322,6 +10326,7 @@ export class Game {
       campX: this.campX,
       campY: this.campY,
       worldV: WORLD.scale,
+      townV: TOWN_PLAN,
       mapSeen: this.fogStrings(),
       carOwned: this.carOwned,
       earlyDone: this.earlyDone,
@@ -10387,7 +10392,7 @@ export class Game {
   /** Restore one save record (a slot's, or the autosave's) and rebuild the map under the saved pixel. */
   loadRecord(record: SaveBlob) {
     this.resetOrders(); // playtest1k: orders and combo pops are never saved; a loaded game follows
-    const raw = migrateWorldSave(record);
+    const raw = migrateTownSave(migrateWorldSave(record));
     this.cls = raw.cls;
     this.path = raw.path;
     this.name = raw.name;
@@ -10555,6 +10560,59 @@ export function migrateWorldSave(raw: SaveBlob): SaveBlob {
   return out;
 }
 
+/**
+ * townwide: a save made on the old 40x30 town. A town position is carried to the same spot of the spread plan
+ * (townplan.ts townX/townY, the same offset inside its tile); one that lands off open ground, or out of the old town,
+ * goes to the town spawn. The town portal and dropped loot in town move the same way.
+ */
+export function migrateTownSave(raw: SaveBlob): SaveBlob {
+  if ((raw.townV ?? 1) >= TOWN_PLAN) return raw;
+  const out: SaveBlob = { ...raw, townV: TOWN_PLAN };
+  const open = (tx: number, ty: number) => {
+    const t = buildTown().tiles[ty * TOWN_W + tx];
+    return t === T.grass || t === T.cobble || t === T.dirt || t === T.road;
+  };
+  const move = (x: number, y: number): [number, number] => {
+    const tx = Math.floor(x / TILE);
+    const ty = Math.floor(y / TILE);
+    if (!(x >= 0 && y >= 0) || tx < 1 || ty < 1 || tx >= OLD_TOWN.w - 1 || ty >= OLD_TOWN.h - 1) return [TOWN_SPAWN.x * TILE + 8, TOWN_SPAWN.y * TILE + 8];
+    const nx = townX(tx);
+    const ny = townY(ty);
+    if (!open(nx, ny)) return [TOWN_SPAWN.x * TILE + 8, TOWN_SPAWN.y * TILE + 8];
+    return [nx * TILE + (x - tx * TILE), ny * TILE + (y - ty * TILE)];
+  };
+  if (raw.mapId === "town") [out.px, out.py] = move(raw.px, raw.py);
+  // the town's map fog: a new tile is seen when the old tile it grew from (the nearest old row and column at or before
+  // it) was seen; "all" stays all
+  const fog = raw.mapSeen?.town;
+  if (fog && fog !== "all") {
+    const was = decodeSeen(fog, OLD_TOWN.w, OLD_TOWN.h);
+    if (was) {
+      const back = (n: number, f: (v: number) => number, max: number) => {
+        let o = 0;
+        while (o + 1 < max && f(o + 1) <= n) o++;
+        return o;
+      };
+      const now = new Uint8Array(TOWN_W * TOWN_H);
+      for (let y = 0; y < TOWN_H; y++) for (let x = 0; x < TOWN_W; x++) now[y * TOWN_W + x] = was[back(y, townY, OLD_TOWN.h) * OLD_TOWN.w + back(x, townX, OLD_TOWN.w)];
+      out.mapSeen = { ...raw.mapSeen, town: encodeSeen(now, TOWN_W, TOWN_H) };
+    } else {
+      const { town: _old, ...rest } = raw.mapSeen ?? {};
+      out.mapSeen = rest;
+    }
+  }
+  if (raw.portal && raw.portal.mapId === "town") {
+    const [px, py] = move(raw.portal.px, raw.portal.py);
+    out.portal = { ...raw.portal, px, py };
+  }
+  if (raw.drops) out.drops = raw.drops.map((d) => {
+    if (d.mapId !== "town") return d;
+    const [x, y] = move(d.x, d.y);
+    return { ...d, x, y };
+  });
+  return out;
+}
+
 /** World bosses and where they stand. A slain one leaves its remnant here for two day-night cycles. */
 /** playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: a world lair's clearing (tiles, an ellipse) and a boss's
  * hall on its last floor (tiles): both give a 5x boss's foot plus the dodge room (bigboss.ts arenaR) on every side. */
@@ -10656,22 +10714,22 @@ type RoomDef = {
 };
 
 const ROOMS: RoomDef[] = [
-  { id: "inn", name: "The Lantern Inn", kind: "inn", doorX: 5, doorY: 6, outX: 5, outY: 7 },
-  { id: "shop", name: "The Counter", kind: "shop", doorX: 14, doorY: 6, outX: 14, outY: 7 },
-  { id: "guild", name: "The Guildhall", kind: "guild", doorX: 30, doorY: 6, outX: 30, outY: 7 },
-  { id: "bank", name: "The Counting House", kind: "bank", doorX: 34, doorY: 6, outX: 34, outY: 7 },
-  { id: "bram", name: "Bram's cottage", kind: "cottage", doorX: 5, doorY: 11, outX: 5, outY: 12, home: "bram", who: "Bram" },
-  { id: "pell", name: "Pell's cottage", kind: "cottage", doorX: 14, doorY: 11, outX: 14, outY: 12, home: "pell", who: "Pell" },
-  { id: "ivy", name: "Ivy's cottage", kind: "cottage", doorX: 26, doorY: 11, outX: 26, outY: 12, home: "ivy", who: "Ivy" },
-  { id: "chapel", name: "The Chapel", kind: "chapel", doorX: 5, doorY: 19, outX: 5, outY: 20 },
-  { id: "casino", name: "The Felt", kind: "casino", doorX: 27, doorY: 19, outX: 27, outY: 20 },
-  { id: "smith", name: "The Smithy", kind: "smith", doorX: 34, doorY: 19, outX: 34, outY: 20 },
-  { id: "fisher", name: "The Drowned Hook", kind: "fisher", doorX: 18, doorY: 20, outX: 18, outY: 21 },
-  { id: "croft", name: "The South Croft", kind: "croft", doorX: 18, doorY: 26, outX: 18, outY: 27 },
-  { id: "noll", name: "Noll's cottage", kind: "cottage", doorX: 13, doorY: 26, outX: 13, outY: 27, home: "noll", who: "Noll" },
-  { id: "tailor", name: "The Needle", kind: "tailor", doorX: 5, doorY: 26, outX: 5, outY: 27 },
-  { id: "alchemy", name: "The Cauldron", kind: "alchemy", doorX: 27, doorY: 26, outX: 27, outY: 27 },
-  { id: "mystic", name: "The Moon and Star", kind: "mystic", doorX: 34, doorY: 26, outX: 34, outY: 27 },
+  { id: "inn", name: "The Lantern Inn", kind: "inn", doorX: blockOf("inn").doorX, doorY: blockOf("inn").doorY, outX: blockOf("inn").doorX, outY: blockOf("inn").doorY + 1 },
+  { id: "shop", name: "The Counter", kind: "shop", doorX: blockOf("shop").doorX, doorY: blockOf("shop").doorY, outX: blockOf("shop").doorX, outY: blockOf("shop").doorY + 1 },
+  { id: "guild", name: "The Guildhall", kind: "guild", doorX: blockOf("guild").doorX, doorY: blockOf("guild").doorY, outX: blockOf("guild").doorX, outY: blockOf("guild").doorY + 1 },
+  { id: "bank", name: "The Counting House", kind: "bank", doorX: blockOf("bank").doorX, doorY: blockOf("bank").doorY, outX: blockOf("bank").doorX, outY: blockOf("bank").doorY + 1 },
+  { id: "bram", name: "Bram's cottage", kind: "cottage", doorX: blockOf("bram").doorX, doorY: blockOf("bram").doorY, outX: blockOf("bram").doorX, outY: blockOf("bram").doorY + 1, home: "bram", who: "Bram" },
+  { id: "pell", name: "Pell's cottage", kind: "cottage", doorX: blockOf("pell").doorX, doorY: blockOf("pell").doorY, outX: blockOf("pell").doorX, outY: blockOf("pell").doorY + 1, home: "pell", who: "Pell" },
+  { id: "ivy", name: "Ivy's cottage", kind: "cottage", doorX: blockOf("ivy").doorX, doorY: blockOf("ivy").doorY, outX: blockOf("ivy").doorX, outY: blockOf("ivy").doorY + 1, home: "ivy", who: "Ivy" },
+  { id: "chapel", name: "The Chapel", kind: "chapel", doorX: blockOf("chapel").doorX, doorY: blockOf("chapel").doorY, outX: blockOf("chapel").doorX, outY: blockOf("chapel").doorY + 1 },
+  { id: "casino", name: "The Felt", kind: "casino", doorX: blockOf("casino").doorX, doorY: blockOf("casino").doorY, outX: blockOf("casino").doorX, outY: blockOf("casino").doorY + 1 },
+  { id: "smith", name: "The Smithy", kind: "smith", doorX: blockOf("smith").doorX, doorY: blockOf("smith").doorY, outX: blockOf("smith").doorX, outY: blockOf("smith").doorY + 1 },
+  { id: "fisher", name: "The Drowned Hook", kind: "fisher", doorX: blockOf("fisher").doorX, doorY: blockOf("fisher").doorY, outX: blockOf("fisher").doorX, outY: blockOf("fisher").doorY + 1 },
+  { id: "croft", name: "The South Croft", kind: "croft", doorX: blockOf("croft").doorX, doorY: blockOf("croft").doorY, outX: blockOf("croft").doorX, outY: blockOf("croft").doorY + 1 },
+  { id: "noll", name: "Noll's cottage", kind: "cottage", doorX: blockOf("noll").doorX, doorY: blockOf("noll").doorY, outX: blockOf("noll").doorX, outY: blockOf("noll").doorY + 1, home: "noll", who: "Noll" },
+  { id: "tailor", name: "The Needle", kind: "tailor", doorX: blockOf("tailor").doorX, doorY: blockOf("tailor").doorY, outX: blockOf("tailor").doorX, outY: blockOf("tailor").doorY + 1 },
+  { id: "alchemy", name: "The Cauldron", kind: "alchemy", doorX: blockOf("alchemy").doorX, doorY: blockOf("alchemy").doorY, outX: blockOf("alchemy").doorX, outY: blockOf("alchemy").doorY + 1 },
+  { id: "mystic", name: "The Moon and Star", kind: "mystic", doorX: blockOf("mystic").doorX, doorY: blockOf("mystic").doorY, outX: blockOf("mystic").doorX, outY: blockOf("mystic").doorY + 1 },
 ];
 
 function roomByDoor(x: number, y: number) {
@@ -10776,25 +10834,24 @@ function boneKin(r: Roamer) {
 
 /** playtest1: a drawn spell's time on screen, its flight then its impact. Picture only. */
 export const SPELL_LIFE = 0.6;
-/** playtest1: the town is 40 x 30 (two margin rows south of the south houses). */
-const TOWN_H = 30;
+/** townwide: the town is 56 x 42 (townplan.ts); it was 40 x 30. */
 /**
  * playtest1 (owner-reported bug 2026-10-01): the town is left only through its four road gates, the edge tiles where a
  * road meets the map edge. Everywhere else the edge is a fence. Each gate maps to a side of the vale's town door.
  */
 const TOWN_GATES: [number, number][] = [
-  [20, 0], [21, 0],
-  [20, TOWN_H - 1], [21, TOWN_H - 1],
-  [0, 12], [0, 13], [0, 21],
-  [39, 12], [39, 13], [39, 21],
+  [27, 0], [28, 0],
+  [27, TOWN_H - 1], [28, TOWN_H - 1],
+  [0, 15], [0, 16], [0, 29],
+  [TOWN_W - 1, 15], [TOWN_W - 1, 16], [TOWN_W - 1, 29],
 ];
 export type TownSide = "n" | "s" | "w" | "e";
 /** Where a gate's road enters the town: the hero's arrival pixel and facing for each side. */
 export const TOWN_ARRIVE: Record<TownSide, { x: number; y: number; facing: "n" | "s" | "e" | "w" }> = {
-  s: { x: 21 * TILE, y: (TOWN_H - 2) * TILE + 8, facing: "n" },
-  n: { x: 21 * TILE, y: 1 * TILE + 8, facing: "s" },
-  w: { x: 1 * TILE + 8, y: 13 * TILE, facing: "e" },
-  e: { x: 38 * TILE + 8, y: 13 * TILE, facing: "w" },
+  s: { x: 28 * TILE, y: (TOWN_H - 2) * TILE + 8, facing: "n" },
+  n: { x: 28 * TILE, y: 1 * TILE + 8, facing: "s" },
+  w: { x: 1 * TILE + 8, y: 16 * TILE, facing: "e" },
+  e: { x: (TOWN_W - 2) * TILE + 8, y: 16 * TILE, facing: "w" },
 };
 /** The side of town a gate tile is on, or "" for a fence. */
 export function townGateSide(tx: number, ty: number): TownSide | "" {
@@ -10805,14 +10862,16 @@ export function townGateSide(tx: number, ty: number): TownSide | "" {
 }
 
 function buildTown() {
-  const w = 40;
-  // playtest1 (owner-reported bug 2026-10-01): two margin rows below the south houses, so their front doors face open ground.
+  // townwide: the old plan spread to 56 x 42 (townplan.ts): wide streets, a gap round every building, the cemetery in its
+  // own yard and the wayrift park in its own plaza.
+  const w = TOWN_W;
   const h = TOWN_H;
   const tiles = new Uint8Array(w * h);
   tiles.fill(T.grass);
   const set = (x: number, y: number, t: number) => {
     if (x >= 0 && y >= 0 && x < w && y < h) tiles[y * w + x] = t;
   };
+  const at = (x: number, y: number) => tiles[y * w + x];
   for (let x = 0; x < w; x++) {
     set(x, 0, T.exit);
     set(x, h - 1, T.exit);
@@ -10821,90 +10880,65 @@ function buildTown() {
     set(0, y, T.exit);
     set(w - 1, y, T.exit);
   }
-  const shell = (x: number, y: number, bw: number, bh: number, doorX: number, doorY: number) => {
-    for (let yy = y; yy < y + bh; yy++) for (let xx = x; xx < x + bw; xx++) set(xx, yy, T.wall);
-    set(doorX, doorY, T.door);
-  };
-  const stoop = (x: number, y: number) => {
-    if (tiles[y * w + x] === T.grass) set(x, y, T.dirt);
-  };
-  for (let x = 2; x < 38; x++) {
-    set(x, 12, T.cobble);
-    set(x, 13, T.cobble);
-    set(x, 21, T.cobble);
-  }
-  for (let y = 1; y < 27; y++) {
-    set(20, y, T.cobble);
-    set(21, y, T.cobble);
-  }
-  // playtest1: every door is on its building's south face, where the house sprite draws it; the rest of the block is wall.
-  for (let x = 20; x <= 21; x++) for (let y = 27; y < h - 1; y++) set(x, y, T.cobble);
+  // the streets: two east-west roads two tiles wide, the avenue north to south, the lane before the south doors
+  for (let x = 2; x < w - 2; x++) for (const y of [...STREETS.north, ...STREETS.south]) set(x, y, T.cobble);
+  for (let y = 1; y < h - 1; y++) for (const x of STREETS.avenue) set(x, y, T.cobble);
   for (const [x, y] of TOWN_GATES) {
     set(x, y, T.cobble);
     if (x === 0) set(1, y, T.cobble);
     if (x === w - 1) set(w - 2, y, T.cobble);
   }
-  shell(2, 2, 8, 5, 5, 6);
-  stoop(5, 7);
-  shell(12, 2, 6, 5, 14, 6);
-  stoop(14, 7);
-  shell(24, 2, 7, 5, 30, 6);
-  stoop(30, 7);
-  shell(33, 2, 5, 5, 34, 6);
-  stoop(34, 7);
-  shell(12, 8, 6, 4, 14, 11);
-  shell(24, 8, 6, 4, 26, 11);
-  shell(3, 8, 6, 4, 5, 11);
-  shell(11, 22, 6, 5, 13, 26);
-  shell(2, 15, 8, 5, 5, 19);
-  shell(24, 15, 7, 5, 27, 19);
-  shell(32, 15, 6, 5, 34, 19);
-  shell(2, 22, 7, 5, 5, 26);
-  shell(24, 22, 7, 5, 27, 26);
-  shell(33, 22, 5, 5, 34, 26);
-  shell(17, 17, 3, 4, 18, 20);
-  shell(17, 23, 3, 4, 18, 26);
-  stoop(34, 20);
-  // The south lane in front of the south houses' doors.
-  for (let x = 2; x < 38; x++) if (tiles[27 * w + x] === T.grass) set(x, 27, T.dirt);
-  for (let y = 16; y <= 19; y++) for (let x = 12; x <= 16; x++) set(x, y, T.dirt);
-  set(12, 17, T.grave);
-  set(15, 17, T.grave);
-  set(13, 19, T.grave);
-  set(14, 18, T.stairD);
-  // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: town center park (statues + arch + seasonal wayrift) replaces the old pond
-  for (let y = 14; y <= 17; y++) for (let x = 16; x <= 21; x++) set(x, y, T.grass);
-  for (let x = 17; x <= 20; x++) { set(x, 14, T.cobble); set(x, 17, T.cobble); }
-  for (let y = 14; y <= 17; y++) { set(16, y, T.cobble); set(21, y, T.cobble); }
-  // mouth tiles for hub-fest (18,15)-(19,15) stay grass/open; platform rim is soft (waySolid)
-  set(18, 15, T.dirt); set(19, 15, T.dirt);
-  set(18, 16, T.dirt); // front / land tile
-  // small reflecting pool kept as one water tile (park accent)
-  set(20, 16, T.water);
-  for (let i = 0; i < 10; i++) {
-    const x = 2 + ((i * 7) % 16);
-    const y = 9 + (i % 2);
-    if (tiles[y * w + x] === T.grass) set(x, y, T.tree);
+  // the portal plaza: a cobbled square, the old park block in its middle (statues, arch, the seasonal wayrift, the pool)
+  for (let y = PLAZA.y0; y <= PLAZA.y1; y++) for (let x = PLAZA.x0; x <= PLAZA.x1; x++) set(x, y, T.cobble);
+  {
+    const c = PARK_AT.core;
+    for (let y = c.y + 1; y < c.y + c.h - 1; y++) for (let x = c.x + 1; x < c.x + c.w - 1; x++) set(x, y, T.grass);
+    // mouth tiles for hub-fest stay open; platform rim is soft (waySolid)
+    set(PARK_AT.rift.x, PARK_AT.rift.y, T.dirt);
+    set(PARK_AT.rift.x + 1, PARK_AT.rift.y, T.dirt);
+    set(PARK_AT.rift.x, PARK_AT.rift.y + 1, T.dirt); // front / land tile
+    set(PARK_AT.pool.x, PARK_AT.pool.y, T.water); // small reflecting pool (park accent)
   }
-  set(11, 10, T.pump);
-  set(11, 14, T.pump);
-  set(9, 14, T.tree);
+  // every door is on its building's south face, where the house sprite draws it; the rest of the block is wall
+  for (const b of TOWN_BLOCKS) {
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) set(x, y, T.wall);
+    set(b.doorX, b.doorY, T.door);
+  }
+  // a dirt stoop before each north door (the north street is the cottages' and middle row's doorstep), the south lane
+  for (const b of TOWN_BLOCKS) if (at(b.doorX, b.doorY + 1) === T.grass) set(b.doorX, b.doorY + 1, T.dirt);
+  for (let x = 2; x < w - 2; x++) if (at(x, STREETS.lane) === T.grass) set(x, STREETS.lane, T.dirt);
+  // the middle row's doors walk down to the south street
+  for (const room of ["chapel", "casino", "smith"]) {
+    const b = blockOf(room);
+    for (let y = b.doorY + 1; y < STREETS.south[0]; y++) if (at(b.doorX, y) === T.grass) set(b.doorX, y, T.dirt);
+  }
+  // the cemetery: its yard ringed by a dirt walk, a path from both streets up the middle to the crypt stair, the graves
+  {
+    const c = CEMETERY;
+    for (let x = c.x0 + 1; x < c.x1; x++) { set(x, c.y0 + 1, T.dirt); set(x, c.y1 - 1, T.dirt); }
+    for (let y = c.y0 + 1; y < c.y1; y++) { set(c.x0 + 1, y, T.dirt); set(c.x1 - 1, y, T.dirt); }
+    for (let y = STREETS.north[1] + 1; y < STREETS.south[0]; y++) for (const x of c.path) set(x, y, T.dirt);
+    for (const [x, y] of c.graves) set(x, y, T.grave);
+    set(c.stair.x, c.stair.y, T.stairD);
+  }
+  // the zeppelin pad east of the cottages
+  for (let x = ZEP_PAD.x0; x <= ZEP_PAD.x1; x++) for (let y = ZEP_PAD.y0; y <= ZEP_PAD.y1; y++) set(x, y, T.cobble);
+  // trees in the gardens between the north houses and the cottages, and by the gates; two pumps
   for (const [tx, ty] of [
-    [11, 7],
-    [31, 7],
-    [22, 7],
-    [8, 14],
-    [32, 13],
+    [11, 8], [13, 10], [22, 9], [25, 12], [32, 9], [35, 12], [46, 9], [47, 13],
+    [11, 27], [26, 19], [46, 26], [10, 38], [34, 38], [52, 27],
   ]) {
-    if (tiles[ty * w + tx] === T.grass) set(tx, ty, T.tree);
+    if (at(tx, ty) === T.grass) set(tx, ty, T.tree);
   }
-  for (let x = 34; x <= 37; x++) for (let y = 9; y <= 11; y++) set(x, y, T.cobble);
+  set(12, 13, T.pump);
+  set(46, 18, T.pump);
+  const u = CEMETERY.undertaker;
   const npcs: Npc[] = [
-    { id: "undertaker", name: "Undertaker", x: 13 * TILE + 8, y: 18 * TILE + 8, coat: "#16161a", role: "undertaker" },
-    { id: "zep", name: "Zeppelin Warden", x: 35 * TILE + 8, y: 10 * TILE, coat: "#4a4038", role: "zeppelin" },
-    { id: "guard1", name: "Guard", x: 21 * TILE + 8, y: 18 * TILE + 8, coat: "#2a3140", role: "guard" },
-    { id: "guard2", name: "Bank Guard", x: 37 * TILE + 8, y: 10 * TILE + 8, coat: "#2a3140", role: "guard" },
-    { id: "guard3", name: "Casino Guard", x: 31 * TILE + 8, y: 21 * TILE + 8, coat: "#2a3140", role: "guard" },
+    { id: "undertaker", name: "Undertaker", x: u.x * TILE + 8, y: u.y * TILE + 8, coat: "#16161a", role: "undertaker" },
+    { id: "zep", name: "Zeppelin Warden", x: 51 * TILE + 8, y: 13 * TILE, coat: "#4a4038", role: "zeppelin" },
+    { id: "guard1", name: "Guard", x: 29 * TILE + 8, y: 17 * TILE + 8, coat: "#2a3140", role: "guard" },
+    { id: "guard2", name: "Bank Guard", x: 53 * TILE + 8, y: 13 * TILE + 8, coat: "#2a3140", role: "guard" },
+    { id: "guard3", name: "Casino Guard", x: 43 * TILE + 8, y: 26 * TILE + 8, coat: "#2a3140", role: "guard" },
     { ...SHOWROOM.salesman }, // playtest1v: the bone car's salesman, by its velvet ropes
   ];
   spreadProps(tiles, w, h, true);

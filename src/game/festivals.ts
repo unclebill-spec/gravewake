@@ -22,7 +22,7 @@ import { GATE } from "./bounty";
 
 export const HARVEST = {
   /** The festival stall in the town plaza (town tile), open from dusk to dawn on Harvest Moon night. */
-  stall: { x: 26, y: 14 },
+  stall: { x: 36, y: 19 }, // townwide: the plaza's north-east corner
   npc: { id: "hessa", name: "Gourdwife Hessa", look: "alchemist" },
   /** Pumpkin carving: buy a pumpkin, cut the eyes, cut the mouth; the night's judge pays for a match. */
   pumpkinPrice: 4,

@@ -32,6 +32,7 @@ import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, typ
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
 import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, scaleOf, topOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
+import { PARK_AT, cemeteryFence } from "./townplan"; // townwide
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { BLDG, BLDG_SHEETS, ROOF_RISE, bldgEm, bldgSheet, lotCell, townLots, type BldgRoom, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
@@ -540,7 +541,9 @@ function drawTile(
   if (townish(theme)) {
     if (tile === T.grass || tile === T.exit) {
       const g = Math.abs(x * 3 + y * 5) % 7;
-      usedLand = seasonCell(ctx, "town-grass", TOWN_GRASS, g, gx, gy);
+      // townwide: the town lawn in patches (darker loam, its dithered edge, lighter worn ground), not one flat colour
+      const patch = theme === "town" && tile === T.grass ? townPatch(x, y) : 0;
+      usedLand = (patch > 0 && sheetCell(ctx, seasonSheet(seasonNow, "town-ground"), patch * 7 + g, 0, gx, gy)) || seasonCell(ctx, "town-grass", TOWN_GRASS, g, gx, gy);
     } else if (tile === T.cobble || tile === T.road) {
       // playtest1 (owner-reported 2026-10-01, old ground textures): the pixel writer's town cobble, not the land pack.
       usedLand = sheetCell(ctx, PT1_GROUND.cobble, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy);
@@ -1020,6 +1023,28 @@ const BOSS_PLAQUE = "/art/writer/boss-plaque.png";
  * swap to the pixel writer's palette-locked season tints; until a tint sheet loads, the old sheet draws.
  */
 let seasonNow: SeasonId = "autumn";
+/** townwide: smooth value noise on the tile grid (period ~cell tiles), 0..1, the same every frame and load. */
+function tileNoise(x: number, y: number, cell: number, salt: number) {
+  const h = (i: number, j: number) => {
+    let n = Math.imul(i * 374761393 + j * 668265263 + salt * 2246822519, 1274126177);
+    n = (n ^ (n >>> 13)) >>> 0;
+    return (Math.imul(n, 1597334677) >>> 8) / 16777216;
+  };
+  const fx = x / cell, fy = y / cell;
+  const i = Math.floor(fx), j = Math.floor(fy);
+  const u = fx - i, v = fy - j;
+  const su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v);
+  const a = h(i, j) + (h(i + 1, j) - h(i, j)) * su;
+  const b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * su;
+  return a + (b - a) * sv;
+}
+/** townwide: which town-ground cell row a lawn tile takes: 0 lawn, 1 loam edge (dither), 2 loam, 3 worn (lighter). */
+export function townPatch(x: number, y: number): number {
+  const loam = tileNoise(x, y, 5, 1);
+  if (loam > 0.66) return 2;
+  if (loam > 0.56) return 1;
+  return tileNoise(x, y, 4, 2) > 0.68 ? 3 : 0;
+}
 /** Draw the season's tint of a sheet cell, or fall back to the untinted sheet. */
 function seasonCell(ctx: CanvasRenderingContext2D, name: "vale" | "camp-grass" | "town-grass", base: string, col: number, dx: number, dy: number, w = 1, h = 1, stride = 16) {
   return sheetCell(ctx, seasonSheet(seasonNow, name), col, 0, dx, dy, w, h, stride) || sheetCell(ctx, base, col, 0, dx, dy, w, h, stride);
@@ -1042,7 +1067,7 @@ function paintBossTrophy(ctx: CanvasRenderingContext2D, family: string, x: numbe
   ctx.drawImage(im, col * 16 + 3, TROPHY_HEAD_TOP[family] ?? 0, 10, 10, x * TILE + 3, y * TILE + 2, 10, 10);
 }
 if (typeof Image !== "undefined") {
-  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
+  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "town-ground"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -2128,6 +2153,7 @@ export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
   // playtest1o: the pieces come from blocking.ts, so the fence the town draws is the fence that stops you (and the lane
   // along the next row of houses stays open: it used to shut in the inn's and the shop's doors).
   const out = yardPieces(g.w, g.h, g.tiles, T.wall, T.door, T.grass, townRoomAt, YARD_KINDS);
+  if (g.mapId === "town") out.push(...cemeteryFence()); // townwide: the cemetery's picket fence
   yardCache.set(g.tiles, out);
   return out;
 }
@@ -2699,22 +2725,25 @@ function paintWildPortal(ctx: CanvasRenderingContext2D, x: number, y: number, ce
 /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: park statues and arch in town. */
 function paintParkProps(ctx: CanvasRenderingContext2D) {
   const tile = TILE;
+  // townwide: the park stands in its own plaza (townplan.ts PARK_AT)
+  const [S0, S1] = PARK_AT.statues;
+  const A = PARK_AT.arch;
   // statues at park corners (cells 0 warrior, 1 mage)
   const st = landSheet[PARK_STATUE];
   if (st && st.complete && st.naturalWidth) {
-    ctx.drawImage(st, 0, 0, 16, 32, 16 * tile, 13 * tile, 16, 32);
-    ctx.drawImage(st, 16, 0, 16, 32, 21 * tile, 13 * tile, 16, 32);
+    ctx.drawImage(st, 0, 0, 16, 32, S0[0] * tile, S0[1] * tile, 16, 32);
+    ctx.drawImage(st, 16, 0, 16, 32, S1[0] * tile, S1[1] * tile, 16, 32);
   } else {
-    px(ctx, 16 * tile + 4, 14 * tile, 8, 16, "#6a6e78");
-    px(ctx, 21 * tile + 4, 14 * tile, 8, 16, "#6a6e78");
+    px(ctx, S0[0] * tile + 4, (S0[1] + 1) * tile, 8, 16, "#6a6e78");
+    px(ctx, S1[0] * tile + 4, (S1[1] + 1) * tile, 8, 16, "#6a6e78");
   }
   const arch = landSheet[PARK_ARCH];
   if (arch && arch.complete && arch.naturalWidth) {
-    ctx.drawImage(arch, 0, 0, 48, 48, 17 * tile, 16 * tile, 48, 48);
+    ctx.drawImage(arch, 0, 0, 48, 48, A.x * tile, A.y * tile, 48, 48);
   } else {
-    px(ctx, 17 * tile, 17 * tile, 8, 24, "#4a4e54");
-    px(ctx, 20 * tile, 17 * tile, 8, 24, "#4a4e54");
-    px(ctx, 17 * tile, 16 * tile, 48, 8, "#5a5e64");
+    px(ctx, A.x * tile, (A.y + 1) * tile, 8, 24, "#4a4e54");
+    px(ctx, (A.x + 3) * tile, (A.y + 1) * tile, 8, 24, "#4a4e54");
+    px(ctx, A.x * tile, A.y * tile, 48, 8, "#5a5e64");
   }
 }
 
@@ -4759,7 +4788,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       });
     }
     // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: town park statues + arch
-    if (g.mapId === "town") props.push({ y: 18 * TILE, fn: () => paintParkProps(ctx) });
+    if (g.mapId === "town") props.push({ y: (PARK_AT.arch.y + 2) * TILE, fn: () => paintParkProps(ctx) });
     // playtest1z: wild spawn portal on the vale
     if (g.mapId === "world" && g.wildPortal) {
       const p = g.wildPortal;
