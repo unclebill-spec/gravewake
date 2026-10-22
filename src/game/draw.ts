@@ -3790,7 +3790,7 @@ function paintOutskirts(ctx: CanvasRenderingContext2D, g: Game, camX: number, ca
   if (view(tx, ty - 24, 64)) {
     props.push({ y: ty - 1, fn: () => void sheetCell(ctx, OSK.SHEETS.tree, 0, 0, tx - 16, ty - 48, 2, 3, 32) });
     const d = Math.hypot(g.px - (tx + OSK.PERCH.dx), g.py - (ty + OSK.PERCH.dy));
-    if (!ravenFlight && d < OSK.RAVEN_FLEE + 32) ravenFlight = { t0: g.frame, gone: false };
+    if (!ravenFlight && d < OSK.RAVEN_FLEE + 32) { ravenFlight = { t0: g.frame, gone: false }; g.audio?.ravenFly(); } // oskaudio: caw + wings
     else if (ravenFlight && ravenFlight.gone && d > OSK.RAVEN_BACK) ravenFlight = null;
     let rx = tx + OSK.PERCH.dx - 8, ry = ty + OSK.PERCH.dy - 13, cell = OSK.ravenIdle(g.frame);
     if (ravenFlight) {

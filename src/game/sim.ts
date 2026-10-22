@@ -86,7 +86,8 @@ import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival,
 import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, WILD_CLEAR_REWARD, isWildMap, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest, type WildLayout, type WildStage } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
-import type { AudioBus } from "./audio";
+import { AMB, type AmbState, type AudioBus } from "./audio";
+import * as OSK from "./outskirts";
 import { ParticlePool, paletteIndex } from "./particles";
 import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
 import { ROOM, addPatch, centre, emptyRoom, featSpots, hazardAt, inLane, inSwing, patchAt, placeRoom, propLive, roomBusy, wary, type Fall, type RoomProp, type RoomState } from "./room"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
@@ -3872,6 +3873,8 @@ export class Game {
     if (this.calm > 0) this.calm = Math.max(0, this.calm - dt);
     this.pollPad();
     this.audio?.pump();
+    if (this.audio) this.audio.ambience(this.ambState()); // oskaudio
+    this.cemeteryWatch();
     if (this.endingSeen && this.phase === "night" && (this.mapId === "world" || this.mapId === "town") && this.restlessNight !== nightOf(this.worldMs)) {
       // doc 7: after the ending the night's dead are the restless, not the called (log wording only; the loop is the same)
       this.restlessNight = nightOf(this.worldMs);
@@ -3986,10 +3989,46 @@ export class Game {
     this.shake = Math.min(0.45, this.shake + 0.16);
   }
 
+  /** oskaudio: what the outskirts beds hear this frame (audio.ts ambience). The ring's wisps and candles lie past the
+   * town map's edge, so the hero hears them from the town's rim; the vale is "outside the fence". */
+  ambState(): AmbState {
+    const outdoor = this.mapId === "town" || this.mapId === "world" || this.mapId === "village" || this.mapId === "camp";
+    const town = this.mapId === "town";
+    const near = (pts: { x: number; y: number }[]) => {
+      let best: { d: number; dx: number } | null = null;
+      for (const p of pts) { const d = Math.hypot(p.x - this.px, p.y - this.py); if (d < AMB.fall && (!best || d < best.d)) best = { d, dx: p.x - this.px }; }
+      return best;
+    };
+    const wisp = town ? near(OSK.wisps().map((w) => OSK.wispAt(w, this.frame))) : null;
+    const candle = town ? near(OSK.candles().map((c) => ({ x: c.x * TILE + 8, y: c.y * TILE + 8 }))) : null;
+    const rift = WAYRIFTS.some((w) => w.map === this.mapId && Math.hypot((w.x + 1) * TILE - this.px, (w.y + 1) * TILE - this.py) < AMB.fall);
+    const perch = Math.hypot(OSK.RAVEN_TREE.x * TILE + 8 + OSK.PERCH.dx - this.px, (OSK.RAVEN_TREE.y + 1) * TILE + OSK.PERCH.dy - this.py);
+    return {
+      outdoor, night: this.phase === "night", outside: this.mapId === "world",
+      drift: outdoor && (this.inCemetery() || rift), wisp, candle,
+      raven: town && perch > OSK.RAVEN_BACK && perch < 14 * TILE,
+    };
+  }
+
+  /** oskaudio: is the hero inside the cemetery yard? */
+  inCemetery(): boolean {
+    if (this.mapId !== "town") return false;
+    const tx = Math.floor(this.px / TILE), ty = Math.floor(this.py / TILE);
+    return tx > CEMETERY.x0 && tx < CEMETERY.x1 && ty > CEMETERY.y0 && ty < CEMETERY.y1;
+  }
+
+  private wasCemetery = false;
+  /** oskaudio: stepping into the cemetery swells the choir once (not again until you leave). */
+  private cemeteryWatch() {
+    const now = this.inCemetery();
+    if (now && !this.wasCemetery && this.mode === "play") this.audio?.swell();
+    this.wasCemetery = now;
+  }
+
   private syncMood() {
     const fighting = this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0);
     // Wake batch: a dungeon's key carries its theme (dungeon:<theme>:<phase>), so its own loop plays (audio.ts musicFor).
-    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
+    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${RIFTS.some((r) => r.id === this.dungeon) ? "rift" : this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
     // Wake batch: the early-boss sting, once per save, on the first boss or mini that turns on you (saved stingSeen).
     if (fighting && !this.stingSeen && this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0 && (r.boss || r.mini) && !r.final)) {
       this.stingSeen = true;
@@ -6143,6 +6182,7 @@ export class Game {
     this.travel = { t: 0, from: w.id, to: to.id, moved: false };
     this.goal = null;
     this.audio?.spell();
+    this.audio?.swell(); // oskaudio: the choir swells as the rift takes you
     this.fx.portal(m.x * TILE + 8, m.y * TILE - 6);
     this.logLine = w.festival ? `The rift pulls toward ${wayFestival(w, season).name}.` : "The rift pulls you in.";
   }
