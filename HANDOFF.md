@@ -1,4 +1,8 @@
+2026-10-22 Hearthmoor Sound: outskirts choir-night/choir-drift reworked (shorter breathy swells, darker, -26 LUFS); wow SFX pack in staging/audio/wow/.
+
 # Gravewake handoff
+
+> **Quick state (2026-10-22, Efficiency Bot):** Owner: HD-2D Cozy Builder. This file in `gh-repo` is the one canonical HANDOFF; the copies in `base-main`, `gfx-wt` (git worktrees) and `work`, `repo-meta` are stale. Last commits: 2026-10-21 `fun-early-sinks` branch (Old Mulch early encounter + silver sinks). Last published: playtest2b (2026-10-17). Oct 22 cleanup kept only the 3 newest `Gravewake-*.zip` (playtest1z, 2a, 2b) and `pages-build.prev2a`. Other bots: drop work in `/workspace/gravewake/staging/` and add a line here, don't wake the owner.
 
 **Read this first, then `CHANGELOG.md` and `AGENTS.project.md`. `rules/` holds the project law.**
 
