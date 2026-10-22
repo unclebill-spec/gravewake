@@ -2321,11 +2321,11 @@ function CardTableView({ game, stake, setStake, bump }: { game: Game; stake: num
     <section
       data-padnav
       data-testid="card-table"
-      className="gw-table absolute inset-x-3 top-3 bottom-3 z-30 flex flex-col items-center justify-between gap-1 overflow-auto rounded border border-border p-2"
+      className="gw-table absolute inset-x-3 top-3 bottom-3 z-30 flex flex-col items-center justify-evenly gap-1 overflow-hidden rounded border border-border p-2"
       style={{
         background: kind === "poker" ? "radial-gradient(ellipse at 50% 45%, #3a2468 0%, #1a1030 70%, #07060a 100%)" : "radial-gradient(ellipse at 50% 45%, #1e4634 0%, #0f241c 70%, #07060a 100%)",
         boxShadow: "inset 0 0 0 2px #2a1c14, inset 0 0 24px #000",
-        ["--gw-card" as string]: "clamp(36px, min(11vw, 17vh), 84px)",
+        ["--gw-card" as string]: "clamp(28px, min(11vw, 13vh), 84px)", // billvid: both hands and the buttons always fit (no scroll hides your cards)
         right: "calc(0.75rem + var(--sar))",
         left: "calc(0.75rem + var(--sal, 0px))",
       }}
@@ -2336,11 +2336,13 @@ function CardTableView({ game, stake, setStake, bump }: { game: Game; stake: num
       </div>
       <div className="flex flex-col items-center gap-1" data-testid="dealer-hand">
         <span className="text-xs text-muted">Dealer{t ? ` · ${name(t.dealer)}` : ""}</span>
-        <div className="flex gap-1">{(t ? t.dealer : kind === "poker" ? [null, null, null, null, null] : [null, null]).map((c, i) => <PlayingCard key={i} card={c} />)}</div>
+        {/* billvid (Bill, 2026-10-22: "the dealer's up card overlaps the hole card messily"): one clean row, a gap between
+            every card; while you play, the dealer's face-down hole card sits beside his up card */}
+        <div className="flex gap-2" data-testid="dealer-cards">{(t ? (kind === "blackjack" && live && t.dealer.length === 1 ? [...t.dealer, null] : t.dealer) : kind === "poker" ? [null, null, null, null, null] : [null, null]).map((c, i) => <PlayingCard key={i} card={c} label={c == null ? "face-down card" : undefined} />)}</div>
       </div>
       <p className="min-h-[1.25rem] text-center text-sm" data-testid="table-line">{t ? game.logLine : kind === "poker" ? "Hold what you like, draw once; the better hand wins even money." : `Dealer stands on ${BJ.stand}. Blackjack pays 3:2.`}</p>
       <div className="flex flex-col items-center gap-1" data-testid="your-hand">
-        <div className="flex gap-1">
+        <div className="flex gap-2" data-testid="your-cards">
           {t
             ? t.you.map((c, i) =>
                 kind === "poker" && live ? (
