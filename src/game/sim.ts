@@ -10737,7 +10737,7 @@ type RoomDef = {
   who?: string;
 };
 
-const ROOMS: RoomDef[] = [
+export const ROOMS: RoomDef[] = [
   { id: "inn", name: "The Lantern Inn", kind: "inn", doorX: blockOf("inn").doorX, doorY: blockOf("inn").doorY, outX: blockOf("inn").doorX, outY: blockOf("inn").doorY + 1 },
   { id: "shop", name: "The Counter", kind: "shop", doorX: blockOf("shop").doorX, doorY: blockOf("shop").doorY, outX: blockOf("shop").doorX, outY: blockOf("shop").doorY + 1 },
   { id: "guild", name: "The Guildhall", kind: "guild", doorX: blockOf("guild").doorX, doorY: blockOf("guild").doorY, outX: blockOf("guild").doorX, outY: blockOf("guild").doorY + 1 },
