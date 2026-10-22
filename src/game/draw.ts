@@ -2331,6 +2331,34 @@ export function roofSeeMask(): HTMLCanvasElement | null {
 }
 let roofWork: HTMLCanvasElement | null = null;
 
+/** billvid (Bill, 2026-10-22: "the Smithy's exterior fire pit gets flame frames that flicker, plus a light"): over the
+ * writer's forge opening (FORGE: its apex and base in the smithy cell), four frames of whole-pixel tongues in the forge's
+ * own reds and a hot core, stepping every FORGE.tick frames; drawn on the body and again on the glow pass. */
+export const FORGE = { dx: 21, base: 125, tick: 5, frames: 4 } as const;
+const FORGE_TONGUES: [number, number, number][][] = [
+  // [x offset, height, colour index] per tongue: 0 tube red, 1 orange, 2 hot core
+  [[-6, 9, 0], [-3, 15, 1], [0, 21, 2], [3, 13, 1], [6, 8, 0]],
+  [[-7, 7, 0], [-4, 13, 1], [-1, 18, 2], [2, 16, 1], [5, 10, 0]],
+  [[-6, 10, 0], [-2, 17, 1], [1, 22, 2], [4, 12, 1], [7, 6, 0]],
+  [[-5, 8, 0], [-3, 12, 1], [0, 17, 2], [2, 19, 1], [6, 9, 0]],
+];
+const FORGE_COL = ["#ff3a50", "#e0a040", "#f4e27a"];
+export function forgeFlameFrame(frame: number): number {
+  return Math.floor(frame / FORGE.tick) % FORGE.frames;
+}
+export function forgeSpot(l: Lot): { x: number; y: number } {
+  const cell = lotCell(l, seasonNow);
+  const dy = cell ? cell.dy : (l.y + l.h) * TILE - 128;
+  return { x: l.x * TILE + FORGE.dx, y: dy + FORGE.base };
+}
+function paintForgeFlame(ctx: CanvasRenderingContext2D, l: Lot, frame: number) {
+  const at = forgeSpot(l);
+  for (const [ox, h, c] of FORGE_TONGUES[forgeFlameFrame(frame)]) {
+    px(ctx, at.x + ox, at.y - h, 2, h, FORGE_COL[c]);
+    px(ctx, at.x + ox, at.y - h - 1, 1, 1, FORGE_COL[Math.min(2, c + 1)]);
+  }
+}
+
 function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false, behind: { x: number; y: number }[] = []) {
   const cell = lotCell(l, seasonNow);
   if (!cell) return;
@@ -2909,7 +2937,7 @@ export function streetLamps(g: Game): { x: number; y: number }[] {
 }
 
 /** A street lamp: a 2 px iron post, a cap and a cold glass head, its foot on (x, y). The glow pass draws the glass alone. */
-function paintStreetLamp(ctx: CanvasRenderingContext2D, x: number, y: number, em: boolean) {
+function paintStreetLamp(ctx: CanvasRenderingContext2D, x: number, y: number, em: boolean, frame = 0, seed = 0) {
   if (!em) {
     px(ctx, x - 1, y - 1, 4, 1, "#14121a");
     px(ctx, x, y - 16, 2, 16, "#22202c");
@@ -2920,6 +2948,10 @@ function paintStreetLamp(ctx: CanvasRenderingContext2D, x: number, y: number, em
   }
   px(ctx, x - 1, y - 21, 4, 5, em ? "#cfe0ff" : "#8a9ac8");
   px(ctx, x, y - 20, 2, 3, em ? "#ffffff" : "#b8c8f0");
+  // billvid: a lit flame in the glass, three frames (its tip leans and its height steps), each lamp out of step
+  const f = (Math.floor(frame / 6) + seed) % 3;
+  px(ctx, x + (f === 1 ? 1 : 0), y - 19 - (f === 2 ? 1 : 0), 1, 2 + (f === 2 ? 1 : 0), "#e0a040");
+  px(ctx, x + (f === 0 ? 1 : 0), y - 18, 1, 1, "#f4e27a");
 }
 
 /** The scene's ambient light, or null where the light layer is off (outdoors by day, inside a house, the camp). */
@@ -3024,7 +3056,10 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     }
     // gfx-lighting: lit windows spill warm light on the ground, and street lamps pool cold light on the cobbles.
     for (const b of townBuildings(g)) for (const wx of windowCols(b)) out.push({ x: wx * TILE + 8, y: (b.y + b.h) * TILE - 6, r: LIGHT.window, c: LIGHTS.window, seed: wx & 3, flick: true, low: true, wash: LIGHT.wash.window });
-    for (const p of streetLamps(g)) out.push({ x: p.x * TILE + 8, y: p.y * TILE + 6, r: LIGHT.street, c: LIGHTS.street, seed: p.x & 3, flick: false, low: true, wash: LIGHT.wash.street });
+    // billvid: each street lamp burns a flickering flame in its glass (low: a mood light, inside the cap; culled off view below)
+    for (const p of streetLamps(g)) out.push({ x: p.x * TILE + 8, y: p.y * TILE + 6, r: LIGHT.street, c: LIGHTS.street, seed: p.x & 3, flick: true, low: true, wash: LIGHT.wash.street });
+    // billvid: the Smithy's fire pit throws a flickering forge light
+    for (const l of townLotsOf(g)) if (l.room === "smith") { const f = forgeSpot(l); out.push({ x: f.x, y: f.y - 8, r: LIGHT.brazier, c: LIGHTS.torch, seed: 2, flick: true }); }
     // outskirts: each wisp and candle skull is a mood light (low: inside the 8-a-frame mood cap; off-view ones cull below)
     for (const w of OSK.wisps()) {
       const p = OSK.wispAt(w, g.frame);
@@ -4564,8 +4599,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       const lots = lotsIn(g, b);
       if (lots.length && lots.every((l) => sheetReady(bldgSheet(l.room)) && !!lotCell(l, seasonNow))) {
         for (const l of lots) {
-          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintLot(ctx, l, false, roofBodies(g, l)) });
-          if (lit) glow.push((c) => paintLot(c, l, true));
+          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => { paintLot(ctx, l, false, roofBodies(g, l)); if (l.room === "smith") paintForgeFlame(ctx, l, g.frame); } });
+          if (lit) glow.push((c) => { paintLot(c, l, true); if (l.room === "smith") paintForgeFlame(c, l, g.frame); });
         }
         continue;
       }
@@ -4575,8 +4610,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // gfx-lighting: street lamps on the cobble edges (looks only; the lamp head glows at night).
     for (const p of streetLamps(g)) {
       const lx = p.x * TILE + 7, ly = p.y * TILE;
-      props.push({ y: ly + 1, fn: () => paintStreetLamp(ctx, lx, ly, false) });
-      if (lit) glow.push((c) => paintStreetLamp(c, lx, ly, true));
+      props.push({ y: ly + 1, fn: () => paintStreetLamp(ctx, lx, ly, false, g.frame, p.x & 3) });
+      if (lit) glow.push((c) => paintStreetLamp(c, lx, ly, true, g.frame, p.x & 3));
     }
     // playtest1b (owner-reported 2026-10-02 01:04 ET, "fences around homes gone"): each home's yard has its writer
     // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
