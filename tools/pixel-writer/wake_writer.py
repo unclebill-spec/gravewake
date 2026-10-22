@@ -6,7 +6,7 @@ Code-drawn, seeded (random.Random), palette v3 (LOCKED_V3), hard alpha, 16x16 / 
     floor-wake.png      8 cells 16x16: dark slate (#1a1424) with soft clumps a step lighter and darker that wrap at the
                         edges (no seams, no fringe: the outer ring of every cell is drawn from the same wrapped clumps),
                         and faint grave-lettering (#2a2030) on cells 2, 5 and 7, kept 3 px inside the cell.
-    wake-brazier.png    4 cells 16x32: an iron bowl on a stem with cold blue fire, the fire flickering frame to frame.
+    wake-brazier.png    5 cells 16x32: an iron bowl on a stem with cold blue fire (cells 0-3 flicker; cell 4 is out).
     wake-grave.png      2 cells 32x16: an open grave (2x1 tiles), the pit and its earth lip; 1 adds edge candles.
     wake-window.png     3 cells 16x32: a stained-glass lancet, 0 a dark pane, 1 a lit mourner pane, 2 the procession glow.
     wake-coffin.png     1 cell 32x24: plain dark wood, a cold-fire lantern on its lid.
@@ -83,6 +83,10 @@ def brazier(f: int) -> Canvas:
     c.rect(3, 18, 10, 4, IRON[1])  # the bowl
     c.rect(2, 17, 12, 1, IRON[3]); c.rect(4, 21, 8, 1, IRON[0])
     c.set(2, 18, LINE); c.set(13, 18, LINE)
+    if f >= 4:  # cell 4: out (Lights Out), cold ash in the bowl
+        for x in range(4, 12, 2):
+            c.set(x, 17, IRON[2])
+        return c
     rng = random.Random(55 + f)
     for x in range(4, 12):  # cold fire, tallest in the middle
         top = 17 - (4 + (3 - abs(x - 7.5)) * 2.2 + rng.randrange(-1, 2)) // 1
@@ -183,7 +187,7 @@ def bell() -> Canvas:
 def sheets() -> dict:
     return {
         "floor-wake.png": cells([floor_cell(v) for v in range(8)]),
-        "wake-brazier.png": cells([brazier(f) for f in range(4)]),
+        "wake-brazier.png": cells([brazier(f) for f in range(5)]),
         "wake-grave.png": cells([grave(False), grave(True)]),
         "wake-window.png": cells([window(k) for k in range(3)]),
         "wake-coffin.png": cells([coffin()]),

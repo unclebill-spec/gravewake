@@ -1,5 +1,5 @@
 import { BOSS_PLANS, planPhase, planMove } from "./bossvariety";
-import { WAKE_MINI_AT, wakeMiniFloor, WAKE_PHASES, wakeBig, WAKE_LAST, epilogue } from "./wake";
+import { WAKE_MINI_AT, wakeMiniFloor, WAKE_PHASES, wakeBig, WAKE_LAST, epilogue, SEXTON_SPADE, BELL_SHARD, carveWakeHall, HALL as WAKE_HALL, GRAVES, BRAZIERS, TOLL, PROC, ORBS, wakeIntro } from "./wake";
 import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
 import {
   BAITS,
@@ -267,6 +267,7 @@ export type Roamer = {
   /** Wake batch: his scripted Last Toll (seconds left of the unkillable window), done once, and the stagger after it. */
   lastToll?: number;
   lastTollDone?: boolean;
+  introDone?: boolean;
   staggered?: boolean;
   bigN?: number;
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-quest tags (heads to gather / ring-bearer). */
@@ -614,6 +615,19 @@ export class Game {
   stingSeen = false;
   wakeOpen = false;
   endingSeen = false;
+  private restlessNight = -1;
+  /** Wake leftovers: the Wake Hall's live state (never saved): graves open (phase 2+), braziers out (phase 3), the glow
+   * orbs, The Toll's pending rings, The Procession's lanes and coffins. Read by draw.ts paintWakeHall. */
+  wake = {
+    open: false,
+    dark: false,
+    orbs: [] as { a: number; r: number; x: number; y: number; red: boolean }[],
+    rings: [] as { cx: number; cy: number; r: number; at: number; done: boolean; gaps: number[] }[],
+    lanes: [] as { y: number; empty: boolean }[],
+    procs: [] as { y: number; x: number; dir: number; hit: boolean }[],
+    lastEmptyHero: false,
+    orbN: 0,
+  };
   /** Wake batch: the epilogue in progress (scene index; 8 = credits). */
   ending: { scene: number } | null = null;
   sinks: string[] = [];
@@ -1747,6 +1761,7 @@ export class Game {
     if (!this.floors[key]) {
       if (def?.rift) this.floors[key] = carveRift(def, this.riftCycle);
       else if (def?.gen) this.floors[key] = carveGen(def, this.floor);
+      else if (this.dungeon === "wake" && this.floor >= (def?.floors ?? 3)) this.floors[key] = carveWakeHall(T); // wake leftovers: the 20x20 Wake Hall
       else this.floors[key] = carveFloor(this.dungeon, this.floor, def?.floors ?? 5, !!def?.pocket);
     }
     const f = this.floors[key];
@@ -1769,6 +1784,7 @@ export class Game {
     this.px = stand.x * TILE + 8;
     this.py = stand.y * TILE + 10;
     if (this.dungeon === "blackroot" && this.floor >= (def?.floors ?? 5) && this.wakeOpen) this.openWakeStair();
+    if (this.dungeon === "wake") this.resetWakeHall();
     this.placeFloorRoom(def?.rift ? `${this.dungeon}:c${this.riftCycle}` : this.dungeon); // playtest1n: the room's props
     this.reveal();
     this.seedDungeonFoes();
@@ -3847,6 +3863,11 @@ export class Game {
     if (this.calm > 0) this.calm = Math.max(0, this.calm - dt);
     this.pollPad();
     this.audio?.pump();
+    if (this.endingSeen && this.phase === "night" && (this.mapId === "world" || this.mapId === "town") && this.restlessNight !== nightOf(this.worldMs)) {
+      // doc 7: after the ending the night's dead are the restless, not the called (log wording only; the loop is the same)
+      this.restlessNight = nightOf(this.worldMs);
+      this.pushLog("Night. The restless wake. No bell called them tonight.");
+    }
     if (this.ending) {
       // Wake batch: the epilogue holds the screen until it is done (nothing else moves; the finale plays)
       this.mode = "ending";
@@ -7792,6 +7813,11 @@ export class Game {
       // his mourners go quiet with him
       for (const o of this.roamers) if (o !== r && o.add) o.hp = 0;
       this.roamers = this.roamers.filter((o) => o === r || !o.add);
+      // doc 5.2: the spade-glaive left standing in the floor and a shard of the cracked bell go into your pack
+      // (straight to the pack: the epilogue takes you up out of the hall)
+      if (!this.endingSeen || !this.inv.some((i) => i.name === SEXTON_SPADE.name)) this.giveNamed(makeItem({ ...SEXTON_SPADE, atk: 3 + 5 * 2 + Math.floor(72 / 4) + 4 }));
+      if (!this.endingSeen || !this.inv.some((i) => i.name === BELL_SHARD.name)) this.giveNamed(makeItem({ ...BELL_SHARD }));
+      this.pushLog("You take up the Sexton's Spade and a shard of the Wake Bell.");
       this.startEnding();
     }
     if (r.boss && r.def) {
@@ -7969,6 +7995,17 @@ export class Game {
 
   /** Wake batch: Hollowmourn's phase gates (66%, 33%) and the scripted Last Toll at 5% (design/ending.md 2.2-2.5). */
   private wakeLordBeats(r: Roamer, dt: number) {
+    if (!r.introDone) {
+      // doc 2.1: the intro over his first roar pose (the door has sealed behind you)
+      r.introDone = true;
+      r.cool = Math.max(r.cool ?? 0, 0.8);
+      r.act = "cast";
+      r.actFor = 0.8;
+      for (const line of wakeIntro(this.cls)) this.pushLog(line);
+      this.logLine = 'Hollowmourn: "Sit. The service is long."';
+      if (!this.wake.orbs.length) this.seedOrbs();
+    }
+    this.tickWakeHall(r, dt);
     if ((r.lastToll ?? 0) > 0) r.lastToll = Math.max(0, (r.lastToll ?? 0) - dt);
     const f = (r.hp ?? 1) / (r.max ?? 1);
     if (!r.lastTollDone && f <= WAKE_LAST) {
@@ -8000,6 +8037,8 @@ export class Game {
     r.flash = PHASE.roar;
     this.audio?.toll();
     this.audio?.bossStage(want);
+    if (want >= 2) this.openGraves();
+    if (want === 3) this.wake.dark = true;
     if (want === 3) {
       r.mid = "grief-grab";
       r.midTag = "pull";
@@ -8008,22 +8047,158 @@ export class Game {
     } else this.logLine = 'Hollowmourn: "You\'re louder than the others." The bell rings once, and the graves open.';
   }
 
-  /** Wake batch: his big move for this phase (wake.ts wakeBig); The Toll rings round his own body. */
+  /** Wake batch: his big move for this phase (wake.ts wakeBig), each with its own pattern (doc 3.1-3.3). */
   private wakeLordBig(r: Roamer) {
     const m = wakeBig(r.phase ?? 1, r.bigN ?? 0);
     r.bigN = (r.bigN ?? 0) + 1;
     r.big = m.name;
     r.bigTag = m.tag;
+    const ph = r.phase ?? 1;
     this.beginCast(r, "big", m.name, m.tag, 1.2);
+    r.markX = r.x;
+    r.markY = r.y;
     if (m.tag === "ring") {
-      r.markX = r.x;
-      r.markY = r.y;
-      r.markR = PHASE.novaR + bodyR(r);
-      r.pattern = "nova";
+      // The Toll: three rings round his body (BODY+24, +72, +120), landing one after another
+      r.pattern = "toll";
+      r.markR = bodyR(r) + TOLL.gaps[2] + TOLL.half;
+      r.tell = ph >= 3 ? 0.9 : ph >= 2 ? 1.0 : 1.2;
       this.audio?.toll();
       this.logLine = "Hollowmourn lifts the hand-bell. The Toll.";
-    } else if (m.tag === "dark") this.logLine = "Hollowmourn closes his hand. Lights Out.";
-    else this.logLine = "The windows light violet. The Procession.";
+    } else if (m.tag === "dark") {
+      // Lights Out: the orbs freeze, the room goes black; only an orb's true light is safe
+      r.pattern = "lightsout";
+      r.markR = 400;
+      r.tell = 1.2;
+      this.wake.orbN += 1;
+      const twist = (r.hp ?? 1) <= (r.max ?? 1) * 0.2;
+      this.wake.orbs.forEach((o, i) => (o.red = twist && i === this.wake.orbN % ORBS.n));
+      this.nearTrueOrb();
+      this.darkUntil = this.worldMs + 1200;
+      this.logLine = "Hollowmourn closes his hand. Lights Out. Get to a blue light!";
+    } else {
+      // The Procession: four lanes across the hall, one left empty
+      r.pattern = "procession";
+      r.markR = PROC.laneH / 2;
+      r.tell = ph >= 3 ? 0.9 : 1.0;
+      this.layLanes();
+      this.logLine = "The windows light violet. The Procession. Find the empty lane.";
+    }
+    r.tellMax = r.tell;
+    r.actFor = r.tell;
+  }
+
+  /** The Wake Hall as a fresh fight finds it: graves shut, braziers lit, no rings, lanes or coffins (leaving resets it). */
+  private resetWakeHall() {
+    const w = this.wake;
+    w.open = false;
+    w.dark = false;
+    w.rings = [];
+    w.lanes = [];
+    w.procs = [];
+    w.orbs = [];
+    if (this.floor < 3) return;
+    for (const g of GRAVES) for (const dx of [0, 1]) if (this.tiles[g.y * this.w + g.x + dx] === T.wall) this.tiles[g.y * this.w + g.x + dx] = T.floor;
+    this.seedOrbs();
+  }
+
+  private seedOrbs() {
+    const cx = WAKE_HALL.cx * TILE, cy = WAKE_HALL.cy * TILE;
+    this.wake.orbs = [0, 1, 2].map((i) => ({ a: (i * Math.PI * 2) / 3, r: 64 + i * 22, x: 0, y: 0, red: false }));
+    for (const o of this.wake.orbs) { o.x = cx + Math.cos(o.a) * o.r; o.y = cy + Math.sin(o.a) * o.r * 0.8; }
+  }
+
+  /** Phase 2: eight graves crack open (2x1 pits, walls to every body); anyone standing there is moved to open ground. */
+  private openGraves() {
+    if (this.wake.open || this.dungeon !== "wake") return;
+    this.wake.open = true;
+    for (const g of GRAVES) for (const dx of [0, 1]) this.tiles[g.y * this.w + g.x + dx] = T.wall;
+    if (this.solidAt(this.px, this.py, true)) {
+      const s = this.openNear(this.px, this.py);
+      this.px = s.x;
+      this.py = s.y;
+    }
+    for (const o of this.roamers) {
+      const foot = footOf(o);
+      if (foot.rx ? !this.footClear(o.x, o.y, foot) : this.solidAt(o.x, o.y)) {
+        const s = foot.rx ? this.openFoot(o.x, o.y, foot) ?? this.openNear(o.x, o.y) : this.openNear(o.x, o.y);
+        o.x = s.x;
+        o.y = s.y;
+      }
+    }
+  }
+
+  /** At least one true orb is within reach of the hero for Lights Out (doc 3.3: 28 + 74 x 1.0 = 102 px). */
+  private nearTrueOrb() {
+    const trueOrbs = this.wake.orbs.filter((o) => !o.red);
+    if (!trueOrbs.length) return;
+    const best = trueOrbs.reduce((a, b) => (Math.hypot(a.x - this.px, a.y - this.py) < Math.hypot(b.x - this.px, b.y - this.py) ? a : b));
+    const d = Math.hypot(best.x - this.px, best.y - this.py);
+    if (d <= ORBS.reach - 10) return;
+    // reroll: bring the nearest true orb in to 70 px, on open ground
+    for (let k = 0; k < 16; k++) {
+      const a = Math.atan2(best.y - this.py, best.x - this.px) + (k % 2 ? 1 : -1) * Math.floor((k + 1) / 2) * 0.4;
+      const x = this.px + Math.cos(a) * 70, y = this.py + Math.sin(a) * 70;
+      if (!this.solidAt(x, y)) {
+        best.x = x;
+        best.y = y;
+        const cx = WAKE_HALL.cx * TILE, cy = WAKE_HALL.cy * TILE;
+        best.a = Math.atan2((y - cy) / 0.8, x - cx);
+        best.r = Math.hypot(x - cx, (y - cy) / 0.8);
+        return;
+      }
+    }
+  }
+
+  private layLanes() {
+    const top = WAKE_HALL.y * TILE, bot = (WAKE_HALL.y + WAKE_HALL.h) * TILE;
+    const span = PROC.lanes * PROC.laneH;
+    const k = Math.floor(Math.random() * PROC.lanes);
+    const y0 = Math.max(top + 8, Math.min(bot - 8 - span, this.py - PROC.laneH / 2 - k * PROC.laneH));
+    const heroLane = Math.max(0, Math.min(PROC.lanes - 1, Math.floor((this.py - y0) / PROC.laneH)));
+    let empty = Math.floor(Math.random() * PROC.lanes);
+    if (this.wake.lastEmptyHero && empty === heroLane) empty = (empty + 1 + Math.floor(Math.random() * (PROC.lanes - 1))) % PROC.lanes;
+    this.wake.lastEmptyHero = empty === heroLane;
+    this.wake.lanes = Array.from({ length: PROC.lanes }, (_, i) => ({ y: y0 + i * PROC.laneH + PROC.laneH / 2, empty: i === empty }));
+  }
+
+  /** Every tick of his fight: the orbs drift (frozen in a Lights Out tell), Toll rings and coffins land. */
+  private tickWakeHall(r: Roamer, dt: number) {
+    const w = this.wake;
+    const frozen = r.pattern === "lightsout" && (r.tell ?? 0) > 0;
+    const cx = WAKE_HALL.cx * TILE, cy = WAKE_HALL.cy * TILE;
+    if (!frozen) for (const o of w.orbs) {
+      o.a += (ORBS.speed / Math.max(30, o.r)) * dt;
+      o.x = cx + Math.cos(o.a) * o.r;
+      o.y = cy + Math.sin(o.a) * o.r * 0.8;
+    }
+    if (r.casting !== "big" || r.pattern !== "procession") if (!w.procs.length) w.lanes = [];
+    for (const ring of w.rings) {
+      if (ring.done || this.worldMs < ring.at) continue;
+      ring.done = true;
+      this.shake = Math.min(0.4, this.shake + 0.08);
+      const d = Math.hypot(this.px - ring.cx, this.py - ring.cy);
+      const ang = Math.atan2(this.py - ring.cy, this.px - ring.cx);
+      const inGap = ring.gaps.some((a) => Math.abs(Math.atan2(Math.sin(ang - a), Math.cos(ang - a))) < TOLL.gapHalfAngle);
+      if (Math.abs(d - ring.r) <= TOLL.half && !inGap && this.fallen <= 0) this.wakeHit(r, "The Toll");
+    }
+    w.rings = w.rings.filter((x) => !x.done || this.worldMs < x.at + 400);
+    const left = WAKE_HALL.x * TILE, right = (WAKE_HALL.x + WAKE_HALL.w) * TILE;
+    for (const p of w.procs) {
+      p.x += p.dir * PROC.speed * dt;
+      if (!p.hit && Math.abs(this.px - p.x) < PROC.coffinW / 2 + 4 && Math.abs(this.py - p.y) < PROC.coffinH / 2 + 4) {
+        p.hit = true;
+        this.wakeHit(r, "The Procession");
+        for (let k = 0; k < 4; k++) this.try(p.dir * (TILE / 4), 0); // a one-tile shove along the lane, step by step (the graves are walls)
+      }
+    }
+    w.procs = w.procs.filter((p) => p.x > left - 40 && p.x < right + 40);
+    if (!w.procs.length && !(r.casting === "big" && r.pattern === "procession")) w.lanes = [];
+  }
+
+  /** A big move lands on the hero: the same number every big lands for (resolveCast: attack + 4, less half your armour). */
+  private wakeHit(r: Roamer, name: string) {
+    const dealt = Math.max(1, (r.atk ?? 2) + 4 - Math.floor(this.ac / 2));
+    this.bite(dealt, `${r.name ?? "Hollowmourn"} lands ${name} for ${dealt}.`);
   }
 
   /** Wake step 5: this boss's own big move for its phase (bossvariety.ts), in place of the shared aimed ring. */
@@ -8166,6 +8341,31 @@ export class Game {
   }
 
   private resolveCast(r: Roamer, dist: number) {
+    if (r.final && (r.pattern === "toll" || r.pattern === "procession" || r.pattern === "lightsout")) {
+      const pat = r.pattern;
+      r.pattern = "";
+      r.casting = "";
+      r.tell = 0;
+      this.audio?.spell();
+      if (pat === "toll") {
+        const gaps = this.wake.open && (r.phase ?? 1) >= 2 ? GRAVES.map((g) => Math.atan2((g.y + 0.5) * TILE - r.y, (g.x + 1) * TILE - r.x)) : [];
+        TOLL.gaps.forEach((gap, i) => this.wake.rings.push({ cx: r.x, cy: r.y, r: bodyR(r) + gap, at: this.worldMs + i * TOLL.step, done: false, gaps }));
+        this.audio?.toll();
+      } else if (pat === "procession") {
+        const left = WAKE_HALL.x * TILE, right = (WAKE_HALL.x + WAKE_HALL.w) * TILE;
+        this.wake.lanes.forEach((l, i) => {
+          if (l.empty) return;
+          const dir = i % 2 ? -1 : 1;
+          this.wake.procs.push({ y: l.y, x: dir > 0 ? left - 16 : right + 16, dir, hit: false });
+        });
+      } else {
+        const safe = this.wake.orbs.some((o) => !o.red && Math.hypot(o.x - this.px, o.y - this.py) <= ORBS.light);
+        this.darkUntil = this.worldMs + 600;
+        if (safe) this.logLine = "You hold to the blue light. The grave-dark passes over you.";
+        else this.wakeHit(r, "Lights Out");
+      }
+      return;
+    }
     if (r.pattern === "lasttoll") {
       // Wake batch: not Smitten: 40% of max HP, never the last point; he staggers either way
       r.pattern = "";
@@ -9471,6 +9671,11 @@ export class Game {
       bonus: band,
       special: grades[g],
     });
+  }
+
+  /** Wake leftovers: a named boss drop never vanishes; a full pack takes it anyway. */
+  private giveNamed(it: Item) {
+    if (!this.gainItem(it)) this.inv.push(it);
   }
 
   private gainItem(it: Item): boolean {

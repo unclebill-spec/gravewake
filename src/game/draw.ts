@@ -18,7 +18,7 @@ import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, ha
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
-import { WAKE_SHEETS, WAKE_LORD_SHEETS, wakeLordCol } from "./wake"; // wake batch
+import { WAKE_SHEETS, WAKE_LORD_SHEETS, wakeLordCol, HALL as WAKE_HALL, BRAZIERS, GRAVES as WAKE_GRAVES, WINDOWS, TOLL, PROC, ORBS, isBrazier, graveAt } from "./wake"; // wake batch
 import { CASINO_FURNITURE, CASINO_KINDS, CASINO_LIGHT, CASINO_RUG, CASINO_SHEET, CASINO_SHEET_EM, CASINO_SIGN_X } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
@@ -1098,7 +1098,8 @@ function glyphCell(ctx: CanvasRenderingContext2D, glyph: number, state: number, 
 /** playtest1j: what the telegraphs and fight lights read off the game (dungeon traps and ash bursts only below ground). */
 function tellView(g: Game): TellView {
   const below = g.mapId === "dungeon";
-  return { roamers: g.roamers, spells: g.spells, ashes: below ? g.ashes : [], plates: g.plates, traps: below ? (g.feats?.traps ?? []) : [], fog: g.fog, w: g.w, plateTell: TRAPS.plateTell, ashTell: RUNS.ashTell, plateR: TRAPS.plateRadius, ashR: RUNS.ashRadius, frame: g.frame };
+  const own = (r: (typeof g.roamers)[number]) => !!r.final && inWakeHall(g) && (r.pattern === "toll" || r.pattern === "procession" || r.pattern === "lightsout");
+  return { roamers: g.roamers.some(own) ? g.roamers.filter((r) => !own(r)) : g.roamers, spells: g.spells, ashes: below ? g.ashes : [], plates: g.plates, traps: below ? (g.feats?.traps ?? []) : [], fog: g.fog, w: g.w, plateTell: TRAPS.plateTell, ashTell: RUNS.ashTell, plateR: TRAPS.plateRadius, ashR: RUNS.ashRadius, frame: g.frame };
 }
 
 /** The telegraph box drawn for a foe mark, and for a plate trap's mark (playtest1j: no longer drawn; paintTells). */
@@ -3749,7 +3750,7 @@ export function paintWakeLord(ctx: CanvasRenderingContext2D, r: { phase?: number
   return true;
 }
 
-export function paintActSheet(ctx: CanvasRenderingContext2D, sh: { url: string; em: string; w: number; h: number }, x: number, y: number, frame: number, act: number, hurt: boolean, flip: boolean, layer: "body" | "em"): boolean {
+export function paintActSheet(ctx: CanvasRenderingContext2D, sh: { url: string; em: string; w: number; h: number; k?: number }, x: number, y: number, frame: number, act: number, hurt: boolean, flip: boolean, layer: "body" | "em"): boolean {
   if (typeof Image === "undefined") return false;
   const url = layer === "em" ? sh.em : sh.url;
   if (!prop2Ready(url)) return false;
@@ -3758,9 +3759,135 @@ export function paintActSheet(ctx: CanvasRenderingContext2D, sh: { url: string; 
   ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(x), Math.round(y));
   if (flip) ctx.scale(-1, 1);
-  ctx.drawImage(landSheet[url]!, col * sh.w, 0, sh.w, sh.h, -sh.w / 2, -sh.h, sh.w, sh.h);
+  const k = sh.k ?? 1; // wake leftovers: a 16x32 sheet drawn whole-pixel xk (the Bellringer)
+  ctx.drawImage(landSheet[url]!, col * sh.w, 0, sh.w, sh.h, (-sh.w * k) / 2, -sh.h * k, sh.w * k, sh.h * k);
   ctx.restore();
   return true;
+}
+
+/** Wake leftovers: the Wake Hall (Hollowmourn's 24x25 arena with its 20x20 hall). */
+const WAKE_FLOOR = "/art/writer/floor-wake.png";
+const WAKE_ART = { brazier: "/art/writer/wake-brazier.png", grave: "/art/writer/wake-grave.png", window: "/art/writer/wake-window.png", coffin: "/art/writer/wake-coffin.png", mourner: "/art/writer/wake-mourner.png", orb: "/art/writer/wake-orb.png", bell: "/art/writer/wake-bell.png" };
+let wakeHallNow = false;
+export function inWakeHall(g: Game): boolean {
+  return g.mapId === "dungeon" && g.dungeon === "wake" && g.w === 24 && g.h === 25;
+}
+function wakeImg(url: string, sx: number, sy: number, w: number, h: number, dx: number, dy: number, c: CanvasRenderingContext2D) {
+  if (!prop2Ready(url)) return false;
+  c.drawImage(landSheet[url]!, sx, sy, w, h, Math.round(dx), Math.round(dy), w, h);
+  return true;
+}
+/** A ring of 2x2 pixel dots round (cx, cy), skipping the gap angles; whole pixels only (the style lock). */
+function pixelRing(c: CanvasRenderingContext2D, cx: number, cy: number, rad: number, col: string, gaps: number[], filled = 1) {
+  const n = Math.max(24, Math.round((rad * Math.PI * 2) / 4));
+  for (let i = 0; i < n * filled; i++) {
+    const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+    if (gaps.some((g) => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) < TOLL.gapHalfAngle)) continue;
+    px(c, Math.round(cx + Math.cos(a) * rad) - 1, Math.round(cy + Math.sin(a) * rad) - 1, 2, 2, col);
+  }
+}
+function paintWakeHall(ctx: CanvasRenderingContext2D, g: Game, props: { y: number; fn: () => unknown }[], glow: ((c: CanvasRenderingContext2D) => void)[], view: { x: number; y: number; w: number; h: number }) {
+  const w = g.wake;
+  const lord = g.roamers.find((r) => r.final);
+  const tell = lord && lord.casting === "big" && (lord.tell ?? 0) > 0 ? lord.pattern ?? "" : "";
+  const frac = lord && lord.tellMax ? 1 - (lord.tell ?? 0) / lord.tellMax : 0;
+  // open graves (phase 2+): pits on the floor, candles at the heads
+  if (w.open) for (const gr of WAKE_GRAVES) wakeImg(WAKE_ART.grave, 32, 0, 32, 16, gr.x * TILE, gr.y * TILE, ctx);
+  // stained glass in the north wall: a window lights for each story boss laid to rest; all glow while a procession gathers
+  for (const wd of WINDOWS) {
+    const cell = tell === "procession" ? 2 : g.bossDead[wd.id] != null ? 1 : 0;
+    const dx = wd.x * TILE, dy = (WAKE_HALL.y - 2) * TILE;
+    wakeImg(WAKE_ART.window, cell * 16, 0, 16, 32, dx, dy, ctx);
+    if (cell) glow.push((c) => void wakeImg(WAKE_ART.window, cell * 16, 0, 16, 32, dx, dy, c));
+  }
+  // braziers at the compass points, y-sorted on their foot; Lights Out (phase 3) puts them out
+  for (const b of BRAZIERS) {
+    const cell = w.dark ? 4 : Math.floor(g.frame / 4 + b.x) % 4;
+    const dx = b.x * TILE, dy = b.y * TILE - 16;
+    props.push({ y: (b.y + 1) * TILE - 1, fn: () => wakeImg(WAKE_ART.brazier, cell * 16, 0, 16, 32, dx, dy, ctx) });
+    if (!w.dark) glow.push((c) => void wakeImg(WAKE_ART.brazier, cell * 16, 0, 16, 32, dx, dy, c));
+  }
+  // the procession's lanes: violet dashes along each lane edge, the empty lane marked by an orb at each end
+  const left = WAKE_HALL.x * TILE, right = (WAKE_HALL.x + WAKE_HALL.w) * TILE;
+  for (const l of w.lanes) {
+    const top = Math.round(l.y - PROC.laneH / 2);
+    if (l.empty) {
+      wakeImg(WAKE_ART.orb, 16 * (g.frame % 8 < 4 ? 0 : 1), 0, 16, 16, left + 2, top + 8, ctx);
+      wakeImg(WAKE_ART.orb, 16 * (g.frame % 8 < 4 ? 0 : 1), 0, 16, 16, right - 18, top + 8, ctx);
+      continue;
+    }
+    const on = tell === "procession" ? Math.max(0.35, frac) : 1;
+    for (let x = left; x < right; x += 8) {
+      if ((x - left) / (right - left) > on) break;
+      px(ctx, x, top + 1, 4, 1, "#8a5cc8");
+      px(ctx, x, top + PROC.laneH - 2, 4, 1, "#8a5cc8");
+    }
+  }
+  // coffins carried down the lanes: a mourner ahead and one behind, each walking
+  for (const pr of w.procs) {
+    const flip = pr.dir < 0;
+    const step = Math.floor(g.frame / 6) % 2;
+    const draw = (c: CanvasRenderingContext2D, url: string, sx: number, sw: number, sh: number, x: number, y: number) => {
+      if (!prop2Ready(url)) return;
+      c.save();
+      c.translate(Math.round(x), Math.round(y));
+      if (flip) c.scale(-1, 1);
+      c.drawImage(landSheet[url]!, sx, 0, sw, sh, -sw / 2, -sh, sw, sh);
+      c.restore();
+    };
+    for (const off of [26, -26]) props.push({ y: pr.y + 6, fn: () => draw(ctx, WAKE_ART.mourner, 16 * step, 16, 32, pr.x + off * pr.dir, pr.y + 8) });
+    props.push({ y: pr.y + 8, fn: () => draw(ctx, WAKE_ART.coffin, 0, 32, 24, pr.x, pr.y + 8) });
+  }
+  // the Toll: three rings out from him; a gathering ring fills round, a landing ring flashes white
+  if (lord && tell === "toll") {
+    const body = (lord.markR ?? 128) - 128;
+    for (let i = 0; i < 3; i++) pixelRing(ctx, lord.x, lord.y, body + TOLL.gaps[i], "#7ec8e0", [], Math.min(1, frac * 1.2));
+  }
+  for (const ring of w.rings) {
+    const live = g.worldMs < ring.at;
+    const col = live ? (g.frame % 6 < 3 ? "#7ec8e0" : "#c5d4e8") : "#f4f0ea";
+    const draw = (c: CanvasRenderingContext2D) => {
+      pixelRing(c, ring.cx, ring.cy, ring.r, col, ring.gaps);
+      if (live) pixelRing(c, ring.cx, ring.cy, ring.r + (ring.at - g.worldMs) / 40, "#3a5a78", ring.gaps);
+      else { pixelRing(c, ring.cx, ring.cy, ring.r - 6, col, ring.gaps); pixelRing(c, ring.cx, ring.cy, ring.r + 6, col, ring.gaps); }
+    };
+    draw(ctx);
+    glow.push(draw);
+  }
+  // the glow-orbs (blue true; the red false one in his last fifth) and, in Lights Out, the dark round them
+  const orb = (c: CanvasRenderingContext2D, o: { x: number; y: number; red: boolean }) => wakeImg(WAKE_ART.orb, 16 * ((o.red ? 2 : 0) + (g.frame % 8 < 4 ? 0 : 1)), 0, 16, 16, o.x - 8, o.y - 12, c);
+  for (const o of w.orbs) {
+    props.push({ y: o.y, fn: () => orb(ctx, o) });
+    glow.push((c) => void orb(c, o));
+  }
+  const dark = tell === "lightsout" || g.darkUntil > g.worldMs;
+  if (dark) {
+    props.push({
+      y: 1e9,
+      fn: () => {
+        const q = 4, x0 = Math.floor(view.x / q) * q, y0 = Math.floor(view.y / q) * q;
+        const lit = w.orbs.map((o) => ({ x: o.x, y: o.y - 4, r: o.red ? ORBS.light - 8 : ORBS.light }));
+        for (let y = y0; y < view.y + view.h + q; y += q) {
+          let run = -1;
+          for (let x = x0; x < view.x + view.w + q * 2; x += q) {
+            const inLight = x >= view.x + view.w + q || lit.some((l) => Math.hypot(x + 2 - l.x, (y + 2 - l.y) * 1.2) < l.r);
+            if (!inLight && run < 0) run = x;
+            if (inLight && run >= 0) { px(ctx, run, y, x - run, q, "#06060a"); run = -1; }
+          }
+        }
+        for (const o of w.orbs) orb(ctx, o);
+      },
+    });
+  }
+  // the cracked bell, hung high over the hall's heart (drawn over everything below it)
+  const bx = WAKE_HALL.cx * TILE - 24, by = WAKE_HALL.cy * TILE - 60 - 48;
+  props.push({
+    y: 1e9 - 1,
+    fn: () => {
+      for (let y = WAKE_HALL.y * TILE - 8; y < by + 2; y += 3) { px(ctx, bx + 18, y, 1, 2, "#3a3e4c"); px(ctx, bx + 29, y + 1, 1, 2, "#3a3e4c"); }
+      wakeImg(WAKE_ART.bell, 0, 0, 48, 48, bx, by, ctx);
+    },
+  });
 }
 
 /** Telegraph rune rings (Art's telegraphs sheets: 8 frames, 0-5 fill clockwise over the tell, 6 lit, 7 flash). */
@@ -4061,6 +4188,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   const hix = hamletIndex(g); // playtest1u
   // gfx2: the floor kit of this dungeon floor (null elsewhere), read by drawTile; its decals go on below.
   kitNow = floorKit(g);
+  wakeHallNow = inWakeHall(g); // wake leftovers
   boneFloorNow = boneFloorScene(g); // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]
   // On the vale, open ground shows its skin biome; road verges read the skin too. Every other tile is as before.
   const look = (j: number, t: number) => (skin && SKIN_OPEN.has(t) && t !== T.tree && t !== T.rock && t !== T.pump && t !== T.grave ? VALE_GROUND[skin.biome[j]] : t);
@@ -4106,7 +4234,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         const slab = g.mapId === "dungeon" && sheetCell(ctx, `/art/writer/floor-${g.theme in CAVES ? g.theme : "cave"}.png`, Math.abs(x * 3 + y * 5) % 4, 0, x * TILE, y * TILE);
         if (!slab) drawTile(ctx, chestOn as Tile, x, y, n, g.theme, above, g.frame, left, right, below);
         sheetCell(ctx, PROP_CHEST, 0, 0, x * TILE, y * TILE);
-      } else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
+      } else if (!(wakeHallNow && (tile === T.floor || isBrazier(x, y) || graveAt(x, y) >= 0) && sheetCell(ctx, WAKE_FLOOR, Math.abs(x * 3 + y * 5) % 8, 0, x * TILE, y * TILE))) drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
       if (boneFloorNow && tile === T.bone) {
         // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: calm earth, a rare small accent, no heap
         const bf = boneFloorCells(x, y);
@@ -4551,6 +4679,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
   paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
   paintRuneRings(ctx, g, glow); // fun-early-sinks finish: the warden's blue rune ring under his strike
+  if (inWakeHall(g)) paintWakeHall(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // wake leftovers
   roomScene(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // playtest1n: the room's props, patches and marks
   if (g.darkUntil > g.worldMs) {
     for (let i = 0; i < 40; i++) px(ctx, g.px - 70 + (i * 17) % 140, g.py - 50 + (i * 13) % 90, 2, 2, "#0c0a08");
