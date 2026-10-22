@@ -471,6 +471,9 @@ function pt1vRoot() {
       if (pt1wNew(f) || pt1xNew(f) || pt1yNew(f) || (pt1zNew(f) && !esNew(f)) || n === "__pycache__") continue; // playtest1y: its new sheets out too
       if (REAL.has(f)) { execFileSync("mkdir", ["-p", join(dir, f)]); mirror(f); }
       else if (f in PT1W_FROZEN || f in PT1X_FROZEN || f in PT1Y_FROZEN) writeTop(join(dir, f), readTop(join(root, pt1vView(f))));
+      // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: a wake-frozen file (bonecar.ts's
+      // showroom moved with the town) is the frozen copy in this tree too, so the bundler sees what the older groups read
+      else if (WAKE_OLD && WAKE_SET.has(f)) writeTop(join(dir, f), readTop(join(root, f)));
       else symlinkTop(join(root, f), join(dir, f));
     }
   };
