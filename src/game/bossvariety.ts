@@ -34,7 +34,7 @@ export const BOSS_PLANS: Record<string, BossPlan> = {
   witchboss: story({ name: "drown-cauldron", tag: "ring", pat: "aim" }, { name: "broom-dive", tag: "line", pat: "echo" }, { name: "bog hex", tag: "dark", pat: "aim" }),
   rootwidow: story({ name: "canopy-drop", tag: "ring", pat: "echo" }, { name: "root-snare", tag: "pull", pat: "aim" }, { name: "thorn crown", tag: "ring", pat: "nova" }),
   wolfman: story({ name: "winter-maul", tag: "cone", pat: "aim" }, { name: "moon-howl", tag: "ring", pat: "nova" }, { name: "pack hunt", tag: "summon", pat: "aim" }),
-  queen: story({ name: "throne-gaze", tag: "cone", pat: "aim" }, { name: "court dance", tag: "ring", pat: "echo" }, { name: "royal decree", tag: "line", pat: "aim" }),
+  queen: story({ name: "throne-gaze", tag: "cone", pat: "aim" }, { name: "court dance", tag: "ring", pat: "nova" }, { name: "royal decree", tag: "line", pat: "aim" }),
   tzar: story({ name: "flood-ring", tag: "ring", pat: "nova" }, { name: "undertow lane", tag: "line", pat: "echo" }, { name: "drowned crown", tag: "pull", pat: "aim" }),
   leech: story({ name: "mass", tag: "pull", pat: "aim" }, { name: "communion", tag: "ring", pat: "nova" }, { name: "red vespers", tag: "dark", pat: "aim" }),
 };
