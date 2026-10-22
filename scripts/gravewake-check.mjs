@@ -15601,7 +15601,9 @@ if (on("playtest2b")) {
     const credited = packs.filter(([f, who]) => existsSync(f) && rd(f).includes(who === "Ayzenshtat" ? "Mark Ayzenshtat" : who) && text.includes(who)).length;
     const dirs = readdirSync("public/art").filter((d) => statSync(`public/art/${d}`).isDirectory()).sort();
     // wake batch: public/art/audio is first-party (synthesized in code, CC0), its LICENSES.md says so; it is known while that file stays
-    const known = ["brileta", "held", "icons", "spells", "sprites", "writer", ...(existsSync("public/art/audio/LICENSES.md") ? ["audio"] : [])];
+    const known = ["brileta", "held", "icons", "spells", "sprites", "writer", ...(existsSync("public/art/audio/LICENSES.md") ? ["audio"] : []),
+      // wow batch [OWNER-REQUESTED 2026-10-22 Bill]: public/art/wow is Art's first-party CC0 pack, its LICENSES.md says so
+      ...(existsSync("public/art/wow/LICENSES.md") ? ["wow"] : [])];
     const unknown = dirs.filter((d) => !known.includes(d));
     const withLic = dirs.filter((d) => ["brileta", "held"].includes(d)).every((d) => walkAll(`public/art/${d}`).some((f) => /(CREDITS|HELD)\.txt$/.test(f)));
     check("playtest2b", `art packs still in public/art are credited (${credited}/${packs.length}); no new art folder without a credit (${unknown.join(", ") || "none new"}); each credited folder keeps its credits file (${withLic})`,
@@ -16090,8 +16092,45 @@ if (on("oskaudio")) {
   check("oskaudio", `the Ashen Rift plays dungeon-rift through a 'rift' theme value (${rift}, trimmed x${AU.MUSIC_TRIM["dungeon-rift"]} for a phone); a wayrift swells the choir and ducks the music, the raven caws and flaps as it flies off, each file decoded once through the shared cache, the synth beeps while one is missing (${hooks})`, rift && hooks);
 }
 
+if (on("wow")) {
+  // wow batch [OWNER-REQUESTED 2026-10-22 Bill: sparkles and bright neon against dark]
+  asLive();
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-wow-"));
+  const root = process.cwd();
+  writeTop(join(dir, "b.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as W from "${root}/src/game/wow.ts";\nexport * as AU from "${root}/src/game/audio.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "b.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", "--loader:.png=empty", "--loader:.css=empty", `--outfile=${join(dir, "b.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "b.mjs")).href);
+  const W = X.W, AU = X.AU;
+  const sheets = Object.values(W.WOW_SHEETS).filter(([u]) => existsTop(`public${u}`)).length;
+  const dr = readTop("src/game/draw.ts", "utf8"), ws = readTop("src/game/wow.ts", "utf8");
+  const ems = [...dr.matchAll(/WOW_EM/g)].length;
+  const emFiles = ["cave-ore", "decal-grave", ...["blue", "violet", "red"].flatMap((c) => [`runering_${c}_128x64`, `runering_${c}_64x32`])].every((n) => existsTop(`public/art/writer/${n}_em.png`)) && ["fire", "ice", "lightning", "venom", "shadow", "holy"].every((e) => existsTop(`public/art/spells/fx/impact-${e}_em.png`) && existsTop(`public/art/spells/fx/shock-${e}_em.png`));
+  check("wow", `Art's wow pack ships (${sheets}/${Object.keys(W.WOW_SHEETS).length} sheets) and the new masks (${emFiles}) are registered in the em lookup, the rune rings, the spells' em push and the floor tiles (${ems} uses)`, sheets === Object.keys(W.WOW_SHEETS).length && emFiles && /EM_SHEETS\[url\] \?\? WAKE_EM\[url\] \?\? WOW_EM\[url\]/.test(dr) && /emPass \? WOW_EM\[runeRingUrl/.test(dr) && ems >= 5);
+  const pure = !/Math\.random/.test(ws.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, ""));
+  const tiers = [null, 1, 2, 3, 4, 5].map((k) => W.lootTier(k)).join(",");
+  check("wow", `visual only: its own dice (no Math.random: ${pure}); hard caps ${W.WOW.sparks.join("/")} sparks and ${W.WOW.sprites.join("/")} sprites (normal/low); loot twinkle tiers silver,green,blue,violet,gold,magenta from ranks none,1..5 (${tiers})`, pure && tiers === "0,1,2,3,4,5" && W.WOW.sparks[0] <= 400 && W.WOW.sprites[0] <= 128);
+  // watch a game through a fight, a level-up, a drop and a purchase: its save and its dice must not move
+  const g = new X.Game();
+  g.enterTown(); g.worldMs = 21 * 60 * 1000;
+  const before = JSON.stringify(g.saveRecord());
+  const rnd0 = Math.random;
+  let rolls = 0;
+  Math.random = () => { rolls++; return rnd0(); };
+  try {
+    for (let i = 0; i < 120; i++) { W.wowWatch(g, 1 / 60, () => 1); W.wowAmbient(g, 1 / 60, { x: 0, y: 0, w: 211, h: 98 }, true, [{ x: 40, y: 40 }], false, i); W.wowStep(1 / 60, { x: 0, y: 0, w: 211, h: 98 }); }
+    W.fxBoss(50, 50, true); W.fxLevelUp(50, 50); W.fxLoot(50, 50, 5); W.fxHit(50, 50, 4, true); W.fxRift(50, 50); W.fxCoin(50, 50);
+    for (let i = 0; i < 300; i++) W.spark(i, i, 0, 0, 1, 1);
+  } finally { Math.random = rnd0; }
+  const after = JSON.stringify(g.saveRecord());
+  const live = W.liveCounts();
+  check("wow", `damage, HP and saves untouched: the game's state is the same after 2 s of watching and every effect (${before === after}), no game dice rolled (${rolls}), and the pools stay under their caps (${live.sparks} sparks, ${live.sprites} sprites)`, before === after && rolls === 0 && live.sparks <= W.WOW.sparks[0] && live.sprites <= W.WOW.sprites[0]);
+  const sfx = Object.keys(AU.WOW_SFX).every((k) => existsTop(`public/art/audio/wow/${k}${k === "hit-spark" ? "-1" : ""}.ogg`));
+  const hooks = /paintWow\(ctx, g,/.test(dr) && /paintHollowDark\(ctx, g,/.test(dr) && /WOWFX\.relight/.test(dr) && /lord\.pattern === "lightsout"\) \|\| \(lord\.lastToll/.test(dr);
+  check("wow", `Sound's wow cues ship and are wired (${sfx}); the draw runs the layer before the light (body + glow pass), relights through the lamp list, and Hollowmourn's Lights Out and Last Toll go black but his lantern and the runes (${hooks}); night choir ${AU.AMB.choirNight} (${AU.AMB.choirNightDucked} under music)`, sfx && hooks && AU.AMB.choirNight <= 0.25);
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio, oskart");
+  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio, oskart, wow");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

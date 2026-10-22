@@ -22,6 +22,7 @@ import { WAKE_SHEETS, WAKE_LORD_SHEETS, wakeLordCol, HALL as WAKE_HALL, BRAZIERS
 import { CASINO_FURNITURE, CASINO_KINDS, CASINO_LIGHT, CASINO_RUG, CASINO_SHEET, CASINO_SHEET_EM, CASINO_SIGN_X } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
+import * as WOWFX from "./wow"; // wow batch [OWNER-REQUESTED 2026-10-22 Bill: sparkles and neon]
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { secretTile, spikeStage } from "./feats";
@@ -83,6 +84,7 @@ function paintRift(ctx: CanvasRenderingContext2D, x: number, y: number, frame: n
 
 /** Fill a rectangle in tile space. Callers pass integer pixels. */
 function px(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) {
+  if (emOnly) return;
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
 }
@@ -99,6 +101,18 @@ const landSheet: Partial<Record<string, HTMLImageElement>> = {};
 export const EM_SHEETS: Record<string, string> = { "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
 /** Wake batch: Art's ghost sheets carry their own masks (staging emissive_masks), kept beside gfx3's three. */
 export const WAKE_EM: Record<string, string> = { "/art/writer/ghost_mob.png": "/art/writer/ghost_mob_em.png", "/art/writer/ghost_boss.png": "/art/writer/ghost_boss_em.png", "/art/writer/ghost_mini.png": "/art/writer/ghost_mini_em.png", "/art/writer/ghost_rare.png": "/art/writer/ghost_rare_em.png" };
+/** wow batch: Art's new masks (staging/art/wow), registered like BONECAR_EM: the cave ore, the six rune rings, the fx
+ * impacts and shocks and the grave decal. Each is drawn on the glow pass only. */
+export const WOW_EM: Record<string, string> = Object.fromEntries([
+  "/art/writer/cave-ore.png",
+  "/art/writer/decal-grave.png",
+  ...(["blue", "violet", "red"] as const).flatMap((c) => [`/art/writer/runering_${c}_128x64.png`, `/art/writer/runering_${c}_64x32.png`]),
+  ...["fire", "ice", "lightning", "venom", "shadow", "holy"].flatMap((el) => [`/art/spells/fx/impact-${el}.png`, `/art/spells/fx/shock-${el}.png`]),
+].map((u) => [u, u.replace(/\.png$/, "_em.png")]));
+/** wow batch: floor cells with a mask (ore, grave decals), gathered by the tile pass and lit once on the glow pass. */
+const emTiles: { url: string; col: number; x: number; y: number }[] = [];
+/** wow batch: while on, only sheet masks draw (no painted px), for the spells' em-only glow push. */
+let emOnly = false;
 export const EM_COLOURS = ["#f4e27a", "#fff8e0", "#e0a040"] as const;
 let emPass = false;
 /**
@@ -142,7 +156,7 @@ function sheetCell(
   }
   if (emPass) {
     // gfx3 glow masks: draw the sheet's emissive mask instead, or nothing; never fall back to a painted body.
-    const em = EM_SHEETS[url] ?? WAKE_EM[url];
+    const em = EM_SHEETS[url] ?? WAKE_EM[url] ?? WOW_EM[url];
     if (!em) return true;
     url = em;
   }
@@ -215,8 +229,13 @@ function spellFrame(
   fh = 16,
   folder = SPELL_DIR,
 ): boolean {
-  const url = `${folder}/${file}`;
+  let url = `${folder}/${file}`;
   if (typeof Image === "undefined") return false;
+  if (emOnly) {
+    const em = WOW_EM[url];
+    if (!em) return true;
+    url = em;
+  }
   let im = landSheet[url];
   if (!im) {
     im = new Image();
@@ -497,7 +516,8 @@ function paintCaveFloor(ctx: CanvasRenderingContext2D, x: number, y: number, the
   }
   const ore = (x * 13 + y * 7) % 19;
   // playtest1o: the ore is the loot writer's crystal cell (cave-ore.png, the same four colours); the blob is its fallback.
-  if ((ore === 0 || ore === 1) && !sheetCell(ctx, ORE_SHEET, (x + y) % 4, 0, gx, gy)) {
+  if ((ore === 0 || ore === 1) && sheetCell(ctx, ORE_SHEET, (x + y) % 4, 0, gx, gy)) emTiles.push({ url: ORE_SHEET, col: (x + y) % 4, x: gx, y: gy });
+  else if (ore === 0 || ore === 1) {
     const gem = ["#5a48c8", "#3a78c8", "#c84848", "#48a060"][(x + y) % 4];
     px(ctx, gx + 5, gy + 6, 5, 4, shade(gem, -30));
     px(ctx, gx + 6, gy + 5, 3, 3, gem);
@@ -2986,6 +3006,7 @@ export function sceneAmbient(g: Game): RGB | null {
 type Lamp = { x: number; y: number; r: number; c: RGB; seed: number; flick: boolean; sh?: number; low?: boolean; wash?: number };
 
 /** Every light in the scene, culled to the view and trimmed to the budget, nearest the hero first. */
+const wowFires: { x: number; y: number }[] = [];
 export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh: number): Lamp[] {
   const out: Lamp[] = [];
   const below = g.mapId === "dungeon";
@@ -3133,6 +3154,10 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
   // core and impact flash, ash fire and live plates, in Bill's neon. They share the budget below.
   fightLights(tellView(g), out, (c) => fxElement(c, spellElement(c)), (s) => spellHead(s, spellProgress(s)), TILE);
   roomLights(g, out); // playtest1n: fire, fuses, falls and lit lanterns, from the room's own pool
+  // wow batch: the fires the embers rise from, and the relights (a boss falls, a rift opens) that fade over a second or two
+  wowFires.length = 0;
+  for (const l of out) if (l.r === LIGHT.brazier && l.c === LIGHTS.torch) wowFires.push({ x: l.x, y: l.y });
+  for (const l of WOWFX.relight) out.push({ x: l.x, y: l.y, r: Math.round((l.big ? 150 : 100) * (0.35 + 0.65 * (l.t / l.max))), c: l.hue === "violet" ? NEON_LIGHT.violet : l.big ? NEON_LIGHT.violet : NEON_LIGHT.red, seed: 0, flick: false });
   const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
   const hero = seen.shift()!;
   seen.sort((a, b) => (a.low ? 1 : 0) - (b.low ? 1 : 0) || Math.hypot(a.x - g.px, a.y - g.py) - Math.hypot(b.x - g.px, b.y - g.py));
@@ -4097,7 +4122,7 @@ export type RingColour = "blue" | "violet" | "red";
 export function runeRingUrl(col: RingColour, big: boolean): string { return `/art/writer/runering_${col}_${big ? "128x64" : "64x32"}.png`; }
 export function paintRuneRing(ctx: CanvasRenderingContext2D, x: number, y: number, col: RingColour, big: boolean, frac: number, lit: boolean, frame: number): boolean {
   if (typeof Image === "undefined") return false;
-  const url = runeRingUrl(col, big);
+  const url = emPass ? WOW_EM[runeRingUrl(col, big)] : runeRingUrl(col, big);
   if (!prop2Ready(url)) return false;
   const w = big ? 128 : 64, h = big ? 64 : 32;
   const f = lit ? (frame % 8 < 4 ? 6 : 7) : Math.max(0, Math.min(5, Math.floor(frac * 6)));
@@ -4132,7 +4157,16 @@ function paintRuneRings(ctx: CanvasRenderingContext2D, g: Game, glow: ((c: Canva
       if (charge && prop2Ready(charge)) c.drawImage(landSheet[charge]!, Math.min(4, Math.floor(frac * 5)) * 32, 0, 32, 32, Math.round(r.x - 16), Math.round(r.y - 72), 32, 32);
     };
     draw(ctx);
-    glow.push(draw);
+    // wow batch: the glow pass draws the ring's own mask (runes and rim only), the charge orb whole
+    glow.push((c) => {
+      emPass = true;
+      try {
+        paintRuneRing(c, mx, my, ring.col, ring.big, frac, lit, g.frame);
+      } finally {
+        emPass = false;
+      }
+      if (charge && prop2Ready(charge)) c.drawImage(landSheet[charge]!, Math.min(4, Math.floor(frac * 5)) * 32, 0, 32, 32, Math.round(r.x - 16), Math.round(r.y - 72), 32, 32);
+    });
   }
 }
 
@@ -4401,6 +4435,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // actor: the same draw, for the light layer's actor clamp. glow: emissive draws, set to full light.
   const props: { y: number; fn: () => void; actor?: (c: CanvasRenderingContext2D) => void }[] = [];
   const glow: ((c: CanvasRenderingContext2D) => void)[] = [];
+  emTiles.length = 0;
   const skin = valeGround(g);
   const hix = hamletIndex(g); // playtest1u
   // gfx2: the floor kit of this dungeon floor (null elsewhere), read by drawTile; its decals go on below.
@@ -4459,7 +4494,11 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
         sheetCell(ctx, BONE_FLOOR.sheet, bf.cell, 0, x * TILE, y * TILE);
         if (bf.accent >= 0) sheetCell(ctx, BONE_FLOOR.accents, bf.accent, 0, x * TILE, y * TILE);
       }
-      if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
+      if (kitNow && kitNow.decals[i] >= 0) {
+        const durl = `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`;
+        sheetCell(ctx, durl, kitNow.decals[i], 0, x * TILE, y * TILE);
+        if (WOW_EM[durl]) emTiles.push({ url: durl, col: kitNow.decals[i], x: x * TILE, y: y * TILE });
+      }
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
       const hw = hix?.walk.get(i); // playtest1u: the hamlet's walk (planks, flags, packed snow, cinder slabs) on its green
@@ -5005,6 +5044,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     px(ctx, Math.round(g.px) - 2, Math.round(g.py) - 14, 2, 2, "#f0d080");
     px(ctx, Math.round(g.px) + 1, Math.round(g.py) - 13, 1, 1, "#fff0c0");
   }
+  paintWow(ctx, g, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }, glow, lit, night);
   if (lit) {
     // gfx1 light layer. Emissive and must-read things go to full light: lit brazier flames, telegraphs, spells.
     const rune = g.mapId === "dungeon" ? g.feats?.rune : undefined;
@@ -5020,6 +5060,23 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     };
     NO_BOOST.add(tells);
     glow.push(tells);
+    // wow batch: the impact and shock strips' masks, boosted (their cores burn white-hot in the dark)
+    if (g.spells.length) glow.push((c) => {
+      emOnly = true;
+      try {
+        for (const s of g.spells) paintSpell(c, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
+      } finally {
+        emOnly = false;
+      }
+    });
+    if (emTiles.length) glow.push((c) => {
+      emPass = true;
+      try {
+        for (const t of emTiles) sheetCell(c, t.url, t.col, 0, t.x, t.y);
+      } finally {
+        emPass = false;
+      }
+    });
     const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
     paintLight(ctx, g, camX, camY, viewW / zoom, viewH / zoom, actors, glow);
     paintColdFire(ctx, g); // playtest1w: the skull headlamps' cold fire, over the night
@@ -5053,6 +5110,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   warmPt1h();
   paintWhirlRings(ctx, g);
   drawParticles(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
+  paintHollowDark(ctx, g, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom });
   if (g.curseOn() && g.curse === "dark") {
     paintLightless(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
     // A decal must always read: telegraphs sit on top of the dark.
@@ -6201,4 +6259,74 @@ export function bodyPreview(
   const face = axisFace(dx, dy);
   if (body.kind === "person") person(ctx, x, y, body.look, "#888888", face, frame, 1, body.pose ?? (moving ? "walk" : "stand"), body.cast, 1, body.seed ?? "");
   else monsterSprite(ctx, x, y, body.family, "#2a2a2e", 1, frame, "", moving, body.rank ?? "mob", 1, face, dx < 0 ? 3 : 1);
+}
+
+
+/* ---------- wow batch [OWNER-REQUESTED 2026-10-22 Bill: sparkles and bright neon against dark] (wow.ts) ---------- */
+let wowLast = 0;
+/** The wow layer: watch the game for its moments, run the ambience, step both pools, and draw them on the body and again on
+ * the glow pass (emissive). The casino's neon sign, the wayrift orbits, the dungeon mouths and the boss tells ride along. */
+function paintWow(ctx: CanvasRenderingContext2D, g: Game, view: { x: number; y: number; w: number; h: number }, glow: ((c: CanvasRenderingContext2D) => void)[], lit: boolean, night: boolean) {
+  if (typeof document === "undefined") return;
+  const now = performance.now();
+  const dt = wowLast ? Math.min(0.1, (now - wowLast) / 1000) : 1 / 60;
+  wowLast = now;
+  if (!WOWFX.wowState.low && WOWFX.wowLowForced()) WOWFX.wowState.low = true;
+  WOWFX.warmWow();
+  WOWFX.wowWatch(g, dt, (x, y) => {
+    let best = "", bd = 1e9;
+    for (const s of g.spells) {
+      const d = Math.hypot(s.tx - x, s.ty - y);
+      if (d < bd) { bd = d; best = s.color; }
+    }
+    return best && bd < 64 ? WOWFX.hueOfElement(elementOfColor(best)) : WOWFX.HUE.cyan;
+  });
+  const dark = lit || night || g.phase === "night";
+  const cave = g.mapId === "dungeon" && g.theme !== "over" && g.theme !== "camp";
+  WOWFX.wowAmbient(g, dt, view, dark && (g.mapId === "town" || g.mapId === "world" || g.mapId === "village" || g.mapId === "camp"), wowFires, cave, g.frame);
+  if (g.mapId === "town" || g.mapId === "world") WOWFX.wayMotes(g, dt, view, g.mapId);
+  WOWFX.wowStep(dt, view);
+  const extras = (c: CanvasRenderingContext2D) => {
+    // wayrift orbits over each awake rift in view
+    if (g.mapId === "town" || g.mapId === "world") {
+      for (const w of WAYRIFTS) {
+        if (w.map !== g.mapId || !wayAwake(w, seasonNow)) continue;
+        const cx = w.x * TILE + (WAYRIFT.fw * TILE) / 2, cy = (w.y - 1) * TILE + 16;
+        if (cx < view.x - 32 || cx > view.x + view.w + 32 || cy < view.y - 40 || cy > view.y + view.h + 40) continue;
+        WOWFX.paintWayOrbit(c, cx, cy, Math.floor(g.frame / 6) % 8);
+      }
+      // the pocket-dungeon mouths on the vale
+      if (g.mapId === "world" && dark) for (const k of Object.keys(g.entrances)) {
+        const [tx, ty] = k.split(",").map(Number);
+        const x = tx * TILE + 8, y = ty * TILE + 10;
+        if (x < view.x - 16 || x > view.x + view.w + 16 || y < view.y - 16 || y > view.y + view.h + 16) continue;
+        WOWFX.paintMouthGlow(c, x, y, g.frame);
+      }
+    }
+    if (g.mapId === "town") WOWFX.paintCasinoSign(c, g.frame, dark);
+    // boss telegraphs: a pulsing neon edge on each big mark
+    for (const r of g.roamers) {
+      if (!(r.boss || r.mini || r.final) || (r.tell ?? 0) <= 0 || !r.markR) continue;
+      const ring = ringFor(r as Parameters<typeof ringFor>[0]);
+      const hue = ring?.col === "blue" ? WOWFX.HUE.blue : ring?.col === "violet" ? WOWFX.HUE.violet : WOWFX.HUE.red;
+      WOWFX.paintTellEdge(c, r.markX ?? r.x, r.markY ?? r.y, r.markR, hue, g.frame);
+    }
+    WOWFX.wowPaint(c, view, g.frame, g);
+  };
+  extras(ctx);
+  if (lit) glow.push(extras);
+}
+
+/** wow batch: Hollowmourn's Lights Out and Last Toll put the hall out entirely: black but his lantern and the telegraph runes. */
+function paintHollowDark(ctx: CanvasRenderingContext2D, g: Game, view: { x: number; y: number; w: number; h: number }) {
+  if (!inWakeHall(g)) return;
+  const lord = g.roamers.find((r) => r.final && (r.hp ?? 0) > 0);
+  if (!lord) return;
+  const out = (lord.casting === "big" && (lord.tell ?? 0) > 0 && lord.pattern === "lightsout") || (lord.lastToll ?? 0) > 0;
+  if (!out) return;
+  const lx = Math.round(lord.x), ly = Math.round(lord.y - 20);
+  WOWFX.paintBlackout(ctx, view, lx, ly, 22);
+  // the runes and the marks over the black
+  paintRuneRings(ctx, g, []);
+  paintTells(ctx, tellView(g), false, TILE, LINE_HALF, true);
 }
