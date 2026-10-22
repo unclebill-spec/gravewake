@@ -55,6 +55,49 @@ function wakeRel(p) {
   fsWake.readFileSync = function (p, ...rest) { if (WAKE_OLD) { const r = wakeRel(p); if (r) p = join(WAKE_FZ, r); } return orig.call(this, p, ...rest); };
   syncBuiltinESMExports();
 }
+// charfix (2026-10-21): the python the older groups run (writers, pixel counts) reads the same frozen copies. A python call made
+// while WAKE_OLD runs in a mirror of the repo under the temp dir: every path is a symlink to the live file except the frozen
+// ones, which are the frozen copies. The live pass and every later group run python in the live repo as before.
+let WAKE_PY_ROOT = null;
+function wakePyRoot() {
+  if (WAKE_PY_ROOT) return WAKE_PY_ROOT;
+  const root = fsWake.mkdtempSync(join(tmpdir(), "gw-wakepy-"));
+  const dirs = new Set();
+  for (const r of WAKE_SET) { const parts = r.split("/"); for (let i = 1; i < parts.length; i++) dirs.add(parts.slice(0, i).join("/")); }
+  const fill = (rel) => {
+    const live = rel ? join(WAKE_ROOT, rel) : WAKE_ROOT;
+    for (const n of fsWake.readdirSync(live)) {
+      const r = rel ? `${rel}/${n}` : n, dst = join(root, r);
+      if (dirs.has(r)) { fsWake.mkdirSync(dst); fill(r); }
+      else if (WAKE_SET.has(r)) fsWake.writeFileSync(dst, fsWake.readFileSync(join(WAKE_FZ, r)));
+      else fsWake.symlinkSync(join(live, n), dst);
+    }
+    // a frozen file the live tree has since removed
+    for (const f of WAKE_SET) { const i = f.lastIndexOf("/"); if ((i < 0 ? "" : f.slice(0, i)) === rel && !fsWake.existsSync(join(root, f))) fsWake.writeFileSync(join(root, f), fsWake.readFileSync(join(WAKE_FZ, f))); }
+  };
+  fill("");
+  WAKE_PY_ROOT = root;
+  return root;
+}
+{
+  const cpWake = process.getBuiltinModule ? process.getBuiltinModule("node:child_process") : null;
+  if (cpWake) {
+    const origExec = cpWake.execFileSync;
+    cpWake.execFileSync = function (cmd, args, opts, ...rest) {
+      if (WAKE_OLD && WAKE_SET.size && typeof cmd === "string" && /python/.test(cmd)) {
+        const o = Array.isArray(args) ? opts : args;
+        const cwd = o && o.cwd ? o.cwd : ".";
+        const real = (() => { try { return fsWake.realpathSync(cwd); } catch { return null; } })();
+        if (real && (real === WAKE_ROOT || real.startsWith(`${WAKE_ROOT}/`))) {
+          const moved = { ...(o || {}), cwd: join(wakePyRoot(), real.slice(WAKE_ROOT.length + 1)) };
+          if (Array.isArray(args)) opts = moved; else args = moved;
+        }
+      }
+      return origExec.call(this, cmd, args, opts, ...rest);
+    };
+    syncBuiltinESMExports();
+  }
+}
 
 const TILE = 16;
 // playtest1 [OWNER-REPORTED 2026-10-01 23:25 ET]: eight doors moved to their house's south face (inn 9,5→5,6, shop

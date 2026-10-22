@@ -1664,6 +1664,19 @@ function monsterSprite(
   faceView = null;
 }
 
+/** charfix motion per family. ghost: a slow float bob (3 s, up to 2 px). tree: a 1 px sway while it walks.
+ * scarecrow: a hop arc on its walk (up on the pass frames, down on the contacts). bat: wings on a double beat. */
+export const FOE_MOTION = { ghostPeriod: 24, ghostAmp: 2, hop: 3, batBeat: 2 } as const;
+export function foeMotion(family: string, frame: number, moving: boolean, pose: string, scale = 1): { dx: number; dy: number; frame: number } {
+  const k = Math.max(1, Math.round(scale));
+  if (family === "ghost") return { dx: 0, dy: Math.round(Math.sin((frame / FOE_MOTION.ghostPeriod) * Math.PI * 2) * FOE_MOTION.ghostAmp) * k, frame };
+  if (pose) return { dx: 0, dy: 0, frame };
+  if (family === "tree" && moving) return { dx: [0, 1, 0, -1][Math.floor(frame / 2) % 4] * k, dy: 0, frame };
+  if (family === "scarecrow" && moving) return { dx: 0, dy: (Math.floor(frame) % 2 ? -FOE_MOTION.hop : 0) * k, frame };
+  if (family === "bat" && moving) return { dx: 0, dy: 0, frame: frame * FOE_MOTION.batBeat };
+  return { dx: 0, dy: 0, frame };
+}
+
 /** Opaque monster body. Families that used to read as see-through are solid pixels here. */
 function paintMonster(
   ctx: CanvasRenderingContext2D,
@@ -1681,6 +1694,11 @@ function paintMonster(
   side: 1 | 3 = 1,
 ) {
   const ink = INK;
+  // charfix motion: whole-pixel offsets only (the style lock); the walk frames still step, so nothing glides.
+  const mo = foeMotion(family, frame, moving, pose, pixelScale);
+  x += mo.dx;
+  y += mo.dy;
+  frame = mo.frame;
   const step = moving ? Math.floor(frame / 6) % 2 : 0;
   // playtest1p: a boss, a mini or a rare draws from its own big sheet (boss_writer.py), its view's row, its pose's column.
   if (pixelScale > 1 && bigBody(ctx, x, y, family, rank, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), SIDE_NATIVE.has(family) ? (side === 3 ? 3 : 2) : bigRow(facing))) return;

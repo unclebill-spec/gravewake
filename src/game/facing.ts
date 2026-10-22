@@ -18,11 +18,16 @@
 export type Face = 0 | 1 | 2 | 3;
 const S = "/art/sprites/";
 /** Each body strip and its -dirs sheet (back row 0, east row 2, west row 4 in 16 px rows; playtest1p added west). */
-export const DIRS: Record<string, string> = Object.fromEntries(
-  ["people", "allies", "folk-variants", "moves", "foes", "mimic", "krampus", "pumpkin-lord"].map((n) => [`${S}${n}.png`, `${S}${n}-dirs.png`]),
-);
+export const DIRS: Record<string, string> = Object.fromEntries([
+  ...["people", "allies", "folk-variants", "moves", "foes", "mimic", "krampus", "pumpkin-lord"].map((n) => [`${S}${n}.png`, `${S}${n}-dirs.png`]),
+  // charfix 03: the ghost stand-ins have back and side rows too
+  ...["mob", "boss", "mini", "rare"].map((r) => [`/art/writer/ghost_${r}.png`, `/art/writer/ghost_${r}-dirs.png`]),
+]);
 /** Glow masks of the -dirs sheets (the same flame and eye colours as foes_em; from behind the eyes are gone). */
-export const DIRS_EM: Record<string, string> = Object.fromEntries(["foes", "krampus", "pumpkin-lord"].map((n) => [`${S}${n}-dirs.png`, `${S}${n}-dirs_em.png`]));
+export const DIRS_EM: Record<string, string> = Object.fromEntries([
+  ...["foes", "krampus", "pumpkin-lord"].map((n) => [`${S}${n}-dirs.png`, `${S}${n}-dirs_em.png`]),
+  ...["mob", "boss", "mini", "rare"].map((r) => [`/art/writer/ghost_${r}-dirs.png`, `/art/writer/ghost_${r}-dirs_em.png`]),
+]);
 export const DIRS_SHEETS: string[] = [...Object.values(DIRS), ...Object.values(DIRS_EM)];
 /** Families drawn in profile already, facing right (sprite writer SIDE_NATIVE): they only ever mirror. */
 export const SIDE_NATIVE = new Set<string>(); // charfix: horse, cat and rat are drawn in four views now (staging charfix 05, 06, 11)
