@@ -10,6 +10,22 @@
 const MUSIC_DIR = "/art/audio/music/";
 const SFX_DIR = "/art/audio/sfx/";
 const AMB_DIR = "/art/audio/outskirts/";
+const WOW_DIR = "/art/audio/wow/";
+/** wow: Sound's README table (vol, pitch +-, voices, cooldown ms). WOW_TRIM is the phone level check's trim. */
+export const WOW_SFX = {
+  "loot-common": { vol: 0.8, pitch: 0.03, cap: 2, cool: 60 },
+  "loot-rare": { vol: 0.9, pitch: 0.02, cap: 1, cool: 0 },
+  "loot-epic": { vol: 1.0, pitch: 0, cap: 1, cool: 0 },
+  levelup: { vol: 1.0, pitch: 0, cap: 1, cool: 0 },
+  "coin-glint": { vol: 0.8, pitch: 0.04, cap: 2, cool: 50 },
+  "trophy-shimmer": { vol: 0.7, pitch: 0.03, cap: 1, cool: 0 },
+  "boss-relight": { vol: 1.0, pitch: 0, cap: 1, cool: 0 },
+  "hit-spark": { vol: 0.6, pitch: 0.04, cap: 3, cool: 40 },
+  "wayrift-swirl": { vol: 0.9, pitch: 0.02, cap: 1, cool: 0 },
+  "wisp-twinkle": { vol: 0.6, pitch: 0, cap: 1, cool: 0 },
+} as const;
+export type WowSfx = Exclude<keyof typeof WOW_SFX, "wisp-twinkle">;
+export const WOW_TRIM = 0.5;
 export const DUNGEON_MUSIC = ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "cave", "grave", "hearth", "wake"];
 export const ROOM_MUSIC = ["alchemy", "bank", "casino", "chapel", "cottage", "croft", "fisher", "guild", "inn", "mystic", "shop", "smith", "tailor"];
 /** The music file (name, no folder) for a mood key, by the staging README's table. */
@@ -41,6 +57,8 @@ export const AMB = {
   // the candle crackle (-43) and the ducked choir (-45) vanished under the night music (-32); lifted to sit 5-8 dB under it.
   wisp: 0.45, candle: 0.8, fall: 6 * 16,
   choir: 0.25, choirDucked: 0.18, choirFade: 3,
+  // wow batch (Sound reworked choir-night: softer, shorter phrases): the night choir alone, ~0.25 bare and lower under music
+  choirNight: 0.25, choirNightDucked: 0.12,
   raven: 0.5, flap: 0.5, cawGap: [6, 16] as [number, number],
   swell: 0.5, swellDuck: 0.6, swellHold: 3,
 } as const;
@@ -70,7 +88,7 @@ export function ambLevels(s: AmbState, musicOn: boolean): Record<AmbLoop, number
     "amb-wind": s.outdoor ? (s.night ? AMB.wind.night : AMB.wind.day) : 0,
     "wisp-hum": s.wisp ? falloff(s.wisp.d, AMB.wisp) : 0,
     "candle-crackle": s.candle ? falloff(s.candle.d, AMB.candle) : 0,
-    "choir-night": s.outside && s.night && !s.drift ? choir : 0,
+    "choir-night": s.outside && s.night && !s.drift ? (musicOn ? AMB.choirNightDucked : AMB.choirNight) : 0,
     "choir-drift": s.drift ? choir : 0,
   };
 }
@@ -144,6 +162,7 @@ export class AudioBus {
     if (this.moodKey) this.mood(this.moodKey, true);
     for (const f of Object.values(SFX_FILE)) void this.load(`${SFX_DIR}${f}.ogg`);
     for (const f of ["raven-caw-1", "raven-caw-2", "raven-caw-3", "wing-flap", "choir-swell"]) void this.load(`${AMB_DIR}${f}.ogg`); // oskaudio
+    for (const f of ["loot-common", "loot-rare", "loot-epic", "levelup", "coin-glint", "trophy-shimmer", "boss-relight", "hit-spark-1", "hit-spark-2", "hit-spark-3", "wayrift-swirl"]) void this.load(`${WOW_DIR}${f}.ogg`); // wow
   }
 
   /** Fetch and decode a file once; later calls return the cached buffer (or null while loading or after a failure). */
@@ -460,6 +479,55 @@ export class AudioBus {
     if (this.shot("spell")) return;
     this.tone(523, 0.14, "triangle", 0.26);
     this.tone(784, 0.1, "triangle", 0.14);
+  }
+
+  /** wow: Sound's wow one-shots (public/art/audio/wow, README mapping): volume, pitch spread, voice cap, cooldown ms. */
+  private wowLive = new Map<string, { n: number; at: number; last: number }>();
+  private wowTwinkle: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  wow(kind: WowSfx) {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running" || this.sfx <= 0 || !this.comp) return;
+    const spec = WOW_SFX[kind];
+    const st = this.wowLive.get(kind) ?? { n: 0, at: 0, last: -1 };
+    this.wowLive.set(kind, st);
+    const now = ctx.currentTime * 1000;
+    if (st.n >= spec.cap || now - st.at < spec.cool) return;
+    let file: string = kind;
+    if (kind === "hit-spark") { let k = Math.floor(Math.random() * 3); if (k === st.last) k = (k + 1) % 3; st.last = k; file = `hit-spark-${k + 1}`; }
+    const buf = this.load(`${WOW_DIR}${file}.ogg`);
+    if (!buf) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = 1 + (Math.random() * 2 - 1) * spec.pitch;
+    const g = ctx.createGain();
+    g.gain.value = this.sfx * spec.vol * WOW_TRIM;
+    src.connect(g);
+    g.connect(this.comp);
+    st.n += 1;
+    st.at = now;
+    src.onended = () => { st.n = Math.max(0, st.n - 1); };
+    src.start();
+  }
+  /** wow: the firefly twinkle bed (one loop), on while fireflies or wisps are in view at night. */
+  wowLoop(on: boolean) {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running" || !this.comp) return;
+    const want = on ? this.sfx * WOW_SFX["wisp-twinkle"].vol * WOW_TRIM : 0;
+    if (!this.wowTwinkle) {
+      if (!on) return;
+      const buf = this.load(`${WOW_DIR}wisp-twinkle.ogg`);
+      if (!buf) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain);
+      gain.connect(this.comp);
+      src.start();
+      this.wowTwinkle = { src, gain };
+    }
+    this.wowTwinkle.gain.gain.setTargetAtTime(want, ctx.currentTime, 0.4);
   }
 
   door() {

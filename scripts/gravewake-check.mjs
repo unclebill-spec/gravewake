@@ -16061,7 +16061,7 @@ if (on("oskaudio")) {
   const L = (o, m = true) => AU.ambLevels({ ...base, ...o }, m);
   const lv = [L({})["amb-wind"] === AU.AMB.wind.day, L({ night: true })["amb-wind"] === AU.AMB.wind.night, L({ outdoor: false })["amb-wind"] === 0,
     L({ wisp: { d: 0, dx: 0 } })["wisp-hum"] === AU.AMB.wisp, L({ wisp: { d: 6 * 16, dx: 0 } })["wisp-hum"] === 0, Math.abs(L({ candle: { d: 48, dx: 0 } })["candle-crackle"] - AU.AMB.candle / 2) < 1e-9,
-    L({ night: true, outside: true })["choir-night"] === AU.AMB.choirDucked, L({ night: true, outside: true }, false)["choir-night"] === AU.AMB.choir, L({ outside: true })["choir-night"] === 0, L({ night: true })["choir-night"] === 0,
+    /* OWNER-REQUESTED 2026-10-22 (wow batch: Sound's softer choir-night at ~0.25): the night choir has its own level */ L({ night: true, outside: true })["choir-night"] === AU.AMB.choirNightDucked, L({ night: true, outside: true }, false)["choir-night"] === AU.AMB.choirNight, AU.AMB.choirNight <= 0.25, L({ outside: true })["choir-night"] === 0, L({ night: true })["choir-night"] === 0,
     L({ drift: true })["choir-drift"] > 0 && L({ drift: true, night: true, outside: true })["choir-night"] === 0];
   check("oskaudio", `levels: wind ${AU.AMB.wind.day}/${AU.AMB.wind.night} outdoors only, wisp hum ${AU.AMB.wisp} and candle crackle ${AU.AMB.candle} falling linearly to 0 at 6 tiles, choir-night only at night outside the fence (${AU.AMB.choir}, ducked to ${AU.AMB.choirDucked} under music), choir-drift as its alternate (${lv.filter(Boolean).length}/${lv.length})`, lv.every(Boolean));
   // the sim's state: the wisps and candles heard from the town's rim, the vale is outside, the cemetery and rifts drift
