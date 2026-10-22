@@ -2,6 +2,13 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: charfix (character art fix pack)
+- public/art/sprites/ is staging charfix 14_palette_pass/sprites/ (20 colours or fewer per body, LOCKED palette, lime rares violet, the redrawn Count, mummy, ghost, tree, horseman, rat, bat, wolf, ghoul, scarecrow and cat, the folk back-of-head fix, and the 54 big sheets rebuilt chunky from the 16x32 cells). ORDER.txt kept.
+- The ghost stand-ins are 03_ghost's ghost_<rank>.png plus their -dirs rows (now in DIRS); glow masks rebuilt with dirs_writer.em_mask.
+- dirs_writer.py carries 12_folk_backs' patch (backfix.py). Horse, cat and rat leave SIDE_NATIVE (sprite_writer.py and facing.ts): drawn in four views.
+- Motion (whole pixels): ghosts bob slowly (3 s, 2 px), trees sway 1 px while they walk, the scarecrow hops on its pass frames, bats flap on a double beat; walk frames still step.
+- The writers were not re-run over this art. Older check groups read the frozen copies through python too (the run mirrors the repo with the frozen files) and through copyFileSync; playtest1v re-pinned 1o/1p/1s (the new reds are only the replaced art and facing).
+
 ## 2026-10-21: wake leftovers (the Wake Hall built out)
 - The Wake Hall is its own 24x25 floor with a 20x20 hall: rounded corners, 4 cold-fire braziers at the compass points (solid; out in phase 3), 8 graves that open as 2x1 pits in phase 2 (solid; anyone standing there is moved to open ground), 9 stained-glass windows in the north wall (one lights per story boss laid to rest), the cracked bell hung over the centre.
 - The Toll: three rings out from him, 350 ms apart, each a 16 px band (gaps at the grave angles from phase 2). The Procession: 4 lanes of 32 px, coffins with mourners down every lane but one, alternating direction (no two empty lanes on the hero's lane in a row); a hit shoves one tile. Lights Out: the hall goes dark but for 3 drifting glow-orbs (28 px of light; one is always reachable); below 20% one orb is a red false one. All three land for the same number as before (attack + 4, less half armour).
