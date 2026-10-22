@@ -1,4 +1,9 @@
-"""outskirts (Bill, 2026-10-22): the ring outside the town fence, sparse, gloomy and dead, with neon glow.
+"""[OWNER-REQUESTED 2026-10-22 Bill: oskart, "don't re-run outskirts_writer.py over them"] FROZEN: Art's polish drop
+(staging/art/outskirts, generator in its _generator/) replaced outskirts-props, -candle, -wisp, -tree, -raven (+ _em)
+by hand; re-running this writer would overwrite them. Its outputs are pinned by md5 in check group oskart. To re-run,
+refresh the pins there with the owner's say-so.
+
+outskirts (Bill, 2026-10-22): the ring outside the town fence, sparse, gloomy and dead, with neon glow.
 
 Writes to public/art/writer (16x16 cells unless noted, hard pixels, every colour from the locked palette
 tools/sprite-writer/palette_locked.py, every shape ringed by a 1px warm dark outline):

@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## oskart (2026-10-22)
+- Art's outskirts polish is in. The new outskirts-props, -candle, -wisp, -tree and -raven sheets (and their _em masks) replace the old ones. The tree's perch bough now sits right under the raven's feet.
+- The Smithy's forge fire and the street-lamp flames now come from the art sheets (forge-flame.png, lamp-flame.png, with their _em masks on the glow pass). They replace the code-drawn flames.
+- About a third of the ring props now come from outskirts-props-var.png. Most of the trees that still stand in the ring are now the perchless dead tree (outskirts-tree-var.png).
+- outskirts_writer.py is frozen (OWNER-REQUESTED note), and the drop-ins are pinned by md5. Check group: oskart.
+
 ## oskaudio (2026-10-22)
 Sound's outskirts audio (staging/audio/outskirts, CC0).
 - A wind bed on outdoor maps (0.35 by day, 0.5 at night).

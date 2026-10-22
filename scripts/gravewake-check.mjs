@@ -16028,6 +16028,21 @@ if (on("billvid")) {
   check("billvid", `blackjack lays both hands in clean rows (the dealer's hole card face down beside his up card) and always fits the table (${table}); on a computer (fine pointer, no touch) keys mode hides the stick and the action buttons, a touch brings them back, keys or a mouse hide them, K camps and a key hint shows once (${keys})`, table && keys);
 }
 
+// oskart [OWNER-REQUESTED 2026-10-22 Bill: fold Art's outskirts polish into the batch; "don't re-run outskirts_writer.py
+// over them, freeze its freshness check"]: the drop-ins are pinned by md5 here instead of matching a writer re-run.
+if (on("oskart")) {
+  const PIN = {"outskirts-props": "79f24cd0b64277c4fce0b225ba05e73a","outskirts-props-var": "3705bafff160b7f89f547c6507f8dad2","outskirts-candle": "12a303559adca675093afea014759fd4","outskirts-candle_em": "491f783e305cd8e24fb86ff7f6828cd9","outskirts-wisp": "9400586038bc9de9604093384b1f825a","outskirts-wisp_em": "2d869259c363b522064f2fe95dd3e62e","outskirts-tree": "7b04f3b193f1fb7fab7332fc62a9e557","outskirts-tree-var": "747ca97f4afcd8946e3b325eee604438","outskirts-raven": "3aaddfef991d45bac1dce53443df86ce","outskirts-raven_em": "cf0b5a822bf8dd40ffd9d950f31fb255","forge-flame": "47cb1ac79295bc239005c7fb13edbddd","forge-flame_em": "47cb1ac79295bc239005c7fb13edbddd","lamp-flame": "69fe4812dd023bb86fef49e944b51f9d","lamp-flame_em": "69fe4812dd023bb86fef49e944b51f9d"};
+  const md5 = (p) => hashTop("md5").update(readTop(p)).digest("hex");
+  const off = Object.entries(PIN).filter(([n, h]) => !existsTop(`public/art/writer/${n}.png`) || md5(`public/art/writer/${n}.png`) !== h).map(([n]) => n);
+  check("oskart", `Art's outskirts polish ships as dropped (${Object.keys(PIN).length - off.length}/${Object.keys(PIN).length} pinned; outskirts_writer.py frozen, not re-run)`, off.length === 0 && /FROZEN/.test(readTop("tools/pixel-writer/outskirts_writer.py", "utf8")), off.join(" "));
+  const draw = readTop("src/game/draw.ts", "utf8"), osk = readTop("src/game/outskirts.ts", "utf8");
+  const forge = /gridCell\(ctx, em \? F\.em : F\.url, forgeFlameFrame\(frame\)/.test(draw) && !/FORGE_TONGUES/.test(draw) && /paintForgeFlame\(c, l, g\.frame, true\)/.test(draw);
+  const lamp = /gridCell\(ctx, em \? LAMP_FLAME\.em : LAMP_FLAME\.url, f,/.test(draw) && !/"#f4e27a"\);\n\}\n/.test(draw);
+  check("oskart", `the forge and lamp flames are the writer's sheets (forge-flame 16x24 x4 ${forge}, lamp-flame 4x5 x3 ${lamp}), the _em sheet on the glow pass; no code-drawn tongues`, forge && lamp);
+  const vars = /OSK\.SHEETS\.propsVar/.test(draw) && /OSK\.SHEETS\.treeVar/.test(draw) && /VAR_SHARE = 0\.33/.test(osk) && /TREE_VAR_SHARE = 0\.6/.test(osk);
+  check("oskart", `variants placed: a third of ring props from outskirts-props-var.png, most ring survivor trees the perchless dead tree (${vars})`, vars);
+}
+
 // oskaudio [OWNER-REQUESTED 2026-10-22 Bill: outskirts audio from Sound]: the wind, the raven, wisps, candles, the choirs,
 // the swell, the Ashen Rift's own loop; decoded once, the synth still covers anything missing.
 if (on("oskaudio")) {
@@ -16076,7 +16091,7 @@ if (on("oskaudio")) {
 }
 
 if (!ran) {
-  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio");
+  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio, oskart");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

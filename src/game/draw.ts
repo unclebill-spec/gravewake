@@ -2335,14 +2335,17 @@ let roofWork: HTMLCanvasElement | null = null;
  * writer's forge opening (FORGE: its apex and base in the smithy cell), four frames of whole-pixel tongues in the forge's
  * own reds and a hot core, stepping every FORGE.tick frames; drawn on the body and again on the glow pass. */
 export const FORGE = { dx: 21, base: 125, tick: 5, frames: 4 } as const;
-const FORGE_TONGUES: [number, number, number][][] = [
-  // [x offset, height, colour index] per tongue: 0 tube red, 1 orange, 2 hot core
-  [[-6, 9, 0], [-3, 15, 1], [0, 21, 2], [3, 13, 1], [6, 8, 0]],
-  [[-7, 7, 0], [-4, 13, 1], [-1, 18, 2], [2, 16, 1], [5, 10, 0]],
-  [[-6, 10, 0], [-2, 17, 1], [1, 22, 2], [4, 12, 1], [7, 6, 0]],
-  [[-5, 8, 0], [-3, 12, 1], [0, 17, 2], [2, 19, 1], [6, 9, 0]],
-];
-const FORGE_COL = ["#ff3a50", "#e0a040", "#f4e27a"];
+/** oskart (Art's polish drop): the forge and lamp flames are the writer's sheets now (4 frames x 16x24, 3 frames x 4x5),
+ * replacing the code-drawn tongues; the _em sheets draw on the glow pass. Row 0 is the default (forge red, lamp amber). */
+export const FORGE_SHEET = { url: "/art/writer/forge-flame.png", em: "/art/writer/forge-flame_em.png", w: 16, h: 24, row: 0 } as const;
+export const LAMP_FLAME = { url: "/art/writer/lamp-flame.png", em: "/art/writer/lamp-flame_em.png", w: 4, h: 5, row: 0 } as const;
+/** oskart: one cell of a sheet whose cells are not 16 square. */
+function gridCell(ctx: CanvasRenderingContext2D, url: string, col: number, row: number, cw: number, ch: number, dx: number, dy: number): boolean {
+  if (!prop2Ready(url)) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(landSheet[url]!, col * cw, row * ch, cw, ch, dx, dy, cw, ch);
+  return true;
+}
 export function forgeFlameFrame(frame: number): number {
   return Math.floor(frame / FORGE.tick) % FORGE.frames;
 }
@@ -2351,12 +2354,10 @@ export function forgeSpot(l: Lot): { x: number; y: number } {
   const dy = cell ? cell.dy : (l.y + l.h) * TILE - 128;
   return { x: l.x * TILE + FORGE.dx, y: dy + FORGE.base };
 }
-function paintForgeFlame(ctx: CanvasRenderingContext2D, l: Lot, frame: number) {
+function paintForgeFlame(ctx: CanvasRenderingContext2D, l: Lot, frame: number, em = false) {
   const at = forgeSpot(l);
-  for (const [ox, h, c] of FORGE_TONGUES[forgeFlameFrame(frame)]) {
-    px(ctx, at.x + ox, at.y - h, 2, h, FORGE_COL[c]);
-    px(ctx, at.x + ox, at.y - h - 1, 1, 1, FORGE_COL[Math.min(2, c + 1)]);
-  }
+  const F = FORGE_SHEET;
+  gridCell(ctx, em ? F.em : F.url, forgeFlameFrame(frame), F.row, F.w, F.h, at.x - 8, at.y - 24);
 }
 
 function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false, behind: { x: number; y: number }[] = []) {
@@ -2965,8 +2966,7 @@ function paintStreetLamp(ctx: CanvasRenderingContext2D, x: number, y: number, em
   px(ctx, x, y - 20, 2, 3, em ? "#ffffff" : "#b8c8f0");
   // billvid: a lit flame in the glass, three frames (its tip leans and its height steps), each lamp out of step
   const f = (Math.floor(frame / 6) + seed) % 3;
-  px(ctx, x + (f === 1 ? 1 : 0), y - 19 - (f === 2 ? 1 : 0), 1, 2 + (f === 2 ? 1 : 0), "#e0a040");
-  px(ctx, x + (f === 0 ? 1 : 0), y - 18, 1, 1, "#f4e27a");
+  gridCell(ctx, em ? LAMP_FLAME.em : LAMP_FLAME.url, f, LAMP_FLAME.row, LAMP_FLAME.w, LAMP_FLAME.h, x - 1, y - 21); // oskart
 }
 
 /** The scene's ambient light, or null where the light layer is off (outdoors by day, inside a house, the camp). */
@@ -3855,9 +3855,12 @@ function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: num
         const gc = OSK.groundCell(x, y);
         props.push({ y: -1e9, fn: () => sheetCell(ctx, OSK.SHEETS.ground, gc, 0, x * TILE, y * TILE) });
         const pr = OSK.propAt(x, y);
-        if (pr) props.push({ y: -1e9 + 1, fn: () => flipCell(ctx, OSK.SHEETS.props, pr.cell, x * TILE, y * TILE, pr.flip) });
+        if (pr) props.push({ y: -1e9 + 1, fn: () => flipCell(ctx, pr.sheet ? OSK.SHEETS.propsVar : OSK.SHEETS.props, pr.cell, x * TILE, y * TILE, pr.flip) });
       }
-      if (treeRow(y) && villageTreeShows(g, x, y) && (g.mapId !== "town" || OSK.treeShows(x, y))) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
+      if (treeRow(y) && villageTreeShows(g, x, y) && (g.mapId !== "town" || OSK.treeShows(x, y))) {
+        if (g.mapId === "town" && OSK.treeVar(x, y)) props.push({ y: y * TILE + 15, fn: () => void sheetCell(ctx, OSK.SHEETS.treeVar, 0, 0, x * TILE - 8, (y + 1) * TILE - 48, 2, 3, 32) }); // oskart: a dead survivor
+        else props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
+      }
     }
   }
 }
@@ -4630,7 +4633,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       if (lots.length && lots.every((l) => sheetReady(bldgSheet(l.room)) && !!lotCell(l, seasonNow))) {
         for (const l of lots) {
           props.push({ y: (l.y + l.h) * TILE - 1, fn: () => { paintLot(ctx, l, false, roofBodies(g, l)); if (l.room === "smith") paintForgeFlame(ctx, l, g.frame); } });
-          if (lit) glow.push((c) => { paintLot(c, l, true); if (l.room === "smith") paintForgeFlame(c, l, g.frame); });
+          if (lit) glow.push((c) => { paintLot(c, l, true); if (l.room === "smith") paintForgeFlame(c, l, g.frame, true); });
         }
         continue;
       }
