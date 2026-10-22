@@ -18,7 +18,7 @@ import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, ha
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
-import { WAKE_SHEETS } from "./wake"; // wake batch
+import { WAKE_SHEETS, WAKE_LORD_SHEETS, wakeLordCol } from "./wake"; // wake batch
 import { CASINO_FURNITURE, CASINO_KINDS, CASINO_LIGHT, CASINO_RUG, CASINO_SHEET, CASINO_SHEET_EM, CASINO_SIGN_X } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
@@ -3730,6 +3730,23 @@ export function paintWarden(ctx: CanvasRenderingContext2D, x: number, y: number,
 }
 
 /** Wake batch: a one-row act sheet (idle0, idle1, wind-up, attack, hit, hurt), anchored bottom centre like the warden's. */
+/** Wake batch: Hollowmourn from Art's phase sheets (96x176, bottom-centre), the column by his move (wake.ts wakeLordCol). */
+export function paintWakeLord(ctx: CanvasRenderingContext2D, r: { phase?: number; casting?: string; big?: string; tell?: number; pattern?: string; flash?: number; staggered?: boolean; actFor?: number; lastToll?: number; x: number; y: number }, frame: number, flip: boolean, layer: "body" | "em"): boolean {
+  if (typeof Image === "undefined") return false;
+  const ph = Math.max(1, Math.min(3, r.phase ?? 1));
+  const sh = WAKE_LORD_SHEETS[ph - 1];
+  const url = layer === "em" ? sh.em : sh.url;
+  if (!prop2Ready(url)) return false;
+  const col = wakeLordCol(r, frame, ph);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(r.x), Math.round(r.y) + 6);
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(landSheet[url]!, col * sh.w, 0, sh.w, sh.h, -sh.w / 2, -sh.h, sh.w, sh.h);
+  ctx.restore();
+  return true;
+}
+
 export function paintActSheet(ctx: CanvasRenderingContext2D, sh: { url: string; em: string; w: number; h: number }, x: number, y: number, frame: number, act: number, hurt: boolean, flip: boolean, layer: "body" | "em"): boolean {
   if (typeof Image === "undefined") return false;
   const url = layer === "em" ? sh.em : sh.url;
@@ -4377,7 +4394,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     const wardenAct = (r.actFor ?? 0) > 0 ? actPhase(r.actFor ?? 0) : -1;
     const wardenFlip = hero.x < r.x;
     const wakeSheet = r.mini && r.def ? WAKE_SHEETS[r.def] : undefined; // wake batch: Art's mini-boss sheets
-    const body = (c: CanvasRenderingContext2D) => (r.early && paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || (wakeSheet && paintActSheet(c, wakeSheet, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
+    const body = (c: CanvasRenderingContext2D) => (r.final && paintWakeLord(c, r, g.frame, wardenFlip, emPass ? "em" : "body")) || (r.early && paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || (wakeSheet && paintActSheet(c, wakeSheet, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
     props.push({
       y: r.y,
       actor: body,

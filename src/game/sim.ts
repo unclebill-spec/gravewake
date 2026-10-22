@@ -1,4 +1,4 @@
-import { WAKE_MINI_AT, wakeMiniFloor } from "./wake";
+import { WAKE_MINI_AT, wakeMiniFloor, WAKE_PHASES, wakeBig, WAKE_LAST, epilogue } from "./wake";
 import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
 import {
   BAITS,
@@ -118,7 +118,8 @@ export type Mode =
   | "zeppelin"
   | "map"
   | "crypt"
-  | "fish";
+  | "fish"
+  | "ending";
 
 export type Foe = MonsterDef & { hp: number; max: number; helper?: boolean; rare?: boolean; affix?: string; mimic?: boolean; bounty?: boolean; festival?: string; naughty?: string; guard?: string; early?: boolean };
 
@@ -168,6 +169,7 @@ const BOSS_KITS: Record<string, Kit> = {
   horseman: { personality: "skirmisher", spam: "charge", spamTag: "melee", mid: "pumpkin lob", midTag: "bolt", big: "ride-through", bigTag: "line", helper: "wolf" },
   dracula: { personality: "tyrant", spam: "cut", spamTag: "melee", mid: "bat swarm", midTag: "summon", big: "crimson stare", bigTag: "cone", helper: "vamp" },
   witchboss: { personality: "kiter", spam: "hex", spamTag: "bolt", mid: "swamp pull", midTag: "pull", big: "drown-cauldron", bigTag: "ring", helper: "witch" },
+  hollowmourn: { personality: "tyrant", spam: "spade-sweep", spamTag: "melee", mid: "mourner call", midTag: "summon", big: "The Toll", bigTag: "ring", helper: "ghost" }, // wake batch (design/ending.md 1.3)
   rootwidow: { personality: "anchor", spam: "root swipe", spamTag: "melee", mid: "vine cage", midTag: "ring", big: "canopy-drop", bigTag: "ring", helper: "tree" },
   bride: { personality: "kiter", spam: "wail", spamTag: "bolt", mid: "rope lash", midTag: "pull", big: "vow-bell", bigTag: "ring", helper: "ghost" },
   shade: { personality: "skirmisher", spam: "phase-cut", spamTag: "melee", mid: "fade-step", midTag: "blink", big: "umbral split", bigTag: "summon", helper: "ghost" },
@@ -261,6 +263,11 @@ export type Roamer = {
   mini?: boolean;
   /** Wake batch: Hollowmourn, the lord of the Wake (ending). Never saved. */
   final?: boolean;
+  /** Wake batch: his scripted Last Toll (seconds left of the unkillable window), done once, and the stagger after it. */
+  lastToll?: number;
+  lastTollDone?: boolean;
+  staggered?: boolean;
+  bigN?: number;
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-quest tags (heads to gather / ring-bearer). */
   wildHead?: boolean;
   wildRing?: boolean;
@@ -437,6 +444,9 @@ type SaveBlob = {
   earlyDone?: boolean;
   /** Wake batch: the early-boss sting has played in this save. Absent on an old save (it plays once more). */
   stingSeen?: boolean;
+  /** Wake batch: the Root Widow has fallen (the stair under Blackroot is open) and the ending has played. */
+  wakeOpen?: boolean;
+  endingSeen?: boolean;
   sinks?: string[];
   title?: string;
   carX?: number;
@@ -601,6 +611,10 @@ export class Game {
   earlyDone = false;
   /** Wake batch: the early-boss sting played (saved). */
   stingSeen = false;
+  wakeOpen = false;
+  endingSeen = false;
+  /** Wake batch: the epilogue in progress (scene index; 8 = credits). */
+  ending: { scene: number } | null = null;
   sinks: string[] = [];
   title = "";
   carX = 0;
@@ -1540,6 +1554,9 @@ export class Game {
     this.carOwned = false;
     this.earlyDone = false;
     this.stingSeen = false;
+    this.wakeOpen = false;
+    this.endingSeen = false;
+    this.ending = null;
     this.sinks = [];
     this.title = "";
     this.carX = 0;
@@ -1750,6 +1767,7 @@ export class Game {
     const stand = stepOff(this.tiles, this.w, this.h, spot.x, spot.y);
     this.px = stand.x * TILE + 8;
     this.py = stand.y * TILE + 10;
+    if (this.dungeon === "blackroot" && this.floor >= (def?.floors ?? 5) && this.wakeOpen) this.openWakeStair();
     this.placeFloorRoom(def?.rift ? `${this.dungeon}:c${this.riftCycle}` : this.dungeon); // playtest1n: the room's props
     this.reveal();
     this.seedDungeonFoes();
@@ -1760,6 +1778,23 @@ export class Game {
       { x: this.px - 20, y: this.py + 10, kind: "bat", vx: -8 },
     ];
     this.syncRun();
+  }
+
+  /** Wake batch: the stair down opens on the floor tile nearest the up stair's far side of the hall (seeded, fixed). */
+  private openWakeStair() {
+    if (findTile(this.tiles, this.w, T.stairD)) return;
+    const hall = this.floors[`${this.dungeon}:${this.floor}`]?.hall;
+    const cx = hall ? hall.x + Math.floor(hall.w / 2) : Math.floor(this.w / 2);
+    const cy = hall ? hall.y + 1 : Math.floor(this.h / 2);
+    for (let r = 0; r < 12; r++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          const x = cx + dx, y = cy + dy;
+          if (x < 1 || y < 1 || x >= this.w - 1 || y >= this.h - 1) continue;
+          if (this.tiles[y * this.w + x] !== T.floor) continue;
+          this.tiles[y * this.w + x] = T.stairD;
+          return;
+        }
   }
 
   // ---- Mimic chests (item 4). Placement lives in mimic.ts. ----
@@ -2568,6 +2603,11 @@ export class Game {
       if (now < 1 && now < footDepth(r.x, r.y, foot, ox, oy)) return true;
     }
     return false;
+  }
+
+  /** Wake batch: Hollowmourn is fighting (the shell zooms down so he fits, design/ending.md 3.4). */
+  get wakeFight(): boolean {
+    return this.mapId === "dungeon" && this.dungeon === "wake" && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0);
   }
 
   /** playtest1p: where the camera leans in a fight with a big body (its middle), or null: the nearest fighting boss or
@@ -3806,6 +3846,12 @@ export class Game {
     if (this.calm > 0) this.calm = Math.max(0, this.calm - dt);
     this.pollPad();
     this.audio?.pump();
+    if (this.ending) {
+      // Wake batch: the epilogue holds the screen until it is done (nothing else moves; the finale plays)
+      this.mode = "ending";
+      this.syncMood();
+      return;
+    }
     if (this.actFor > 0) this.actFor = Math.max(0, this.actFor - dt);
     if (this.spellCool > 0) this.spellCool = Math.max(0, this.spellCool - dt);
     if (this.mode === "title" || this.mode === "dead" || this.mode === "pause" || this.mode === "map" || this.mode === "level") return;
@@ -3829,7 +3875,7 @@ export class Game {
       this.tickBattle();
       return;
     }
-    if (this.mode === "shop" || this.mode === "casino" || this.mode === "prizes" || this.mode === "bank" || this.mode === "zeppelin" || this.mode === "crypt") return;
+    if (this.mode === "shop" || this.mode === "casino" || this.mode === "prizes" || this.mode === "bank" || this.mode === "zeppelin" || this.mode === "crypt" || this.mode === "ending") return;
     if (this.fallen > 0) {
       this.fallen -= dt;
       if (this.fallen <= 0) {
@@ -3912,12 +3958,13 @@ export class Game {
   private syncMood() {
     const fighting = this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0);
     // Wake batch: a dungeon's key carries its theme (dungeon:<theme>:<phase>), so its own loop plays (audio.ts musicFor).
-    const key = fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
+    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
     // Wake batch: the early-boss sting, once per save, on the first boss or mini that turns on you (saved stingSeen).
     if (fighting && !this.stingSeen && this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0 && (r.boss || r.mini) && !r.final)) {
       this.stingSeen = true;
       this.audio?.sting();
     }
+    this.audio?.setHush(this.roamers.some((r) => r.final && r.casting === "big" && r.bigTag === "dark" && (r.tell ?? 0) > 0));
     if (key === this.mood) return;
     this.mood = key;
     this.audio?.mood(key);
@@ -5108,8 +5155,8 @@ export class Game {
     if (r.boss) {
       const kit = BOSS_KITS[r.def];
       const help = FAMILIES.find((f) => f.id === kit?.helper) ?? FAMILIES[0];
-      const n = helperCount(this.level);
-      const linked = kit?.personality === "tyrant" || r.def === "rootwidow";
+      const n = r.def === "hollowmourn" ? Math.min(3, helperCount(this.level)) : helperCount(this.level); // wake: 3 alive at once
+      const linked = (kit?.personality === "tyrant" && r.def !== "hollowmourn") || r.def === "rootwidow";
       for (let i = 0; i < n; i++) {
         const h = scaleMonster(help, Math.max(1, Math.round(r.level * 0.55)));
         h.hp = Math.round(h.hp * 0.45);
@@ -5338,6 +5385,13 @@ export class Game {
     const def = dungeonById(this.dungeon);
     const max = def?.floors ?? 5;
     if (here === T.stairD) {
+      if (this.floor >= max && this.dungeon === "blackroot" && this.wakeOpen) {
+        // Wake batch: the stair under Blackroot's last floor, open once the Root Widow fell
+        this.audio?.door();
+        this.enterDungeon("wake");
+        this.logLine = "The stair goes down into The Wake Below. Somewhere under you, a bell.";
+        return;
+      }
       if (this.floor >= max) {
         this.logLine = "The stair ends.";
         return;
@@ -7380,7 +7434,16 @@ export class Game {
       if (Math.hypot(r.x - this.px, r.y - this.py) > 96) continue;
       // playtest1: a wizard's Smite is the Deathbolt's shadow purple, so it reads as his; damage is unchanged.
       this.bolt(this.px, this.py - 12, r.x, r.y - 10, "bolt", this.cls === "wizard" ? "#6a3a8a" : "#f4e27a");
-      if ((r.tell ?? 0) > 0 && r.casting === "big") {
+      if ((r.tell ?? 0) > 0 && r.pattern === "lasttoll") {
+        // Wake batch: Smite always breaks the Last Toll (the 12 s lock is skipped for this one cast)
+        r.tell = 0;
+        r.casting = "";
+        r.pattern = "";
+        r.lastToll = 0;
+        r.staggered = true;
+        r.stun = Math.max(r.stun ?? 0, 3);
+        this.logLine = "The bell cracks on its own toll. Hollowmourn staggers.";
+      } else if ((r.tell ?? 0) > 0 && r.casting === "big") {
         if (this.worldMs < this.smiteLock) this.logLine = "Smite is spent.";
         else {
           r.tell = 0;
@@ -7683,6 +7746,7 @@ export class Game {
       r.shell = 0;
     }
     r.hp = Math.max(0, (r.hp ?? 0) - dealt);
+    if (r.final) r.hp = r.staggered ? 0 : Math.max(1, r.hp ?? 1); // wake: he reaches the Last Toll; the hit after the stagger ends him
     if (r.affix === "linked" && r.link != null) {
       for (const o of this.roamers) if (o !== r && o.link === r.link && o.affix === "linked") o.hp = r.hp;
     }
@@ -7719,6 +7783,16 @@ export class Game {
   private fellFoe(r: Roamer) {
     this.fx.death(r.x, r.y - 8, r.boss ? "boss" : r.mini || r.rare ? "elite" : "trash", boneKin(r));
     if (r.guard && r.rare) this.opened.add(r.guard);
+    if (r.boss && r.def === "rootwidow" && !this.wakeOpen) {
+      this.wakeOpen = true;
+      this.pushLog("The roots slacken. Far below, a bell rings clear. A stair opens under Blackroot.");
+    }
+    if (r.final) {
+      // his mourners go quiet with him
+      for (const o of this.roamers) if (o !== r && o.add) o.hp = 0;
+      this.roamers = this.roamers.filter((o) => o === r || !o.add);
+      this.startEnding();
+    }
     if (r.boss && r.def) {
       this.bossDead[r.def] = this.worldMs + 2 * CYCLE_MS;
       if (MINI_NAME[r.def]) this.remnantId = r.def;
@@ -7834,7 +7908,8 @@ export class Game {
       }
       // playtest1j: a boss with a big move turns to phase two at half HP: it roars (stands and glows, no hit), then its
       // big moves come quicker and in patterns (telegraph.ts).
-      if (r.boss && r.big && (r.phase ?? 1) < 2 && (r.hp ?? 1) <= (r.max ?? 1) * PHASE.at && !(r.tell ?? 0)) {
+      if (r.final) this.wakeLordBeats(r, dt);
+      if (r.boss && r.big && !r.final && (r.phase ?? 1) < 2 && (r.hp ?? 1) <= (r.max ?? 1) * PHASE.at && !(r.tell ?? 0)) {
         r.phase = 2;
         r.wave = Math.floor((r.age ?? 0) / PHASE.cycle2);
         r.cool = Math.max(r.cool ?? 0, PHASE.roar);
@@ -7867,7 +7942,10 @@ export class Game {
       r.moving = Math.hypot(r.x - ox, r.y - oy) > 0.2;
       r.cool = (r.cool ?? 0) - dt;
       if ((r.cool ?? 0) > 0) continue;
-      if (r.boss && r.big && this.wantBig(r)) this.beginCast(r, "big", r.big, r.bigTag ?? "ring", 1);
+      if (r.boss && r.big && this.wantBig(r)) {
+        if (r.final) this.wakeLordBig(r);
+        else this.beginCast(r, "big", r.big, r.bigTag ?? "ring", 1);
+      }
       else if ((r.boss || r.mini) && r.mid && (r.age ?? 0) > 3.2) this.beginCast(r, "mid", r.mid, r.midTag ?? "ring", 0.5);
       // A mimic only bites from inside its own mark's reach; it walks in first. Other rares are unchanged.
       else if (r.rare && (!r.mimic || dist < 40 + bodyR(r))) this.beginCast(r, "spam", r.spam ?? "swipe", r.spamTag ?? "melee", 0.35);
@@ -7883,6 +7961,87 @@ export class Game {
         this.beginCast(r, "mid", "vortex", "pull", 0.35);
       }
     }
+  }
+
+  /** Wake batch: Hollowmourn's phase gates (66%, 33%) and the scripted Last Toll at 5% (design/ending.md 2.2-2.5). */
+  private wakeLordBeats(r: Roamer, dt: number) {
+    if ((r.lastToll ?? 0) > 0) r.lastToll = Math.max(0, (r.lastToll ?? 0) - dt);
+    const f = (r.hp ?? 1) / (r.max ?? 1);
+    if (!r.lastTollDone && f <= WAKE_LAST) {
+      r.lastTollDone = true;
+      r.lastToll = 4;
+      r.casting = "big";
+      r.big = "the Last Toll";
+      r.pattern = "lasttoll";
+      r.markX = r.x;
+      r.markY = r.y;
+      r.markR = 400;
+      r.tell = 1.2;
+      r.tellMax = 1.2;
+      r.act = "cast";
+      r.actFor = 1.2;
+      this.audio?.toll();
+      this.shake = Math.min(0.5, this.shake + 0.2);
+      this.logLine = "Hollowmourn wrenches the Wake Bell down onto his shoulders. Smite it!";
+      return;
+    }
+    if (r.tell ?? 0) return;
+    const want = f <= WAKE_PHASES[1] ? 3 : f <= WAKE_PHASES[0] ? 2 : 1;
+    if (want <= (r.phase ?? 1)) return;
+    r.phase = want;
+    r.wave = Math.floor((r.age ?? 0) / PHASE.cycle2);
+    r.cool = Math.max(r.cool ?? 0, PHASE.roar);
+    r.act = "cast";
+    r.actFor = PHASE.roar;
+    r.flash = PHASE.roar;
+    this.audio?.toll();
+    this.audio?.bossStage(want);
+    if (want === 3) {
+      r.mid = "grief-grab";
+      r.midTag = "pull";
+      this.darkUntil = this.worldMs + 1500;
+      this.logLine = 'Hollowmourn: "Fine. No more service. Lights out."';
+    } else this.logLine = 'Hollowmourn: "You\'re louder than the others." The bell rings once, and the graves open.';
+  }
+
+  /** Wake batch: his big move for this phase (wake.ts wakeBig); The Toll rings round his own body. */
+  private wakeLordBig(r: Roamer) {
+    const m = wakeBig(r.phase ?? 1, r.bigN ?? 0);
+    r.bigN = (r.bigN ?? 0) + 1;
+    r.big = m.name;
+    r.bigTag = m.tag;
+    this.beginCast(r, "big", m.name, m.tag, 1.2);
+    if (m.tag === "ring") {
+      r.markX = r.x;
+      r.markY = r.y;
+      r.markR = PHASE.novaR + bodyR(r);
+      r.pattern = "nova";
+      this.audio?.toll();
+      this.logLine = "Hollowmourn lifts the hand-bell. The Toll.";
+    } else if (m.tag === "dark") this.logLine = "Hollowmourn closes his hand. Lights Out.";
+    else this.logLine = "The windows light violet. The Procession.";
+  }
+
+  /** Wake batch: the epilogue (eight scenes, then the credits), then the world, post-game. */
+  private startEnding() {
+    this.ending = { scene: 0 };
+    this.mode = "ending";
+  }
+  endingScenes() {
+    return epilogue(this.cls, this.companion?.name ?? null);
+  }
+  nextEnding() {
+    if (!this.ending) return;
+    this.ending.scene += 1;
+    if (this.ending.scene > this.endingScenes().length) this.finishEnding();
+  }
+  finishEnding() {
+    this.ending = null;
+    this.endingSeen = true;
+    this.mode = "play";
+    if (this.mapId === "dungeon") this.enterWorld(85 * TILE, 103 * TILE);
+    this.logLine = "The night goes on.";
+    this.autosave(false);
   }
 
   private wantBig(r: Roamer) {
@@ -7970,6 +8129,20 @@ export class Game {
   }
 
   private resolveCast(r: Roamer, dist: number) {
+    if (r.pattern === "lasttoll") {
+      // Wake batch: not Smitten: 40% of max HP, never the last point; he staggers either way
+      r.pattern = "";
+      r.casting = "";
+      r.tell = 0;
+      r.lastToll = 0;
+      r.staggered = true;
+      r.stun = Math.max(r.stun ?? 0, 3);
+      this.shake = Math.min(0.6, this.shake + 0.3);
+      const dealt = Math.max(0, Math.min(Math.round(this.maxHp * 0.4), Math.ceil(this.hp) - 1));
+      if (dealt > 0) this.bite(dealt, `The Last Toll lands for ${dealt}.`);
+      this.logLine = "The Last Toll lands. Hollowmourn staggers under the bell. Strike!";
+      return;
+    }
     const pattern = r.pattern ?? "";
     const name = pattern === "echoed" ? `${r.big ?? "it"}'s echo` : r.casting === "big" ? r.big : r.casting === "spam" ? r.spam : r.mid;
     const tag = pattern === "nova" || pattern === "echoed" ? "ring" : r.casting === "big" ? r.bigTag : r.casting === "spam" ? r.spamTag : r.midTag;
@@ -8010,7 +8183,7 @@ export class Game {
       return;
     }
     if (tag === "summon") {
-      this.summonPack(r, 1);
+      this.summonPack(r, r.final ? 2 : 1);
       this.logLine = `${r.name ?? "It"} calls with ${name}.`;
       return;
     }
@@ -8477,7 +8650,7 @@ export class Game {
 
   private summonPack(r: Roamer, n: number) {
     const live = this.roamers.filter((o) => o.add && (o.hp ?? 0) > 0).length;
-    const room = Math.max(0, 6 - live);
+    const room = Math.max(0, (r.final ? 3 : 6) - live); // wake: Hollowmourn's mourners cap at 3
     const kit = BOSS_KITS[r.def];
     const help = FAMILIES.find((f) => f.id === kit?.helper) ?? FAMILIES.find((f) => f.family === r.family) ?? FAMILIES[0];
     for (let i = 0; i < Math.min(n, room); i++) {
@@ -8570,6 +8743,7 @@ export class Game {
         boss: !!f.boss,
         mini: !!f.mini,
         rare: !!f.rare,
+        final: (f.boss && f.id === "hollowmourn") || undefined,
         def: f.id || f.family,
         level: this.level,
         ang,
@@ -9886,6 +10060,8 @@ export class Game {
       carOwned: this.carOwned,
       earlyDone: this.earlyDone,
       stingSeen: this.stingSeen || undefined,
+      wakeOpen: this.wakeOpen || undefined,
+      endingSeen: this.endingSeen || undefined,
       sinks: [...this.sinks],
       title: this.title,
       carX: this.driving && this.mapId === "world" ? this.px : this.carX,
@@ -9988,6 +10164,9 @@ export class Game {
     this.carOwned = !!raw.carOwned;
     this.earlyDone = !!raw.earlyDone;
     this.stingSeen = !!raw.stingSeen;
+    this.wakeOpen = !!raw.wakeOpen || !!(raw.bossDead && (raw.bossDead as Record<string, number>).rootwidow);
+    this.endingSeen = !!raw.endingSeen;
+    this.ending = null;
     this.sinks = Array.isArray(raw.sinks) ? raw.sinks.filter((x) => typeof x === "string") : [];
     this.title = typeof raw.title === "string" ? raw.title : "";
     if (this.earlyDone) this.roamers = this.roamers.filter((r) => !r.early);

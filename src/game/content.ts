@@ -459,6 +459,7 @@ export const WAKE_MINIS: MonsterDef[] = [
 
 export const MINI_NAME: Record<string, string> = {
   wraithknight: "Wraith Knight",
+  hollowmourn: "The Bellringer", // wake batch: his remnant (design/ending.md 7)
   frostgolem: "Frost Golem",
   vampirelord: "Vampire Lord",
   stormelemental: "Storm Elemental",
@@ -543,11 +544,15 @@ export const MAP_WRITER = {
 };
 
 export function dungeonById(id: string): DungeonDef | undefined {
-  return DUNGEONS.find((d) => d.id === id) ?? RIFTS.find((d) => d.id === id);
+  return DUNGEONS.find((d) => d.id === id) ?? RIFTS.find((d) => d.id === id) ?? (id === WAKE_DUNGEON.id ? WAKE_DUNGEON : undefined);
 }
 
+/** Wake batch (design/ending.md 1.3): the lord of the Wake and his stair under Blackroot. Kept out of BOSSES and DUNGEONS,
+ * so the roster, the world map and its mouths stay as they were; the stair opens on Blackroot's last floor. */
+export const WAKE_LORD: MonsterDef = { id: "hollowmourn", name: "Hollowmourn", family: "lich", tint: "#3a2a58", hp: 180, atk: 20, ac: 6, xp: 120, silver: 100, boss: true };
+export const WAKE_DUNGEON: DungeonDef = { id: "wake", name: "The Wake Below", boss: "hollowmourn", level: 72, floors: 3, theme: "wake", tx: 85, ty: 102 };
 export function monsterById(id: string): MonsterDef {
-  return FAMILIES.find((m) => m.id === id) ?? BOSSES.find((m) => m.id === id) ?? FESTIVAL_BOSSES.find((m) => m.id === id) ?? WAKE_MINIS.find((m) => m.id === id) ?? FAMILIES[0];
+  return FAMILIES.find((m) => m.id === id) ?? BOSSES.find((m) => m.id === id) ?? FESTIVAL_BOSSES.find((m) => m.id === id) ?? WAKE_MINIS.find((m) => m.id === id) ?? (id === WAKE_LORD.id ? WAKE_LORD : undefined) ?? FAMILIES[0];
 }
 
 /** Grow a baseline monster to the fight's level. A common foe is bulked to last about four swings. Bosses stay ahead of that. */

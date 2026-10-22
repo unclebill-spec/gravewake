@@ -166,9 +166,11 @@ export function Gravewake() {
       const dprRaw = window.devicePixelRatio || 1;
       const s = screenRef.current;
       // The world view uses the chosen preset. The fight and the map keep the Auto frame (their layout is in canvas pixels).
-      const look = computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: game.zoom, s, coarse: coarseNow });
+      // Wake batch (design/ending.md 3.4): in the Wake Hall the view zooms down so Hollowmourn (176 px) and the hero fit
+      const zoomNow = game.wakeFight ? Math.min(game.zoom, Math.max(1, Math.floor((Math.max(1, rect.height) * dprRaw) / 232))) : game.zoom;
+      const look = computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: zoomNow, s, coarse: coarseNow });
       const scene = game.mode === "battle" || game.mode === "map";
-      const v = scene ? computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: game.zoom, s: { ...s, preset: "auto" }, coarse: false }) : look;
+      const v = scene ? computeView({ cssW: Math.max(1, rect.width), cssH: Math.max(1, rect.height), dpr: dprRaw, zoom: zoomNow, s: { ...s, preset: "auto" }, coarse: false }) : look;
       viewRef.current = v;
       lookRef.current = look;
       const w = v.bufW;
@@ -1540,6 +1542,30 @@ export function Gravewake() {
               </ul>
               <button type="button" data-padback className="rounded border border-border px-3 py-2" onClick={() => { game.mode = "play"; bump(); }}>
                 Leave
+              </button>
+            </Panel>
+          ) : null}
+
+          {game.mode === "ending" && game.ending ? (
+            <Panel>
+              {/* Wake batch: the epilogue (design/ending.md 6), then the credits, then the world (post-game) */}
+              {game.ending.scene < game.endingScenes().length ? (
+                <>
+                  <h2 className="font-display text-xl">{game.endingScenes()[game.ending.scene].title}</h2>
+                  {game.endingScenes()[game.ending.scene].lines.map((l, i) => (
+                    <p key={i} className={i ? "text-sm italic text-muted" : "text-sm"}>{l}</p>
+                  ))}
+                  <p className="text-xs text-muted">{game.ending.scene + 1} / {game.endingScenes().length}</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="font-display text-xl">Gravewake</h2>
+                  <p className="text-sm">Thank you for keeping the vale company.</p>
+                  <CreditsBody />
+                </>
+              )}
+              <button type="button" data-padback className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.nextEnding(); bump(); }}>
+                {game.ending.scene < game.endingScenes().length ? "Continue" : "Return to the vale"}
               </button>
             </Panel>
           ) : null}
