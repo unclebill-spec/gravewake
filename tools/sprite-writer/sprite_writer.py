@@ -43,7 +43,7 @@ _CORE = sorted(SPRITE_CORE & LOCKED)
 # right (the game mirrors it for left). dirs_writer.py sets it and draws the -dirs sheets.
 VIEW = "front"
 # Drawn in profile already, facing right: their back and side views are the same frame (the game mirrors for left).
-SIDE_NATIVE = ("horse", "cat", "rat")
+SIDE_NATIVE = ()  # charfix: horse, cat and rat are drawn in four views now
 # Chest-front details a back view does not show.
 FRONT_ONLY = ("vest", "jabot", "bowtie", "badge", "tape", "furchest", "stole", "mask", "specs", "gem")
 # playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: with VIEW == "side", WEST draws the body facing left (views_writer.py

@@ -25,7 +25,7 @@ export const DIRS: Record<string, string> = Object.fromEntries(
 export const DIRS_EM: Record<string, string> = Object.fromEntries(["foes", "krampus", "pumpkin-lord"].map((n) => [`${S}${n}-dirs.png`, `${S}${n}-dirs_em.png`]));
 export const DIRS_SHEETS: string[] = [...Object.values(DIRS), ...Object.values(DIRS_EM)];
 /** Families drawn in profile already, facing right (sprite writer SIDE_NATIVE): they only ever mirror. */
-export const SIDE_NATIVE = new Set(["horse", "cat", "rat"]);
+export const SIDE_NATIVE = new Set<string>(); // charfix: horse, cat and rat are drawn in four views now (staging charfix 05, 06, 11)
 /** A move of this many px between two frames turns a body; more than JUMP is a teleport (a door, a load), not a step. */
 export const FACE = { move: 0.05, hold: 1.15, jump: 24, near: 40 } as const;
 

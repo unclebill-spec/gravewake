@@ -32,6 +32,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from PIL import Image
+import numpy as np
+
+from backfix import backfix  # charfix item 12: the back of the head is hair or hat colour
 
 import sprite_writer as sw
 from palette_locked import LOCKED
@@ -95,6 +98,23 @@ def _mirror_back(name: str, back: Image.Image, m) -> Image.Image:
     return out
 
 
+BACKFIX = ("people", "allies", "folk-variants")
+
+
+def _back_heads(front: Image.Image, sheet: Image.Image) -> Image.Image:
+    """charfix 2026-10-21 (Bill's charaudit): a town body seen from behind shows the back of its head in the hair or
+    hat colour, never skin. Each back cell is matched with its own front cell: the hair or hat colour is the front head's
+    top two rows, the skin is the commonest SKINS colour in the front head, and every pixel of that skin family in the
+    back cell's 8-row head box becomes the hair or hat colour. Bald heads (top rows are skin) keep views_writer's
+    horseshoe of hair."""
+    f = np.array(front)
+    s = np.array(sheet)
+    for c in range(s.shape[1] // 16):
+        x = c * 16
+        s[0:32, x:x + 16], _ = backfix(f[0:32, x:x + 16], s[0:32, x:x + 16])
+    return Image.fromarray(s)
+
+
 def main(out: Path | None = None) -> dict[str, Image.Image]:
     import make_gravewake as m
 
@@ -127,6 +147,8 @@ def main(out: Path | None = None) -> dict[str, Image.Image]:
         sheet.alpha_composite(_mirror_back(name, back.convert("RGBA"), m), (0, 0))
         sheet.alpha_composite(side.convert("RGBA"), (0, 32))
         sheet.alpha_composite(west.convert("RGBA"), (0, 64))
+        if name in BACKFIX:
+            sheet = _back_heads(src.convert("RGBA"), sheet)
         _check(f"{name}-dirs.png", sheet, src.width)
         made[f"{name}-dirs.png"] = sheet
     for name in EM_SOURCES:
