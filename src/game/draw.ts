@@ -34,6 +34,7 @@ import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, sca
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
 import { PARK_AT, cemeteryFence, carLotFence } from "./townplan"; // townwide
 import * as OSK from "./outskirts"; // outskirts
+import { streetLampSpots } from "./townprops"; // billvid
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { BLDG, BLDG_SHEETS, ROOF_RISE, bldgEm, bldgSheet, lotCell, townLots, type BldgRoom, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
@@ -2902,27 +2903,9 @@ export function windowCols(b: { x: number; w: number; doorX: number }): number[]
   return [b.x + 1, b.x + b.w - 2].filter((x, i, a) => x !== b.doorX && a.indexOf(x) === i);
 }
 
-/** gfx-lighting: street lamps on the town's cobble edges (the tile above is not cobble or road), seeded, LIGHT.streetGap
- * apart, never by a door. Looks only: a lamp is drawn and lit, the sim never reads it, nothing collides with it. */
-const streetCache = new WeakMap<object, { x: number; y: number }[]>();
+/** gfx-lighting: street lamps on the town's cobble edges (townprops.ts; billvid: the sim reads them too, for their base). */
 export function streetLamps(g: Game): { x: number; y: number }[] {
-  if (g.mapId !== "town") return [];
-  const hit = streetCache.get(g.tiles);
-  if (hit) return hit;
-  const out: { x: number; y: number }[] = [];
-  const road = (t: number) => t === T.cobble || t === T.road;
-  const open = (t: number) => t === T.dirt || t === T.grass;
-  for (let y = 1; y + 1 < g.h; y++) {
-    for (let x = 1; x + 1 < g.w; x++) {
-      if (!road(g.tiles[y * g.w + x]) || !open(g.tiles[(y - 1) * g.w + x])) continue;
-      if (out.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < LIGHT.streetGap)) continue;
-      let door = false;
-      for (let j = -2; j <= 1 && !door; j++) for (let i = -2; i <= 2 && !door; i++) door = g.tiles[(y + j) * g.w + x + i] === T.door;
-      if (!door) out.push({ x, y });
-    }
-  }
-  streetCache.set(g.tiles, out);
-  return out;
+  return g.mapId === "town" ? streetLampSpots(g.w, g.h, g.tiles) : [];
 }
 
 /** A street lamp: a 2 px iron post, a cap and a cold glass head, its foot on (x, y). The glow pass draws the glass alone. */
