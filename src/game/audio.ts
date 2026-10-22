@@ -29,6 +29,9 @@ export function musicFor(key: string): string {
 export const SFX_TRIM: Record<string, number> = { hit: 0.55, spell: 0.45, door: 0.5, coin: 0.45, hurt: 0.6, steam: 0.4, rattle: 0.35, thunder: 0.6, toll: 0.7, sting: 0.7 };
 const SFX_FILE: Record<string, string> = { hit: "sfx-hit", spell: "sfx-spell", door: "sfx-door", coin: "sfx-coin", hurt: "sfx-hurt", steam: "sfx-steam", rattle: "sfx-rattle", thunder: "sfx-thunder", toll: "sfx-toll", sting: "sting-boss-early" };
 const FADE = 0.6;
+/** polish: a file mastered well under the rest is lifted to sit with them (mean dB: harrow -23.8 against the dungeons' -16.3;
+ * its peak is -3.1 dB, so x1.8 (+5.1 dB) keeps headroom under the master). */
+export const MUSIC_TRIM: Record<string, number> = { "dungeon-harrow": 1.8 };
 /** How long the casino bed stays ducked after a jukebox note (a note comes every 0.4 s). */
 const SONG_HOLD = 0.9;
 
@@ -127,7 +130,7 @@ export class AudioBus {
       src.buffer = b;
       src.loop = true;
       const g = ctx.createGain();
-      g.gain.value = i === 0 ? (names.length > 1 ? 1.4 : 1) : i < this.bossPhase ? 1 : 0; // the base alone sits ~3 dB up in phase 1
+      g.gain.value = (i === 0 ? (names.length > 1 ? 1.4 : 1) : i < this.bossPhase ? 1 : 0) * (MUSIC_TRIM[names[i]] ?? 1); // the base alone sits ~3 dB up in phase 1
       src.connect(g);
       g.connect(bed);
       src.start(t0); // one start time: the stems stay sample-aligned

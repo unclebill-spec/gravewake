@@ -3510,10 +3510,21 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
   if (g.mode === "title") return;
   const cam = labelView;
   const near = (x: number, y: number) => Math.hypot(x - g.px, y - g.py) <= LABEL.near * TILE;
+  // polish: with the view known, a townsperson's name keeps clear of the HUD panels and of the names already drawn
+  // (UNDERTAKER and NOLL no longer print over each other): over the head, moved sideways, or under the feet
+  const folkHud = cam ? worldBoxes(hudBoxes(ctx.canvas, g.frame), cam.x, cam.y, cam.zoom) : [];
+  const folkTaken: { x: number; y: number; w: number; h: number }[] = [];
   for (const n of g.npcs) {
     if (!n.name || !near(n.x, n.y)) continue;
     const row: FontRow = TRADE_ROLES.has(n.role) || CASINO_TRADES.has(n.role) ? "blue" : "bone";
-    drawLabel(ctx, n.name, n.x, n.y - LABEL.lift, row);
+    const lc = cam ? labelCanvas(n.name, row) : null;
+    if (!cam || !lc) {
+      drawLabel(ctx, n.name, n.x, n.y - LABEL.lift, row);
+      continue;
+    }
+    const at = placeLabel(n.x, n.y - LABEL.lift, n.y, lc.width, lc.height, cam, [...folkHud, ...folkTaken]);
+    drawLabel(ctx, n.name, at.cx, at.y, row);
+    folkTaken.push({ x: Math.round(at.cx - lc.width / 2), y: Math.round(at.y - lc.height), w: lc.width, h: lc.height });
   }
   paintSong(ctx, g); // playtest1x
   if (g.companion && g.companion.name) drawLabel(ctx, g.companion.name, g.companion.x, g.companion.y - LABEL.lift, "violet");
