@@ -93,7 +93,9 @@ const landSheet: Partial<Record<string, HTMLImageElement>> = {};
  * emissive copy of a sprite sheet (only its flame and eye pixels: #f4e27a, #fff8e0, #e0a040). While emPass is on,
  * sheetCell draws the mask instead, so a foe's eyes, lantern face and cast sparks go to full light in the dark.
  * The mimic has no mask on purpose: glowing eyes on a chest would give it away. */
-export const EM_SHEETS: Record<string, string> = { "/art/writer/ghost_mob.png": "/art/writer/ghost_mob_em.png", "/art/writer/ghost_boss.png": "/art/writer/ghost_boss_em.png", "/art/writer/ghost_mini.png": "/art/writer/ghost_mini_em.png", "/art/writer/ghost_rare.png": "/art/writer/ghost_rare_em.png", "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
+export const EM_SHEETS: Record<string, string> = { "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
+/** Wake batch: Art's ghost sheets carry their own masks (staging emissive_masks), kept beside gfx3's three. */
+export const WAKE_EM: Record<string, string> = { "/art/writer/ghost_mob.png": "/art/writer/ghost_mob_em.png", "/art/writer/ghost_boss.png": "/art/writer/ghost_boss_em.png", "/art/writer/ghost_mini.png": "/art/writer/ghost_mini_em.png", "/art/writer/ghost_rare.png": "/art/writer/ghost_rare_em.png" };
 export const EM_COLOURS = ["#f4e27a", "#fff8e0", "#e0a040"] as const;
 let emPass = false;
 /**
@@ -137,7 +139,7 @@ function sheetCell(
   }
   if (emPass) {
     // gfx3 glow masks: draw the sheet's emissive mask instead, or nothing; never fall back to a painted body.
-    const em = EM_SHEETS[url];
+    const em = EM_SHEETS[url] ?? WAKE_EM[url];
     if (!em) return true;
     url = em;
   }

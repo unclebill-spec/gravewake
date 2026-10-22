@@ -39,7 +39,7 @@ const WAKE_ROOT = process.cwd();
 const WAKE_FZ = join(WAKE_ROOT, "scripts/frozen/wake/files");
 const WAKE_SET = new Set();
 { const walkW = (d, rel) => { if (!fsWake.existsSync(d)) return; for (const n of fsWake.readdirSync(d)) { const pth = join(d, n), r = rel ? `${rel}/${n}` : n; if (fsWake.statSync(pth).isDirectory()) walkW(pth, r); else WAKE_SET.add(r); } }; walkW(WAKE_FZ, ""); }
-let WAKE_OLD = true;
+let WAKE_OLD = process.env.GW_PT1V_LIVE !== "1"; // the live pass (playtest1v) reads the live tree, as it always has
 function wakeRel(p) {
   // only a read that lands on the live repo file (directly, relative to the repo, or through a tree's symlink) is redirected;
   // a frozen tree's own written copy is left alone
@@ -12255,7 +12255,7 @@ if (on("playtest1r")) {
     const feet = rows[0].length && rows[0][0].dy === b.y - 172 && rows[0][0].dx === b.x - 60; // as numbers, not cellAt's
     b.boss = false; b.mini = true; const mini = at(60, 0).filter((d) => !/_em\.png$/.test(d.u));
     b.mini = false; b.rare = true; const rare = at(60, 0).filter((d) => !/_em\.png$/.test(d.u));
-    b.rare = false; const mob = at(60, 0); const mobFoes = draws.filter((d) => base(d.u) === "foes.png");
+    b.rare = false; const mob = at(60, 0); const mobFoes = draws.filter((d) => base(d.u) === "foes.png" || base(d.u) === "ghost_mob.png"); // wake batch: a ghost mob is Art's 1x ghost sheet (same cell, its own file)
     b.boss = true;
     NOTREADY.add("/art/sprites/big/ghost-boss.png"); at(60, 0); const fb = draws.filter((d) => base(d.u) === "foes.png" || base(d.u) === "foes-dirs.png"); NOTREADY.delete("/art/sprites/big/ghost-boss.png");
     const ok = views === "ghost-boss.png:0:120x180 ghost-boss.png:1:120x180 ghost-boss.png:2:120x180 ghost-boss.png:3:120x180" && whole && feet && mini.length && mini.every((d) => base(d.u) === "ghost-mini.png" && d.sw === 72 && d.sh === 108 && d.sx % 72 === 0) && rare.length && rare.every((d) => base(d.u) === "ghost-rare.png" && d.sw === 48 && d.sh === 72 && d.sx % 48 === 0) && mob.length === 0 && mobFoes.length > 0 && mobFoes.every((d) => d.sw === 16 && d.k === 1) && fb.some((d) => d.k === 5 && d.sw === 16 && d.sh === 32);
@@ -15544,7 +15544,8 @@ if (on("playtest2b")) {
     const packs = [["public/art/brileta/CREDITS.txt", "Ayzenshtat"], ["public/art/held/HELD.txt", "Ishtar Pixels"]];
     const credited = packs.filter(([f, who]) => existsSync(f) && rd(f).includes(who === "Ayzenshtat" ? "Mark Ayzenshtat" : who) && text.includes(who)).length;
     const dirs = readdirSync("public/art").filter((d) => statSync(`public/art/${d}`).isDirectory()).sort();
-    const known = ["brileta", "held", "icons", "spells", "sprites", "writer"];
+    // wake batch: public/art/audio is first-party (synthesized in code, CC0), its LICENSES.md says so; it is known while that file stays
+    const known = ["brileta", "held", "icons", "spells", "sprites", "writer", ...(existsSync("public/art/audio/LICENSES.md") ? ["audio"] : [])];
     const unknown = dirs.filter((d) => !known.includes(d));
     const withLic = dirs.filter((d) => ["brileta", "held"].includes(d)).every((d) => walkAll(`public/art/${d}`).some((f) => /(CREDITS|HELD)\.txt$/.test(f)));
     check("playtest2b", `art packs still in public/art are credited (${credited}/${packs.length}); no new art folder without a credit (${unknown.join(", ") || "none new"}); each credited folder keeps its credits file (${withLic})`,
