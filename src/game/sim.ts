@@ -1,3 +1,4 @@
+import { WAKE_MINI_AT, wakeMiniFloor } from "./wake";
 import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
 import {
   BAITS,
@@ -177,6 +178,11 @@ const BOSS_KITS: Record<string, Kit> = {
   queen: { personality: "tyrant", spam: "cut", spamTag: "melee", mid: "court-call", midTag: "summon", big: "throne-gaze", bigTag: "cone", helper: "vamp" },
   tzar: { personality: "warden", spam: "wave-cut", spamTag: "melee", mid: "undertow", midTag: "pull", big: "flood-ring", bigTag: "ring", helper: "ghost" },
   leech: { personality: "tyrant", spam: "drain-tap", spamTag: "melee", mid: "choir-leech", midTag: "pull", big: "mass", bigTag: "pull", helper: "vamp" },
+  // Wake batch minis (wake.ts): existing move tags only; a mini casts its mid, never a big.
+  wraithknight: { personality: "zealot", spam: "rune-cut", spamTag: "melee", mid: "grave march", midTag: "line", helper: "skeleton" },
+  frostgolem: { personality: "anchor", spam: "ice-fist", spamTag: "melee", mid: "rime quake", midTag: "ring", helper: "mummy" },
+  vampirelord: { personality: "tyrant", spam: "claw", spamTag: "melee", mid: "crimson pull", midTag: "pull", helper: "vamp" },
+  stormelemental: { personality: "kiter", spam: "spark", spamTag: "bolt", mid: "storm ring", midTag: "ring", helper: "pumpkin" },
   // OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES. Existing move tags only.
   pumpkinlord: { personality: "zealot", spam: "vine lash", spamTag: "melee", mid: "seed volley", midTag: "bolt", big: "harvest blaze", bigTag: "ring", helper: "pumpkin" },
   krampus: { personality: "tyrant", spam: "switch lash", spamTag: "melee", mid: "basket snatch", midTag: "pull", big: "birch dark", bigTag: "dark", helper: "wolf" },
@@ -2322,6 +2328,13 @@ export class Game {
         ang: 0,
       });
       return;
+    }
+    // Wake batch: a mini-boss guards the middle floor of each dungeon in the XP gaps (wake.ts WAKE_MINI_AT; seeded spot).
+    const wakeMini = WAKE_MINI_AT[this.dungeon];
+    if (wakeMini && def && this.floor === wakeMiniFloor(def.floors) && !last) {
+      const m = monsterById(wakeMini);
+      const spot = findOpen(this.tiles, this.w, this.h, Math.floor(this.w / 2), this.feats?.hidden);
+      this.roamers.push({ id: `wake-${wakeMini}`, x: spot.x * TILE + 8, y: spot.y * TILE + 8, family: m.family, tint: m.tint, boss: false, mini: true, def: wakeMini, level: this.dungeonLevel(), ang: 0, name: m.name });
     }
     const families = FAMILIES.filter((m) => m.id !== "bat");
     for (let n = 0; n < 2; n++) {

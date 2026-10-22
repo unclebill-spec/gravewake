@@ -1,0 +1,5518 @@
+import { yardPieces } from "./blocking";
+import { LOOT_SHEET, ORE_SHEET, lootCell } from "./loot";
+import { DIRS, DIRS_EM, DIRS_SHEETS, FACE, SIDE_NATIVE, axisFace, faceOf, heroFace, nearestOf, viewOf, type Face } from "./facing";
+import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worldBiome, type Item, type Tile, type WorldBiome } from "./content";
+import { DERBY } from "./derby";
+import { TROPHY_HEAD_TOP } from "./decor";
+import { SEASON, seasonSheet, type SeasonId } from "./seasons";
+import { HARVEST } from "./festivals";
+import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
+import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
+import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
+import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, PARK_STATUE, PARK_ARCH, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
+import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM, isWildMap } from "./wildportals"; // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: isWildMap for the calm bone floor
+import type { Game } from "./sim";
+import { boulderAt, roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
+import { BOULDER, BOULDERS_EM, BOULDERS_SHEET, BOULDER_GLOW, BOULDER_SEASONS, boulderCol, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
+import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, hamletEm, hamletLamps, hamletSheet, type HamletLotT, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
+import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
+import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
+import { LINE_HALF } from "./telegraph"; // playtest1j
+import { CASINO_FURNITURE, CASINO_KINDS, CASINO_LIGHT, CASINO_RUG, CASINO_SHEET, CASINO_SHEET_EM, CASINO_SIGN_X } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
+import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
+import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
+import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
+import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
+import { secretTile, spikeStage } from "./feats";
+import { rescueFor } from "./runs";
+import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
+import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
+import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, type RGB } from "./light";
+import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
+import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, scaleOf, topOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
+import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
+import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
+import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
+import { BLDG, BLDG_SHEETS, ROOF_RISE, bldgEm, bldgSheet, lotCell, townLots, type BldgRoom, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
+import { WILD_BORDER, WILD_FLECKS, AURA_FRAMES, BOSS_AURA, BOSS_AURA_EM, DEADWOOD, DEADWOOD_EM, DEAD_CELL, ENTRANCES, ENTRANCES_EM, ENTRANCE_CELL, ENTRANCE_LAMPS, GRAVES, GRAVES_EM, GRAVE_CELL, ICE, OPENED_GRAVE, OPENED_GRAVE_EM, PUMPKIN_BIG, PUMPKIN_BIG_EM, PUMPKIN_SMALL, PUMPKIN_SMALL_EM, ROCKS, ROCKS_EM, ROCK_CELL, WILD_TREES2, WILD_TREES2_EM, DEADWOOD2, DEADWOOD2_EM, ROCKS2, ROCKS2_EM, PROP2, PROP2_SLACK, ROCK_GLOW, SHORE, SHORE_ROW, SHORE_SIDE, STAIRS, TEX, TEX_FRAMES, TEX_TICKS, TREE_GLOW, WATER, WATER_TOWN, WILD_GROUND, WILD_SHEETS, WILD_TREES, WILD_TREES_EM, entranceKind, tileRoll, type EntranceKind } from "./wild"; // playtest1c
+
+/**
+ * Integer pixel drawing. Tiles are 16px, actors 16×32, zoom is a whole number.
+ * Nearest neighbor only. Art law is AGENTS.project.md. Do not smooth, and do not add detail inside one pixel.
+ * Actors are painted after the ground and sorted by their feet.
+ */
+const INK = "#140c10";
+
+type Pal = { floor: string; floor2: string; wall: string; wallHi: string; liquid: string; accent: string };
+
+const CAVES: Record<string, Pal> = {
+  harrow: { floor: "#5a463c", floor2: "#4a382e", wall: "#3c4652", wallHi: "#5a6878", liquid: "#1a2838", accent: "#6a8a48" },
+  ossuary: { floor: "#3a2844", floor2: "#2e1e38", wall: "#4a3a58", wallHi: "#6a5878", liquid: "#241830", accent: "#c8b8d0" },
+  wraps: { floor: "#8a7048", floor2: "#705838", wall: "#6a5840", wallHi: "#a08860", liquid: "#3a3428", accent: "#e6d2a2" },
+  carrion: { floor: "#2c3848", floor2: "#243040", wall: "#3a4a5c", wallHi: "#7aa0c0", liquid: "#16304a", accent: "#9ec8e8" },
+  wick: { floor: "#5a3424", floor2: "#4a2818", wall: "#4a3428", wallHi: "#6a4838", liquid: "#2a2018", accent: "#e07a2f" },
+  warren: { floor: "#6a5830", floor2: "#5a4824", wall: "#5a4030", wallHi: "#8a6840", liquid: "#3a3018", accent: "#c4a15a" },
+  chapel: { floor: "#3a4458", floor2: "#2e3848", wall: "#465068", wallHi: "#8aa0c8", liquid: "#1a2848", accent: "#c5d4e8" },
+  vesper: { floor: "#4a2428", floor2: "#3a181c", wall: "#3a2428", wallHi: "#6a3840", liquid: "#4a1020", accent: "#a02030" },
+  drowned: { floor: "#2a4034", floor2: "#1e3428", wall: "#2a4038", wallHi: "#4a6858", liquid: "#143828", accent: "#6aaa58" },
+  blackroot: { floor: "#2a3024", floor2: "#1e2618", wall: "#243028", wallHi: "#3a5040", liquid: "#142018", accent: "#4a6840" },
+  grave: { floor: "#2c3a2a", floor2: "#223022", wall: "#3a4438", wallHi: "#5a6854", liquid: "#1a2818", accent: "#8a9870" },
+  hearth: { floor: "#4a2a28", floor2: "#3a1e1c", wall: "#3a2828", wallHi: "#6a4038", liquid: "#3a1810", accent: "#e07a2f" },
+  cave: { floor: "#5a3a32", floor2: "#4a2e28", wall: "#3a4450", wallHi: "#6a7888", liquid: "#1a2438", accent: "#c4b496" },
+};
+
+/** Map writer: a rift mouth. Locked colors only: pit, rim, and eight ash motes that turn with the frame. */
+function paintRift(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
+  const cx = x * TILE + 8;
+  const cy = y * TILE + 9;
+  px(ctx, cx - 5, cy - 3, 10, 6, "#1a1418");
+  px(ctx, cx - 3, cy - 4, 6, 8, "#1a1418");
+  px(ctx, cx - 3, cy - 2, 6, 4, "#140c10");
+  const turn = Math.floor(frame / 4) % 8;
+  for (let i = 0; i < 8; i++) {
+    const a = ((i + turn) / 8) * Math.PI * 2;
+    const dx = Math.round(Math.cos(a) * 7);
+    const dy = Math.round(Math.sin(a) * 4);
+    px(ctx, cx + dx - 1, cy + dy - 1, 2, 2, i % 2 ? "#3a322c" : "#5a5e64");
+  }
+}
+
+/** Fill a rectangle in tile space. Callers pass integer pixels. */
+function px(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+/**
+ * Every sheet the draw has asked for, by url. (The town houses are still the Land of Pixels Halloween pack by marceles,
+ * credit in public/art/land/CREDITS.txt; playtest1c moved every other land-pack cell to the pixel writer.)
+ */
+const landSheet: Partial<Record<string, HTMLImageElement>> = {};
+/** gfx3 glow masks (C4/C9: emissives stay at full light under the light layer): the pixel writer's
+ * emissive copy of a sprite sheet (only its flame and eye pixels: #f4e27a, #fff8e0, #e0a040). While emPass is on,
+ * sheetCell draws the mask instead, so a foe's eyes, lantern face and cast sparks go to full light in the dark.
+ * The mimic has no mask on purpose: glowing eyes on a chest would give it away. */
+export const EM_SHEETS: Record<string, string> = { "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
+export const EM_COLOURS = ["#f4e27a", "#fff8e0", "#e0a040"] as const;
+let emPass = false;
+/**
+ * playtest1o (Bill, 2026-10-03 19:49 ET: "walk the right directions"): the view the body being drawn faces (facing.ts
+ * viewOf), set by person() and paintMonster(). While it is set, a body strip's cell is read from the strip's -dirs
+ * sheet (the same column, the back or side row); the front cell stands in while that sheet loads.
+ */
+let faceView: { row: number } | null = null;
+// Load the crowd looks up front so a town NPC never starts on look 0 and then swaps.
+if (typeof Image !== "undefined") {
+  const crowd = new Image();
+  crowd.src = CROWD_SHEET;
+  landSheet[CROWD_SHEET] = crowd;
+}
+function sheetCell(
+  ctx: CanvasRenderingContext2D,
+  url: string,
+  col: number,
+  row: number,
+  dx: number,
+  dy: number,
+  w = 1,
+  h = 1,
+  stride = 16,
+): boolean {
+  if (typeof Image === "undefined") return false;
+  if (faceView && row === 0 && DIRS[url]) {
+    const v = faceView;
+    faceView = null;
+    let drawn: boolean;
+    if (emPass) {
+      // the glow pass: a back or side view draws its own mask (facing.ts DIRS_EM, kept out of EM_SHEETS), or nothing
+      const mask = DIRS_EM[DIRS[url]];
+      const was = emPass;
+      emPass = false;
+      drawn = mask ? sheetCell(ctx, mask, col, v.row, dx, dy, w, h, stride) : true;
+      emPass = was;
+    } else drawn = sheetCell(ctx, DIRS[url], col, v.row, dx, dy, w, h, stride);
+    faceView = v;
+    if (drawn) return true;
+  }
+  if (emPass) {
+    // gfx3 glow masks: draw the sheet's emissive mask instead, or nothing; never fall back to a painted body.
+    const em = EM_SHEETS[url];
+    if (!em) return true;
+    url = em;
+  }
+  let im = landSheet[url];
+  if (!im) {
+    im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  if (!im.complete || im.naturalWidth === 0) return emPass;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, col * stride, row * stride, w * 16, h * 16, dx, dy, w * 16, h * 16);
+  return true;
+}
+/** playtest1v: has this sheet loaded (so a bigger prop draws whole, never half from the old sheet)? */
+function prop2Ready(url: string): boolean {
+  if (typeof Image === "undefined") return false;
+  let im = landSheet[url];
+  if (!im) {
+    im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  return im.complete && im.naturalWidth > 0;
+}
+if (typeof Image !== "undefined") {
+  for (const url of [...DIRS_SHEETS, LOOT_SHEET, ORE_SHEET]) {
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+}
+
+/**
+ * playtest1c (owner-reported 2026-10-02, "water and ice in a boxy grid", the town pond too; flat grey ash patches):
+ * one 16x16 cut of a wrapping 128x128 wild sheet, picked by world position, so a run of tiles reads as one surface.
+ * frame picks the animation frame (frames sit side by side, 128 px apart).
+ */
+function texCell(ctx: CanvasRenderingContext2D, url: string, frame: number, x: number, y: number): boolean {
+  const per = TEX / TILE;
+  const wrap = (v: number) => ((v % per) + per) % per;
+  return sheetCell(ctx, url, frame * per + wrap(x), wrap(y), x * TILE, y * TILE);
+}
+const texFrame = (kind: keyof typeof TEX_FRAMES, frame: number) => Math.floor(Math.max(0, frame) / TEX_TICKS[kind]) % TEX_FRAMES[kind];
+/** playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2): the room being drawn's outside style (set by drawWorld from g.inside). */
+let roomStyleNow: RoomStyle = "cabin";
+/** playtest1i: the interior writer's furniture (and the hearth kit) are loaded, so the old painted shapes stay hidden. */
+function furnArt() {
+  const a = landSheet[ROOM_FURN];
+  const b = landSheet[ROOM_KIT];
+  return !!a && a.complete && a.naturalWidth > 0 && !!b && b.complete && b.naturalWidth > 0;
+}
+/** playtest1i: a room's floor is its style's wrapping 128 px floor (log planks, flagstones, slate boards, warm boards). */
+const roomFloorCell = (ctx: CanvasRenderingContext2D, x: number, y: number) => texCell(ctx, roomFloor(roomStyleNow), 0, x, y);
+
+
+/** One frame of a spell writer strip (16px frames). playtest1d (owner-requested 2026-10-02, batch C2): the last
+ * third-party strips (DevWizard's Pixel Art Spells) are gone from the draw; every spell frame is the spell writer's. */
+const SPELL_DIR = "/art/spells/gen";
+/** playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the fx writer's cast, impact, area and whirl strips. */
+const SPELL_FX = "/art/spells/fx";
+function spellFrame(
+  ctx: CanvasRenderingContext2D,
+  file: string,
+  frame: number,
+  frames: number,
+  dx: number,
+  dy: number,
+  fw = 16,
+  fh = 16,
+  folder = SPELL_DIR,
+): boolean {
+  const url = `${folder}/${file}`;
+  if (typeof Image === "undefined") return false;
+  let im = landSheet[url];
+  if (!im) {
+    im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  if (!im.complete || im.naturalWidth === 0) return false;
+  const i = Math.abs(Math.floor(frame)) % frames;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, i * fw, 0, fw, fh, dx, dy, fw, fh);
+  return true;
+}
+
+// playtest1c (owner-reported 2026-10-02, "lizard foe still old look"; batch C "no old sprites"): the fall pack's
+// scarecrow, pumpkin, lantern and horse and the creature tilemap's 16x16 beasts were the fallback bodies a family drew
+// while the sprite writer's sheets loaded (the tilemap's lizards and newts among them). Gone: a family not yet loaded
+// draws the painted fallback below, and every family is on foes.png.
+
+/** Nudge a hex color. Used for floor flecks and wall courses. */
+function shade(hex: string, n: number): string {
+  const v = hex.replace("#", "");
+  if (v.length < 6) return hex;
+  const r = Math.max(0, Math.min(255, parseInt(v.slice(0, 2), 16) + n));
+  const g = Math.max(0, Math.min(255, parseInt(v.slice(2, 4), 16) + n));
+  const b = Math.max(0, Math.min(255, parseInt(v.slice(4, 6), 16) + n));
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+/** Tiles that count as indoors: walls, floors, doors, nets, and furnishings. */
+function buildingTile(tile: number) {
+  return tile === T.wall || secretTile(tile) || tile === T.floor || tile === T.door || tile === T.nets || tile === T.hearth || tile === T.cauldron || tile === T.shelf || tile === T.moon;
+}
+
+function townish(theme: string) {
+  return theme === "town" || theme.startsWith("room:");
+}
+
+function roomKind(theme: string) {
+  const kind = theme.startsWith("room:") ? theme.slice(5) : "";
+  return kind === "croft" ? "cottage" : kind;
+}
+
+function palOf(theme: string): Pal {
+  return CAVES[theme] ?? CAVES.cave;
+}
+
+/** Base color of one tile. Caves use their own palette; the vale and the town share the outdoor set. */
+function ground(tile: Tile, theme: string, n: number): string {
+  const cave = theme !== "over" && theme !== "camp" && !townish(theme);
+  if (cave) {
+    const p = palOf(theme);
+    if (tile === T.wall) return n > 0.5 ? p.wall : shade(p.wall, -10);
+    if (tile === T.pool) return p.liquid;
+    if (tile === T.road) return shade(p.floor, 18);
+    return n > 0.55 ? p.floor : p.floor2;
+  }
+  switch (tile) {
+    case T.snow:
+      return n > 0.6 ? "#d7e6f0" : "#c5d8e6";
+    case T.sand:
+      return n > 0.5 ? "#cbb892" : "#b6a47c";
+    case T.ash:
+      return n > 0.5 ? "#4a4038" : "#3a322c";
+    case T.swamp:
+      return n > 0.5 ? "#24382c" : "#1a2c22";
+    case T.road:
+      return n > 0.5 ? "#6e5e4c" : "#5e5040";
+    case T.cobble:
+      return townish(theme) ? "#6a5868" : "#6a5a4c";
+    case T.dirt:
+      if (townish(theme)) return n > 0.5 ? "#6a4840" : "#5a3c38";
+      return n > 0.5 ? "#5a4030" : "#4a3428";
+    case T.floor:
+      return townish(theme) ? "#6a5040" : "#4a382c";
+    case T.wall:
+      return townish(theme) ? "#6a5344" : "#3a4048";
+    case T.water:
+      return townish(theme) ? "#1a1424" : "#1c3048";
+    case T.pool:
+      return "#1a3848";
+    case T.ice:
+      return n > 0.5 ? "#c5dde8" : "#b7d2e0";
+    case T.nets:
+      return townish(theme) ? "#6a5040" : "#4a382c";
+    case T.door:
+      return "#5a3828";
+    default:
+      if (townish(theme)) return n > 0.55 ? "#4a3048" : "#342038";
+      return n > 0.5 ? "#214432" : "#1a3828";
+  }
+}
+
+/**
+ * Paint one tile, then the thing that sits on it: door, water, ice, roof eave, or furniture.
+ * A south door only grows an eave when the tile above it is not already a building.
+ */
+function edgeOpen(tile: number) {
+  return !buildingTile(tile);
+}
+
+/** Each building keeps its own roof and plaster so a row does not read as one wall. */
+function houseLook(x: number, y: number) {
+  const wood = "#c4a080";
+  const wood2 = "#8a6858";
+  if (y >= 15 && y <= 19 && x < 12) return { roof: "#5a6070", roof2: "#8a94a8", wall: wood, trim: "#6a3038", light: "#f0c878" };
+  if (y >= 15 && y <= 19 && x >= 24 && x <= 30) return { roof: "#6a2848", roof2: "#a05068", wall: "#3a2830", trim: "#e0c878", light: "#f0d080" };
+  if (y >= 15 && y <= 19 && x >= 31) return { roof: "#4a4450", roof2: "#7a7480", wall: "#a07868", trim: "#2a2428", light: "#e07a2f" };
+  if (y >= 17 && y <= 20 && x >= 16 && x <= 19) return { roof: "#3a4860", roof2: "#6a88a0", wall: "#c4a898", trim: "#1a3040", light: "#c8d8e8" };
+  if (y >= 23 && x >= 16 && x <= 19) return { roof: "#6a5070", roof2: "#a080b0", wall: "#e8d0c0", trim: "#6a4030", light: "#ffe6a0" };
+  if (y >= 22 && x < 11) return { roof: "#5a3868", roof2: "#8a5898", wall: "#f0d8d0", trim: "#c4a0b0", light: "#fff0c8" };
+  if (y >= 22 && x >= 11 && x <= 16) return { roof: "#7a4860", roof2: "#c07088", wall: "#f0d8c8", trim: "#6a4030", light: "#ffe6a0" };
+  if (y >= 22 && x >= 24 && x <= 30) return { roof: "#3a2848", roof2: "#6a5080", wall: "#d0c8b0", trim: "#2a4030", light: "#e0c080" };
+  if (y >= 22 && x >= 31) return { roof: "#2a1848", roof2: "#4a3888", wall: "#3a2848", trim: "#e0c868", light: "#f4e27a" };
+  if (y >= 8 && y <= 12 && x < 11) return { roof: "#8a4038", roof2: "#c46858", wall: "#f0d8c8", trim: wood2, light: "#ffe6a0" };
+  if (y >= 8 && y <= 12 && x < 20) return { roof: "#4a3868", roof2: "#7a68a0", wall: "#e8d4c8", trim: "#5a4060", light: "#fff0c8" };
+  if (y >= 8 && y <= 12) return { roof: "#6a5078", roof2: "#a080b8", wall: "#f0e0d4", trim: "#8a6840", light: "#ffe6a0" };
+  if (y < 8 && x < 12) return { roof: "#7a3848", roof2: "#c05868", wall: "#f0d8c8", trim: "#6a3038", light: "#ffe08a" };
+  if (y < 8 && x < 22) return { roof: "#5a4070", roof2: "#8a70a8", wall: "#e8d8cc", trim: "#6a5040", light: "#fff0c8" };
+  if (y < 8 && x < 32) return { roof: "#4a5878", roof2: "#7a90b0", wall: "#e0d8d0", trim: "#c4b48a", light: "#ffe6a0" };
+  return { roof: "#4a3060", roof2: "#7a5898", wall: "#e8d4c4", trim: "#c4a060", light: "#fff0b0" };
+}
+
+/** One cottage tile. Courses line up with the tiles beside it, and the door sits on the open side. */
+function paintHouse(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: number, above: number, below: number, left: number, right: number) {
+  const gx = x * TILE;
+  const gy = y * TILE;
+  const look = houseLook(x, y);
+  const ridge = edgeOpen(above);
+  const south = edgeOpen(below);
+  const sideW = edgeOpen(left);
+  const sideE = edgeOpen(right);
+  px(ctx, gx, gy, TILE, TILE, look.roof);
+  for (let row = 0; row < TILE; row++) {
+    if ((gy + row) % 4 === 0) px(ctx, gx, gy + row, TILE, 1, look.roof2);
+    if ((gy + row) % 8 === 5) px(ctx, gx + ((x * 3 + row) % 6), gy + row, 4, 1, shade(look.roof, 14));
+  }
+  if (ridge) {
+    const hangL = sideW ? 3 : 0;
+    const hangR = sideE ? 3 : 0;
+    px(ctx, gx - hangL, gy - 6, TILE + hangL + hangR, 7, look.roof);
+    px(ctx, gx - hangL, gy - 6, TILE + hangL + hangR, 2, look.roof2);
+    px(ctx, gx - hangL, gy - 4, TILE + hangL + hangR, 1, shade(look.roof, -32));
+    px(ctx, gx, gy, TILE, 2, shade(look.roof, -24));
+    if (buildingTile(left) && x % 5 === 2) {
+      px(ctx, gx + 5, gy - 10, 6, 8, "#5a564e");
+      px(ctx, gx + 4, gy - 10, 8, 2, "#9a958e");
+      px(ctx, gx + 6, gy - 8, 3, 3, "#2a2420");
+      px(ctx, gx + 7, gy - 9, 1, 1, "#f4f0ea");
+    }
+  }
+  if (sideW) {
+    px(ctx, gx - 2, gy, 3, TILE, shade(look.roof, -30));
+    px(ctx, gx - 2, gy, 1, TILE, shade(look.roof, -48));
+  }
+  if (sideE) {
+    px(ctx, gx + 14, gy, 4, TILE, shade(look.roof, -18));
+    px(ctx, gx + 17, gy, 1, TILE, shade(look.roof, -40));
+  }
+  if (south) px(ctx, gx + 2, gy + TILE, TILE - 2, 2, "#1a2414");
+  const eastDoor = tile === T.door && sideE && !south;
+  const westDoor = tile === T.door && sideW && !south;
+  if (!south && !eastDoor && !westDoor) return;
+  const wall = (wx: number, wy: number, ww: number, wh: number) => {
+    px(ctx, wx, wy, ww, wh, look.wall);
+    px(ctx, wx, wy, ww, 2, shade(look.roof, -26));
+    px(ctx, wx, wy + wh - 3, ww, 3, shade(look.wall, -30));
+    px(ctx, wx, wy + wh - 3, ww, 1, shade(look.trim, -10));
+  };
+  const windowAt = (wx: number, wy: number) => {
+    px(ctx, wx, wy, 6, 5, "#243038");
+    px(ctx, wx + 1, wy + 1, 4, 3, look.light);
+    px(ctx, wx + 1, wy + 1, 1, 1, "#fff6c8");
+    px(ctx, wx + 3, wy, 1, 5, shade(look.trim, -16));
+    px(ctx, wx, wy + 2, 6, 1, shade(look.trim, -16));
+    px(ctx, wx - 1, wy + 5, 8, 1, "#3a8a40");
+  };
+  const doorAt = (wx: number, wy: number) => {
+    px(ctx, wx, wy, 8, 10, "#3a2418");
+    px(ctx, wx + 1, wy + 1, 6, 9, "#7a4a30");
+    px(ctx, wx + 1, wy + 1, 2, 9, "#8a5840");
+    px(ctx, wx + 4, wy + 1, 1, 9, "#4a2c1c");
+    px(ctx, wx + 5, wy + 5, 1, 1, "#f0d080");
+    px(ctx, wx - 3, wy - 1, 2, 3, look.light);
+    px(ctx, wx - 3, wy - 1, 2, 1, "#fff6c8");
+  };
+  if (south) {
+    wall(gx, gy + 7, TILE, 9);
+    if (tile === T.door) {
+      doorAt(gx + 4, gy + 6);
+      px(ctx, gx + 12, gy + 11, 3, 3, "#e07a20");
+      px(ctx, gx + 13, gy + 10, 1, 1, "#3a6828");
+    }
+    else if ((x + y) % 2 === 0) windowAt(gx + 5, gy + 8);
+    else {
+      px(ctx, gx + 2, gy + 10, 3, 4, shade(look.trim, -18));
+      px(ctx, gx + 11, gy + 10, 3, 4, shade(look.trim, -18));
+    }
+    px(ctx, gx, gy + 14, TILE, 2, "#8a8680");
+    px(ctx, gx + 1, gy + 15, 3, 1, "#6a9a48");
+    px(ctx, gx + 12, gy + 15, 3, 1, "#6a9a48");
+    return;
+  }
+  if (eastDoor) {
+    wall(gx + 8, gy + 4, 8, 12);
+    doorAt(gx + 8, gy + 6);
+  } else if (westDoor) {
+    wall(gx, gy + 4, 8, 12);
+    doorAt(gx, gy + 6);
+  }
+}
+
+/** playtest1x: a room's rug, its top-left tile (4x2 tiles): 5,5 in every 14x11 room, CASINO_RUG in the bigger casino. */
+export const rugAt = (kind: string | null | undefined): { x: number; y: number } => (kind === "casino" ? CASINO_RUG : { x: 5, y: 5 });
+
+/** Interior wall and the exit door. Wood, a window, a step. */
+function paintRoomEdge(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: number, frame = 0) {
+  const gx = x * TILE;
+  const gy = y * TILE;
+  // playtest1b B2 (owner-reported 2026-10-02, "cottage interior ... very low detail"): the hearth writer's wall: a beamed
+  // plaster back wall with a wainscot, night-blue windows, cold-blue sconces and a shelf; beams down the sides.
+  const back = y === 0;
+  const cell = tile === T.door ? ROOM_CELL.door : !back ? ROOM_CELL.side : x % 4 === 2 ? ROOM_CELL.window : x % 4 === 0 && x > 0 ? (Math.floor(frame / 3 + x) % 7 === 0 ? ROOM_CELL.sconce2 : ROOM_CELL.sconce) : x === 9 ? ROOM_CELL.shelf : ROOM_CELL.plain;
+  // playtest1i: the wall of the building's own outside style (logs, ashlar, slate boards, plaster and beams).
+  if (sheetCell(ctx, roomWall(roomStyleNow), cell, 0, gx, gy) || sheetCell(ctx, ROOM_WALL, cell, 0, gx, gy)) return;
+  px(ctx, gx, gy, TILE, TILE, "#6b4c34");
+  px(ctx, gx, gy, TILE, 2, "#8a6848");
+  px(ctx, gx, gy + 14, TILE, 2, "#3a2818");
+  px(ctx, gx, gy, 1, TILE, "#4a3424");
+  px(ctx, gx + 15, gy, 1, TILE, "#4a3424");
+  if (y === 0 && x % 4 === 2) {
+    px(ctx, gx + 4, gy + 4, 8, 7, "#2a3844");
+    px(ctx, gx + 5, gy + 5, 6, 5, "#9ec8d4");
+    px(ctx, gx + 7, gy + 4, 1, 7, "#5a4030");
+    px(ctx, gx + 4, gy + 7, 8, 1, "#5a4030");
+    px(ctx, gx + 6, gy + 6, 1, 1, "#ffe6a0");
+  }
+  if (tile === T.door) {
+    // playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: larger interior door fallback (nearly full tile; was a 12x12 inset)
+    px(ctx, gx + 1, gy, 14, 16, "#2a1810");
+    px(ctx, gx + 2, gy + 1, 12, 15, "#6a3c28");
+    px(ctx, gx + 2, gy + 1, 5, 15, "#7a4a32");
+    px(ctx, gx + 7, gy + 1, 1, 15, "#3a2418");
+    px(ctx, gx + 12, gy + 9, 1, 1, "#f0d080");
+    px(ctx, gx + 6, gy, 2, 2, "#e8c878");
+  }
+}
+
+function paintCaveWall(ctx: CanvasRenderingContext2D, x: number, y: number, theme: string, above: number, n: number) {
+  const gx = x * TILE;
+  const gy = y * TILE;
+  const p = palOf(theme);
+  px(ctx, gx, gy, TILE, TILE, p.wall);
+  for (let row = 0; row < TILE; row += 5) {
+    const shift = Math.floor((gy + row) / 5) % 2 === 0 ? 0 : 4;
+    px(ctx, gx, gy + row, TILE, 1, shade(p.wall, -22));
+    px(ctx, gx + shift, gy + row, 1, 5, shade(p.wall, -22));
+    px(ctx, gx + shift + 8, gy + row, 1, 5, shade(p.wall, -22));
+    px(ctx, gx + shift + 1, gy + row + 1, 6, 2, p.wallHi);
+  }
+  if (n > 0.72) px(ctx, gx + 6, gy + 7, 3, 2, "#3a6840");
+  if (edgeOpen(above)) {
+    px(ctx, gx, gy, TILE, 3, shade(p.wall, -28));
+    px(ctx, gx, gy, TILE, 1, p.wallHi);
+    px(ctx, gx + 2, gy - 2, 3, 3, shade(p.wallHi, -8));
+    px(ctx, gx + 10, gy - 3, 4, 4, p.wallHi);
+  }
+}
+
+function paintCaveFloor(ctx: CanvasRenderingContext2D, x: number, y: number, theme: string, marksOnly = false, gemsOnly = false) {
+  const gx = x * TILE;
+  const gy = y * TILE;
+  const p = palOf(theme);
+  if (!marksOnly) {
+    px(ctx, gx, gy + 15, TILE, 1, shade(p.floor, -20));
+    px(ctx, gx + 15, gy, 1, TILE, shade(p.floor, -14));
+    if ((x + y) % 2 === 0) px(ctx, gx + 2, gy + 2, 5, 3, shade(p.floor, 12));
+    if ((x * 3 + y) % 5 === 0) px(ctx, gx + 9, gy + 8, 4, 2, shade(p.floor, -16));
+  }
+  const ore = (x * 13 + y * 7) % 19;
+  // playtest1o: the ore is the loot writer's crystal cell (cave-ore.png, the same four colours); the blob is its fallback.
+  if ((ore === 0 || ore === 1) && !sheetCell(ctx, ORE_SHEET, (x + y) % 4, 0, gx, gy)) {
+    const gem = ["#5a48c8", "#3a78c8", "#c84848", "#48a060"][(x + y) % 4];
+    px(ctx, gx + 5, gy + 6, 5, 4, shade(gem, -30));
+    px(ctx, gx + 6, gy + 5, 3, 3, gem);
+    px(ctx, gx + 7, gy + 5, 1, 1, "#f4f0e8");
+  }
+  if (gemsOnly || (x + y) % 6 !== 0) return;
+  if (theme === "ossuary" || theme === "grave") {
+    px(ctx, gx + 4, gy + 8, 7, 2, "#e6dcc8");
+    px(ctx, gx + 3, gy + 7, 2, 3, "#e6dcc8");
+  } else if (theme === "wraps") {
+    px(ctx, gx + 2, gy + 6, 10, 2, "#e6d2a2");
+    px(ctx, gx + 2, gy + 9, 8, 1, "#c4b48a");
+  } else if (theme === "wick" || theme === "hearth") {
+    px(ctx, gx + 7, gy + 4, 2, 6, "#4a3424");
+    px(ctx, gx + 6, gy + 2, 4, 2, "#e07a2f");
+  } else if (theme === "blackroot" || theme === "drowned") {
+    px(ctx, gx + 1, gy + 8, 6, 2, "#1a2818");
+    px(ctx, gx + 8, gy + 5, 2, 6, "#243020");
+  } else if (theme === "vesper") {
+    px(ctx, gx + 6, gy + 2, 1, 6, "#6a1828");
+  }
+}
+
+function drawTile(
+  ctx: CanvasRenderingContext2D,
+  tile: Tile,
+  x: number,
+  y: number,
+  n: number,
+  theme: string,
+  above: number,
+  frame: number,
+  left = -1,
+  right = -1,
+  below = -1,
+) {
+  const cave = theme !== "over" && theme !== "camp" && !townish(theme);
+  const gx = x * TILE;
+  const gy = y * TILE;
+  px(ctx, gx, gy, TILE, TILE, ground(tile, theme, n));
+
+  let usedLand = false;
+  if (townish(theme)) {
+    if (tile === T.grass || tile === T.exit) {
+      const g = Math.abs(x * 3 + y * 5) % 7;
+      usedLand = seasonCell(ctx, "town-grass", TOWN_GRASS, g, gx, gy);
+    } else if (tile === T.cobble || tile === T.road) {
+      // playtest1 (owner-reported 2026-10-01, old ground textures): the pixel writer's town cobble, not the land pack.
+      usedLand = sheetCell(ctx, PT1_GROUND.cobble, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy);
+    } else if (tile === T.dirt) {
+      usedLand = sheetCell(ctx, PT1_GROUND.dirt, Math.abs(x * 5 + y * 3) % 4, 0, gx, gy);
+    } else if (tile === T.water) {
+      // playtest1c: the town pond is one wrapping surface in the town's own darker, violet-lit water.
+      usedLand = texCell(ctx, WATER_TOWN, texFrame("water", frame), x, y);
+    }
+  }
+  if (theme === "over" && (tile === T.grass || tile === T.exit)) {
+    const g = Math.abs(x * 3 + y * 5) % 8;
+    usedLand = seasonCell(ctx, "vale", "/art/writer/vale.png", g, gx, gy);
+  } else if (theme === "camp" && tile === T.grass) {
+    const g = Math.abs(x * 3 + y * 5) % 4;
+    usedLand = seasonCell(ctx, "camp-grass", "/art/writer/camp-grass.png", g, gx, gy);
+  } else if (theme === "camp" && tile === T.dirt) {
+    const d = Math.abs(x * 5 + y * 3) % 4;
+    usedLand = sheetCell(ctx, "/art/writer/camp-dirt.png", d, 0, gx, gy);
+  }
+
+  if (!usedLand && (tile === T.grass || (tile === T.exit && theme === "town"))) {
+    const blade = theme === "town" ? "#5a2848" : "#102818";
+    const tip = theme === "town" ? "#c46878" : "#3a6840";
+    px(ctx, gx + 2, gy + 11, 1, 4, blade);
+    px(ctx, gx + 3, gy + 12, 2, 1, tip);
+    px(ctx, gx + 11, gy + 4, 1, 3, blade);
+    px(ctx, gx + 10, gy + 5, 2, 1, tip);
+    if ((x * 7 + y * 3) % 11 === 0) {
+      px(ctx, gx + 6, gy + 8, 1, 3, blade);
+      px(ctx, gx + 5, gy + 7, 3, 2, "#f4f0e8");
+      px(ctx, gx + 6, gy + 6, 1, 1, "#fff8ee");
+    } else if ((x * 5 + y) % 13 === 0) {
+      px(ctx, gx + 8, gy + 9, 3, 3, "#e07088");
+      px(ctx, gx + 9, gy + 8, 1, 2, "#f4f0e8");
+    } else if (n > 0.72) px(ctx, gx + 7, gy + 8, 1, 1, "#f0d060");
+    if (theme === "town") {
+      const bloom = (x * 5 + y * 3) % 11;
+      if (bloom === 1) {
+        px(ctx, gx + 6, gy + 8, 3, 2, "#c46858");
+        px(ctx, gx + 7, gy + 7, 1, 1, "#f0c878");
+      } else if (bloom === 2) {
+        px(ctx, gx + 4, gy + 9, 3, 2, "#8a4068");
+        px(ctx, gx + 5, gy + 8, 1, 1, "#e8c0d0");
+      } else if (bloom === 3) {
+        px(ctx, gx + 8, gy + 6, 3, 2, "#6a3058");
+        px(ctx, gx + 9, gy + 5, 1, 1, "#f0d0a0");
+      } else if (bloom === 4) {
+        px(ctx, gx + 5, gy + 7, 3, 3, "#e07a20");
+        px(ctx, gx + 6, gy + 6, 1, 1, "#3a6828");
+      }
+      if (below === T.cobble || below === T.dirt) {
+        px(ctx, gx + 2, gy + 13, 1, 3, "#6a3050");
+        px(ctx, gx + 6, gy + 14, 1, 2, "#c46870");
+        px(ctx, gx + 11, gy + 13, 1, 3, "#6a3050");
+      }
+      const fenced = buildingTile(above) || buildingTile(below) || buildingTile(left) || buildingTile(right);
+      if (fenced && (x + y) % 3 === 0) {
+        px(ctx, gx + 7, gy + 2, 2, 10, "#6a5038");
+        px(ctx, gx + 6, gy + 2, 4, 2, "#3a2820");
+        px(ctx, gx + 1, gy + 5, 14, 1, "#8a6848");
+        px(ctx, gx + 1, gy + 9, 14, 1, "#6a5038");
+      }
+    } else {
+      const wild = (x * 5 + y * 3) % 9;
+      if (wild === 1) {
+        px(ctx, gx + 6, gy + 8, 2, 2, "#e8e0d0");
+        px(ctx, gx + 6, gy + 10, 1, 2, "#8a7860");
+      } else if (wild === 2) {
+        px(ctx, gx + 8, gy + 7, 3, 2, "#6a2030");
+      } else if (wild === 3) px(ctx, gx + 4, gy + 9, 4, 2, "#c4b49a");
+    }
+  }
+  if (tile === T.swamp) {
+    const drew = texCell(ctx, WILD_GROUND.swamp, 0, x, y); // playtest1c: one wrapping swamp ground, no per-tile strips
+    if (!drew) {
+      px(ctx, gx + 1, gy + 12, 6, 3, "#163028");
+      px(ctx, gx + 3, gy + 8, 1, 5, "#0e2418");
+      px(ctx, gx + 4 + ((frame + x) % 5), gy + 6, 6, 1, "#4a8a58");
+      px(ctx, gx + 10, gy + 10, 1, 4, "#1a4030");
+      if ((x + y) % 4 === 0) px(ctx, gx + 8, gy + 5, 3, 2, "#6aaa48");
+    }
+  }
+  if (tile === T.snow) {
+    const drew = texCell(ctx, WILD_GROUND.snow, 0, x, y); // playtest1c: one wrapping snow ground, no per-tile strips
+    if (!drew) {
+      px(ctx, gx + 2, gy + 3, 4, 2, "#f4fbff");
+      px(ctx, gx + 9, gy + 10, 5, 2, "#f7fbff");
+      if ((x * 3 + y) % 6 === 0) px(ctx, gx + 6, gy + 6, 3, 2, "#e8f2f8");
+      if ((x + y) % 8 === 0) {
+        px(ctx, gx + 4, gy + 8, 1, 3, "#8aa4b0");
+        px(ctx, gx + 7, gy + 8, 1, 3, "#8aa4b0");
+      }
+    }
+  }
+  if (tile === T.ash) {
+    const drew = texCell(ctx, WILD_GROUND.ash, 0, x, y); // playtest1c: one wrapping ash ground, no per-tile strips
+    if (!drew) {
+      px(ctx, gx + 3, gy + 8, 8, 1, "#2a221c");
+      px(ctx, gx + 6, gy + 5, 1, 6, "#1a1612");
+      if ((x + y) % 5 === 0) px(ctx, gx + 10, gy + 4, 2, 2, "#e07a2f");
+    }
+  }
+  if (tile === T.sand) {
+    const drew = texCell(ctx, WILD_GROUND.sand, 0, x, y); // playtest1c: one wrapping sand ground, no per-tile strips
+    if (!drew) {
+      px(ctx, gx, gy + 12, TILE, 1, "#a89470");
+      if (n > 0.45) px(ctx, gx + 3, gy + 5, 8, 1, "#e6d6b0");
+      if ((x * 2 + y) % 7 === 0) px(ctx, gx + 11, gy + 8, 2, 2, "#8a7048");
+    }
+  }
+  if (tile === T.road && theme === "over" && sheetCell(ctx, PT1_GROUND.road, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
+    // playtest1: the writer's cart road (the old code-drawn road below is only the not-yet-loaded fallback).
+  } else if (tile === T.road && theme === "over") {
+    const dirt = n > 0.5 ? "#c4a574" : "#b09060";
+    const dirt2 = "#8a6844";
+    px(ctx, gx, gy, TILE, TILE, dirt);
+    px(ctx, gx, gy + 15, TILE, 1, dirt2);
+    px(ctx, gx, gy, 1, TILE, shade(dirt, -18));
+    if ((x * 3 + y) % 5 === 0) px(ctx, gx + 4, gy + 6, 3, 2, "#d8c4a0");
+    if ((x + y * 2) % 7 === 0) px(ctx, gx + 10, gy + 3, 2, 2, "#6a5038");
+    if (n > 0.8) px(ctx, gx + 7, gy + 10, 2, 1, "#e6d4b0");
+  } else if (!usedLand && cave && (tile === T.road || tile === T.cobble) && sheetCell(ctx, `/art/writer/floor-${theme in CAVES ? theme : "cave"}.png`, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
+    // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): a road or cobble below
+    // ground (the Hollow Chapel's aisle) is laid in the dungeon's own floor-kit slabs, not the painted mortar blocks.
+  } else if (!usedLand && (tile === T.road || tile === T.cobble)) {
+    const mortar = "#3a3028";
+    px(ctx, gx, gy, TILE, TILE, mortar);
+    px(ctx, gx + 1, gy + 1, 6, 5, shade(ground(tile, theme, n), 18));
+    px(ctx, gx + 8, gy + 1, 7, 4, shade(ground(tile, theme, n), 6));
+    px(ctx, gx + 1, gy + 8, 5, 6, shade(ground(tile, theme, n), -8));
+    px(ctx, gx + 7, gy + 7, 8, 7, shade(ground(tile, theme, n), 10));
+    px(ctx, gx + 2, gy + 2, 2, 1, "#c4b49a");
+    px(ctx, gx + 10, gy + 9, 2, 1, "#8a7a64");
+    if (above === T.grass || above === T.dirt) px(ctx, gx, gy, TILE, 2, "#6a5438");
+    if (below === T.grass || below === T.dirt) px(ctx, gx, gy + 14, TILE, 2, "#5a4834");
+    if (left === T.grass || left === T.dirt) px(ctx, gx, gy, 2, TILE, "#6a5438");
+    if (right === T.grass || right === T.dirt) px(ctx, gx + 14, gy, 2, TILE, "#5a4834");
+  }
+  if (tile === T.floor && townish(theme)) {
+    // playtest1: the writer's floorboards; the old seam and random marks are only the not-yet-loaded fallback.
+    // playtest1b B2 (owner-reported 2026-10-02, "bare brick floor"): rooms lay the hearth writer's long boards; the short
+    // planks (which read as brick) stay for the town footprints and as the fallback.
+    // playtest1i: the style's wrapping floor first (the short boards are its not-yet-loaded fallback).
+    if (theme.startsWith("room:") && (roomFloorCell(ctx, x, y) || sheetCell(ctx, ROOM_BOARDS, Math.abs(x * 3 + y) % 4, 0, gx, gy))) {
+      // drawn
+    } else if (!sheetCell(ctx, PT1_GROUND.floor, Math.abs(x + y * 3) % 4, 0, gx, gy)) {
+      px(ctx, gx + 0, gy + 15, TILE, 1, "#3a2818");
+      px(ctx, gx + 4, gy + 4, 2, 6, "#4a3424");
+    }
+    // playtest1b B2: rooms have the writer's bed now; this flat bedroll block only stays on the town map.
+    if ((x === 3 || x === 4) && y === 4 && !theme.startsWith("room:")) {
+      px(ctx, gx + (x === 3 ? 2 : 0), gy + 5, x === 3 ? 14 : 12, 8, "#6a3048");
+      px(ctx, gx + (x === 3 ? 2 : 0), gy + 4, x === 3 ? 14 : 8, 3, "#e8dcc8");
+    }
+    if (x === 35 && y === 17) {
+      px(ctx, gx + 3, gy + 8, 10, 4, "#4a4e54");
+      px(ctx, gx + 5, gy + 5, 6, 3, "#7a8088");
+      px(ctx, gx + 6, gy + 12, 4, 3, "#3a342c");
+    }
+    if (x === 27 && y === 18) {
+      px(ctx, gx + 1, gy + 3, 14, 10, "#1e4634");
+      px(ctx, gx + 1, gy + 3, 14, 2, "#c4a050");
+      px(ctx, gx + 3, gy + 7, 2, 2, "#f0e2c8");
+      px(ctx, gx + 7, gy + 8, 2, 2, "#8a2030");
+      px(ctx, gx + 11, gy + 7, 2, 2, "#141414");
+    }
+    const kind = roomKind(theme);
+    // playtest1i: once the interior writer's furniture is in, none of the painted furniture below draws (it is only the
+    // not-yet-loaded fallback); the rug is the room style's own.
+    const old = !(theme.startsWith("room:") && furnArt());
+    if (old && (kind === "inn" || kind === "cottage") && (x === 2 || x === 3) && y === 2) {
+      px(ctx, gx + (x === 2 ? 2 : 0), gy + 5, x === 2 ? 14 : 12, 8, "#6a3048");
+      px(ctx, gx + (x === 2 ? 2 : 0), gy + 4, x === 2 ? 14 : 8, 3, "#e8dcc8");
+    }
+    if (old && kind === "smith" && x === 9 && y === 3) {
+      px(ctx, gx + 3, gy + 8, 10, 4, "#4a4e54");
+      px(ctx, gx + 5, gy + 5, 6, 3, "#7a8088");
+      px(ctx, gx + 6, gy + 12, 4, 3, "#3a342c");
+    }
+    if (old && kind === "casino" && x === 7 && y === 4) {
+      px(ctx, gx + 1, gy + 3, 14, 10, "#1e4634");
+      px(ctx, gx + 1, gy + 3, 14, 2, "#c4a050");
+      px(ctx, gx + 3, gy + 7, 2, 2, "#f0e2c8");
+      px(ctx, gx + 7, gy + 8, 2, 2, "#8a2030");
+      px(ctx, gx + 11, gy + 7, 2, 2, "#141414");
+    }
+    // playtest1b B2: the woven writer rug over the same 4x2 tiles (the flat block is the not-yet-loaded fallback).
+    // playtest1x: the casino's rug sits in the middle of its bigger floor (rugAt)
+    const rg = rugAt(kind);
+    const onRug = !!kind && x >= rg.x && x <= rg.x + 3 && y >= rg.y && y <= rg.y + 1;
+    if (onRug && (sheetCell(ctx, ROOM_RUGS, x - rg.x, rugRow(roomStyleNow) + y - rg.y, gx, gy) || sheetCell(ctx, ROOM_RUG, x - rg.x, y - rg.y, gx, gy))) {
+      // drawn
+    } else if (onRug) {
+      px(ctx, gx, gy, TILE, TILE, x === rg.x || y === rg.y ? "#6a3040" : "#5a2838");
+      px(ctx, gx + 2, gy + 2, 4, 2, "#8a4860");
+      if (x === rg.x && y === rg.y) px(ctx, gx, gy, TILE, 2, "#c4a050");
+    }
+    if (old && kind === "inn" && x === 8 && y === 3) {
+      px(ctx, gx + 2, gy + 6, 12, 7, "#5a3828");
+      px(ctx, gx + 3, gy + 4, 10, 3, "#c4a06a");
+      px(ctx, gx + 4, gy + 2, 2, 4, "#3a2818");
+      px(ctx, gx + 10, gy + 2, 2, 4, "#3a2818");
+    }
+    if (old && kind === "cottage" && x === 8 && y === 3) {
+      px(ctx, gx + 3, gy + 7, 10, 6, "#5a3828");
+      px(ctx, gx + 4, gy + 5, 8, 3, "#8a6848");
+      px(ctx, gx + 6, gy + 6, 3, 2, "#e8dcc8");
+    }
+    if (old && kind === "cottage" && x === 10 && y === 6) {
+      px(ctx, gx + 6, gy + 8, 4, 6, "#5a4030");
+      px(ctx, gx + 5, gy + 4, 6, 5, "#2a5838");
+      px(ctx, gx + 7, gy + 2, 2, 3, "#3a6840");
+    }
+    if (old && (kind === "shop" || kind === "guild" || kind === "bank" || kind === "tailor") && x === 6 && y === 6) {
+      px(ctx, gx + 1, gy + 6, 14, 8, "#4a3424");
+      px(ctx, gx + 1, gy + 4, 14, 3, "#c4a06a");
+      px(ctx, gx + 4, gy + 8, 2, 3, "#8f2d3a");
+      px(ctx, gx + 9, gy + 8, 2, 3, "#2a4a38");
+    }
+    if (old && kind === "chapel" && (x === 3 || x === 10) && y === 5) {
+      px(ctx, gx + 2, gy + 4, 12, 8, "#5a4030");
+      px(ctx, gx + 3, gy + 5, 10, 3, "#8a3038");
+    }
+    if (old && kind === "smith" && x === 4 && y === 3) {
+      px(ctx, gx + 2, gy + 6, 12, 8, "#3a342c");
+      px(ctx, gx + 4, gy + 3, 8, 4, "#e07a2f");
+      px(ctx, gx + 6, gy + 2, 4, 3, "#f0c080");
+      px(ctx, gx + 3, gy + 1, 2, 4, "#4a4038");
+    }
+    if (old && kind === "alchemy" && x === 4 && y === 5) {
+      px(ctx, gx + 2, gy + 8, 4, 6, "#6a2030");
+      px(ctx, gx + 8, gy + 9, 3, 5, "#2a6848");
+      px(ctx, gx + 11, gy + 7, 3, 7, "#3a4a88");
+    }
+    if (old && kind === "fisher" && x === 6 && y === 5) {
+      px(ctx, gx + 2, gy + 8, 12, 5, "#6a5038");
+      px(ctx, gx + 3, gy + 6, 4, 4, "#8a6840");
+      px(ctx, gx + 9, gy + 6, 4, 4, "#8a6840");
+    }
+  }
+  // playtest1c: the square's basin water is the town water surface; its stone kerb is the shore rim (paintShore).
+  if (tile === T.pool && theme === "town" && texCell(ctx, WATER_TOWN, texFrame("water", frame), x, y)) return;
+  if (tile === T.pool && theme === "town") {
+    px(ctx, gx, gy, TILE, TILE, "#6a6058");
+    px(ctx, gx + 2, gy + 2, 12, 12, "#1a3848");
+    px(ctx, gx + 4, gy + 6, 7, 1, "#8ec4d4");
+    return;
+  }
+  if ((tile === T.water || tile === T.pool) && !(usedLand && tile === T.water)) {
+    // playtest1c: vale and camp water is one wrapping surface (no tile grid); caves keep their own liquid.
+    const wave = (theme === "over" || theme === "camp") && tile === T.water && texCell(ctx, WATER, texFrame("water", frame), x, y);
+    // playtest1h: a dungeon's water or pool is the prop writer's wrapping liquid in that dungeon's own colour and accent
+    // (cave-liquid-<theme>.png, four frames like the vale water), not a flat square with one stripe.
+    const pond = !wave && cave && texCell(ctx, caveLiquid(theme), texFrame("water", frame), x, y);
+    if (!wave && !pond) {
+    const wob = (Math.floor(frame) + x) % 4;
+    const col = cave ? palOf(theme).liquid : theme === "town" ? "#1a1428" : "#16344c";
+    px(ctx, gx, gy, TILE, TILE, col);
+    px(ctx, gx, gy + 8, TILE, 8, shade(col, -14));
+    px(ctx, gx + 1, gy + 3 + wob, 8, 1, cave ? palOf(theme).accent : "#7aa4b4");
+    px(ctx, gx + 6, gy + 10, 7, 1, "#0c2030");
+    if ((x + y) % 5 === 0) px(ctx, gx + 4, gy + 6, 3, 2, "#2a6840");
+    if (theme === "town") {
+      if ((x + y) % 3 === 0) {
+        px(ctx, gx + 6, gy + 6, 5, 3, "#2a5a38");
+        px(ctx, gx + 7, gy + 5, 3, 2, "#d8e0b0");
+      }
+      if (edgeOpen(above) && above !== T.water) px(ctx, gx, gy, TILE, 2, "#3a6840");
+      if (edgeOpen(below) && below !== T.water) px(ctx, gx, gy + 14, TILE, 2, "#102018");
+    }
+    }
+  }
+  const kit = cave && tile === T.floor ? floorKitCell(x, y) : -1;
+  if (kit >= 0 && sheetCell(ctx, `/art/writer/floor-${theme in CAVES ? theme : "cave"}.png`, kit, 0, gx, gy)) paintCaveFloor(ctx, x, y, theme, true, true);
+  else if (cave && tile === T.floor) {
+    const name = theme in CAVES ? theme : "cave";
+    const hole = (x * 13 + y * 7) % 23 === 0;
+    const file = `/art/writer/${hole ? "pit" : "brick"}-${name}.png`;
+    const col = hole ? 0 : Math.abs(x * 5 + y * 3) % 4;
+    const drew = sheetCell(ctx, file, col, 0, gx, gy);
+    paintCaveFloor(ctx, x, y, theme, drew);
+  }
+  if ((tile === T.wall || secretTile(tile)) && cave && !paintWallKit(ctx, x, y, theme, above, below, left, right)) paintCaveWall(ctx, x, y, theme, above, n);
+  if ((tile === T.wall || tile === T.door) && theme.startsWith("room:")) paintRoomEdge(ctx, tile, x, y, frame);
+  else if ((tile === T.wall || tile === T.door) && theme === "town") paintTownFootprint(ctx, tile, x, y, n);
+  else if ((tile === T.wall || tile === T.door) && townish(theme)) paintHouse(ctx, tile, x, y, above, below, left, right);
+  // playtest1b B2 (owner-reported 2026-10-02, "camp graphics unchanged"): the tent's footprint is camp grass under the
+  // writer tent (the green block is only the not-yet-loaded fallback); the mark and the fire stand on camp dirt.
+  if (tile === T.wall && theme === "camp" && !seasonCell(ctx, "camp-grass", "/art/writer/camp-grass.png", Math.abs(x * 3 + y * 5) % 4, gx, gy)) {
+    px(ctx, gx, gy, TILE, TILE, "#3c8636");
+    px(ctx, gx + 4, gy + 10, 2, 3, "#2a6828");
+  }
+  if ((tile === T.door || tile === T.hearth) && theme === "camp" && sheetCell(ctx, "/art/writer/camp-dirt.png", Math.abs(x * 5 + y * 3) % 4, 0, gx, gy)) return;
+  if (tile === T.wall && theme === "over") {
+    px(ctx, gx, gy, TILE, TILE, "#4a545c");
+    px(ctx, gx, gy, TILE, 3, "#6a7480");
+  }
+  if (tile === T.door && theme === "camp") {
+    px(ctx, gx, gy, TILE, TILE, "#c4a574");
+    px(ctx, gx + 4, gy + 2, 8, 12, "#6a3c28");
+    px(ctx, gx + 6, gy, 4, 4, "#f0c080");
+  }
+  if (tile === T.door && theme === "over") {
+    px(ctx, gx, gy - 8, TILE, 8, "#8a3038");
+    px(ctx, gx, gy - 8, TILE, 2, "#c05858");
+    px(ctx, gx + 6, gy - 12, 4, 4, "#9aa0aa");
+    px(ctx, gx, gy, TILE, TILE, "#e8dcc8");
+    px(ctx, gx, gy, 2, TILE, "#c4b49a");
+    px(ctx, gx + 14, gy, 2, TILE, "#c4b49a");
+    px(ctx, gx + 4, gy + 4, 8, 12, "#6a3c28");
+    px(ctx, gx + 6, gy + 6, 4, 6, "#f0e2c8");
+    px(ctx, gx + 9, gy + 10, 1, 1, "#f0d080");
+  }
+  // playtest1c (owner-reported 2026-10-02, "tiny ladder" entrances): a stone stair down into the dark, or up into the
+  // light, in place of the drawn ladder. On the vale and in town the dungeon's mouth is drawn over it (paintEntrance).
+  // playtest1d (batch C2): below ground the stair wears its dungeon's dress (mason, crypt or barrow; wild.stairCell).
+  const stairDrawn = (tile === T.stairD || tile === T.stairU) && ((cave && sheetCell(ctx, STAIRS_THEMED, stairCell(theme, tile === T.stairD), 0, gx, gy)) || sheetCell(ctx, STAIRS, tile === T.stairD ? 0 : 1, 0, gx, gy));
+  if (stairDrawn) {
+    // drawn
+  } else if (tile === T.stairD || tile === T.stairU) {
+    px(ctx, gx + 2, gy + 1, 2, 14, "#4a3424");
+    px(ctx, gx + 12, gy + 1, 2, 14, "#4a3424");
+    const wood = cave ? "#a07850" : "#7a5840";
+    for (let i = 0; i < 5; i++) {
+      px(ctx, gx + 3, gy + 1 + i * 3, 10, 2, wood);
+      px(ctx, gx + 3, gy + 2 + i * 3, 10, 1, "#3a2818");
+    }
+    if (cave) px(ctx, gx + 5, gy + 13, 6, 2, shade(palOf(theme).floor, -20));
+  }
+  // playtest1h: the chest is the prop writer's (drawWorld lays it on the ground it stands on, chestOn); this flat block
+  // is only the not-yet-loaded fallback.
+  if (tile === T.chest) {
+    px(ctx, gx + 3, gy + 6, 10, 7, "#6a4818");
+    px(ctx, gx + 3, gy + 6, 10, 3, "#c4a050");
+    px(ctx, gx + 7, gy + 9, 2, 2, "#f0e2c8");
+  }
+  if (tile === T.bone && !cave && !sheetCell(ctx, PROP_BONES, Math.abs(x * 3 + y * 5) % 4, 0, gx, gy)) {
+    px(ctx, gx + 4, gy + 8, 8, 2, "#e6dcc8");
+  }
+  // playtest1i: in a room, the shelf, hearth, cauldron, moon and net tiles are the room's floor under the interior
+  // writer's furniture (drawWorld stands it there), not a flat purple square under a painted block.
+  if (theme.startsWith("room:") && (tile === T.hearth || tile === T.cauldron || tile === T.shelf || tile === T.nets || tile === T.moon) && furnArt() && roomFloorCell(ctx, x, y)) return;
+  if (tile === T.hearth) {
+    px(ctx, gx + 1, gy + 3, 14, 12, "#2a1c18");
+    px(ctx, gx + 3, gy + 8, 10, 5, "#e07a2f");
+    px(ctx, gx + 6, gy + 6, 4, 4, "#f0c080");
+    px(ctx, gx + 5, gy + 2, 2, 4, "#4a4038");
+    px(ctx, gx + 9, gy + 2, 2, 4, "#4a4038");
+  }
+  if (tile === T.cauldron) {
+    px(ctx, gx, gy, TILE, TILE, "#3a241c");
+    px(ctx, gx + 3, gy + 10, 10, 3, "#5a3018");
+    const bob = Math.floor(frame / 3) % 2;
+    px(ctx, gx + 4, gy + 6, 8, 6, "#2a4030");
+    px(ctx, gx + 3, gy + 5, 10, 2, "#1a2820");
+    px(ctx, gx + 6, gy + 2 + bob, 4, 3, "#6aaa48");
+    px(ctx, gx + 5, gy + 1, 2, 2, "#c8e080");
+    px(ctx, gx + 9, gy, 2, 2, "#9ec060");
+  }
+  if (tile === T.shelf) {
+    px(ctx, gx, gy, TILE, TILE, "#4a3428");
+    px(ctx, gx + 1, gy + 3, 14, 2, "#6a4830");
+    px(ctx, gx + 1, gy + 9, 14, 2, "#6a4830");
+    px(ctx, gx + 2, gy + 5, 2, 4, "#8f2d3a");
+    px(ctx, gx + 5, gy + 4, 2, 5, "#2a6848");
+    px(ctx, gx + 8, gy + 5, 2, 4, "#3a4a88");
+    px(ctx, gx + 11, gy + 4, 2, 5, "#c4a15a");
+    px(ctx, gx + 3, gy + 11, 2, 3, "#e6d2a2");
+    px(ctx, gx + 7, gy + 11, 2, 3, "#6a2030");
+    px(ctx, gx + 11, gy + 11, 2, 3, "#2a4060");
+  }
+  if (tile === T.ice && texCell(ctx, ICE, texFrame("ice", frame), x, y)) return;
+  if (tile === T.ice) {
+    px(ctx, gx, gy, TILE, TILE, n > 0.5 ? "#c5dde8" : "#b7d2e0");
+    px(ctx, gx + 1, gy + 2, 9, 1, "#f4fbff");
+    px(ctx, gx + 7, gy + 7, 7, 1, "#7aa4b8");
+    px(ctx, gx + 3, gy + 11, 6, 1, "#eef6fb");
+    px(ctx, gx + 10, gy + 4, 1, 5, "#9ec4d4");
+    return;
+  }
+  if (tile === T.nets) {
+    px(ctx, gx, gy, TILE, TILE, "#6a5040");
+    px(ctx, gx, gy + 15, TILE, 1, "#3a2818");
+    px(ctx, gx + 1, gy + 2, 14, 1, "#8a9a70");
+    px(ctx, gx + 2, gy + 3, 1, 9, "#8a9a70");
+    px(ctx, gx + 8, gy + 3, 1, 10, "#8a9a70");
+    px(ctx, gx + 13, gy + 3, 1, 7, "#8a9a70");
+    px(ctx, gx + 3, gy + 6, 4, 2, "#d8d0c0");
+    px(ctx, gx + 10, gy + 8, 3, 1, "#e8e0d0");
+    px(ctx, gx + 5, gy + 1, 2, 3, "#6a3030");
+    px(ctx, gx + 11, gy + 11, 2, 2, "#1c3048");
+    return;
+  }
+  if (tile === T.moon) {
+    px(ctx, gx, gy, TILE, TILE, "#2a2040");
+    px(ctx, gx + 4, gy + 4, 8, 8, "#1a1430");
+    px(ctx, gx + 6, gy + 3, 5, 5, "#f0e6c0");
+    px(ctx, gx + 8, gy + 3, 4, 5, "#1a1430");
+    px(ctx, gx + 2, gy + 2, 2, 2, "#f4e27a");
+    px(ctx, gx + 12, gy + 6, 1, 1, "#f4e27a");
+    px(ctx, gx + 3, gy + 11, 1, 1, "#f4e27a");
+    px(ctx, gx + 11, gy + 12, 2, 1, "#f4e27a");
+  }
+}
+
+/** Tree, rock, pump, or grave. Drawn with the actors so a sprite can stand in front of the trunk. */
+/** Pixel-writer art for the dungeon secrets, laid over the cave wall paintCaveWall already drew. */
+const FEAT_GLYPHS = "/art/writer/feat-glyphs.png";
+const FEAT_FIRE = "/art/writer/feat-fire.png";
+/** Floor traps: 0 holes, 1 tips (the tell), 2 spikes up, 3 plate, 4 plate pressed. */
+const TRAP_SHEET = "/art/writer/trap.png";
+/** Rescue: 0 a captive's stake with the chain on, 1 the chain broken. Pixel writer. */
+const CAPTIVE_SHEET = "/art/writer/captive.png";
+/** Night bounty board: 0 tonight's sheet up, 1 paid and slashed, 2 bare by day. Pixel writer. */
+const BOUNTY_SHEET = "/art/writer/bounty.png";
+/** The mimic (owner-approved 13th family): rank rare only, eleven frames. Sprite writer. */
+const MIMIC_SHEET = "/art/sprites/mimic.png";
+/** OWNER-APPROVED EXCEPTION 2026-10-01: FESTIVAL BOSSES. Their own sprite-writer strips (16x32, eleven frames). */
+const FESTIVAL_SHEETS: Record<string, string> = { krampus: "/art/sprites/krampus.png", pumpkinlord: "/art/sprites/pumpkin-lord.png" };
+/** Items 12/14: 0 harvest lantern unlit, 1 lit, 2 snow lantern, 3 Hessa's stall. */
+const FESTIVAL_PROPS = "/art/writer/festival-props.png";
+/** Drowned Bloom and Ashen Fair (owner-approved 2026-10-01 10:14 ET), pixel-writer cells: 0 bloom bowl, 1 Ottla's
+ * bloom stall, 2 a drowned bloom on the flood, 3 ember brazier, 4 brazier flaring, 5 Sallow's booth under the burning moon. */
+const FESTIVAL_PROPS2 = "/art/writer/festival-props2.png";
+/** Drowned Bloom: four cells of shallow flood laid over swamp and bank ground (pixel writer). */
+const FLOOD_SHEET = "/art/writer/flood.png";
+/** Map writer phase 2: biome border fringe masks (pixel writer). 0-3 bands n e s w, 4-7 their second
+ * variant, 8-11 corners ne se sw nw. Only the alpha is used: the neighbour biome's own ground shows through. */
+const BORDER_SHEET = "/art/writer/border-dither.png";
+/** playtest1: every sheet a vale fringe can need, so they are all asked for up front (see fringeReady). */
+/** playtest1 (owner-reported 2026-10-01, old ground textures): the pixel writer's town and room grounds. */
+export const PT1_GROUND = { cobble: "/art/writer/town-cobble.png", dirt: "/art/writer/town-dirt.png", road: "/art/writer/vale-road.png", floor: "/art/writer/room-floor.png", pool: "/art/writer/town-pool.png" } as const;
+/** playtest1 (spells did not show): the spell writer's strips load up front, so a first cast never waits on one. */
+const SPELL_GEN = ["lightning", "beam-fire", "beam-holy", "beam-ice", "beam-lightning", "beam-shadow", "beam-venom", "orb", "nova", "ring", "fire-rain", "ice-rain"].map((n) => `/art/spells/gen/${n}.png`);
+/** playtest1: the town's edge fence (h run, v run, gate post). Pixel writer. */
+export const PT1_FENCE = "/art/writer/town-fence.png";
+// playtest1c: the four biome grounds are the wild sheets now (one wrapping ground each, drawn by texCell).
+const FRINGE_SHEETS = ["/art/writer/vale.png", ...["snow", "sand", "ash", "swamp"].map((b) => WILD_GROUND[b])];
+/** Sleeping mimic (owner-approved 2026-09-30): 0 lid lifted a pixel, 1 with a tooth glint. Pixel writer, laid over the chest. */
+const MIMIC_SLEEP = "/art/writer/mimic-sleep.png";
+/** playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): prop writer sheets. */
+const PROP_CHEST = "/art/writer/prop-chest.png";
+const PROP_MIMIC_LID = "/art/writer/prop-mimic-lid.png";
+const PROP_BONES = "/art/writer/prop-bones.png";
+/** playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: Bill (21:02 ET) "the floor with bones on it is really busy, change it to a less busy texture".
+ * The wild rift's bone rooms (the floors layout's `wildrift` and the Rift Warden's `wilddeep`) are all T.bone, and 1z drew a
+ * bright bone heap on every tile. There a T.bone tile now draws calm dark crypt earth (floor-bone2.png, 8 cells, seeded per
+ * tile) and a small muted bone accent (decal-bone2.png, 4 cells) on about one tile in ten; no heap. Looks only: the tiles,
+ * collision, foes and saves are untouched. Every other T.bone (a generated dungeon's single heap by the pool) keeps the 1h heap. */
+export const BONE_FLOOR = { sheet: "/art/writer/floor-bone2.png", accents: "/art/writer/decal-bone2.png", cells: 8, accentCells: 4, accentRate: 0.1, seed: 2021 } as const;
+/** playtest2a: does this scene draw its T.bone tiles as the calm bone floor (the wild rift's rooms)? */
+export function boneFloorScene(g: Game): boolean {
+  return g.mapId === "dungeon" && isWildMap(g.dungeon);
+}
+/** playtest2a: the floor cell of a bone-floor tile, and its accent cell or -1 (about BONE_FLOOR.accentRate of tiles). */
+export function boneFloorCells(x: number, y: number): { cell: number; accent: number } {
+  const cell = Math.floor(hash(x, y, BONE_FLOOR.seed) * BONE_FLOOR.cells);
+  const accent = hash(x, y, BONE_FLOOR.seed + 1) < BONE_FLOOR.accentRate ? Math.floor(hash(x, y, BONE_FLOOR.seed + 2) * BONE_FLOOR.accentCells) : -1;
+  return { cell, accent };
+}
+let boneFloorNow = false;
+export const caveLiquid = (theme: string) => `/art/writer/cave-liquid-${theme in CAVES ? theme : "cave"}.png`;
+function chestArt() {
+  const im = landSheet[PROP_CHEST];
+  return !!im && im.complete && im.naturalWidth > 0;
+}
+/** A freed captive knocked down on the escort: one 32x16 cell per RESCUES entry. Sprite writer. */
+const ESCORT_DOWN = "/art/sprites/escort-down.png";
+/** Item 8: fresh-turned earth at the foot of a grave dug tonight. Item 9: the derby trophy on the croft wall. */
+const GRAVE_DUG = "/art/writer/grave-dug.png";
+const DERBY_TROPHY = "/art/writer/derby-trophy.png";
+const CROFT_DECOR = "/art/writer/croft-decor.png";
+const BOSS_PLAQUE = "/art/writer/boss-plaque.png";
+/**
+ * Item 13: the season the world is drawn in, set once per frame by drawWorld. Ground and tree sheets
+ * swap to the pixel writer's palette-locked season tints; until a tint sheet loads, the old sheet draws.
+ */
+let seasonNow: SeasonId = "autumn";
+/** Draw the season's tint of a sheet cell, or fall back to the untinted sheet. */
+function seasonCell(ctx: CanvasRenderingContext2D, name: "vale" | "camp-grass" | "town-grass", base: string, col: number, dx: number, dy: number, w = 1, h = 1, stride = 16) {
+  return sheetCell(ctx, seasonSheet(seasonNow, name), col, 0, dx, dy, w, h, stride) || sheetCell(ctx, base, col, 0, dx, dy, w, h, stride);
+}
+/** Family order of /art/sprites/foes.png (4 ranks x 11 poses each), as paintMonster reads it. */
+const FOE_ORDER = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+
+/** Item 10: a boss trophy on the croft wall: the plaque, then the boss's crowned head in its window. */
+function paintBossTrophy(ctx: CanvasRenderingContext2D, family: string, x: number, y: number) {
+  if (!sheetCell(ctx, BOSS_PLAQUE, 0, 0, x * TILE, y * TILE)) return;
+  const fi = FOE_ORDER.indexOf(family);
+  let im = landSheet["/art/sprites/foes.png"];
+  if (!im) {
+    im = new Image();
+    im.src = "/art/sprites/foes.png";
+    landSheet["/art/sprites/foes.png"] = im;
+  }
+  if (fi < 0 || !im || !im.complete || im.naturalWidth === 0) return;
+  const col = (fi * 4 + 1) * 11;
+  ctx.drawImage(im, col * 16 + 3, TROPHY_HEAD_TOP[family] ?? 0, 10, 10, x * TILE + 3, y * TILE + 2, 10, 10);
+}
+if (typeof Image !== "undefined") {
+  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  // gfx1: the wall kits, the lamp sheet and the portal gates load up front too, so a wall never pops from flat to deep.
+  // playtest1 (owner-reported 2026-10-01, rain slowdown): the fringe biome sheets load up front. fringeReady() waits
+  // on all four; when no snow, sand, ash or swamp tile had been drawn yet the sheet was never asked for, so the vale
+  // rebuilt every fringed tile (a new canvas each) on every frame: ~2,500 canvases a second, the vale's frame drop.
+  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`), ...FRINGE_SHEETS, ...Object.values(PT1_GROUND), PT1_FENCE, ...SPELL_GEN]) {
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  // playtest1c: the wild art (trees, deadwood, rocks, graves, mouths, water, ice, grounds, shores, pumpkins) up front.
+  for (const url of WILD_SHEETS) {
+    if (landSheet[url]) continue;
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+  // playtest1f: the wayrifts, their glow, their map marker and the swamp path load up front too.
+  for (const url of [...WAYRIFT_SHEETS, WILD_PORTAL_SHEET, WILD_PORTAL_EM]) {
+    if (landSheet[url]) continue;
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+
+  // playtest1g: the trail path sheets of the vale, snow, ash and sand load up front too.
+  for (const url of TRAIL_SHEETS) {
+    if (landSheet[url]) continue;
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+
+  // gfx2: the floor kits and decal strips, so a floor never pops from the old bricks to slabs.
+  for (const url of Object.keys(CAVES).flatMap((k) => [`/art/writer/floor-${k}.png`, `/art/writer/decal-${k}.png`])) {
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+}
+
+/** One 5×5 glyph cell. state 0 carved in stone, 1 dim on iron, 2 lit. */
+function glyphCell(ctx: CanvasRenderingContext2D, glyph: number, state: number, dx: number, dy: number) {
+  const im = landSheet[FEAT_GLYPHS];
+  if (!im || !im.complete || im.naturalWidth === 0) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, (glyph * 3 + state) * 5, 0, 5, 5, dx, dy, 5, 5);
+}
+
+/** playtest1j: what the telegraphs and fight lights read off the game (dungeon traps and ash bursts only below ground). */
+function tellView(g: Game): TellView {
+  const below = g.mapId === "dungeon";
+  return { roamers: g.roamers, spells: g.spells, ashes: below ? g.ashes : [], plates: g.plates, traps: below ? (g.feats?.traps ?? []) : [], fog: g.fog, w: g.w, plateTell: TRAPS.plateTell, ashTell: RUNS.ashTell, plateR: TRAPS.plateRadius, ashR: RUNS.ashRadius, frame: g.frame };
+}
+
+/** The telegraph box drawn for a foe mark, and for a plate trap's mark (playtest1j: no longer drawn; paintTells). */
+export function paintMark(ctx: CanvasRenderingContext2D, mx: number, my: number, rad: number, col: string) {
+  const x0 = Math.round(mx - rad);
+  const y0 = Math.round(my - rad / 2);
+  const w = Math.round(rad * 2);
+  const h = Math.round(rad);
+  px(ctx, x0, y0, w, 1, col);
+  px(ctx, x0, y0 + h, w, 1, col);
+  px(ctx, x0, y0, 1, h, col);
+  px(ctx, x0 + w, y0, 1, h, col);
+}
+
+function paintTrap(ctx: CanvasRenderingContext2D, g: Game, i: number, x: number, y: number) {
+  const t = g.feats?.traps?.[i];
+  if (!t) return;
+  const p = g.plates[i];
+  const cell = t.kind === "spike" ? spikeStage(t, g.worldMs / 1000) : p && (p.tell > 0 || p.cool > 0) ? 4 : 3;
+  sheetCell(ctx, TRAP_SHEET, cell, 0, x * TILE, y * TILE);
+}
+
+function paintSecret(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: number, y: number) {
+  const sheet = `/art/writer/feat-${g.theme in CAVES ? g.theme : "cave"}.png`;
+  const gx = x * TILE;
+  const gy = y * TILE;
+  const rune = g.feats?.rune;
+  if (tile === T.crack) {
+    sheetCell(ctx, sheet, (x + y) % 2, 0, gx, gy);
+    return;
+  }
+  if (tile === T.runeDoor) {
+    sheetCell(ctx, sheet, 2, 0, gx, gy);
+    if (!rune) return;
+    if (rune.kind === "brazier") rune.order.forEach((gl, i) => glyphCell(ctx, gl, i < g.runeLit.length ? 2 : 1, gx + 1 + i * 5, gy + 2));
+    else glyphCell(ctx, rune.order[0], 1, gx + 6, gy + 2);
+    return;
+  }
+  const mark = rune?.marks.find((m) => m.x === x && m.y === y);
+  const solved = !!rune && g.tiles[rune.door.y * g.w + rune.door.x] !== T.runeDoor;
+  if (tile === T.brazier) {
+    sheetCell(ctx, sheet, 3, 0, gx, gy);
+    const lit = !!mark && (solved || g.runeLit.includes(mark.glyph));
+    if (mark) glyphCell(ctx, mark.glyph, lit ? 2 : 1, gx + 6, gy + 10);
+    if (lit) sheetCell(ctx, FEAT_FIRE, Math.floor(g.frame / 4 + x) % 3, 0, gx, gy - 12);
+    return;
+  }
+  if (tile === T.statue) {
+    sheetCell(ctx, sheet, 4, 0, gx, gy);
+    if (mark) glyphCell(ctx, mark.glyph, solved && rune && mark.glyph === rune.order[0] ? 2 : 0, gx + 6, gy + 11);
+  }
+}
+
+/**
+ * playtest1c: a dungeon's way in. On the vale a 48x48 mouth (3x3 tiles) whose stair sits on the stair tile, its two
+ * cold-fire braziers flickering on a two-frame cycle; in town the Opened Grave, 32x32 over the stair tile and the three
+ * above and left of it. With em only the glow mask. False while the sheet loads (the floor stair still shows).
+ */
+function paintEntrance(ctx: CanvasRenderingContext2D, look: EntranceKind | "grave", tx: number, ty: number, frame: number, em = false): boolean {
+  const f = Math.floor(frame / 3 + tx) % 2;
+  if (look === "grave") return sheetCell(ctx, em ? OPENED_GRAVE_EM : OPENED_GRAVE, f, 0, (tx - 1) * TILE, (ty - 1) * TILE, 2, 2, 32);
+  return sheetCell(ctx, em ? ENTRANCES_EM : ENTRANCES, ENTRANCE_CELL[look] + f, 0, tx * TILE - TILE, (ty + 1) * TILE - 48, 3, 3, 48);
+}
+
+/**
+ * playtest1c (owner-reported 2026-10-02: "some trees ridiculously tiny", stick saplings, old third-party trees, rocks,
+ * dead trees and pumpkins, oversized town gravestones): every prop is the pixel writer's wild art now (wild.ts).
+ * Trees are 32x48 on their tile's foot (a person is 16x30), in the season's leaves; the snow keeps its frosted
+ * winter look; cinder and swamp get charred and drowned deadwood, the waste bleached thorns. A headstone is 10-13 px
+ * on its 16 px plot. With em the glow mask is drawn instead (the yew's wisps, the embers, the candle, the carved faces),
+ * or nothing. The painted pixels below are only the not-yet-loaded fallback.
+ */
+export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" | "pump" | "grave", x: number, y: number, biome: string, frame = 0, em = false): boolean {
+  const ox = x + 8;
+  const oy = y + 14;
+  const tx = Math.round(x / TILE);
+  const ty = Math.round(y / TILE);
+  if (kind === "rock") {
+    const cells = ROCK_CELL[biome] ?? ROCK_CELL.vale;
+    const cell = cells[tileRoll(tx, ty, cells.length)];
+    // playtest1v: the 24x24 rock first (knee-to-waist on the hero), the 1c 16x16 while it loads
+    const r2 = PROP2.rock;
+    if (em) return ROCK_GLOW.has(cell) && (prop2Ready(ROCKS2) ? sheetCell(ctx, ROCKS2_EM, cell, 0, x + r2.dx, y + r2.dy, r2.w / 16, r2.h / 16, r2.w) : sheetCell(ctx, ROCKS_EM, cell, 0, x, y - 2, 1, 1));
+    if (prop2Ready(ROCKS2) && sheetCell(ctx, ROCKS2, cell, 0, x + r2.dx, y + r2.dy, r2.w / 16, r2.h / 16, r2.w)) return true;
+    if (sheetCell(ctx, ROCKS, cell, 0, x, y - 2, 1, 1)) return true;
+    px(ctx, ox - 8, oy - 6, 16, 7, "#4a4e54");
+    px(ctx, ox - 6, oy - 10, 12, 6, "#7a8088");
+    px(ctx, ox - 3, oy - 13, 6, 4, "#b0b6bc");
+    px(ctx, ox - 1, oy - 12, 2, 2, "#e8ecee");
+    px(ctx, ox + 2, oy - 8, 3, 3, "#5a5e64");
+    px(ctx, ox - 7, oy - 1, 14, 2, "#2a2824");
+    return true;
+  }
+  if (kind === "pump") {
+    // the town keeps its big jack-o'-lanterns among the small ones; elsewhere a patch pumpkin
+    const big = biome === "town" && Math.abs(tx * 3 + ty) % 3 !== 0;
+    const f = Math.floor(frame / 5 + tx) % 2;
+    if (em) return big ? sheetCell(ctx, PUMPKIN_BIG_EM, f, 0, x - 8, y - 16, 2, 2, 32) : sheetCell(ctx, PUMPKIN_SMALL_EM, f, 0, x, y, 1, 1);
+    if (big ? sheetCell(ctx, PUMPKIN_BIG, f, 0, x - 8, y - 16, 2, 2, 32) : sheetCell(ctx, PUMPKIN_SMALL, f, 0, x, y, 1, 1)) return true;
+    px(ctx, ox - 6, oy - 10, 12, 9, "#e07a2f");
+    px(ctx, ox - 7, oy - 8, 2, 5, "#c45a18");
+    px(ctx, ox + 5, oy - 8, 2, 5, "#c45a18");
+    px(ctx, ox - 2, oy - 13, 3, 3, "#2a4a20");
+    px(ctx, ox - 3, oy - 7, 2, 2, INK);
+    px(ctx, ox + 2, oy - 7, 2, 2, INK);
+    px(ctx, ox - 1, oy - 4, 3, 1, INK);
+    px(ctx, ox - 5, oy - 1, 10, 2, "#2a2418");
+    return true;
+  }
+  if (kind === "grave") {
+    let cell = tileRoll(tx, ty, 4);
+    if (cell === GRAVE_CELL.candle && Math.floor(frame / 3 + tx) % 2) cell = GRAVE_CELL.candle2;
+    const candle = cell === GRAVE_CELL.candle || cell === GRAVE_CELL.candle2;
+    if (em) return candle && sheetCell(ctx, GRAVES_EM, cell, 0, x, y - 16, 1, 2);
+    if (sheetCell(ctx, GRAVES, cell, 0, x, y - 16, 1, 2)) return true;
+    px(ctx, ox - 6, oy - 16, 12, 14, "#d4cec0");
+    px(ctx, ox - 7, oy - 13, 14, 10, "#b7b2a6");
+    px(ctx, ox - 1, oy - 12, 2, 6, "#6a6660");
+    px(ctx, ox - 3, oy - 10, 6, 1, "#6a6660");
+    px(ctx, ox - 8, oy - 2, 16, 3, "#2a3828");
+    px(ctx, ox - 4, oy - 6, 2, 1, "#8a867c");
+    return true;
+  }
+  {
+    const dead = biome === "ash" ? DEAD_CELL.cinder : biome === "swamp" ? DEAD_CELL.willow : biome === "sand" ? DEAD_CELL.thorn : null;
+    if (dead) {
+      const cell = dead[tileRoll(tx, ty, dead.length)];
+      const t2 = PROP2.tree; // playtest1v: the 64x96 dead tree first, the 1c 32x48 while it loads
+      if (em) return prop2Ready(DEADWOOD2) ? sheetCell(ctx, DEADWOOD2_EM, cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w) : sheetCell(ctx, DEADWOOD_EM, cell, 0, x - 8, y - 32, 2, 3, 32);
+      if (prop2Ready(DEADWOOD2) && sheetCell(ctx, DEADWOOD2, cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w)) return true;
+      if (sheetCell(ctx, DEADWOOD, cell, 0, x - 8, y - 32, 2, 3, 32)) return true;
+    } else {
+      const season = biome === "snow" ? "winter" : seasonNow;
+      const cell = tileRoll(tx, ty, 8);
+      const t2 = PROP2.tree; // playtest1v: the 64x96 tree first, the 1c 32x48 while it loads
+      const big = prop2Ready(WILD_TREES2[season]);
+      if (em) return TREE_GLOW.has(cell) && (big ? sheetCell(ctx, WILD_TREES2_EM[season], cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w) : sheetCell(ctx, WILD_TREES_EM[season], cell, 0, x - 8, y - 32, 2, 3, 32));
+      if (big && sheetCell(ctx, WILD_TREES2[season], cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w)) return true;
+      if (sheetCell(ctx, WILD_TREES[season], cell, 0, x - 8, y - 32, 2, 3, 32)) return true;
+    }
+    if (em) return false;
+  }
+  const snow = biome === "snow";
+  const dead = biome === "ash" || biome === "swamp";
+  const leaf = snow ? "#e8f2f6" : biome === "town" ? "#4a3068" : dead ? "#3a342c" : "#1e4a34";
+  const leaf2 = snow ? "#f7fbff" : biome === "town" ? "#7a5088" : dead ? "#2a2824" : "#2f6a44";
+  const trunk = biome === "town" ? "#3a2830" : dead ? "#3a2a24" : "#5a3828";
+  if (dead && biome === "ash") {
+    px(ctx, ox - 1, oy - 12, 3, 12, trunk);
+    px(ctx, ox - 8, oy - 16, 2, 8, "#2a2420");
+    px(ctx, ox + 5, oy - 18, 2, 10, "#2a2420");
+    px(ctx, ox - 2, oy - 20, 2, 8, "#2a2420");
+    return true;
+  }
+  px(ctx, ox - 2, oy - 10, 4, 10, trunk);
+  px(ctx, ox - 3, oy - 4, 6, 2, shade(trunk, -20));
+  px(ctx, ox - 1, oy - 8, 1, 4, shade(trunk, 24));
+  px(ctx, ox - 13, oy - 26, 26, 18, INK);
+  px(ctx, ox - 9, oy - 32, 18, 8, INK);
+  px(ctx, ox - 11, oy - 24, 22, 14, leaf);
+  px(ctx, ox - 7, oy - 30, 14, 8, leaf2);
+  px(ctx, ox - 9, oy - 28, 6, 4, shade(leaf2, 22));
+  px(ctx, ox + 4, oy - 16, 6, 4, shade(leaf, -20));
+  px(ctx, ox - 6, oy - 20, 4, 3, shade(leaf2, 12));
+  px(ctx, ox + 2, oy - 22, 3, 3, shade(leaf, -8));
+  if (!snow && !dead && (Math.round(ox) + Math.round(oy)) % 3 === 0) px(ctx, ox + 2, oy - 16, 2, 2, "#c44848");
+  if (biome === "town") px(ctx, ox - 1, oy - 22, 2, 3, "#e8d0c0");
+  else if (biome === "vale") px(ctx, ox - 2, oy - 22, 2, 2, "#e0a040");
+  if (snow) {
+    px(ctx, ox - 6, oy - 24, 5, 2, "#ffffff");
+    px(ctx, ox + 2, oy - 18, 5, 2, "#ffffff");
+    px(ctx, ox - 8, oy - 16, 4, 2, "#e8f4fb");
+  }
+  return true;
+}
+
+/** Clothes for a role. Patrons, merchants, and the four classes each have a fixed cut. */
+function outfit(role: string, coat: string): { cloth: string; trim: string; hat: string; skin: string } {
+  const skin = role === "vampire" || role === "undertaker" ? "#d8c8c0" : "#e8b898";
+  if (role === "guard") return { cloth: "#2a3140", trim: "#c4b48a", hat: "#1a2030", skin };
+  if (role === "hunter") return { cloth: "#3a3228", trim: "#6a2030", hat: "#2a241c", skin };
+  if (role === "undertaker") return { cloth: "#1a1a1c", trim: "#4a4a50", hat: "#101014", skin: "#c8b8a8" };
+  if (role === "casino") return { cloth: "#6a1828", trim: "#f0e2c8", hat: "#2a1018", skin };
+  if (role === "bank") return { cloth: "#2a3a32", trim: "#d8c878", hat: "#1a2820", skin };
+  if (role === "priest") return { cloth: "#e6e0d4", trim: "#c4b48a", hat: "#f4f0e8", skin };
+  if (role === "witch") return { cloth: "#4a1848", trim: "#c44868", hat: "#2a1028", skin: "#f0c8b0" };
+  if (role === "mystic") return { cloth: "#241848", trim: "#e0c868", hat: "#140c28", skin };
+  if (role === "shade") return { cloth: "#1a2438", trim: "#8aa0c0", hat: "#101820", skin: "#9eb0c8" };
+  if (role === "smith") return { cloth: "#5a4030", trim: "#2a2a2e", hat: "#3a2a22", skin: "#c08060" };
+  if (role === "fisher") return { cloth: "#1a3040", trim: "#6a8a48", hat: "#101820", skin: "#d2c0b4" };
+  if (role === "patron") return { cloth: "#2a2030", trim: "#c4a050", hat: "#1a1218", skin };
+  if (role === "wizard") return { cloth: "#4a2870", trim: "#c4b4e0", hat: "#2a1848", skin };
+  if (role === "assassin") return { cloth: "#243828", trim: "#1a1a1a", hat: "#1a2818", skin };
+  if (role === "vampire") return { cloth: "#6a2030", trim: "#1a1014", hat: "#2a1018", skin: "#ecd8cc" };
+  if (role === "warrior") return { cloth: "#2a4568", trim: "#c4b48a", hat: "#243044", skin };
+  return { cloth: coat, trim: shade(coat, -30), hat: shade(coat, -20), skin };
+}
+
+export const WALK_CYCLE = [2, 3, 4, 3];
+/** playtest1: the writer's swim, slide, fish and climb frames (tools/sprite-writer MOVES), per role in FOLK order. */
+export const MOVES_SHEET = "/art/sprites/moves.png";
+export const MOVES = ["swim0", "swim1", "slide", "fish0", "fish1", "climb0", "climb1"] as const;
+/** people.png role order (tools/sprite-writer FOLK). */
+export const FOLK = ["warrior", "wizard", "assassin", "vampire", "priest", "witch", "shade", "mystic", "guard", "hunter", "undertaker", "zeppelin", "inn", "shop", "guild", "bank", "casino", "patron", "smith", "tailor", "fisher", "merchant", "alchemist", "portal", "sellsword", "cutpurse", "hedgemage"];
+/** allies.png order: the first eight roles, then the three companion looks. */
+export const ALLY_LOOKS = [...FOLK.slice(0, 8), "sellsword", "cutpurse", "hedgemage"];
+/** The four hero classes. Their looks belong to the player alone. */
+export const HERO_LOOKS = ["warrior", "wizard", "assassin", "vampire"];
+/**
+ * playtest1 (owner-reported 2026-10-01): an NPC, a townsperson or a companion never wears a hero class's look. An old
+ * save's companion (look "wizard" and the like) and any stray look are drawn in the matching townsfolk look instead.
+ */
+export const FOLK_FOR_HERO: Record<string, string> = { warrior: "sellsword", assassin: "cutpurse", wizard: "hedgemage", vampire: "patron" };
+function strHash(t: string) {
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+export function lookFor(role: string, cast: "npc" | "hero" | "ally"): string {
+  return cast !== "hero" && FOLK_FOR_HERO[role] ? FOLK_FOR_HERO[role] : role;
+}
+/** The moves.png column for a special pose, or -1. */
+export function moveCol(role: string, pose: string, frame: number): number {
+  const who = FOLK.indexOf(role);
+  if (who < 0) return -1;
+  const two = Math.floor(Math.max(0, frame) / 3) % 2;
+  const m = pose === "wade" ? two : pose === "slide" ? 2 : pose === "fish" ? 3 + two : pose === "climb" ? 5 + (Math.floor(Math.max(0, frame) / 2) % 2) : -1;
+  return m < 0 ? -1 : who * MOVES.length + m;
+}
+
+/**
+ * playtest1c step 3 (owner-requested 2026-10-02, "movement animations fluid"): standing still, a body rests 2.5 s and
+ * shifts its weight for 1.5 s (a 4 s breath), and each body keeps its own beat from where it stands, so a crowd no
+ * longer twitches in step every 3.5 s. Drawing only: no gameplay timer reads this.
+ */
+export const IDLE_BEAT = { period: 32, rest: 20 } as const;
+export const idleSeed = (x: number, y: number) => (Math.round(x) * 7 + Math.round(y) * 3) & 31;
+/** Eleven frames: stand, idle, three walks, swing wind-up strike recover, cast gather release scatter. */
+export function poseCol(pose: string, frame: number, phase = 1, seed = 0): number {
+  const step = Math.max(0, Math.min(2, phase));
+  if (pose === "swing") return 5 + step;
+  if (pose === "cast") return 8 + step;
+  // playtest1 (owner-reported 2026-10-01, the hero floated): one walk frame per tick of g.frame (8 a second), in the
+  // order contact, pass, contact, pass, so a stride is half a second. Before it was one frame per 0.6 s.
+  if (pose === "walk") return WALK_CYCLE[Math.floor(Math.max(0, frame)) % 4];
+  return (Math.floor(Math.max(0, frame)) + seed) % IDLE_BEAT.period >= IDLE_BEAT.rest ? 1 : 0;
+}
+
+/** Early in the swing is the wind-up. The middle is the hit. The end follows through. */
+function actPhase(left: number): number {
+  if (left > 0.18) return 0;
+  if (left > 0.08) return 1;
+  return 2;
+}
+function person(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  role: string,
+  coat: string,
+  facing: number,
+  frame: number,
+  scale = 1,
+  pose: "stand" | "walk" | "wade" | "slide" | "swing" | "cast" | "fish" | "climb" = "stand",
+  cast: "npc" | "hero" | "ally" = "npc",
+  phase = 1,
+  seed = "",
+) {
+  role = lookFor(role, cast);
+  // playtest1 (owner-reported 2026-10-01, no legacy painter anywhere): a role with no sheet look (a rescued captive,
+  // a festival goer, a plain "folk") wears one of the sixteen townsfolk sheet looks, picked from its id, never the
+  // old painted person below.
+  if (!FOLK.includes(role)) role = FOLK[8 + (strHash(seed || role) % 16)]!;
+  const step = pose === "walk" ? Math.floor(frame / 6) % 2 : 0;
+  const o = outfit(role, coat);
+  // playtest1o: the face picks the view (front, back, side). A climber shows its back. playtest1p [OWNER-APPROVED
+  // 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: west reads its own row (viewOf), no mirror; a climber
+  // facing west still mirrors its back, as before.
+  const view = viewOf(pose === "climb" ? 2 : facing);
+  const flip = pose === "climb" ? facing === 3 : view.flip;
+  faceView = view.dirs ? view : null;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y));
+  if (flip) ctx.scale(-1, 1);
+  ctx.scale(scale, scale);
+  ctx.translate(-8, -22);
+  const folk = FOLK;
+  const allyNames = ALLY_LOOKS;
+  const useAlly = cast === "ally" && allyNames.indexOf(role) >= 0;
+  const who = useAlly ? allyNames.indexOf(role) : folk.indexOf(role);
+  const special = pose === "wade" || pose === "slide" || pose === "fish" || pose === "climb";
+  if (special && who >= 0) {
+    // playtest1: swim, slide, fish and climb are writer frames (moves.png). The fishing line's bobber is drawn here.
+    sheetCell(ctx, MOVES_SHEET, moveCol(role, pose, frame), 0, 0, -10, 1, 2, 16);
+    if (pose === "fish") {
+      const bob = Math.floor(frame / 4) % 2;
+      px(ctx, 15, 14 + bob, 2, 2, "#f4e27a");
+    }
+    ctx.restore();
+    return;
+  }
+  if (!special && who >= 0) {
+    // A town NPC wears one of its role's crowd looks, picked from its id. Heroes and allies keep the main cell.
+    const crowd = cast === "npc" && seed ? crowdCol(role, crowdLook(seed), poseCol(pose, frame, phase, idleSeed(x, y))) : -1;
+    if (crowd >= 0 && sheetCell(ctx, CROWD_SHEET, crowd, 0, 0, -10, 1, 2, 16)) {
+      ctx.restore();
+      return;
+    }
+    const col = who * 11 + poseCol(pose, frame, phase, idleSeed(x, y));
+    const file = useAlly ? "/art/sprites/allies.png" : "/art/sprites/people.png";
+    sheetCell(ctx, file, col, 0, 0, -10, 1, 2, 16);
+    // playtest1: a sheet role never falls back to the old painted person, even while its sheet loads.
+    ctx.restore();
+    return;
+  }
+  px(ctx, 3, 1, 10, 8, INK);
+  px(ctx, 1, 8, 14, 10, INK);
+  if (pose === "wade") {
+    px(ctx, 2, 14, 12, 6, "#163044");
+    px(ctx, 3, 14, 10, 1, "#7aa4b8");
+  } else if (pose === "slide") {
+    px(ctx, 4, 20, 8, 2, "#9ec4d4");
+    px(ctx, 5, 16, 6, 3, "#2a241c");
+    px(ctx, 2, 18, 4, 1, "#e7f4fb");
+    px(ctx, 11, 19, 4, 1, "#d5e8f2");
+  } else {
+    px(ctx, 3, 20, 10, 2, "#120c10");
+    const shoe = "#2a241c";
+    if (step === 1) {
+      px(ctx, 2, 16, 4, 4, shoe);
+      px(ctx, 10, 16, 4, 4, shoe);
+      px(ctx, 2, 19, 4, 1, "#6a5848");
+      px(ctx, 10, 19, 4, 1, "#6a5848");
+    } else {
+      px(ctx, 4, 16, 3, 4, shoe);
+      px(ctx, 9, 16, 3, 4, shoe);
+      px(ctx, 4, 19, 3, 1, "#6a5848");
+      px(ctx, 9, 19, 3, 1, "#6a5848");
+    }
+  }
+  const pants = shade(o.cloth, -34);
+  const hair = role === "vampire" ? "#1a1014" : role === "witch" ? "#140810" : "#3a2418";
+  px(ctx, 4, 0, 8, 1, INK);
+  px(ctx, 3, 1, 10, 5, hair);
+  px(ctx, 2, 3, 2, 3, hair);
+  px(ctx, 12, 3, 2, 3, hair);
+  px(ctx, 4, 4, 8, 5, o.skin);
+  px(ctx, 4, 4, 8, 1, shade(o.skin, -16));
+  px(ctx, 3, 2, 10, 2, o.hat);
+  if (role === "wizard" || role === "witch" || role === "mystic") px(ctx, 2, -1, 12, 3, o.hat);
+  if (role === "mystic") {
+    px(ctx, 4, -3, 8, 3, o.hat);
+    px(ctx, 3, -1, 1, 1, "#f4e27a");
+    px(ctx, 12, 0, 1, 1, "#f4e27a");
+  }
+  if (role === "hunter" || role === "undertaker") {
+    px(ctx, 2, 0, 12, 3, o.hat);
+    px(ctx, 1, 2, 4, 1, o.hat);
+  }
+  if (role === "fisher") {
+    px(ctx, 1, 0, 14, 3, o.hat);
+    px(ctx, 0, 2, 4, 1, o.hat);
+  }
+  if (facing === 2) {
+    px(ctx, 4, 5, 8, 3, hair);
+  } else {
+    px(ctx, 5, 6, 2, 2, INK);
+    px(ctx, 9, 6, 2, 2, INK);
+    px(ctx, 6, 6, 1, 1, shade(o.skin, 18));
+    px(ctx, 10, 6, 1, 1, shade(o.skin, 18));
+    if (role === "vampire") px(ctx, 6, 8, 4, 1, "#8f2030");
+    else px(ctx, 7, 8, 2, 1, shade(o.skin, -28));
+  }
+  px(ctx, 2, 9, 12, 6, INK);
+  px(ctx, 3, 9, 10, 5, o.cloth);
+  px(ctx, 3, 9, 10, 1, o.trim);
+  px(ctx, 4, 11, 3, 3, shade(o.cloth, 18));
+  px(ctx, 5, 12, 6, 1, shade(o.cloth, -20));
+  px(ctx, 1, 10, 2, 4, shade(o.cloth, -18));
+  px(ctx, 13, 10, 2, 4, shade(o.cloth, -18));
+  px(ctx, 1, 13, 2, 2, o.skin);
+  px(ctx, 13, 13, 2, 2, o.skin);
+  if (pose !== "wade" && pose !== "slide") {
+    px(ctx, 4, 14, 3, 3, pants);
+    px(ctx, 9, 14, 3, 3, pants);
+    px(ctx, 4, 14, 1, 3, shade(pants, -16));
+    px(ctx, 11, 14, 1, 3, shade(pants, 12));
+  }
+  if (role === "guard") {
+    px(ctx, 12, 2, 2, 16, "#8a8e94");
+    px(ctx, 11, 1, 4, 2, "#c4b48a");
+    px(ctx, 1, 11, 2, 5, "#8a9098");
+  }
+  if (role === "warrior") px(ctx, 0, 11, 2, 5, "#8a9098");
+  if (role === "hunter") px(ctx, 0, 10, 3, 5, "#6a2030");
+  if (role === "wizard" || role === "priest") px(ctx, 2, 10, 12, 6, o.cloth);
+  if (role === "witch") {
+    px(ctx, 2, 9, 12, 7, o.cloth);
+    px(ctx, 4, 8, 3, 3, "#2a1020");
+    px(ctx, 9, 8, 3, 3, "#2a1020");
+    px(ctx, 6, 8, 4, 1, "#a02040");
+  }
+  if (pose === "swing") {
+    px(ctx, 13, 8, 6, 2, "#c4b48a");
+    spellFrame(ctx, "fire.png", frame / 2, 6, 12, 2);
+  }
+  if (pose === "cast") {
+    px(ctx, 13, 4, 2, 6, o.skin);
+    spellFrame(ctx, "holy.png", frame / 2, 6, 12, -2);
+  }
+  if (pose === "fish") {
+    px(ctx, 13, 7, 6, 1, "#6a5030");
+    px(ctx, 18, 7, 1, 6, "#c8d0c0");
+    const bob = Math.floor(frame / 4) % 2;
+    px(ctx, 17, 13 + bob, 2, 2, "#f4e27a");
+  }
+  if (role === "fisher") {
+    px(ctx, 14, 9, 2, 6, "#8a9090");
+    px(ctx, 13, 14, 3, 2, "#c4b48a");
+  }
+  if (role === "patron") {
+    px(ctx, 12, 11, 3, 3, "#f0e2c8");
+    px(ctx, 12, 11, 3, 1, "#8a2030");
+    px(ctx, 12, 13, 3, 1, "#1a1a1a");
+  }
+  ctx.restore();
+}
+
+/** Bust used on the character select screen. */
+export function drawPortrait(ctx: CanvasRenderingContext2D, role: string) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "#1c1418";
+  ctx.fillRect(0, 0, 64, 80);
+  px(ctx, 0, 68, 64, 12, "#241820");
+  person(ctx, 32, 72, role, "#888888", 0, 0, 2, "stand", "hero");
+}
+
+const scratch = typeof document !== "undefined" ? document.createElement("canvas") : null;
+if (scratch) {
+  scratch.width = 64;
+  scratch.height = 64;
+}
+
+/** Dispatch a foe to paintMonster, including bosses and their smaller remnants. */
+/** The families on /art/sprites/foes.png, in sheet order (4 ranks x 11 poses each). */
+const FOE_FAMILIES = ["zombie", "skeleton", "ghost", "bat", "ghoul", "witch", "lantern", "scarecrow", "wolf", "mummy", "vampire", "tree", "lich", "horse", "goblin", "cat", "rat"];
+/** gfx3: a roamer whose body is drawn from a sheet with a glow mask. Anything else would fall back to painted pixels. */
+export function hasGlowMask(family: string): boolean {
+  const fest = FESTIVAL_SHEETS[family];
+  if (fest) return !!EM_SHEETS[fest];
+  return FOE_FAMILIES.includes(family);
+}
+
+/**
+ * playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: one cell of a big sheet
+ * (bigboss.ts: four views down, eleven poses across, 16s x 32s each), its feet on the 1x foot line; in the glow pass its
+ * _em mask. False while the sheet loads (the caller draws the 1x cell scaled instead).
+ */
+function bigBody(ctx: CanvasRenderingContext2D, x: number, y: number, family: string, rank: string, col: number, row: number): boolean {
+  if (typeof Image === "undefined" || !(rank in BIG)) return false;
+  const s = BIG[rank as BigRank];
+  const url = bigSheet(family, rank as BigRank);
+  if (!url || s <= 1) return false;
+  const load = (u: string) => {
+    let im = landSheet[u];
+    if (!im) {
+      im = new Image();
+      im.src = u;
+      landSheet[u] = im;
+    }
+    return im.complete && im.naturalWidth > 0 ? im : null;
+  };
+  const body = load(url);
+  if (!body) return false;
+  const im = emPass ? load(bigMask(url)) : body;
+  if (!im) return true; // the glow mask still loading: no glow this frame (the body is drawn)
+  const c = cellAt(s);
+  ctx.imageSmoothingEnabled = false;
+  if (bigTint && !emPass) {
+    // playtest1t: the hit flash is the body's own silhouette (this very cell's alpha) filled with one locked colour
+    const m = tintCell(body, col * c.w, row * c.h, c.w, c.h, bigTint);
+    if (!m) return true;
+    ctx.drawImage(m, 0, 0, c.w, c.h, Math.round(x) + c.dx, Math.round(y) + c.dy, c.w, c.h);
+    bigTinted = true;
+    return true;
+  }
+  ctx.drawImage(im, col * c.w, row * c.h, c.w, c.h, Math.round(x) + c.dx, Math.round(y) + c.dy, c.w, c.h);
+  return true;
+}
+
+/**
+ * playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t big-body silhouette hit flash]: a boss, mini or rare that is hit flashes in its own
+ * silhouette, a mask of its sprite's alpha in the old flash's white (#f4f0ea), instead of the white frame round its hurt
+ * box; during the phase-two roar (a flash longer than hitMax) the mask is neon red and beats on and off every `beat`
+ * frames. Hard alpha: one colour per pixel, the cell's own pixels only. Small foes keep their white frame.
+ */
+export const BIG_FLASH = { hit: "#f4f0ea", roar: "#ff3a50", hitMax: 0.1, beat: 4 } as const;
+let bigTint: string | null = null;
+let bigTinted = false;
+let tintCanvas: HTMLCanvasElement | null = null;
+function tintCell(src: CanvasImageSource, sx: number, sy: number, w: number, h: number, color: string): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  if (!tintCanvas) tintCanvas = document.createElement("canvas");
+  if (tintCanvas.width < w) tintCanvas.width = w;
+  if (tintCanvas.height < h) tintCanvas.height = h;
+  const t = tintCanvas.getContext("2d");
+  if (!t) return null;
+  t.globalCompositeOperation = "source-over";
+  t.clearRect(0, 0, tintCanvas.width, tintCanvas.height);
+  t.imageSmoothingEnabled = false;
+  t.drawImage(src, sx, sy, w, h, 0, 0, w, h);
+  t.globalCompositeOperation = "source-in";
+  t.fillStyle = color;
+  t.fillRect(0, 0, w, h);
+  t.globalCompositeOperation = "source-over";
+  return tintCanvas;
+}
+/** Draw a flashing big body's silhouette over it (body: its own draw). False when its sheet is not in yet. */
+function bigFlash(ctx: CanvasRenderingContext2D, flash: number, frame: number, body: (c: CanvasRenderingContext2D) => void): boolean {
+  const roar = flash > BIG_FLASH.hitMax;
+  if (roar && Math.floor(frame / BIG_FLASH.beat) % 2 === 1) return true; // the roar's off beat: the body alone
+  bigTint = roar ? BIG_FLASH.roar : BIG_FLASH.hit;
+  bigTinted = false;
+  try {
+    body(ctx);
+  } finally {
+    bigTint = null;
+  }
+  return bigTinted;
+}
+
+function monsterSprite(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  family: string,
+  tint: string,
+  pixelScale: number,
+  frame: number,
+  pose: "" | "swing" | "cast" = "",
+  moving = false,
+  rank: "mob" | "boss" | "mini" | "rare" = "mob",
+  phase = 1,
+  facing: Face = 0,
+  side: 1 | 3 = 1,
+) {
+  paintMonster(ctx, x, y, family, tint, pixelScale, frame, pose, moving, rank, phase, facing, side);
+  faceView = null;
+}
+
+/** Opaque monster body. Families that used to read as see-through are solid pixels here. */
+function paintMonster(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  family: string,
+  tint: string,
+  pixelScale: number,
+  frame: number,
+  pose: "" | "swing" | "cast" = "",
+  moving = false,
+  rank: "mob" | "boss" | "mini" | "rare" = "mob",
+  phase = 1,
+  facing: Face = 0,
+  side: 1 | 3 = 1,
+) {
+  const ink = INK;
+  const step = moving ? Math.floor(frame / 6) % 2 : 0;
+  // playtest1p: a boss, a mini or a rare draws from its own big sheet (boss_writer.py), its view's row, its pose's column.
+  if (pixelScale > 1 && bigBody(ctx, x, y, family, rank, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), SIDE_NATIVE.has(family) ? (side === 3 ? 3 : 2) : bigRow(facing))) return;
+  // playtest1o: a foe faces the way it walks (front, back, side). A horse, cat or rat is drawn side-on already: it only mirrors.
+  const view = SIDE_NATIVE.has(family) ? { dirs: false, row: 0, flip: side === 3 } : viewOf(facing);
+  faceView = view.dirs ? view : null;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y));
+  if (view.flip) ctx.scale(-1, 1);
+  if (pixelScale > 1) ctx.translate(0, 2 * pixelScale - 2); // playtest1p: while its big sheet loads, the 1x cell whole-pixel scaled, feet on the foot line
+  ctx.scale(pixelScale, pixelScale);
+  ctx.translate(-8, -20);
+  const families = FOE_FAMILIES;
+  const ranks = ["mob", "boss", "mini", "rare"];
+  const fi = families.indexOf(family);
+  if (FESTIVAL_SHEETS[family] && sheetCell(ctx, FESTIVAL_SHEETS[family], poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), 0, 0, -12, 1, 2, 16)) {
+    ctx.restore();
+    return;
+  }
+  if (family === "mimic" && sheetCell(ctx, MIMIC_SHEET, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), 0, 0, -12, 1, 2, 16)) {
+    ctx.restore();
+    return;
+  }
+  if (fi >= 0) {
+    const col = (fi * 4 + Math.max(0, ranks.indexOf(rank))) * 11 + poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y));
+    if (sheetCell(ctx, "/art/sprites/foes.png", col, 0, 0, -12, 1, 2, 16)) {
+      ctx.restore();
+      return;
+    }
+  }
+  px(ctx, 4, 18, 8, 2, "#120c10");
+  if (family === "bat") {
+    const flap = step ? 2 : 0;
+    px(ctx, 1, 6 + flap, 6, 4, shade(tint, -20));
+    px(ctx, 9, 6 + flap, 6, 4, shade(tint, -20));
+    px(ctx, 0, 5 + flap, 5, 2, shade(tint, 16));
+    px(ctx, 11, 5 + flap, 5, 2, shade(tint, 16));
+    px(ctx, 5, 7, 6, 5, tint);
+    px(ctx, 6, 8, 1, 1, "#f0e0a0");
+    px(ctx, 9, 8, 1, 1, "#f0e0a0");
+    px(ctx, 7, 10, 2, 1, "#e07a2f");
+    px(ctx, 4, 11, 2, 2, shade(tint, -30));
+    px(ctx, 10, 11, 2, 2, shade(tint, -30));
+  } else if (family === "ghost" || family === "lich") {
+    const c = family === "lich" ? "#9ec4e0" : tint;
+    const hem = shade(c, -28);
+    px(ctx, 5, 1, 6, 2, hem);
+    px(ctx, 3, 3, 10, 12, c);
+    px(ctx, 4, 2, 8, 3, shade(c, 16));
+    px(ctx, 2, 8, 12, 8, c);
+    px(ctx, 4, 15, 2, 4, hem);
+    px(ctx, 7, 16, 2, 3, c);
+    px(ctx, 10, 15, 2, 4, hem);
+    px(ctx, 5, 6, 2, 2, ink);
+    px(ctx, 9, 6, 2, 2, ink);
+    px(ctx, 6, 9, 4, 1, shade(c, -20));
+    if (family === "lich") {
+      px(ctx, 4, 0, 8, 3, "#e6dcc8");
+      px(ctx, 5, 1, 2, 2, ink);
+      px(ctx, 9, 1, 2, 2, ink);
+      px(ctx, 3, 14, 10, 2, "#d8c8a0");
+    }
+  } else if (family === "lantern" || family === "pumpkin" || family === "goblin") {
+    const body = family === "goblin" ? "#6a8a32" : "#e07a2f";
+    px(ctx, 3, 6, 10, 9, body);
+    px(ctx, 2, 8, 12, 6, body);
+    px(ctx, 6, 3, 4, 3, family === "goblin" ? "#3a4a20" : "#2a4a20");
+    px(ctx, 5, 9, 2, 2, ink);
+    px(ctx, 9, 9, 2, 2, ink);
+    px(ctx, 6, 12, 4, 1, ink);
+    px(ctx, 4, 15, 3, 3, shade(body, -30));
+    px(ctx, 9, 15, 3, 3, shade(body, -30));
+    if (family === "goblin") px(ctx, 11, 10, 4, 5, "#c4a050");
+  } else if (family === "ghoul") {
+    px(ctx, 3, 6, 10, 8, tint);
+    px(ctx, 2, 8, 12, 6, shade(tint, -16));
+    px(ctx, 5, 3, 6, 4, shade(tint, 18));
+    px(ctx, 6, 4, 2, 2, ink);
+    px(ctx, 9, 4, 2, 2, ink);
+    px(ctx, 6, 7, 4, 1, "#6a2030");
+    px(ctx, 0, 9, 3, 6, shade(tint, -24));
+    px(ctx, 13, 9, 3, 6, shade(tint, -24));
+    px(ctx, 4, 15, 3, 4, shade(tint, -28));
+    px(ctx, 9, 15, 3, 4, shade(tint, -28));
+    if (step) {
+      px(ctx, 3, 16, 3, 3, shade(tint, -28));
+      px(ctx, 10, 16, 3, 3, shade(tint, -28));
+    }
+  } else if (family === "witch") {
+    px(ctx, 6, 0, 4, 4, "#2a1840");
+    px(ctx, 2, 3, 12, 2, "#2a1840");
+    px(ctx, 5, 5, 6, 5, "#e0c8b0");
+    px(ctx, 6, 7, 1, 1, ink);
+    px(ctx, 9, 7, 1, 1, ink);
+    px(ctx, 5, 9, 6, 2, tint);
+    px(ctx, 3, 10, 10, 7, tint);
+    px(ctx, 2, 16, 4, 3, "#1a1a1a");
+    px(ctx, 10, 16, 4, 3, "#1a1a1a");
+  } else if (family === "wolf") {
+    px(ctx, 2, 8, 12, 8, tint);
+    px(ctx, 1, 4, 4, 5, tint);
+    px(ctx, 11, 4, 4, 5, tint);
+    px(ctx, 3, 5, 2, 2, "#f0e0b0");
+    px(ctx, 12, 5, 2, 2, "#f0e0b0");
+    px(ctx, 6, 9, 2, 2, "#f0e6c0");
+    px(ctx, 9, 9, 2, 2, "#f0e6c0");
+    px(ctx, 5, 12, 3, 1, ink);
+    px(ctx, 3, 16, 3, 3, shade(tint, -24));
+    px(ctx, 10, 16, 3, 3, shade(tint, -24));
+  } else if (family === "mummy") {
+    px(ctx, 4, 2, 8, 14, "#f0e2c0");
+    px(ctx, 3, 5, 10, 2, "#c4b48a");
+    px(ctx, 3, 9, 10, 2, "#c4b48a");
+    px(ctx, 3, 13, 10, 2, "#c4b48a");
+    px(ctx, 6, 4, 1, 2, ink);
+    px(ctx, 9, 4, 1, 2, ink);
+    px(ctx, 2, 8, 2, 6, "#e6d2a2");
+    px(ctx, 12, 8, 2, 6, "#e6d2a2");
+    px(ctx, 2, 10, 2, 1, "#c4b48a");
+    px(ctx, 12, 11, 2, 1, "#c4b48a");
+    px(ctx, 4, 15 + step, 3, 4, "#e6d2a2");
+    px(ctx, 9, 16 - step, 3, 4, "#e6d2a2");
+  } else if (family === "tree") {
+    px(ctx, 7, 10, 3, 8, "#4a3020");
+    px(ctx, 2, 2, 12, 10, tint);
+    px(ctx, 4, 4, 3, 3, shade(tint, 20));
+    px(ctx, 5, 5, 2, 2, ink);
+    px(ctx, 10, 5, 2, 2, ink);
+    px(ctx, 6, 8, 5, 2, "#1a1008");
+    px(ctx, 0, 8, 4, 2, shade(tint, -10));
+    px(ctx, 12, 7, 4, 2, shade(tint, -10));
+  } else if (family === "skeleton") {
+    px(ctx, 4, 1, 8, 6, "#f4ecdc");
+    px(ctx, 5, 2, 6, 5, "#e6dcc8");
+    px(ctx, 6, 3, 2, 2, ink);
+    px(ctx, 9, 3, 2, 2, ink);
+    px(ctx, 6, 6, 4, 1, "#c8b8a8");
+    px(ctx, 7, 7, 2, 2, "#f4ecdc");
+    px(ctx, 5, 9, 6, 6, "#f4ecdc");
+    px(ctx, 5, 10, 6, 1, "#d8cfc0");
+    px(ctx, 5, 12, 6, 1, "#d8cfc0");
+    px(ctx, 2, 9, 3, 5, "#f4ecdc");
+    px(ctx, 11, 9, 3, 5, "#f4ecdc");
+    px(ctx, 4, 15 + step, 3, 4, "#f4ecdc");
+    px(ctx, 9, 16 - step, 3, 4, "#f4ecdc");
+  } else if (family === "vampire") {
+    px(ctx, 4, 3, 8, 5, "#f0d8c8");
+    px(ctx, 6, 5, 1, 1, "#a02030");
+    px(ctx, 9, 5, 1, 1, "#a02030");
+    px(ctx, 6, 7, 4, 1, "#a02030");
+    px(ctx, 3, 1, 10, 3, "#1a1014");
+    px(ctx, 2, 8, 12, 8, tint);
+    px(ctx, 5, 9, 6, 2, "#f0e2c8");
+    px(ctx, 4, 15 + step, 3, 4, "#1a1014");
+    px(ctx, 9, 16 - step, 3, 4, "#1a1014");
+  } else if (family === "horse") {
+    px(ctx, 2, 8, 12, 8, tint);
+    px(ctx, 8, 6, 6, 4, tint);
+    px(ctx, 10, 4, 5, 6, tint);
+    px(ctx, 14, 6, 2, 2, "#f0e2c8");
+    px(ctx, 1, 15 + step, 2, 4, shade(tint, -20));
+    px(ctx, 6, 16 - step, 2, 4, shade(tint, -20));
+    px(ctx, 11, 15 + step, 2, 4, shade(tint, -20));
+    px(ctx, 14, 16 - step, 2, 3, shade(tint, -20));
+    px(ctx, 10, 2, 4, 3, "#1a1418");
+    px(ctx, 8, 4, 3, 4, shade(tint, -28));
+    px(ctx, 0, 9, 3, 4, shade(tint, -24));
+  } else if (family === "scarecrow") {
+    px(ctx, 7, 6, 2, 10, "#6a5030");
+    px(ctx, 2, 8, 12, 2, "#6a5030");
+    px(ctx, 4, 2, 8, 6, tint);
+    px(ctx, 5, 4, 2, 2, ink);
+    px(ctx, 9, 4, 2, 2, ink);
+    px(ctx, 6, 7, 4, 1, ink);
+    px(ctx, 3, 10, 4, 6, "#c4a15a");
+    px(ctx, 9, 10, 4, 6, "#8a6840");
+    px(ctx, 4, 16, 2, 3, "#5a4030");
+    px(ctx, 10, 16, 2, 3, "#5a4030");
+  } else if (family === "cat" || family === "rat") {
+    const c = family === "cat" ? "#2a2a2e" : "#8a7060";
+    px(ctx, 4, 10, 8, 4, c);
+    px(ctx, 10, 8, 4, 3, c);
+    px(ctx, 3, 8, 2, 2, c);
+    px(ctx, 6, 8, 2, 2, c);
+    px(ctx, 11, 9, 1, 1, "#e07a2f");
+    px(ctx, 2, 12, 6, 1, c);
+  } else {
+    const skin = shade(tint, 24);
+    const rag = shade(tint, -18);
+    px(ctx, 4, 1, 8, 2, rag);
+    px(ctx, 3, 3, 10, 6, INK);
+    px(ctx, 4, 4, 8, 5, skin);
+    px(ctx, 5, 5, 2, 2, INK);
+    px(ctx, 9, 5, 2, 2, INK);
+    px(ctx, 6, 8, 4, 1, "#6a2030");
+    px(ctx, 2, 8, 12, 7, INK);
+    px(ctx, 3, 9, 10, 5, tint);
+    px(ctx, 3, 9, 10, 1, rag);
+    px(ctx, 6, 11, 4, 2, skin);
+    px(ctx, 0, 9, 3, 5, rag);
+    px(ctx, 13, 9, 3, 5, rag);
+    px(ctx, 0, 13, 2, 2, skin);
+    px(ctx, 14, 13, 2, 2, skin);
+    px(ctx, 4, 14, 3, 2, rag);
+    px(ctx, 9, 14, 3, 2, rag);
+    px(ctx, 4 + step, 16, 3, 3, shade(tint, -30));
+    px(ctx, 9 - step, 16, 3, 3, shade(tint, -30));
+  }
+  if (pose === "swing") {
+    px(ctx, 14, 8, 4, 2, "#e8dcc8");
+    px(ctx, 17, 7, 2, 1, "#f4e27a");
+  } else if (pose === "cast") {
+    px(ctx, 12, 1, 3, 2, "#f4e27a");
+    px(ctx, 13, 3, 1, 3, "#fff8e0");
+  }
+  ctx.restore();
+}
+
+/**
+ * playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village map is drawn as the vale (theme
+ * "over") in its own biome: zoneAt reads the village's biome there (set by syncZone at the top of each draw), the vale's
+ * zone rule everywhere else.
+ */
+let zoneNow: WorldBiome | null = null;
+function syncZone(g: Game) {
+  zoneNow = g.mapId === "village" ? (villageById(g.inside)?.biome ?? null) : null;
+}
+function zoneAt(x: number, y: number): WorldBiome {
+  return zoneNow ?? worldBiome(x, y);
+}
+
+/** Which outdoor band a world tile belongs to, for tree and rock colors. */
+function biomeOf(theme: string, ty: number, tx: number): string {
+  if (theme !== "over") return theme;
+  return zoneAt(tx, ty); // playtest1e: the twice-size vale's zone rule (content.ts); playtest1v: a village's biome
+}
+
+/** Ground showing under a tree or rock, so the trunk does not erase the shore or the road. */
+function propGround(theme: string, x: number, y: number, tile: number): Tile {
+  if (theme === "town") return tile === T.grave ? T.dirt : T.grass;
+  // playtest1e: the vale reads its twice-size zones; the camp keeps the old rule on its own small grid.
+  const z = theme === "over" ? zoneAt(x, y) : planBiome(x, y);
+  return z === "snow" ? T.snow : z === "sand" ? T.sand : z === "ash" ? T.ash : z === "swamp" ? T.swamp : T.grass;
+}
+
+// playtest1c (owner-reported 2026-10-02, "oversized crowned ghost"): a boss draws at the people's scale like every
+// other body (the doubled 32x64 sprite broke the one-pixel scale); its cold-fire ground ring and glow mark it instead.
+function scaleFor(boss?: boolean, mini?: boolean): number {
+  if (boss) return 1;
+  if (mini) return 1;
+  return 1;
+}
+/** playtest1p: the people-scale bodies (a summon, a ghost of a boss on a trophy) keep scaleFor; a fighting rank reads BIG. */
+export const peopleScale = scaleFor;
+/** playtest1p: a big body's own light reaches a quarter further per step of scale (1 for the people's scale). */
+const bigLight = (r: { boss?: boolean; mini?: boolean; rare?: boolean; naughty?: string; mimic?: boolean }) => 1 + (scaleOf(r) - 1) / 4;
+/** playtest1p: the cold-fire ring under a big boss: the 32x16 ring whole-pixel scaled round its feet (3x for a 5x boss). */
+function bigAura(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number, sc: number, em: boolean) {
+  const k = Math.max(1, Math.round(sc * 0.6));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y) - 4);
+  ctx.scale(k, k);
+  sheetCell(ctx, em ? BOSS_AURA_EM : BOSS_AURA, Math.floor(frame / 2) % AURA_FRAMES, 0, -16, -8, 2, 1, 32);
+  ctx.restore();
+}
+/** playtest1p: the hit flash's box round a big body (the 1x box, 14x14 round the body's middle, grown with it).
+ * playtest1r: round its own shape (its hurt radius across, its top to a little over its feet). */
+function flashBox(ctx: CanvasRenderingContext2D, x: number, y: number, sc: number, r?: { boss?: boolean; mini?: boolean; rare?: boolean; family?: string }) {
+  const half = r ? bodyR(r) + 2 : 7 * sc;
+  const w = 2 * half;
+  const top = Math.round(y) - 2 - (r ? Math.round(topOf(r) * 0.92) : 18 * sc);
+  const bot = Math.round(y) - 2 - 4 * sc;
+  const x0 = Math.round(x) - half;
+  px(ctx, x0, top, w, 1, "#f4f0ea");
+  px(ctx, x0, bot, w, 1, "#f4f0ea");
+  px(ctx, x0, top, 1, bot - top, "#f4f0ea");
+  px(ctx, x0 + w - 1, top, 1, bot - top, "#f4f0ea");
+}
+
+/**
+ * Town buildings. Each one is a connected block of wall and door tiles (its collision footprint).
+ * The house sprite stands on that footprint: its opaque base sits on the footprint's south edge,
+ * it stays inside the footprint side to side, and its roof is cut before it can reach the next
+ * building to the north, so two houses never touch. Footprint tiles the sprite does not cover are
+ * a fenced yard on town grass, with a gap at the door.
+ */
+type TownBuilding = { x: number; y: number; w: number; h: number; doorX: number; doorY: number; file: string };
+const buildingCache = new WeakMap<object, TownBuilding[]>();
+
+function townBuildings(g: Game): TownBuilding[] {
+  const hit = buildingCache.get(g.tiles);
+  if (hit) return hit;
+  const { w, h, tiles } = g;
+  const seen = new Uint8Array(w * h);
+  const out: TownBuilding[] = [];
+  const solid = (i: number) => tiles[i] === T.wall || tiles[i] === T.door;
+  for (let i = 0; i < w * h; i++) {
+    if (seen[i] || !solid(i)) continue;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1, doorX = -1, doorY = -1;
+    const stack = [i];
+    seen[i] = 1;
+    while (stack.length) {
+      const k = stack.pop()!;
+      const kx = k % w;
+      const ky = (k - kx) / w;
+      x0 = Math.min(x0, kx);
+      y0 = Math.min(y0, ky);
+      x1 = Math.max(x1, kx);
+      y1 = Math.max(y1, ky);
+      if (tiles[k] === T.door && doorX < 0) {
+        doorX = kx;
+        doorY = ky;
+      }
+      const next = [kx > 0 ? k - 1 : -1, kx + 1 < w ? k + 1 : -1, ky > 0 ? k - w : -1, ky + 1 < h ? k + w : -1];
+      for (const m of next) {
+        if (m < 0 || seen[m] || !solid(m)) continue;
+        seen[m] = 1;
+        stack.push(m);
+      }
+    }
+    const bw = x1 - x0 + 1;
+    // Five or more wide on an even column is a cabin; everything else is a house.
+    // playtest1b (owner-reported 2026-10-02 01:04 ET, "some houses drawn half size"): narrow footprints used to get the
+    // 32x46 shack, half a house's 61x91, so the Drowned Hook stood at half scale. Every building is house scale now.
+    const cabin = bw >= 5 && x0 % 2 === 0;
+    // playtest1d (owner-requested 2026-10-02, batch C2): the writer's houses (stone, timber, boarded) and log cabin, at
+    // the land pack's footprints and scale, with lit windows; same picks as before (x0 % 3, even five-wide lots).
+    const file = cabin ? TOWN_CABIN : TOWN_HOUSES[x0 % 3];
+    out.push({ x: x0, y: y0, w: bw, h: y1 - y0 + 1, doorX, doorY, file });
+  }
+  buildingCache.set(g.tiles, out);
+  return out;
+}
+
+/** Opaque bounds of a loaded sprite, found once. Right and bottom are exclusive. */
+const opaqueCache = new Map<string, { l: number; t: number; r: number; b: number }>();
+function opaqueBox(url: string, im: HTMLImageElement) {
+  const hit = opaqueCache.get(url);
+  if (hit) return hit;
+  let box = { l: 0, t: 0, r: im.naturalWidth, b: im.naturalHeight };
+  const c = document.createElement("canvas");
+  c.width = im.naturalWidth;
+  c.height = im.naturalHeight;
+  const cx = c.getContext("2d");
+  if (cx) {
+    cx.drawImage(im, 0, 0);
+    const d = cx.getImageData(0, 0, c.width, c.height).data;
+    let l = c.width, t = c.height, r = 0, b = 0;
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        if (d[(y * c.width + x) * 4 + 3] === 0) continue;
+        l = Math.min(l, x);
+        t = Math.min(t, y);
+        r = Math.max(r, x + 1);
+        b = Math.max(b, y + 1);
+      }
+    }
+    if (r > l && b > t) box = { l, t, r, b };
+  }
+  opaqueCache.set(url, box);
+  return box;
+}
+
+/** Ground under a town footprint: town grass, and packed dirt on the door tile. */
+function paintTownFootprint(ctx: CanvasRenderingContext2D, tile: Tile, x: number, y: number, n: number) {
+  const gx = x * TILE;
+  const gy = y * TILE;
+  if (tile === T.door) {
+    px(ctx, gx, gy, TILE, TILE, ground(T.dirt, "town", n));
+    sheetCell(ctx, PT1_GROUND.dirt, Math.abs(x * 5 + y * 3) % 4, 0, gx, gy);
+    return;
+  }
+  px(ctx, gx, gy, TILE, TILE, ground(T.grass, "town", n));
+  // playtest1: the season's town grass (palette-locked), the same as the open town ground beside it.
+  seasonCell(ctx, "town-grass", TOWN_GRASS, Math.abs(x * 3 + y * 5) % 7, gx, gy);
+}
+
+// playtest1o (Bill, 2026-10-03 19:49 ET: "All the graphics in the entire game are upgraded to the same level?"): the old
+// painted yard fence (1 px rails round every building's footprint, trades too, looks only) is gone. The writer's picket
+// yards (yardFences, blocking.ts) ring the homes one tile out and are the fence that stops you.
+
+/** playtest1b: every room door in town (a building can hold two: Noll's cottage and the South Croft share one), cached. */
+const roomDoorCache = new WeakMap<object, { x: number; y: number; bx: number; room: { id: string; name: string; kind: string } }[]>();
+function roomDoors(g: Game) {
+  const hit = roomDoorCache.get(g.tiles);
+  if (hit) return hit;
+  const out: { x: number; y: number; bx: number; room: { id: string; name: string; kind: string } }[] = [];
+  for (const b of townBuildings(g)) {
+    for (let ty = b.y; ty < b.y + b.h; ty++) {
+      for (let tx = b.x; tx < b.x + b.w; tx++) {
+        if (g.tiles[ty * g.w + tx] !== T.door) continue;
+        const room = townRoomAt(tx, ty);
+        if (room) out.push({ x: tx, y: ty, bx: b.x, room });
+      }
+    }
+  }
+  roomDoorCache.set(g.tiles, out);
+  return out;
+}
+
+/**
+ * playtest1o: where the inside sign hangs: the plain back-wall tile in the middle (x 7: windows are on x 2, 6, 10, sconces
+ * on 4, 8, 12, the shelf on 9, the guild board on 5). In the croft, a sixth boss trophy takes slot 7; the sign then hangs
+ * on the plain tile at x 13. The name sits under it.
+ */
+export const INSIDE_SIGN = { x: 7, croftAlt: 13, label: 25 } as const;
+function insideSignSpot(g: Game): { x: number; y: number } {
+  const taken = g.inside === "croft" && g.bossTrophies().some((t) => t.slot === INSIDE_SIGN.x);
+  if (g.inside === "casino") return { x: CASINO_SIGN_X * TILE, y: 0 }; // playtest1x: clear of the curtains and the stage
+  return { x: (taken ? INSIDE_SIGN.croftAlt : INSIDE_SIGN.x) * TILE, y: 0 };
+}
+
+/** Home kinds that keep a fenced yard: cottages, crofts, and any house with no trade behind its door. */
+const YARD_KINDS = new Set(["cottage", "croft"]);
+const yardCache = new WeakMap<object, { x: number; y: number; cell: number }[]>();
+/** playtest1b: the yard fence pieces for every home, worked out once per town grid. cell 0 = rail, 1 = side, 2 = gate post. */
+export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
+  const hit = yardCache.get(g.tiles);
+  if (hit) return hit;
+  // playtest1o: the pieces come from blocking.ts, so the fence the town draws is the fence that stops you (and the lane
+  // along the next row of houses stays open: it used to shut in the inn's and the shop's doors).
+  const out = yardPieces(g.w, g.h, g.tiles, T.wall, T.door, T.grass, townRoomAt, YARD_KINDS);
+  yardCache.set(g.tiles, out);
+  return out;
+}
+
+/** playtest1b B2: the same seeded flicker beat as the shop signs (a lantern dips now and then). */
+const signFrameOf = (frame: number, seed: number) => (Math.floor(frame / 3) + seed * 7) % 11 === 0;
+
+function paintTownBuilding(ctx: CanvasRenderingContext2D, g: Game, b: TownBuilding, em = false) {
+  if (typeof Image === "undefined") return;
+  let im = landSheet[b.file];
+  if (!im) {
+    im = new Image();
+    im.src = b.file;
+    landSheet[b.file] = im;
+  }
+  if (!im.complete || im.naturalWidth === 0) return;
+  const box = opaqueBox(b.file, im);
+  const ow = box.r - box.l;
+  const fx = b.x * TILE;
+  const fw = b.w * TILE;
+  const bottom = (b.y + b.h) * TILE;
+  // A south door pulls the sprite's own door toward it; any other door keeps the house centered.
+  const southDoor = b.doorY === b.y + b.h - 1;
+  const want = southDoor ? b.doorX * TILE + 8 : fx + fw / 2;
+  let left = Math.round(want - ow / 2);
+  if (ow <= fw) left = Math.max(fx, Math.min(fx + fw - ow, left));
+  else left = fx + Math.floor((fw - ow) / 2);
+  const dx = left - box.l;
+  const dy = bottom - box.b;
+  // Nearest building tile above the sprite's columns. The roof stops two pixels short of it.
+  const c0 = Math.max(0, Math.floor(left / TILE));
+  const c1 = Math.min(g.w - 1, Math.floor((left + ow - 1) / TILE));
+  let roofLimit = 0;
+  for (let ty = b.y - 1; ty >= 0 && roofLimit === 0; ty--) {
+    for (let tx = c0; tx <= c1; tx++) {
+      const t = g.tiles[ty * g.w + tx];
+      if (t === T.wall || t === T.door) {
+        roofLimit = (ty + 1) * TILE + 2;
+        break;
+      }
+    }
+  }
+  const cut = Math.max(0, roofLimit - dy);
+  if (cut >= im.naturalHeight) return;
+  // playtest1d: at night the window light and the door lamp go to full light (the house's glow mask, same cut)
+  const src = em ? landSheet[townEm(b.file)] : im;
+  if (!src || !src.complete || src.naturalWidth === 0) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, 0, cut, im.naturalWidth, im.naturalHeight - cut, dx, dy + cut, im.naturalWidth, im.naturalHeight - cut);
+}
+
+/**
+ * playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]: the town's lots (buildings.ts townLots: one per room door), worked out once per
+ * town grid, and the lots inside one wall block.
+ */
+const lotCache = new WeakMap<object, Lot[]>();
+export function townLotsOf(g: Game): Lot[] {
+  const hit = lotCache.get(g.tiles);
+  if (hit) return hit;
+  const out = townLots(g.w, g.h, g.tiles, T.wall, T.door, townRoomAt);
+  lotCache.set(g.tiles, out);
+  return out;
+}
+function lotsIn(g: Game, b: TownBuilding): Lot[] {
+  return townLotsOf(g).filter((l) => l.x >= b.x && l.x + l.w <= b.x + b.w && l.y >= b.y && l.y + l.h <= b.y + b.h);
+}
+/** A lot's ground shadow: south along its foot and up its east side (light from the upper left), multiplied like the blobs. */
+const lotShadowCache = new Map<string, HTMLCanvasElement>();
+export function lotShadow(w: number): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const key = String(w);
+  const hit = lotShadowCache.get(key);
+  if (hit) return hit;
+  const S = BLDG.shadow;
+  const W = w * TILE;
+  const c = document.createElement("canvas");
+  c.width = W + S.east;
+  c.height = S.up + S.south;
+  const x = c.getContext("2d");
+  if (!x) return null;
+  x.fillStyle = rgbCss([1, 1, 1], S.k);
+  for (let j = 0; j < S.south; j++) x.fillRect(3 + j, S.up + j, W + S.east - 3 - 2 * j, 1);
+  for (let i = 0; i < S.east; i++) x.fillRect(W + i, i + 1, 1, S.up - i - 1);
+  lotShadowCache.set(key, c);
+  return c;
+}
+/**
+ * playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: the vale's hamlets, looked up per tile. A lot's
+ * tiles are wall on the grid (they stop bodies where the building is drawn); the tile loop draws the biome's ground
+ * under them, then each lot's building stands as a y-sorted prop like a town lot, and the walk cells lie on the green.
+ */
+type HamletIndex = { tiles: ArrayLike<number>; lot: Map<number, { m: HamletT; l: HamletLotT }>; walk: Map<number, HamletT>; list: HamletT[] };
+let hamletIx: HamletIndex | null = null;
+export function hamletIndex(g: Game): HamletIndex | null {
+  if (g.mapId !== "world" && g.mapId !== "village") return null;
+  if (hamletIx && hamletIx.tiles === g.tiles) return hamletIx;
+  // only the hamlets laid on this grid (every lot tile a wall): a grid from before playtest1u draws none.
+  // playtest1v: in a village, its own buildings (villages.ts)
+  const vh = g.mapId === "village" ? villageById(g.inside)?.hamlet : undefined;
+  const list = (g.mapId === "village" ? (vh ? [vh] : []) : worldHamlets()).filter((m) => m.lots.every((l) => { for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (g.tiles[y * g.w + x] !== T.wall) return false; return true; }));
+  const lot = new Map<number, { m: HamletT; l: HamletLotT }>();
+  const walk = new Map<number, HamletT>();
+  for (const m of list) {
+    for (const l of m.lots) for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) if (g.tiles[y * g.w + x] === T.wall) lot.set(y * g.w + x, { m, l });
+    for (const i of m.walk) walk.set(i, m);
+  }
+  hamletIx = { tiles: g.tiles, lot, walk, list };
+  return hamletIx;
+}
+/** A hamlet lot's building: the town's ground shadow, then its sheet cell (or, on the glow pass, its glow mask's). */
+function paintHamletLot(ctx: CanvasRenderingContext2D, l: HamletLotT, em = false) {
+  const cell = hamletCell(l, seasonNow);
+  if (!cell) return;
+  const url = em ? hamletEm(l.kind) : hamletSheet(l.kind);
+  if (!sheetReady(url)) return;
+  const bottom = (l.y + l.h) * TILE;
+  ctx.imageSmoothingEnabled = false;
+  if (!em) {
+    const sh = lotShadow(l.w);
+    if (sh) {
+      ctx.save();
+      ctx.globalCompositeOperation = "multiply";
+      ctx.drawImage(sh, l.x * TILE, bottom - BLDG.shadow.up);
+      ctx.restore();
+    }
+  }
+  const im = landSheet[url];
+  if (im) ctx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
+}
+/** The not-yet-loaded fallback: the lot as a plain block in its biome's roof colour (never the old grey wall). */
+function paintHamletBlock(ctx: CanvasRenderingContext2D, m: HamletT, l: HamletLotT) {
+  px(ctx, l.x * TILE, l.y * TILE - 8, l.w * TILE, l.h * TILE + 8, HAMLET_MAP[m.biome]);
+  px(ctx, l.x * TILE, (l.y + l.h) * TILE - 10, l.w * TILE, 10, "#3a2c24");
+}
+
+/** One lot's building: the shadow, then its sheet cell (or, on the glow pass, its glow mask's cell). */
+/**
+ * playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill: "try not to spend too much time behind roofs", "maybe you can make the roof less imposing"):
+ * anyone standing behind a lot's roof (feet north of the lot, inside its columns, within its roof's rise: buildings.ts
+ * ROOF_RISE) shows through it: the roof is drawn with a dithered oval round the body thinned out (half its pixels in the
+ * middle, a quarter at the rim, on even pixels so it does not shimmer), only above the lot's top edge. Picture only.
+ */
+export const ROOF_SEE = { rx: 12, ry: 19, lift: 14, core: 0.62, pad: 6 } as const;
+export function roofBodies(g: Game, l: Lot): { x: number; y: number }[] {
+  const top = l.y * TILE;
+  const rise = ROOF_RISE[l.room as BldgRoom] ?? 0;
+  const out: { x: number; y: number }[] = [];
+  const all: { x: number; y: number }[] = [{ x: g.px, y: g.py }, ...g.npcs, ...(g.companion ? [g.companion] : [])];
+  for (const b of all) {
+    if (b.x < l.x * TILE - ROOF_SEE.pad || b.x >= (l.x + l.w) * TILE + ROOF_SEE.pad) continue;
+    if (b.y >= top || b.y <= top - rise) continue;
+    out.push({ x: b.x, y: b.y });
+  }
+  return out;
+}
+let roofMask: HTMLCanvasElement | null = null;
+/** The dithered oval (opaque where the roof is thinned), made once. */
+export function roofSeeMask(): HTMLCanvasElement | null {
+  if (roofMask || typeof document === "undefined") return roofMask;
+  const c = document.createElement("canvas");
+  c.width = ROOF_SEE.rx * 2;
+  c.height = ROOF_SEE.ry * 2;
+  const cx = c.getContext("2d");
+  if (!cx) return null;
+  cx.fillStyle = "#000";
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+    const d = Math.hypot((x + 0.5 - ROOF_SEE.rx) / ROOF_SEE.rx, (y + 0.5 - ROOF_SEE.ry) / ROOF_SEE.ry);
+    if (d >= 1) continue;
+    if (d < ROOF_SEE.core ? (x + y) % 2 === 0 : x % 2 === 0 && y % 2 === 0) cx.fillRect(x, y, 1, 1);
+  }
+  roofMask = c;
+  return c;
+}
+let roofWork: HTMLCanvasElement | null = null;
+
+function paintLot(ctx: CanvasRenderingContext2D, l: Lot, em = false, behind: { x: number; y: number }[] = []) {
+  const cell = lotCell(l, seasonNow);
+  if (!cell) return;
+  const url = em ? bldgEm(l.room) : bldgSheet(l.room);
+  if (!sheetReady(url)) return;
+  const bottom = (l.y + l.h) * TILE;
+  ctx.imageSmoothingEnabled = false;
+  if (!em) {
+    const sh = lotShadow(l.w);
+    if (sh) {
+      ctx.save();
+      ctx.globalCompositeOperation = "multiply";
+      ctx.drawImage(sh, l.x * TILE, bottom - BLDG.shadow.up);
+      ctx.restore();
+    }
+  }
+  const im = landSheet[url];
+  if (!im) return;
+  const mask = behind.length && !em ? roofSeeMask() : null;
+  if (mask) {
+    // playtest1x: the cell drawn on a work canvas, thinned round each body behind the roof, then laid down
+    roofWork = roofWork ?? document.createElement("canvas");
+    if (roofWork.width < cell.w || roofWork.height < cell.h) {
+      roofWork.width = Math.max(roofWork.width, cell.w);
+      roofWork.height = Math.max(roofWork.height, cell.h);
+    }
+    const wx = roofWork.getContext("2d");
+    if (wx) {
+      wx.imageSmoothingEnabled = false;
+      wx.clearRect(0, 0, roofWork.width, roofWork.height);
+      wx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, 0, 0, cell.w, cell.h);
+      wx.save();
+      wx.beginPath();
+      wx.rect(0, 0, cell.w, cell.h - l.h * TILE);
+      wx.clip();
+      wx.globalCompositeOperation = "destination-out";
+      for (const b of behind) wx.drawImage(mask, (Math.round(b.x - cell.dx - ROOF_SEE.rx) >> 1) << 1, (Math.round(b.y - ROOF_SEE.lift - cell.dy - ROOF_SEE.ry) >> 1) << 1);
+      wx.restore();
+      ctx.drawImage(roofWork, 0, 0, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
+      return;
+    }
+  }
+  ctx.drawImage(im, cell.sx, cell.sy, cell.w, cell.h, cell.dx, cell.dy, cell.w, cell.h);
+}
+
+/**
+ * Map writer phase 2: the vale's ground skin. Looks only: which biome's ground art each open tile shows,
+ * worked out once per world grid (the tiles never change while you are on the world). Collision, zones,
+ * and every placement read g.tiles, which this never touches.
+ */
+let skinFor: { tiles: ArrayLike<number>; skin: BlendResult } | null = null;
+const SKIN_OPEN = new Set<number>(VALE_BLENDABLE);
+/** Skin index (VALE_BIOMES order) to the prop painter's biome names, the same names biomeOf gives. */
+const SKIN_PROP = ["vale", "snow", "sand", "ash", "swamp"];
+function valeGround(g: Game): BlendResult | null {
+  if (g.mapId !== "world" || g.theme !== "over") return null;
+  if (!skinFor || skinFor.tiles !== g.tiles) {
+    skinFor = { tiles: g.tiles, skin: valeSkin(g.tiles, g.w, g.h) };
+    fringeCache.clear();
+    fringePending.clear();
+  }
+  return skinFor.skin;
+}
+
+let fringeCanvas: HTMLCanvasElement | null = null;
+/** Each fringed tile's finished 16x16 fringe, per season, once every sheet it uses has loaded. Cleared with the skin. */
+const fringeCache = new Map<string, HTMLCanvasElement>();
+const tileCanvas = () => Object.assign(document.createElement("canvas"), { width: TILE, height: TILE });
+const sheetReady = (url: string) => !!landSheet[url]?.complete && (landSheet[url]?.naturalWidth ?? 0) > 0;
+// playtest1c (owner-reported 2026-10-02, "the jagged hedge band"): fringes go through the wild writer's soft drift masks
+// (same twelve-cell layout); border-dither.png stays the not-yet-loaded fallback.
+const fringeMask = () => (sheetReady(WILD_BORDER) ? landSheet[WILD_BORDER] : landSheet[BORDER_SHEET]);
+const fringeReady = () => sheetReady(WILD_BORDER) && sheetReady(WILD_FLECKS) && sheetReady(WILD_BORDER_RIM) && sheetReady(BORDER_SHEET) && (sheetReady(seasonSheet(seasonNow, "vale")) || sheetReady("/art/writer/vale.png")) && ["snow", "sand", "ash", "swamp"].every((b) => sheetReady(WILD_GROUND[b]));
+/** playtest1: a fringe still waiting on a sheet reuses its one canvas instead of making a new one each frame. */
+const fringePending = new Map<string, HTMLCanvasElement>();
+
+/** Paint the neighbour biome's own ground through one fringe mask cell into acc. No new colours: both are locked art. */
+function paintFringe(acc: CanvasRenderingContext2D, ground: Tile, cell: number, x: number, y: number, n: number, theme: string, frame: number, sx = 0, sy = 0) {
+  const mask = fringeMask();
+  if (!mask || !mask.complete || mask.naturalWidth === 0) return;
+  fringeCanvas ??= tileCanvas();
+  const off = fringeCanvas.getContext("2d");
+  if (!off) return;
+  off.setTransform(1, 0, 0, 1, 0, 0);
+  off.globalCompositeOperation = "source-over";
+  off.clearRect(0, 0, TILE, TILE);
+  off.imageSmoothingEnabled = false;
+  off.setTransform(1, 0, 0, 1, -x * TILE, -y * TILE);
+  drawTile(off, ground, x, y, n, theme, -1, frame);
+  off.globalCompositeOperation = "destination-in";
+  off.drawImage(mask, cell * 16, 0, 16, 16, x * TILE + sx, y * TILE + sy, 16, 16);
+  off.globalCompositeOperation = "source-over";
+  acc.imageSmoothingEnabled = false;
+  acc.drawImage(fringeCanvas, 0, 0);
+}
+
+/** The fringe on one tile: each side (and bare corner) that meets a higher-ranked biome gets that biome's ground. */
+function paintFringes(ctx: CanvasRenderingContext2D, skin: BlendResult, g: Game, x: number, y: number, n: number) {
+  const i = y * g.w + x;
+  const e = skin.edges[i];
+  const c = skin.corners[i];
+  if (!e && !c || typeof document === "undefined") return;
+  const key = `${i}:${seasonNow}`;
+  let done = fringeCache.get(key);
+  if (!done) {
+    done = fringePending.get(key) ?? tileCanvas();
+    const acc = done.getContext("2d");
+    if (!acc) return;
+    acc.clearRect(0, 0, TILE, TILE);
+    const v = (x * 7 + y * 3) % 2 ? 4 : 0;
+    const side: [number, number, number, number][] = [
+      [EDGE.n, 0, 0, -1],
+      [EDGE.e, 1, 1, 0],
+      [EDGE.s, 2, 0, 1],
+      [EDGE.w, 3, -1, 0],
+    ];
+    for (const [bit, cell, dx, dy] of side) if (e & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell + v, x, y, n, g.theme, g.frame);
+    // playtest1d (owner-requested 2026-10-02, batch C2 "an outline where biomes meet"): the drift's own inner edge in the
+    // neighbour's dark (wild-border-rim, one row per biome), so the meeting line follows the drift, not the tile step.
+    const rim = (cell: number, dx: number, dy: number) => {
+      const nb = skin.biome[i + dy * g.w + dx];
+      if (nb > 0) sheetCell(acc, WILD_BORDER_RIM, cell, nb - 1, 0, 0);
+    };
+    for (const [bit, cell, dx, dy] of side) if (e & bit) rim(cell + v, dx, dy);
+    // playtest1c: the neighbour's crumbs thin out across the tile (frost by the snow, grit by the waste, soot, mud).
+    for (const [bit, cell, dx, dy] of side) {
+      const nb = skin.biome[i + dy * g.w + dx];
+      if (e & bit && nb > 0) sheetCell(acc, WILD_FLECKS, cell, nb - 1, 0, 0);
+    }
+    const nook: [number, number, number, number][] = [
+      [CORNER.ne, 8, 1, -1],
+      [CORNER.se, 9, 1, 1],
+      [CORNER.sw, 10, -1, 1],
+      [CORNER.nw, 11, -1, -1],
+    ];
+    for (const [bit, cell, dx, dy] of nook) if (c & bit) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
+    for (const [bit, cell, dx, dy] of nook) if (c & bit) rim(cell, dx, dy);
+    // playtest1c: where two sides take the same neighbour's ground, round the square corner they leave (wild-border 12-15).
+    if (sheetReady(WILD_BORDER)) {
+      const convex: [number, number, number, number][] = [
+        [EDGE.n | EDGE.e, 12, 0, -1],
+        [EDGE.s | EDGE.e, 13, 0, 1],
+        [EDGE.s | EDGE.w, 14, 0, 1],
+        [EDGE.n | EDGE.w, 15, 0, -1],
+      ];
+      for (const [bits, cell, dx, dy] of convex) if ((e & bits) === bits) paintFringe(acc, VALE_GROUND[skin.biome[i + dy * g.w + dx]] as Tile, cell, x, y, n, g.theme, g.frame);
+      for (const [bits, cell, dx, dy] of convex) if ((e & bits) === bits) rim(cell, dx, dy);
+    }
+    // Only keep it once every sheet is in, so a half-loaded first frame is never frozen.
+    if (fringeReady()) {
+      fringeCache.set(key, done);
+      fringePending.delete(key);
+    } else fringePending.set(key, done);
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(done, 0, 0, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+}
+
+/**
+ * playtest1i ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit], part 2, map consistency): the vale's cart road, the town's dirt patches and the camp
+ * clearing met their grass on a hard square step (the only ground edges left without a blend). Now the neighbour's own
+ * ground creeps over that step through the same wild-writer drift masks the biome fringes use (sides, the rounded corner
+ * two sides leave, and the bare nook at a junction), cached per tile and season. Looks only: g.tiles is never touched.
+ */
+const biteCache = new Map<string, HTMLCanvasElement>();
+/** How far (px) a cart road's bite mask is pushed out toward its grass. */
+export const BITE_ROAD = 5;
+const bitePending = new Map<string, HTMLCanvasElement>();
+let biteTiles: ArrayLike<number> | null = null;
+export function biteTile(theme: string, tile: number) {
+  return (theme === "over" && tile === T.road) || ((theme === "town" || theme === "camp") && tile === T.dirt);
+}
+/** The ground a neighbour j lends the bite, or -1 (only plain open ground bites: never a road, trail, wall or water). */
+function biteGround(g: Game, skin: BlendResult | null, j: number): number {
+  const t = g.tiles[j];
+  if (g.theme === "over") return skin && SKIN_OPEN.has(t) ? VALE_GROUND[skin.biome[j]] : -1;
+  if (g.theme === "town") return t === T.grass || t === T.exit ? T.grass : -1;
+  if (g.theme === "camp") return t === T.grass ? T.grass : -1;
+  return -1;
+}
+const biteReady = (theme: string) =>
+  sheetReady(WILD_BORDER) && (theme === "over" ? fringeReady() : sheetReady(seasonSheet(seasonNow, theme === "camp" ? "camp-grass" : "town-grass")));
+function paintBites(ctx: CanvasRenderingContext2D, g: Game, skin: BlendResult | null, x: number, y: number, n: number) {
+  if (typeof document === "undefined" || !sheetReady(WILD_BORDER)) return;
+  if (biteTiles !== g.tiles) {
+    biteTiles = g.tiles;
+    biteCache.clear();
+    bitePending.clear();
+  }
+  const i = y * g.w + x;
+  const nb = (dx: number, dy: number) => {
+    const nx = x + dx;
+    const ny = y + dy;
+    return nx < 0 || ny < 0 || nx >= g.w || ny >= g.h ? -1 : biteGround(g, skin, ny * g.w + nx);
+  };
+  const N = nb(0, -1), E = nb(1, 0), S = nb(0, 1), W = nb(-1, 0);
+  const NE = nb(1, -1), SE = nb(1, 1), SW = nb(-1, 1), NW = nb(-1, -1);
+  if (N < 0 && E < 0 && S < 0 && W < 0 && NE < 0 && SE < 0 && SW < 0 && NW < 0) return;
+  const key = `${g.theme}:${i}:${seasonNow}`;
+  let done = biteCache.get(key);
+  if (!done) {
+    done = bitePending.get(key) ?? tileCanvas();
+    const acc = done.getContext("2d");
+    if (!acc) return;
+    acc.clearRect(0, 0, TILE, TILE);
+    const v = (x * 7 + y * 3) % 2 ? 4 : 0;
+    // a one-tile cart road keeps its middle: its bite is the drift's outer edge only (the mask pushed out toward the grass)
+    const k = g.theme === "over" ? BITE_ROAD : 0;
+    const sides: [number, number, number, number][] = [[N, 0, 0, -k], [E, 1, k, 0], [S, 2, 0, k], [W, 3, -k, 0]];
+    for (const [gr, cell, sx, sy] of sides) if (gr >= 0) paintFringe(acc, gr as Tile, cell + v, x, y, n, g.theme, g.frame, sx, sy);
+    const nooks: [number, number, number, number, number, number][] = [[NE, N, E, 8, k, -k], [SE, S, E, 9, k, k], [SW, S, W, 10, -k, k], [NW, N, W, 11, -k, -k]];
+    for (const [d, a, b, cell, sx, sy] of nooks) if (d >= 0 && a < 0 && b < 0) paintFringe(acc, d as Tile, cell, x, y, n, g.theme, g.frame, sx, sy);
+    if (!k) {
+      const convex: [number, number, number][] = [[N, E, 12], [S, E, 13], [S, W, 14], [N, W, 15]];
+      for (const [a, b, cell] of convex) if (a >= 0 && b >= 0) paintFringe(acc, a as Tile, cell, x, y, n, g.theme, g.frame);
+    }
+    if (biteReady(g.theme)) {
+      biteCache.set(key, done);
+      bitePending.delete(key);
+    } else bitePending.set(key, done);
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(done, 0, 0, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+}
+
+/**
+ * playtest1c (owner-reported 2026-10-02, boxy water and ice; the snow pond; the town pond): where a water, pool or ice
+ * tile meets dry ground, the wild shore rim is laid on that side (a reed bank, the square's stone kerb, a snowbank),
+ * and an inner corner where the land touches only diagonally, so a pond has one soft outline instead of tile boxes.
+ */
+const WET: ReadonlySet<number> = new Set([T.water, T.pool, T.ice]);
+function paintShore(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: number, y: number, at: (j: number) => number) {
+  const row = tile === T.ice || (g.theme === "over" && zoneAt(x, y) === "snow") ? SHORE_ROW.snowbank : tile === T.pool ? SHORE_ROW.stone : SHORE_ROW.bank;
+  const dry = (nx: number, ny: number) => nx >= 0 && ny >= 0 && nx < g.w && ny < g.h && !WET.has(at(ny * g.w + nx));
+  const n = dry(x, y - 1);
+  const e = dry(x + 1, y);
+  const s = dry(x, y + 1);
+  const w = dry(x - 1, y);
+  const gx = x * TILE;
+  const gy = y * TILE;
+  if (n) sheetCell(ctx, SHORE, SHORE_SIDE.n, row, gx, gy);
+  if (e) sheetCell(ctx, SHORE, SHORE_SIDE.e, row, gx, gy);
+  if (s) sheetCell(ctx, SHORE, SHORE_SIDE.s, row, gx, gy);
+  if (w) sheetCell(ctx, SHORE, SHORE_SIDE.w, row, gx, gy);
+  if (!n && !e && dry(x + 1, y - 1)) sheetCell(ctx, SHORE, 4, row, gx, gy);
+  if (!s && !e && dry(x + 1, y + 1)) sheetCell(ctx, SHORE, 5, row, gx, gy);
+  if (!s && !w && dry(x - 1, y + 1)) sheetCell(ctx, SHORE, 6, row, gx, gy);
+  if (!n && !w && dry(x - 1, y - 1)) sheetCell(ctx, SHORE, 7, row, gx, gy);
+}
+
+/** The play view. Ground first, then props and people sorted by foot position, then weather. */
+// ---------------------------------------------------------------------------------------------------------------
+// Core Keeper-style graphics pass, batch 1 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11).
+// Wall depth (C9): the pixel writer's wall kit per cave (wall-<cave>.png, 16x32 cells, the tile is the bottom 16
+// rows). A wall with open floor south of it shows its south face: 24 px (32 in the chapel) when the tile above it
+// is rock too, so the face rises over that rock's top; 16 px when the tile above is open, so a face never hides a
+// floor tile, a trap or a chest. Every other wall shows its top with a 2 px rim on each side that faces the room.
+// Secret tiles take exactly the same face and top as rock, so depth never gives a secret away. Art only: collision
+// is sim.ts solidAt and is not touched.
+const WALL_CELL = { face: [0, 1, 2], thin: [3, 4], top: [5, 6, 7], rimN: 8, rimW: 9, rimE: 10 } as const;
+export const WALL_FACE_H: Record<string, number> = { chapel: 32 };
+const LAMP_SHEET = "/art/writer/lamp.png";
+const wallSheet = (theme: string) => `/art/writer/wall-${theme in CAVES ? theme : "cave"}.png`;
+/** Rock, a secret tile, or off the map: anything that draws as wall. */
+const wallLook = (t: number) => t === -1 || t === T.wall || secretTile(t);
+export const faceHeight = (theme: string, above: number) => (wallLook(above) ? (WALL_FACE_H[theme] ?? 24) : 16);
+
+function paintWallKit(ctx: CanvasRenderingContext2D, x: number, y: number, theme: string, above: number, below: number, left: number, right: number): boolean {
+  const sheet = wallSheet(theme);
+  if (!sheetReady(sheet)) return false;
+  const gx = x * TILE;
+  const gy = y * TILE;
+  const v = Math.floor(hash(x, y, 7) * 10);
+  if (!wallLook(below)) {
+    const cell = wallLook(above) ? WALL_CELL.face[v < 7 ? 0 : v < 9 ? 1 : 2] : WALL_CELL.thin[v < 8 ? 0 : 1];
+    return sheetCell(ctx, sheet, cell, 0, gx, gy - TILE, 1, 2);
+  }
+  sheetCell(ctx, sheet, WALL_CELL.top[v % 3], 0, gx, gy - TILE, 1, 2);
+  if (!wallLook(above)) sheetCell(ctx, sheet, WALL_CELL.rimN, 0, gx, gy - TILE, 1, 2);
+  if (!wallLook(left)) sheetCell(ctx, sheet, WALL_CELL.rimW, 0, gx, gy - TILE, 1, 2);
+  if (!wallLook(right)) sheetCell(ctx, sheet, WALL_CELL.rimE, 0, gx, gy - TILE, 1, 2);
+  return true;
+}
+
+/** What a dungeon tile draws as: a sealed secret room is rock. */
+function drawnTile(g: Game, i: number): number {
+  return g.hidden.has(i) ? T.wall : g.tiles[i];
+}
+
+function strSeed(s: string) {
+  let h = 7;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973;
+  return h;
+}
+
+/** Wall torches: seeded per floor on tall plain-rock faces, one in LIGHT.sconceOdds, never two within LIGHT.sconceGap tiles. */
+const sconceCache = new WeakMap<object, { x: number; y: number; seed: number }[]>();
+export function sconces(g: Game): { x: number; y: number; seed: number }[] {
+  if (g.mapId !== "dungeon") return [];
+  const hit = sconceCache.get(g.tiles);
+  if (hit) return hit;
+  const out: { x: number; y: number; seed: number }[] = [];
+  const seed = strSeed(`${g.dungeon}:${g.floor}`);
+  for (let y = 1; y + 1 < g.h; y++) {
+    for (let x = 1; x + 1 < g.w; x++) {
+      if (g.tiles[y * g.w + x] !== T.wall || !wallLook(g.tiles[(y - 1) * g.w + x]) || wallLook(g.tiles[(y + 1) * g.w + x])) continue;
+      if (Math.floor(hash(x, y, seed) * LIGHT.sconceOdds) !== 0) continue;
+      if (out.some((s) => Math.abs(s.x - x) + Math.abs(s.y - y) < LIGHT.sconceGap)) continue;
+      out.push({ x, y, seed: (x * 5 + y * 3) & 3 });
+    }
+  }
+  sconceCache.set(g.tiles, out);
+  return out;
+}
+
+/** A sconce shows only on a face you can see: not over a sealed room, not on unexplored rock. */
+function sconceShows(g: Game, s: { x: number; y: number }) {
+  const i = s.y * g.w + s.x;
+  const below = i + g.w;
+  if (g.hidden.has(i) || g.hidden.has(below) || drawnTile(g, i) !== T.wall || wallLook(drawnTile(g, below))) return false;
+  return !g.fog || g.fog[i] !== 0 || g.fog[below] !== 0;
+}
+
+// Portal gates (owner-requested 2026-10-01): one pixel-writer generator (portal_gate), three looks. Cell 0 is the
+// stone arch, cells 1-8 the vortex spin frames (a third of a turn, so the loop is seamless). 32x48, base on the
+// bottom row of the gate tile, the doorway centred on it. Reusable for teleports and other-realm entrances.
+export const PORTAL_GATES = {
+  rift: { sheet: "/art/writer/portal-rift.png", light: LIGHTS.hex },
+  teleport: { sheet: "/art/writer/portal-teleport.png", light: LIGHTS.ghost },
+  realm: { sheet: "/art/writer/portal-realm.png", light: LIGHTS.realm },
+} as const;
+export type PortalKind = keyof typeof PORTAL_GATES;
+export const PORTAL_FRAMES = 8;
+export const portalFrame = (frame: number) => Math.floor(frame) % PORTAL_FRAMES;
+
+/** Draw a portal gate on tile (x, y): the spinning vortex, then the arch over it. "vortex" draws the swirl alone (the emissive layer). */
+export function paintPortalGate(ctx: CanvasRenderingContext2D, kind: PortalKind, x: number, y: number, frame: number, part: "all" | "vortex" = "all"): boolean {
+  const sheet = PORTAL_GATES[kind].sheet;
+  const dx = x * TILE - 8;
+  const dy = (y + 1) * TILE - 48;
+  if (!sheetReady(sheet)) return false;
+  sheetCell(ctx, sheet, 1 + portalFrame(frame), 0, dx, dy, 2, 3, 32);
+  if (part === "all") sheetCell(ctx, sheet, 0, 0, dx, dy, 2, 3, 32);
+  return true;
+}
+
+/** playtest1f: which wayrift cell to draw: the swirl frame (8 a second) when awake, the sealed cell (8) when not. */
+export function wayCell(w: Wayrift, season: SeasonId, frame: number) {
+  return wayAwake(w, season) ? Math.floor(Math.max(0, frame)) % WAYRIFT.frames : WAYRIFT.frames;
+}
+
+/** playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: one half-size wayrift (24x32 on a 2x1 footprint, standing one tile above). Hub rifts also get a
+ * raised 3x2 platform under them. Before the sheet loads: a plain slate oval so the rift is never invisible. */
+function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number) {
+  const tile = TILE;
+  // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: octagon pad under any platform rift (3x3)
+  if (w.platform) {
+    const platX = w.x * tile;
+    const platY = w.y * tile;
+    const lit = cell < WAYRIFT.frames ? 0 : 1;
+    if (!sheetCell(ctx, WAYRIFT_PLATFORM, lit * 3, 0, platX, platY, 3, 3, 16)) {
+      // fallback octagon blob
+      px(ctx, platX + 8, platY + 8, 32, 32, "#3a4048");
+      px(ctx, platX + 12, platY + 12, 24, 24, "#4a4e54");
+    }
+  }
+  const dx = w.x * tile + (WAYRIFT.fw * tile - WAYRIFT.artW) / 2;
+  const dy = (w.y - WAYRIFT.stand) * tile;
+  const sheet = landSheet[WAYRIFT_SHEET];
+  if (sheet && sheet.complete && sheet.naturalWidth) {
+    const cw = WAYRIFT.artW, ch = WAYRIFT.artH;
+    ctx.drawImage(sheet, cell * cw, 0, cw, ch, dx, dy, cw, ch);
+    return;
+  }
+  px(ctx, dx + 6, dy + 4, 12, 24, cell < WAYRIFT.frames ? "#4ab8ff" : "#2a3a6a");
+  px(ctx, dx + 8, dy + 6, 8, 20, cell < WAYRIFT.frames ? "#7a5ad0" : "#140c28");
+  px(ctx, dx + 10, dy + 14, 4, 4, cell < WAYRIFT.frames ? "#ff3a50" : "#140c28");
+}
+
+/** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: tiny wild spawn portal (12x16, no platform). */
+function paintWildPortal(ctx: CanvasRenderingContext2D, x: number, y: number, cell: number) {
+  const tile = TILE;
+  const dx = x * tile + (tile - WILD_PORTAL.artW) / 2;
+  const dy = (y - WILD_PORTAL.stand) * tile;
+  const sheet = landSheet[WILD_PORTAL_SHEET];
+  if (sheet && sheet.complete && sheet.naturalWidth) {
+    ctx.drawImage(sheet, cell * WILD_PORTAL.artW, 0, WILD_PORTAL.artW, WILD_PORTAL.artH, dx, dy, WILD_PORTAL.artW, WILD_PORTAL.artH);
+    return;
+  }
+  px(ctx, dx + 2, dy + 2, 8, 12, "#4ab8ff");
+  px(ctx, dx + 3, dy + 4, 6, 8, "#7a5ad0");
+}
+
+/** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: park statues and arch in town. */
+function paintParkProps(ctx: CanvasRenderingContext2D) {
+  const tile = TILE;
+  // statues at park corners (cells 0 warrior, 1 mage)
+  const st = landSheet[PARK_STATUE];
+  if (st && st.complete && st.naturalWidth) {
+    ctx.drawImage(st, 0, 0, 16, 32, 16 * tile, 13 * tile, 16, 32);
+    ctx.drawImage(st, 16, 0, 16, 32, 21 * tile, 13 * tile, 16, 32);
+  } else {
+    px(ctx, 16 * tile + 4, 14 * tile, 8, 16, "#6a6e78");
+    px(ctx, 21 * tile + 4, 14 * tile, 8, 16, "#6a6e78");
+  }
+  const arch = landSheet[PARK_ARCH];
+  if (arch && arch.complete && arch.naturalWidth) {
+    ctx.drawImage(arch, 0, 0, 48, 48, 17 * tile, 16 * tile, 48, 48);
+  } else {
+    px(ctx, 17 * tile, 17 * tile, 8, 24, "#4a4e54");
+    px(ctx, 20 * tile, 17 * tile, 8, 24, "#4a4e54");
+    px(ctx, 17 * tile, 16 * tile, 48, 8, "#5a5e64");
+  }
+}
+
+
+/** playtest1f: the rift writer's 9x11 map marker centred on (mx, my), k map px a marker px. False before it loads. */
+function wayMarker(ctx: CanvasRenderingContext2D, mx: number, my: number, awake: boolean, k: number) {
+  const im = landSheet[WAYRIFT_ICON];
+  if (!im || !im.complete || im.naturalWidth === 0) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, awake ? 0 : 9, 0, 9, 11, Math.round(mx - 4.5 * k), Math.round(my - 5.5 * k), 9 * k, 11 * k);
+  return true;
+}
+
+/** playtest1f (owner-reported 2026-10-02, "swamp trails draw as flat dark-brown squares"): a swamp trail tile is the
+ * wrapping swamp ground, then the writer's mud-and-boardwalk cell for the tile's NESW path neighbours (trail, road,
+ * stair, door, cache), its ragged edge letting the swamp show through. Before the sheets load: the old flat tile. */
+const PATH_LINK = new Set<number>([T.dirt, T.road, T.stairD, T.chest, T.door]);
+export function swampPathCell(tiles: ArrayLike<number>, w: number, h: number, x: number, y: number) {
+  const at = (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < w && ty < h && PATH_LINK.has(tiles[ty * w + tx]);
+  const mask = (at(x, y - 1) ? 1 : 0) | (at(x + 1, y) ? 2 : 0) | (at(x, y + 1) ? 4 : 0) | (at(x - 1, y) ? 8 : 0);
+  return (mask === 5 || mask === 10) && (x * 7 + y * 3) % 5 === 0 ? (mask === 5 ? 16 : 17) : mask;
+}
+function paintSwampPath(ctx: CanvasRenderingContext2D, g: Game, x: number, y: number) {
+  if (!sheetReady(SWAMP_PATH) || !sheetReady(WILD_GROUND.swamp)) return;
+  texCell(ctx, WILD_GROUND.swamp, 0, x, y);
+  sheetCell(ctx, SWAMP_PATH, swampPathCell(g.tiles, g.w, g.h, x, y), 0, x * TILE, y * TILE);
+}
+
+/** playtest1g [OWNER-APPROVED 2026-10-02: playtest1g trail paths]: the ground a vale, snow, ash or sand trail tile is
+ * drawn on (its skin biome's, as its neighbours draw it), or -1: off a trail, on the swamp (its own path) and before its
+ * trail sheet loads (the old flat tile then). Such a tile is one copy from the trail atlas (trailComposite: the ground
+ * cell with the trail writer's cell for its NESW path neighbours on it, the vale's row by season, its ragged edge letting
+ * the ground show through) in place of the flat dirt square; while a ground sheet loads, drawTile and paintTrailPath
+ * draw the two. */
+function trailGround(skinBiome: number): number {
+  const ground = VALE_GROUND[skinBiome];
+  if (ground === T.swamp) return -1;
+  const url = TRAIL_BY_GROUND[ground];
+  return url && sheetReady(url) ? ground : -1;
+}
+/** playtest1g, fps parity: a trail tile's ground cell and path cell are composited once into one opaque atlas (64x64
+ * slots of 16x16; every ground sheet is opaque, so the atlas has no alpha and a trail tile is one plain copy on
+ * screen), keyed by the ground cell and the path cell (a season's vale sheet and path row included), started afresh
+ * when full. False while a sheet is still loading (then drawTile and paintTrailPath draw the two). */
+export const TRAIL_ATLAS = 64;
+let trailAtlas: HTMLCanvasElement | null = null;
+let trailAtlasCtx: CanvasRenderingContext2D | null = null;
+const trailSlot = new Map<string, number>();
+const TRAIL_WILD: Readonly<Record<number, string>> = { [T.snow]: "snow", [T.ash]: "ash", [T.sand]: "sand" };
+export const trailAtlasSize = () => trailSlot.size;
+function trailComposite(ctx: CanvasRenderingContext2D, g: Game, x: number, y: number, ground: number): boolean {
+  if (typeof document === "undefined") return false;
+  const url = TRAIL_BY_GROUND[ground];
+  const per = TEX / TILE;
+  const vale = ground === T.grass;
+  const sheet = vale ? (sheetReady(seasonSheet(seasonNow, "vale")) ? seasonSheet(seasonNow, "vale") : "/art/writer/vale.png") : WILD_GROUND[TRAIL_WILD[ground]];
+  if (!sheet || !sheetReady(sheet) || !sheetReady(url)) return false;
+  const gc = vale ? Math.abs(x * 3 + y * 5) % 8 : ((x % per) + per) % per;
+  const gr = vale ? 0 : ((y % per) + per) % per;
+  const cell = swampPathCell(g.tiles, g.w, g.h, x, y);
+  const row = url === TRAIL_VALE ? TRAIL_SEASON_ROW[g.season()] : 0;
+  const key = `${sheet}|${gc}|${gr}|${url}|${cell}|${row}`;
+  let slot = trailSlot.get(key);
+  if (slot === undefined) {
+    if (!trailAtlas) {
+      trailAtlas = document.createElement("canvas");
+      trailAtlas.width = trailAtlas.height = TRAIL_ATLAS * 16;
+      trailAtlasCtx = trailAtlas.getContext("2d", { alpha: false });
+    }
+    if (!trailAtlasCtx) return false;
+    if (trailSlot.size >= TRAIL_ATLAS * TRAIL_ATLAS) trailSlot.clear();
+    slot = trailSlot.size;
+    trailSlot.set(key, slot);
+    const ax = (slot % TRAIL_ATLAS) * 16;
+    const ay = Math.floor(slot / TRAIL_ATLAS) * 16;
+    trailAtlasCtx.imageSmoothingEnabled = false;
+    trailAtlasCtx.drawImage(landSheet[sheet]!, gc * 16, gr * 16, 16, 16, ax, ay, 16, 16);
+    trailAtlasCtx.drawImage(landSheet[url]!, cell * 16, row * 16, 16, 16, ax, ay, 16, 16);
+  }
+  if (!trailAtlas) return false;
+  ctx.drawImage(trailAtlas, (slot % TRAIL_ATLAS) * 16, Math.floor(slot / TRAIL_ATLAS) * 16, 16, 16, x * TILE, y * TILE, 16, 16);
+  return true;
+}
+function paintTrailPath(ctx: CanvasRenderingContext2D, g: Game, x: number, y: number, ground: number) {
+  const url = TRAIL_BY_GROUND[ground];
+  sheetCell(ctx, url, swampPathCell(g.tiles, g.w, g.h, x, y), url === TRAIL_VALE ? TRAIL_SEASON_ROW[g.season()] : 0, x * TILE, y * TILE);
+}
+
+/**
+ * playtest1f: the wayrift swirl. An iris of ink closes on the hero over WAYRIFT.out s (three violet and cold-blue arms
+ * turning round its edge, a dithered rim, no alpha: every pixel a locked colour), the screen is dark for a beat while
+ * the sim moves you, and it opens on the far rift over WAYRIFT.back s. Drawn in world pixels, one or two fills a row.
+ */
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+export function travelIris(g: Pick<Game, "travel">) {
+  const tr = g.travel;
+  if (!tr) return null;
+  const closing = !tr.moved;
+  const p = closing ? Math.min(1, tr.t / WAYRIFT.out) : Math.max(0, 1 - (tr.t - WAYRIFT.out) / WAYRIFT.back);
+  return { closing, p, ease: p * p * (3 - 2 * p) };
+}
+function paintTravel(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: number, viewW: number, viewH: number, zoom: number) {
+  const iris = travelIris(g);
+  if (!iris) return;
+  ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
+  const vw = Math.ceil(viewW / zoom);
+  const vh = Math.ceil(viewH / zoom);
+  const cx = Math.round(g.px);
+  const cy = Math.round(g.py - 12);
+  const rmax = Math.hypot(Math.max(cx - camX, camX + vw - cx), Math.max(cy - camY, camY + vh - cy)) + 8;
+  const R = rmax * (1 - iris.ease);
+  ctx.fillStyle = "#07060a";
+  // the ink outside the iris
+  for (let y = Math.floor(camY); y < camY + vh; y++) {
+    const dy = y + 0.5 - cy;
+    const half = R * R - dy * dy;
+    if (half <= 0) {
+      ctx.fillRect(Math.floor(camX), y, vw + 1, 1);
+      continue;
+    }
+    const hw = Math.sqrt(half);
+    const l = Math.floor(cx - hw);
+    const r = Math.ceil(cx + hw);
+    if (l > camX) ctx.fillRect(Math.floor(camX), y, l - Math.floor(camX), 1);
+    if (r < camX + vw) ctx.fillRect(r, y, Math.ceil(camX + vw) - r, 1);
+  }
+  if (R < 2) return;
+  // the dithered rim: 4 px inside the iris, thinning inward (Bayer on world pixels, pinned to the grid)
+  const steps = Math.min(720, Math.ceil(2 * Math.PI * R));
+  for (let k = 0; k < steps; k++) {
+    const a = (2 * Math.PI * k) / steps;
+    for (let d = 1; d <= 4; d++) {
+      const x = Math.round(cx + (R - d) * Math.cos(a));
+      const y = Math.round(cy + (R - d) * Math.sin(a));
+      if (BAYER4[(y & 3) * 4 + (x & 3)] < 16 - d * 4) ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  // three arms of the swirl round the iris, turning as it closes (and back the other way as it opens)
+  const tr = g.travel!;
+  const turn = (iris.closing ? 1 : -1) * tr.t * 9;
+  const cols = ["#9ae4ff", "#4ab8ff", "#b07aff", "#7a5ad0", "#4a2a78"];
+  for (let arm = 0; arm < 3; arm++) {
+    for (let j = 0; j < 40; j++) {
+      const r = R + j * 1.6;
+      const a = turn + (arm * 2 * Math.PI) / 3 + j * 0.09;
+      ctx.fillStyle = cols[Math.min(cols.length - 1, Math.floor(j / 8))];
+      ctx.fillRect(Math.round(cx + r * Math.cos(a)) - 1, Math.round(cy + r * Math.sin(a)) - 1, 2, 2);
+    }
+  }
+}
+
+/** The scene's ambient light, or null where the light layer is off (outdoors by day, inside a house, the camp). */
+export function sceneAmbient(g: Game): RGB | null {
+  if (g.mapId === "dungeon") return ambientOf(g.theme, palOf(g.theme).liquid);
+  if (g.phase !== "night") return null;
+  if (g.mapId === "world" || g.mapId === "village") return LIGHT.worldNight; // playtest1v: a village's night is the vale's
+  if (g.mapId === "town") return LIGHT.townNight;
+  // playtest1b B2 (gloom and glow): the camp and the town's rooms dim at night too, so their cold-blue fires show.
+  if (g.mapId === "camp") return LIGHT.worldNight;
+  if (g.mapId === "inside" && g.theme.startsWith("room:")) return LIGHT.townNight;
+  return null;
+}
+
+type Lamp = { x: number; y: number; r: number; c: RGB; seed: number; flick: boolean };
+
+/** Every light in the scene, culled to the view and trimmed to the budget, nearest the hero first. */
+export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh: number): Lamp[] {
+  const out: Lamp[] = [];
+  const below = g.mapId === "dungeon";
+  out.push({ x: g.px, y: g.py - 10, r: below ? LIGHT.hero : LIGHT.heroNight, c: below ? LIGHTS.torch : g.driving && g.mapId === "world" ? COLD_FIRE.seat : LIGHTS.candle, seed: 0, flick: false }); // playtest1w: cold in the car seat
+  // playtest1v: the bone car's skull headlamps threw two pools ahead of it here; playtest1w: the driven car's beams are
+  // paintColdFire's, after the night grade (the grade turned these pools warm or green on sand and grass)
+  if (!g.driving && g.mapId === "world" && g.carOwned) out.push({ x: g.carX + (g.carFacing === "e" ? 20 : g.carFacing === "w" ? -20 : 0), y: g.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
+  if (g.mapId === "town" && !g.carOwned) out.push({ x: SHOWROOM.carX + 20, y: SHOWROOM.carY - 14, r: 24, c: NEON_LIGHT.blue, seed: 1, flick: false });
+  if (below) {
+    for (const s of sconces(g)) if (sconceShows(g, s)) out.push({ x: s.x * TILE + 8, y: s.y * TILE - 1, r: LIGHT.sconce, c: LIGHTS.torch, seed: s.seed, flick: true });
+    const rune = g.feats?.rune;
+    if (rune) {
+      const solved = g.tiles[rune.door.y * g.w + rune.door.x] !== T.runeDoor;
+      for (const m of rune.marks) {
+        if (g.tiles[m.y * g.w + m.x] === T.brazier && (solved || g.runeLit.includes(m.glyph))) out.push({ x: m.x * TILE + 8, y: m.y * TILE - 4, r: LIGHT.brazier, c: LIGHTS.torch, seed: m.x & 3, flick: true });
+      }
+    }
+  }
+  if (g.mapId === "town") {
+    // playtest1b: a door with a sign is lit by the sign's neon (blue, violet or red); a bare door keeps its torch.
+    const signed = new Set<number>();
+    for (const d of roomDoors(g)) {
+      if (!SIGN_GLOW[d.room.kind]) continue;
+      const at = signSpot(d.x, d.y);
+      signed.add(d.y * g.w + d.x);
+      out.push({ x: at.x + 8, y: at.y + 10, r: LIGHT.doorLamp, c: NEON_LIGHT[SIGN_GLOW[d.room.kind]], seed: d.bx & 3, flick: false });
+    }
+    for (const b of townBuildings(g)) {
+      if (b.doorX < 0 || signed.has(b.doorY * g.w + b.doorX)) continue;
+      out.push({ x: b.doorX * TILE + 8, y: b.doorY * TILE + 2, r: LIGHT.doorLamp, c: LIGHTS.torch, seed: b.x & 3, flick: true });
+    }
+    // playtest1c: the Opened Grave's cold fire.
+    const grave = g.tiles.indexOf(T.stairD);
+    if (grave >= 0) out.push({ x: (grave % g.w) * TILE, y: Math.floor(grave / g.w) * TILE + 2, r: LIGHT.brazier, c: NEON_LIGHT.blue, seed: 3, flick: true });
+    const fest = g.festivalId();
+    const lit = fest === "harvest" ? g.lanternsLit() : [];
+    HARVEST.lanterns.forEach(([x, y], i) => {
+      const c = fest === "harvest" && lit.includes(i) ? LIGHTS.pumpkin : fest === "krampus" ? LIGHTS.candle : fest === "bloom" ? LIGHTS.ghost : fest === "ashen" ? LIGHTS.torch : null;
+      if (c) out.push({ x: x * TILE + 8, y: y * TILE - 2, r: LIGHT.lantern, c, seed: i & 3, flick: true });
+    });
+  }
+  // playtest1b B2: the camp fire and its lantern posts, and a room's sconces, stove and candle, burn cold blue.
+  if (g.theme === "camp") {
+    const i = g.tiles.indexOf(T.hearth);
+    if (i >= 0) out.push({ x: (i % g.w) * TILE + 8, y: Math.floor(i / g.w) * TILE - 2, r: LIGHT.brazier, c: NEON_LIGHT.blue, seed: 2, flick: true });
+    for (const d of CAMP_DRESS) if (d.lit) out.push({ x: d.x * TILE + 11, y: d.y * TILE + 3, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: false });
+    const m = g.tiles.indexOf(T.door);
+    if (m >= 0) out.push({ x: (m % g.w) * TILE + 4, y: Math.floor(m / g.w) * TILE + 1, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: 1, flick: false });
+  }
+  if (g.theme.startsWith("room:")) {
+    // playtest1i: the sconces burn their style's glow (cabin and slate cold blue, stone violet; the unused warm style red), and the
+    // forge (red), cauldron (blue), altar candles (blue), orrery (violet), inn candle (red) and counter lamp (blue) cast light.
+    const sconce = NEON_LIGHT[STYLE_GLOW[roomStyle(g.inside)]];
+    for (let x = 4; x < g.w - 1; x += 4) out.push({ x: x * TILE + 8, y: 6, r: LIGHT.lantern, c: sconce, seed: x & 3, flick: true });
+    for (const p of roomFurniture(g.inside)) {
+      const l = FURN_LIGHT[p.k];
+      if (l) out.push({ x: p.x + l.dx, y: p.y + l.dy, r: l.big ? LIGHT.brazier : LIGHT.lantern, c: NEON_LIGHT[l.c], seed: p.x & 3, flick: true });
+    }
+    // playtest1x: the Felt's tables, stage footlights and prize counter
+    if (g.inside === "casino") for (const p of CASINO_FURNITURE) {
+      const l = CASINO_LIGHT[p.k];
+      if (l) out.push({ x: p.x + l.dx, y: p.y + l.dy, r: l.big ? LIGHT.brazier : LIGHT.lantern, c: NEON_LIGHT[l.c], seed: p.x & 3, flick: true });
+    }
+    for (const d of [...(ROOM_DRESS[g.theme.slice(5)] ?? []), ...roomKitExtra(g.inside)]) if (d.lit) out.push({ x: d.lit.x, y: d.lit.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: d.x & 3, flick: true });
+  }
+  // playtest1u: each hamlet lot's lantern casts its pool (neon blue, violet or red) on the ground at night (playtest1v:
+  // a village icon's roofs on the vale, and a village's own buildings in it)
+  for (const m of hamletIndex(g)?.list ?? []) {
+    if ((m.x + m.w) * TILE < camX - 64 || m.x * TILE > camX + vw + 64 || (m.y + m.h) * TILE < camY - 64 || m.y * TILE > camY + vh + 64) continue;
+    for (const l of hamletLamps(m)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT[l.c], seed: l.x & 3, flick: true });
+  }
+  if (g.mapId === "town") {
+    for (const l of wayLights(g.season(), "town", TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
+  }
+  if (g.mapId === "world") {
+    for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
+    for (const r of g.riftMouths()) out.push({ x: r.x * TILE + 8, y: r.y * TILE - 7, r: LIGHT.gate, c: PORTAL_GATES.rift.light, seed: 1, flick: true });
+    // playtest1f: an awake wayrift lights the vale cold blue at night
+    for (const l of wayLights(g.season(), "world", TILE)) out.push({ x: l.x, y: l.y, r: WAYRIFT.light, c: NEON_LIGHT.blue, seed: l.seed, flick: true });
+    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portal light
+    if (g.wildPortal) {
+      const p = g.wildPortal;
+      out.push({ x: p.x * TILE + 8, y: p.y * TILE + 8, r: WILD_PORTAL.light, c: NEON_LIGHT.blue, seed: p.x & 3, flick: true });
+    }
+    // playtest1c: each dungeon mouth's cold-fire braziers light the vale blue at night: one light between the pair,
+    // brazier-sized, so the scene's light count stays inside retro1's limit.
+    for (const [k, id] of Object.entries(g.entrances)) {
+      const [tx, ty] = k.split(",").map(Number);
+      const lamps = ENTRANCE_LAMPS[entranceKind(id)];
+      const lx = lamps.reduce((a, l) => a + l[0], 0) / lamps.length;
+      const ly = lamps.reduce((a, l) => a + l[1], 0) / lamps.length;
+      out.push({ x: tx * TILE - TILE + lx, y: (ty + 1) * TILE - 48 + ly, r: LIGHT.brazier, c: NEON_LIGHT.blue, seed: tx & 3, flick: true });
+    }
+    if (g.festivalId() === "bloom") g.bloomsTonight().forEach((b, i) => { if (!g.bloomPicked(i)) out.push({ x: b.x * TILE + 8, y: b.y * TILE + 6, r: LIGHT.bloom, c: LIGHTS.ghost, seed: i & 3, flick: false }); });
+  }
+  // gfx2 (C5): moving lights. Spells and bolts in flight (theirs and yours) light the world in their strip's emits
+  // colour; flame foes carry a flickering pumpkin glow, bigger on a boss. A foe on unexplored rock casts nothing.
+  for (const s of g.spells) out.push(spellLight(s, g.frame));
+  for (const r of g.roamers) {
+    if (!FLAME_FOES.has(r.def)) continue;
+    const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
+    if (g.fog && g.fog[ti] === 0) continue;
+    if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
+    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(topOf(r) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.flameBoss : LIGHT.flameFoe) * bigLight(r)), c: LIGHTS.pumpkin, seed: (r.def.length + Math.floor(r.x)) & 3, flick: true }); // playtest1p: from a big body's middle, wider
+  }
+  // gfx3: ghosts glow cold and steady (ghost light, no flicker), bigger on a boss; none on unexplored rock.
+  // The Death Shade stays lightless (the law: shades are negative light).
+  for (const r of g.roamers) {
+    if (r.family !== "ghost" || r.def === "shade") continue;
+    const ti = Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE);
+    if (g.fog && g.fog[ti] === 0) continue;
+    if (fadeOf(r, g.worldMs, sceneStart(g)) < FADE.lightAt) continue; // fade1: a spawning foe's light comes on halfway in
+    out.push({ x: r.x, y: r.y - (scaleOf(r) > 1 ? Math.round(topOf(r) / 2) : r.boss ? 22 : 12), r: Math.round((r.boss ? LIGHT.ghostBoss : LIGHT.ghost) * bigLight(r)), c: LIGHTS.ghost, seed: 0, flick: false }); // playtest1p
+  }
+  // playtest1j: the fight's moving lights (fightlights.ts, a fixed pool): marks, wind-ups, a boss's roar, each spell's neon
+  // core and impact flash, ash fire and live plates, in Bill's neon. They share the budget below.
+  fightLights(tellView(g), out, (c) => fxElement(c, spellElement(c)), (s) => spellHead(s, spellProgress(s)), TILE);
+  roomLights(g, out); // playtest1n: fire, fuses, falls and lit lanterns, from the room's own pool
+  const seen = out.filter((l, i) => i === 0 || (l.x + l.r > camX && l.x - l.r < camX + vw && l.y + l.r > camY && l.y - l.r < camY + vh));
+  const hero = seen.shift()!;
+  seen.sort((a, b) => Math.hypot(a.x - g.px, a.y - g.py) - Math.hypot(b.x - g.px, b.y - g.py));
+  return [hero, ...seen.slice(0, LIGHT.budget - 1)];
+}
+
+/** The per-floor wall mask, baked once: wall tops at LIGHT.capLight, faces at full, AO strips at the wall feet. */
+const maskCache = new WeakMap<object, { key: string; canvas: HTMLCanvasElement }>();
+function wallMask(g: Game): HTMLCanvasElement | null {
+  let walls = 0;
+  for (let i = 0; i < g.tiles.length; i++) if (wallLook(drawnTile(g, i))) walls++;
+  const key = `${g.theme}:${g.w}x${g.h}:${walls}:${g.hidden.size}`;
+  const hit = maskCache.get(g.tiles);
+  if (hit && hit.key === key) return hit.canvas;
+  const canvas = document.createElement("canvas");
+  canvas.width = g.w * TILE;
+  canvas.height = g.h * TILE;
+  const m = canvas.getContext("2d");
+  if (!m) return null;
+  m.fillStyle = "#ffffff";
+  m.fillRect(0, 0, canvas.width, canvas.height);
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= g.w || y >= g.h ? -1 : drawnTile(g, y * g.w + x));
+  m.fillStyle = rgbCss([1, 1, 1], LIGHT.capLight);
+  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (wallLook(at(x, y)) && wallLook(at(x, y + 1))) m.fillRect(x * TILE, y * TILE, TILE, TILE);
+  m.fillStyle = "#ffffff";
+  for (let y = 0; y < g.h; y++) {
+    for (let x = 0; x < g.w; x++) {
+      if (!wallLook(at(x, y)) || wallLook(at(x, y + 1))) continue;
+      const h = faceHeight(g.theme, at(x, y - 1));
+      m.fillRect(x * TILE, (y + 1) * TILE - h, TILE, h);
+    }
+  }
+  m.globalCompositeOperation = "multiply";
+  for (let y = 0; y < g.h; y++) {
+    for (let x = 0; x < g.w; x++) {
+      if (wallLook(at(x, y))) continue;
+      if (wallLook(at(x, y - 1))) LIGHT.aoFoot.forEach((k, r) => { m.fillStyle = rgbCss([1, 1, 1], k); m.fillRect(x * TILE, y * TILE + r, TILE, 1); });
+      if (wallLook(at(x - 1, y))) LIGHT.aoSide.forEach((k, c) => { m.fillStyle = rgbCss([1, 1, 1], k); m.fillRect(x * TILE + c, y * TILE, 1, TILE); });
+      if (wallLook(at(x + 1, y))) LIGHT.aoSide.forEach((k, c) => { m.fillStyle = rgbCss([1, 1, 1], k); m.fillRect(x * TILE + TILE - 1 - c, y * TILE, 1, TILE); });
+    }
+  }
+  m.globalCompositeOperation = "source-over";
+  maskCache.set(g.tiles, { key, canvas });
+  return canvas;
+}
+
+let lightCanvas: HTMLCanvasElement | null = null;
+let actorCanvas: HTMLCanvasElement | null = null;
+let glowCanvas: HTMLCanvasElement | null = null;
+function layerCanvas(c: HTMLCanvasElement | null, w: number, h: number): HTMLCanvasElement {
+  const out = c ?? document.createElement("canvas");
+  if (out.width !== w || out.height !== h) {
+    out.width = w;
+    out.height = h;
+  }
+  return out;
+}
+
+/** Draw `fns` into a native-size layer and flatten them to one colour (a silhouette). */
+function silhouette(c: HTMLCanvasElement, camX: number, camY: number, fns: ((x: CanvasRenderingContext2D) => void)[], color: string) {
+  const s = c.getContext("2d")!;
+  s.setTransform(1, 0, 0, 1, 0, 0);
+  s.globalCompositeOperation = "source-over";
+  s.clearRect(0, 0, c.width, c.height);
+  s.imageSmoothingEnabled = false;
+  s.setTransform(1, 0, 0, 1, -camX, -camY);
+  for (const f of fns) f(s);
+  s.setTransform(1, 0, 0, 1, 0, 0);
+  s.globalCompositeOperation = "source-in";
+  s.fillStyle = color;
+  s.fillRect(0, 0, c.width, c.height);
+  s.globalCompositeOperation = "source-over";
+}
+
+/**
+ * The light layer. Ambient, then each light added ("lighter"), then in a dungeon the faces take the floor light
+ * in front of them and the baked wall mask multiplies in (tops, AO). Actors are lifted to LIGHT.actorMin, the
+ * emissive layer (flames, the vortex, telegraphs, spells) is set to full light, and the whole canvas multiplies
+ * over the world. Returns false where the scene has no light layer.
+ */
+function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: number, vw: number, vh: number, actors: ((c: CanvasRenderingContext2D) => void)[], glow: ((c: CanvasRenderingContext2D) => void)[]): boolean {
+  const amb = sceneAmbient(g);
+  if (!amb || typeof document === "undefined") return false;
+  const W = Math.ceil(vw);
+  const H = Math.ceil(vh);
+  lightCanvas = layerCanvas(lightCanvas, W, H);
+  const lc = lightCanvas.getContext("2d");
+  if (!lc) return false;
+  lc.setTransform(1, 0, 0, 1, 0, 0);
+  lc.imageSmoothingEnabled = false;
+  lc.globalCompositeOperation = "source-over";
+  lc.fillStyle = rgbCss(amb);
+  lc.fillRect(0, 0, W, H);
+  lc.globalCompositeOperation = "lighter";
+  for (const l of sceneLights(g, camX, camY, W, H)) {
+    const r = bucket(l.r);
+    const sx = Math.round(l.x) - r;
+    const sy = Math.round(l.y) - r;
+    const spr = lightSprite(r, l.c, l.flick ? flickerStep(g.frame, l.seed) : 0, sx, sy);
+    if (spr) lc.drawImage(spr, sx - camX, sy - camY);
+  }
+  lc.globalCompositeOperation = "source-over";
+  if (g.mapId === "dungeon") {
+    // A face takes the light of the floor in front of it: one row, two pixels below its foot, up its height.
+    const x0 = Math.max(0, Math.floor(camX / TILE));
+    const x1 = Math.min(g.w, Math.ceil((camX + W) / TILE));
+    const y0 = Math.max(0, Math.floor(camY / TILE));
+    const y1 = Math.min(g.h - 1, Math.ceil((camY + H) / TILE) + 2);
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        if (!wallLook(drawnTile(g, y * g.w + x)) || wallLook(drawnTile(g, (y + 1) * g.w + x))) continue;
+        const h = faceHeight(g.theme, y > 0 ? drawnTile(g, (y - 1) * g.w + x) : -1);
+        const row = (y + 1) * TILE + 2 - camY;
+        if (row < 0 || row >= H) continue;
+        lc.drawImage(lightCanvas, x * TILE - camX, row, TILE, 1, x * TILE - camX, (y + 1) * TILE - h - camY, TILE, h);
+      }
+    }
+    const mask = wallMask(g);
+    if (mask) {
+      const sx0 = Math.max(0, camX);
+      const sy0 = Math.max(0, camY);
+      const sx1 = Math.min(mask.width, camX + W);
+      const sy1 = Math.min(mask.height, camY + H);
+      if (sx1 > sx0 && sy1 > sy0) {
+        lc.globalCompositeOperation = "multiply";
+        lc.drawImage(mask, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 - camX, sy0 - camY, sx1 - sx0, sy1 - sy0);
+        lc.globalCompositeOperation = "source-over";
+      }
+    }
+  }
+  if (Math.min(amb[0], amb[1], amb[2]) < LIGHT.actorMin && actors.length) {
+    actorCanvas = layerCanvas(actorCanvas, W, H);
+    silhouette(actorCanvas, camX, camY, actors, rgbCss([1, 1, 1], LIGHT.actorMin));
+    lc.globalCompositeOperation = "lighten";
+    lc.drawImage(actorCanvas, 0, 0);
+    lc.globalCompositeOperation = "source-over";
+  }
+  if (glow.length) {
+    glowCanvas = layerCanvas(glowCanvas, W, H);
+    silhouette(glowCanvas, camX, camY, glow, "#ffffff");
+    lc.drawImage(glowCanvas, 0, 0);
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(lightCanvas, 0, 0, W, H, camX, camY, W, H);
+  ctx.restore();
+  return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Core Keeper-style graphics pass, batch 2 (OWNER-APPROVED 2026-10-01: CORE KEEPER GRAPHICS PASS C1-C11).
+// Floor kit (style doc phase 3): the pixel writer's floor-<cave>.png slabs and decal-<cave>.png strip. The mix is
+// seeded per floor: about 60% single slabs, 20% split, 10% offset, 5% broken (the old pit tiles) and 5% big 2x2
+// grave slabs, and a decal on about one floor in ten, moss in the seam under a wall. Decals never sit on a trap, the
+// captive's stake or a big slab, so nothing must-read is hidden. Art only: the sim never reads it.
+export const FLOOR_CELL = { single: [0, 1, 2, 3, 4], split: [5, 6], offset: 7, broken: 8, big: [9, 10, 11, 12] } as const;
+export const DECAL_CELL = { bones: 0, skull: 1, crack: 2, moss: 3, wax: 4, rubble: 5 } as const;
+export const FLOOR_MIX = { single: 0.665, split: 0.22, bigBlock: 0.08, decal: 0.1, moss: 0.35 } as const;
+const floorHole = (x: number, y: number) => (x * 13 + y * 7) % 23 === 0;
+type FloorKit = { key: string; w: number; cells: Int16Array; decals: Int8Array };
+const floorKitCache = new WeakMap<object, FloorKit>();
+let kitNow: FloorKit | null = null;
+
+/** The floor kit cell for a tile of the floor being drawn, or -1 (no kit: not a dungeon, or not floor). */
+function floorKitCell(x: number, y: number): number {
+  if (!kitNow || x < 0 || y < 0 || x >= kitNow.w) return -1;
+  return kitNow.cells[y * kitNow.w + x] ?? -1;
+}
+
+/** The seeded floor kit of a dungeon floor: a cell per floor tile and a decal (or -1) per tile. Cached per floor. */
+export function floorKit(g: Game): FloorKit | null {
+  if (g.mapId !== "dungeon") return null;
+  let floors = 0;
+  for (let i = 0; i < g.tiles.length; i++) if (g.tiles[i] === T.floor) floors++;
+  const key = `${g.dungeon}:${g.floor}:${g.hidden.size}:${floors}`;
+  const hit = floorKitCache.get(g.tiles);
+  if (hit && hit.key === key) return hit;
+  const n = g.w * g.h;
+  const cells = new Int16Array(n).fill(-1);
+  const decals = new Int8Array(n).fill(-1);
+  const seed = strSeed(`${g.dungeon}:${g.floor}:floor`);
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < g.w && y < g.h && drawnTile(g, y * g.w + x) === T.floor;
+  for (let y = 0; y < g.h; y++) {
+    for (let x = 0; x < g.w; x++) {
+      if (!open(x, y)) continue;
+      const i = y * g.w + x;
+      if (floorHole(x, y)) cells[i] = FLOOR_CELL.broken;
+      else {
+        const r = hash(x, y, seed + 1);
+        const v = Math.floor(hash(x, y, seed + 2) * 5);
+        cells[i] = r < FLOOR_MIX.single ? FLOOR_CELL.single[v] : r < FLOOR_MIX.single + FLOOR_MIX.split ? FLOOR_CELL.split[v & 1] : FLOOR_CELL.offset;
+      }
+    }
+  }
+  // big grave slabs on even-aligned 2x2 blocks of plain floor
+  for (let by = 0; by + 1 < g.h; by += 2) {
+    for (let bx = 0; bx + 1 < g.w; bx += 2) {
+      if (hash(bx, by, seed + 3) >= FLOOR_MIX.bigBlock) continue;
+      const quad = [[0, 0], [1, 0], [0, 1], [1, 1]];
+      if (!quad.every(([dx, dy]) => open(bx + dx, by + dy) && !floorHole(bx + dx, by + dy))) continue;
+      quad.forEach(([dx, dy], k) => (cells[(by + dy) * g.w + bx + dx] = FLOOR_CELL.big[k]));
+    }
+  }
+  const cap = g.feats?.captive;
+  for (let y = 0; y < g.h; y++) {
+    for (let x = 0; x < g.w; x++) {
+      const i = y * g.w + x;
+      const c = cells[i];
+      if (c < 0 || c >= FLOOR_CELL.big[0] || c === FLOOR_CELL.broken || g.trapAt(i) >= 0 || (cap && cap.x === x && cap.y === y)) continue;
+      const above = y > 0 ? drawnTile(g, i - g.w) : -1;
+      if (wallLook(above) && hash(x, y, seed + 4) < FLOOR_MIX.moss) decals[i] = DECAL_CELL.moss;
+      else if (hash(x, y, seed + 5) < FLOOR_MIX.decal) decals[i] = [DECAL_CELL.bones, DECAL_CELL.skull, DECAL_CELL.crack, DECAL_CELL.wax, DECAL_CELL.rubble][Math.floor(hash(x, y, seed + 6) * 5)];
+    }
+  }
+  const kit = { key, w: g.w, cells, decals };
+  floorKitCache.set(g.tiles, kit);
+  return kit;
+}
+
+// Blob shadows (style doc section 7): every actor stands on a hard-edged ellipse that multiplies the floor to 45%
+// (-55% albedo), as wide as the body and 4 px tall (6 on a boss). Baked once per size; skipped on water and ice.
+export const BLOB = { k: 0.45, w: 10, h: 4, bossW: 20, bossH: 6, smallW: 8, smallH: 3 } as const;
+const blobCache = new Map<string, HTMLCanvasElement>();
+export function blobSprite(w: number, h: number): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const key = `${w}x${h}`;
+  const hit = blobCache.get(key);
+  if (hit) return hit;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const x = c.getContext("2d");
+  if (!x) return null;
+  x.fillStyle = rgbCss([1, 1, 1], BLOB.k);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (((i + 0.5 - w / 2) / (w / 2)) ** 2 + ((j + 0.5 - h / 2) / (h / 2)) ** 2 <= 1) x.fillRect(i, j, 1, 1);
+  blobCache.set(key, c);
+  return c;
+}
+const NO_SHADOW: ReadonlySet<number> = new Set([T.water, T.pool, T.ice]);
+/** A blob shadow centred under feet at (x, footY). */
+function blobShadow(ctx: CanvasRenderingContext2D, g: Game, x: number, footY: number, w: number = BLOB.w, h: number = BLOB.h) {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(footY / TILE);
+  if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h || NO_SHADOW.has(g.tiles[ty * g.w + tx])) return;
+  const spr = blobSprite(w, h);
+  if (!spr) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.drawImage(spr, Math.round(x - w / 2), Math.round(footY - h / 2));
+  ctx.restore();
+}
+
+// C5 moving lights (gfx2): spells and bolts in flight, and flame foes, carry light. C11: a spell's light colour is the
+// `emits` of the spell writer strip it is drawn with (tools/spell-writer/emits.json, mirrored here).
+export const SPELL_EMITS: Record<string, keyof typeof LIGHTS> = {
+  "beam-fire": "pumpkin", "beam-holy": "candle", "beam-ice": "ghost", "beam-lightning": "candle", "beam-shadow": "hex", "beam-venom": "realm",
+  cone: "pumpkin", fire: "pumpkin", "fire-rain": "pumpkin", holy: "candle", ice: "ghost", "ice-rain": "ghost",
+  lightning: "candle", nova: "hex", orb: "candle", ring: "candle", shadow: "hex", venom: "realm",
+};
+/** The spell-writer strip paintSpell draws a spell with (the same choice, made once). */
+export function spellStrip(kind: string, color: string): string {
+  const element = spellElement(color);
+  if (kind === "bolt") return element === "lightning" ? "lightning" : `beam-${["ice", "fire", "shadow", "venom"].includes(element) ? element : "holy"}`;
+  if (kind === "cone" || (kind === "nova" && (element === "fire" || element === "ice"))) return element === "ice" ? "ice-rain" : "fire-rain";
+  if (kind === "ring" || kind === "mend") return "orb";
+  return "nova";
+}
+/** Where a spell's light sits: a bolt's mid-beam, a ring's travelling orb, a burst's centre. */
+/** playtest1: how far a spell is through its life, 0 to 1 (an old 0.32 s spell with no max reads as mid-flight). */
+export function spellProgress(s: { life: number; max?: number }): number {
+  if (!s.max) return 0.5;
+  return Math.max(0, Math.min(1, 1 - s.life / s.max));
+}
+/** playtest1: the share of a travelling spell's life spent in flight; the rest is the impact flash. */
+export const SPELL_FLIGHT = 0.55;
+/** playtest1: where a spell's light is: its head in flight, its target at impact. */
+export function spellHead(s: { x: number; y: number; tx: number; ty: number; kind: string }, t: number) {
+  const travel = s.kind === "bolt" || s.kind === "ring" || s.kind === "mend";
+  const k = travel ? Math.min(1, t / SPELL_FLIGHT) : 1;
+  return { x: s.x + (s.tx - s.x) * k, y: s.y + (s.ty - s.y) * k, hit: !travel || t >= SPELL_FLIGHT };
+}
+export function spellLight(s: { x: number; y: number; tx: number; ty: number; kind: string; color: string; life?: number; max?: number }, frame: number): Lamp {
+  const c = LIGHTS[SPELL_EMITS[spellStrip(s.kind, s.color)] ?? "candle"];
+  if (s.max && s.life != null) {
+    // playtest1: the light rides the spell's head, then blooms at the impact.
+    const h = spellHead(s, spellProgress({ life: s.life, max: s.max }));
+    return { x: h.x, y: h.y, r: h.hit ? LIGHT.burst : LIGHT.bolt, c, seed: 0, flick: false };
+  }
+  if (s.kind === "ring" || s.kind === "mend") {
+    const t = (Math.abs(Math.floor(frame)) % 6) / 5;
+    return { x: s.x + (s.tx - s.x) * t, y: s.y + (s.ty - s.y) * t, r: LIGHT.bolt, c, seed: 0, flick: false };
+  }
+  if (s.kind === "bolt") return { x: (s.x + s.tx) / 2, y: (s.y + s.ty) / 2, r: LIGHT.bolt, c, seed: 0, flick: false };
+  return { x: s.tx, y: s.ty, r: LIGHT.burst, c, seed: 0, flick: false };
+}
+/** Flame foes: the Lantern Man and Lantern King, the Pumpkin Lord, the Headless Horseman (his lantern head). */
+export const FLAME_FOES: ReadonlySet<string> = new Set(["pumpkin", "lanternking", "pumpkinlord", "horseman"]);
+
+/** playtest1b: the vale's town doors (one today), found once per world grid. */
+const doorCache = new WeakMap<object, { x: number; y: number }[]>();
+function townDoors(g: Game): { x: number; y: number }[] {
+  if (g.mapId !== "world") return [];
+  const hit = doorCache.get(g.tiles);
+  if (hit) return hit;
+  const out: { x: number; y: number }[] = [];
+  for (let i = 0; i < g.w * g.h; i++) if (g.tiles[i] === T.door) out.push({ x: i % g.w, y: Math.floor(i / g.w) });
+  doorCache.set(g.tiles, out);
+  return out;
+}
+
+/**
+ * playtest1b (owner-requested 2026-10-02): names over heads, in the small pixel font with an ink edge, drawn after the
+ * light layer so they read at night. Townsfolk within LABEL.near tiles (trades in cold blue, the rest bone), your
+ * companion in violet, a named boss in red wherever it is on screen. Houses show their name in gold on the sign plate
+ * when you stand at the door. Picture only.
+ */
+/** playtest1q: the view the labels are painted in (world px and zoom), set by drawWorld just before paintLabels, for the HUD-safe boss name. */
+let labelView: { x: number; y: number; w: number; h: number; zoom: number } | null = null;
+/** playtest1x: the Felt's singer and points merchant wear the trades' blue name. */
+const CASINO_TRADES: ReadonlySet<string> = new Set(["singer", "prizes"]);
+/** playtest1x: while Velvet Odile sings, her line shows over her name in violet, two cold-blue notes rising beside it. */
+export const SONG_LABEL = { lift: 10, noteRise: 10 } as const;
+function paintSong(ctx: CanvasRenderingContext2D, g: Game) {
+  const line = typeof g.songLine === "function" ? g.songLine() : "";
+  if (!line) return;
+  const n = g.npcs.find((p) => p.role === "singer");
+  if (!n) return;
+  const y = n.y - LABEL.lift - SONG_LABEL.lift;
+  drawLabel(ctx, line.toUpperCase(), n.x, y, "violet");
+  for (let i = 0; i < 2; i++) {
+    const t = ((g.frame / 24 + i * 0.5) % 1);
+    const nx = Math.round(n.x + (i ? 12 : -14) + Math.sin(t * 6.28) * 2);
+    const ny = Math.round(n.y - 26 - t * SONG_LABEL.noteRise);
+    px(ctx, nx, ny + 3, 2, 2, "#5ab8ff");
+    px(ctx, nx + 1, ny, 1, 3, "#5ab8ff");
+    px(ctx, nx + 2, ny, 1, 1, "#9fe0ff");
+  }
+}
+
+function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
+  if (g.mode === "title") return;
+  const cam = labelView;
+  const near = (x: number, y: number) => Math.hypot(x - g.px, y - g.py) <= LABEL.near * TILE;
+  for (const n of g.npcs) {
+    if (!n.name || !near(n.x, n.y)) continue;
+    const row: FontRow = TRADE_ROLES.has(n.role) || CASINO_TRADES.has(n.role) ? "blue" : "bone";
+    drawLabel(ctx, n.name, n.x, n.y - LABEL.lift, row);
+  }
+  paintSong(ctx, g); // playtest1x
+  if (g.companion && g.companion.name) drawLabel(ctx, g.companion.name, g.companion.x, g.companion.y - LABEL.lift, "violet");
+  const bossNames: { x: number; y: number; w: number; h: number }[] = []; // playtest1u: where the boss names went (world px)
+  for (const r of g.roamers) {
+    if (!r.boss || !r.name) continue;
+    if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
+    const above = r.y - (scaleOf(r) > 1 ? topOf(r) + 6 : LABEL.lift + 4); // playtest1r: over its own shape's top
+    const hud = cam ? hudBoxes(ctx.canvas, g.frame) : [];
+    const lw = hud.length ? labelCanvas(r.name, "red")?.width ?? 0 : 0;
+    const sc = scaleOf(r);
+    const seen = cam && r.x + 8 * sc > cam.x && r.x - 8 * sc < cam.x + cam.w && r.y > cam.y && above < cam.y + cam.h;
+    // playtest1q: with the HUD measured, the name is placed in the view clear of its panels (over the head, moved
+    // sideways, or flipped under the feet; hudsafe.ts placeLabel); with no HUD (no DOM) it is where it always was
+    const at = cam && lw && seen ? placeLabel(r.x, above, r.y, lw, 7, cam, worldBoxes(hud, cam.x, cam.y, cam.zoom)) : { cx: r.x, y: above };
+    drawLabel(ctx, r.name, at.cx, at.y, "red"); // playtest1c: over a people-scale boss; playtest1p: over its big body; playtest1q: clear of the HUD
+    if (lw) bossNames.push({ x: Math.round(at.cx - lw / 2), y: Math.round(at.y - 7), w: lw, h: 7 });
+  }
+  paintLockLabel(ctx, g, bossNames); // playtest1u: after the boss names, clear of them and of the HUD
+  if (g.mapId === "world" || g.mapId === "town") {
+    // playtest1f / playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: a wayrift's name when you stand near its mouth
+    const season = g.season();
+    const map = g.mapId as "town" | "world";
+    for (const w of WAYRIFTS) {
+      if (w.map !== map) continue;
+      const m = wayMouth(w);
+      if (Math.hypot(m.x * TILE + 8 - g.px, m.y * TILE + 8 - g.py) > 3 * TILE) continue;
+      drawLabel(ctx, wayLabel(w, season), m.x * TILE + 8, (w.y - WAYRIFT.stand) * TILE - 2, wayAwake(w, season) ? "violet" : "bone");
+    }
+    if (g.mapId === "world" && g.wildPortal) {
+      const p = g.wildPortal;
+      if (Math.hypot(p.x * TILE + 8 - g.px, p.y * TILE + 8 - g.py) <= 3 * TILE) drawLabel(ctx, "Wild rift", p.x * TILE + 8, (p.y - 1) * TILE - 2, "violet");
+    }
+  }
+  // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village icon's name in gold over its roofs
+  // when you are near; inside a village, its name over the green when you have just come in
+  if (g.mapId === "world") {
+    for (const m of hamletIndex(g)?.list ?? []) {
+      if (!m.entry || !m.name) continue;
+      if (Math.hypot(m.entry.x * TILE + 8 - g.px, m.entry.y * TILE + 8 - g.py) > 4 * TILE) continue;
+      drawLabel(ctx, m.name, (m.x + m.w / 2) * TILE, (m.y - 2) * TILE - 4, "gold");
+    }
+  }
+  if (g.mapId === "village") {
+    const v = villageById(g.inside);
+    if (v && Math.hypot(v.arrive.x * TILE + 8 - g.px, v.arrive.y * TILE + 8 - g.py) < 5 * TILE) drawLabel(ctx, v.name, (v.w / 2) * TILE, (v.arrive.y - 1) * TILE, "gold");
+  }
+  // playtest1o: inside, the building's name in gold under its sign on the back wall.
+  const here = g.mapId === "inside" ? roomNameOf(g.inside) : undefined;
+  if (here) {
+    const at = insideSignSpot(g);
+    drawLabel(ctx, here.name, at.x + 8, at.y + INSIDE_SIGN.label, "gold");
+  }
+  if (g.mapId === "town") {
+    for (const d of roomDoors(g)) {
+      if (Math.hypot(d.x * TILE + 8 - g.px, (d.y + 1) * TILE + 8 - g.py) > 3 * TILE) continue;
+      const at = signSpot(d.x, d.y);
+      drawLabel(ctx, d.room.name, d.x * TILE + 8, at.y - 2, "gold");
+    }
+  }
+}
+
+/**
+ * playtest1e [OWNER-APPROVED 2026-10-02: playtest1e no void] (Bill: "remove the black void past map edges"): the camera
+ * follows the hero but stops at the map's edge, so a map wider than the view never shows past it; a map narrower than
+ * the view (the camp, a room, the town on a wide screen) sits centred and the border pass paints past its edge. The tap
+ * scheme reads the same camera (Gravewake.tsx), so a tap still lands where it was aimed.
+ */
+export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null }, viewW: number, viewH: number, zoom: number) {
+  const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(0, Math.min(size - view, hero - view / 2))));
+  // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: in a fight with a big body the
+  // camera frames the big body (sim.ts camFocus: its middle and half-size) and the hero together, the hero's own body kept
+  // CAM.edge inside the view (bigboss.ts CAM). The tap aim reads the same.
+  const f = g.camFocus;
+  if (!f) return { x: axis(g.px, viewW / zoom, g.w * TILE), y: axis(g.py, viewH / zoom, g.h * TILE) };
+  const frame = (hero: number, lo: number, hi: number, at: number, half: number, view: number) => {
+    const m = Math.min(CAM.edge, view / 8);
+    const want = (Math.min(hero + lo, at - half) + Math.max(hero + hi, at + half)) / 2;
+    return Math.max(hero + hi + m - view / 2, Math.min(hero + lo - m + view / 2, want));
+  };
+  return {
+    x: axis(frame(g.px, -CAM.heroW, CAM.heroW, f.x, f.rx ?? 0, viewW / zoom), viewW / zoom, g.w * TILE),
+    y: axis(frame(g.py, -CAM.heroUp, 2, f.y, f.ry ?? 0, viewH / zoom), viewH / zoom, g.h * TILE),
+  };
+}
+
+/** playtest1e: what lies past a map's edge: deep forest on the vale, the camp and the town (on the edge tile's own
+ * ground), the rock the floor is cut from below ground and indoors. Picture only; nothing walks there. */
+const OUTDOOR_EDGE = new Set(["over", "camp", "town"]);
+/** playtest1x: the dark past an interior's walls (the fog's own dark). */
+export const BEYOND_ROOM = "#07060a";
+/**
+ * playtest1e: the border past a fog-free map (camp, town, rooms) drawn once into an offscreen canvas, margin tiles deep
+ * all round, and blitted each frame. Trees whose canopy reaches into the map from the south (the two rows below it)
+ * stay in the y-sort, drawn live, so the hero walks behind them as before. Rebuilt when the map, theme or season
+ * changes, when a bigger view needs a deeper margin, or until every sheet it used has loaded.
+ */
+let beyondMemo: { key: string; m: number; c: HTMLCanvasElement } | null = null;
+function beyondCached(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: number, x1: number, y1: number, props: { y: number; fn: () => void }[]) {
+  const need = Math.max(4, -x0, -y0, x1 - g.w, y1 - g.h);
+  const key = `${g.mapId}:${g.inside}:${g.theme}:${g.w}x${g.h}:${seasonNow}`;
+  if (!beyondMemo || beyondMemo.key !== key || beyondMemo.m < need) {
+    const m = Math.ceil(need / 4) * 4;
+    const c = document.createElement("canvas");
+    c.width = (g.w + 2 * m) * TILE;
+    c.height = (g.h + 2 * m + 2) * TILE;
+    const cx = c.getContext("2d");
+    if (!cx) return paintBeyond(ctx, g, x0, y0, x1, y1, props);
+    cx.imageSmoothingEnabled = false;
+    cx.setTransform(1, 0, 0, 1, m * TILE, (m + 2) * TILE);
+    const later: { y: number; fn: () => unknown }[] = [];
+    paintBeyond(cx, g, -m, -m, g.w + m, g.h + m, later, (y) => y < g.h || y >= g.h + 2);
+    later.sort((a, b) => a.y - b.y);
+    let all = true;
+    for (const p of later) if (p.fn() === false) all = false;
+    beyondMemo = { key: all ? key : "", m, c };
+  }
+  const b = beyondMemo;
+  ctx.drawImage(b.c, -b.m * TILE, -(b.m + 2) * TILE);
+  // the two rows below the map, live in the y-sort (their canopies overlap the map's last rows)
+  const outdoor = OUTDOOR_EDGE.has(g.theme);
+  if (!outdoor) return;
+  for (let y = g.h; y < Math.min(y1, g.h + 2); y++) for (let x = x0; x < x1; x++) {
+    const biome = biomeOf(g.theme, g.h - 1, Math.max(0, Math.min(g.w - 1, x)));
+    if (!villageTreeShows(g, x, y)) continue; // playtest1w: the village border lattice
+    props.push({ y: y * TILE + 8, fn: () => void propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
+  }
+}
+
+/** playtest1w: the village border's tree lattice: rows (y % rows == 1), columns (step, offset by half on alternate bands),
+ * the inner ring rows every innerStep columns and the inner side columns on every tree row; shade: the ring's ground multiply. */
+export const VILLAGE_EDGE = { rows: 3, step: 4, innerStep: 3, shade: "#8a8a9a" } as const;
+const mod = (a: number, n: number) => ((a % n) + n) % n;
+/** Is (x, y) in a village's tree ring or past its edge? */
+export function villageEdge(g: Game, x: number, y: number): boolean {
+  if (g.mapId !== "village") return false;
+  const b = VILLAGE.border;
+  return x < b || y < b || x >= g.w - b || y >= g.h - b;
+}
+/** Does the village border draw a tree on (x, y)? Everywhere else (and on every other map) every tree tile draws one. */
+export function villageTreeShows(g: Game, x: number, y: number): boolean {
+  if (!villageEdge(g, x, y)) return true;
+  const E = VILLAGE_EDGE;
+  const b = VILLAGE.border;
+  if (mod(y, E.rows) !== 1) return false;
+  const innerRow = (y === b - 1 || y === g.h - b) && x >= b - 1 && x <= g.w - b;
+  if (innerRow) return mod(x - (b - 1), E.innerStep) === 0 || x === g.w - b;
+  const innerCol = (x === b - 1 || x === g.w - b) && y >= b - 1 && y <= g.h - b;
+  if (innerCol) return true;
+  const band = Math.floor((y - 1) / E.rows);
+  return mod(x - 1 - (mod(band, 2) ? E.step / 2 : 0), E.step) === 0;
+}
+/** The shaded ground of a village's ring and past its edge (the wood floor under the crowns). */
+function shadeEdge(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = VILLAGE_EDGE.shade;
+  ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+  ctx.restore();
+}
+
+function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: number, x1: number, y1: number, props: { y: number; fn: () => unknown }[], treeRow: (y: number) => boolean = () => true) {
+  const outdoor = OUTDOOR_EDGE.has(g.theme);
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      if (x >= 0 && y >= 0 && x < g.w && y < g.h) continue;
+      const cx = Math.max(0, Math.min(g.w - 1, x));
+      const cy = Math.max(0, Math.min(g.h - 1, y));
+      const n = (((x * 13 + y * 7) % 10) + 10) % 10 / 10;
+      if (!outdoor) {
+        // unexplored rock stays the fog's dark, as it is inside the map; playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes] (Bill: "have for a house
+        // ends when you're inside of it just be the walls and everything after that just be dark black"): past a room's walls, plain dark
+        if (g.mapId === "inside" || (g.fog && g.fog[cy * g.w + cx] === 0)) px(ctx, x * TILE, y * TILE, TILE, TILE, BEYOND_ROOM);
+        else drawTile(ctx, T.wall, x, y, n, g.theme, T.wall, g.frame, T.wall, T.wall, T.wall);
+        continue;
+      }
+      const base = propGround(g.theme, cx, cy, T.tree);
+      drawTile(ctx, base, x, y, n, g.theme, base, g.frame, base, base, base);
+      const biome = biomeOf(g.theme, cy, cx);
+      if (g.mapId === "village") shadeEdge(ctx, x, y); // playtest1w: the wood floor past a village's edge
+      if (treeRow(y) && villageTreeShows(g, x, y)) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
+    }
+  }
+}
+
+/** playtest1v map fog, read safely (a stand-in game in a check may not carry it): the seen tiles, or null (no map fog). */
+const seenOf = (g: Game): Uint8Array | null => (typeof g.seenNow === "function" ? g.seenNow() : null);
+const seenAtOf = (g: Game, x: number, y: number): boolean => (typeof g.seenAt === "function" ? g.seenAt(x, y) : true);
+
+/** playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car sheets. */
+export const BONECAR = "/art/writer/bonecar.png";
+export const BONECAR_EM = "/art/writer/bonecar_em.png";
+export const VELVET_ROPE = "/art/writer/velvet-rope.png";
+/** The car cell's top over the seat point (the wheels' bottoms 6 px under it), the rider's foot over it, the cushion row. */
+export const CAR_DY = 6 - CAR.cell.foot;
+export const CAR_RIDER_DY = 3;
+export const CAR_SEAT_ROW = 31;
+/** Steam puff shades, light to dark (palette v3, the wild writer's SNOW ramp). */
+const PUFF = ["#e8f2f8", "#d5e8f2", "#b7d2e0", "#8aa4b0"];
+const VELVET = ["#2a1018", "#6a2030", "#a02030", "#c43838"];
+
+/** Draw one bone car cell (layer body: wheel frame; front: the rider's front layer; em: the glow mask) at the seat point. */
+export function paintCar(ctx: CanvasRenderingContext2D, x: number, y: number, f: CarFacing, wheel: number, layer: "body" | "front" | "em"): boolean {
+  if (typeof Image === "undefined") return false;
+  const url = layer === "em" ? BONECAR_EM : BONECAR;
+  if (!prop2Ready(url)) return false;
+  const im = landSheet[url]!;
+  const W = CAR.cell.w;
+  const H = CAR.cell.h;
+  const col = layer === "front" ? 2 : wheel;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y) + CAR_DY);
+  if (f === "w") ctx.scale(-1, 1);
+  ctx.drawImage(im, col * W, carRow(f) * H, W, H, -W / 2, 0, W, H);
+  ctx.restore();
+  return true;
+}
+
+/** A steam puff: a dithered cloud that swells, lifts and thins as it lives. */
+function paintPuff(ctx: CanvasRenderingContext2D, p: { x: number; y: number; life: number; drift: number }) {
+  const t = 1 - p.life / CAR.puffLife;
+  const r = 1.5 + t * 4;
+  const cx = Math.round(p.x + p.drift * t * 4);
+  const cy = Math.round(p.y - t * 16);
+  const shade = PUFF[Math.min(PUFF.length - 1, Math.floor(t * PUFF.length))];
+  for (let dy = -Math.ceil(r); dy <= Math.ceil(r); dy++) {
+    for (let dx = -Math.ceil(r); dx <= Math.ceil(r); dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      if (t > 0.5 && (dx + dy + cx + cy) % 2 === 0) continue; // thinning: a checker as it fades
+      ctx.fillStyle = dy < 0 && dx < 0 ? PUFF[0] : shade;
+      ctx.fillRect(cx + dx, cy + dy, 1, 1);
+    }
+  }
+}
+
+/** The town showroom: brass posts with red velvet ropes round the lot, the bone car on show (a SOLD plaque once bought). */
+function paintShowroom(ctx: CanvasRenderingContext2D, g: Game, props: { y: number; fn: () => void }[], glow: ((c: CanvasRenderingContext2D) => void)[]) {
+  const S = SHOWROOM;
+  const post = (vx: number, vy: number) => sheetCell(ctx, VELVET_ROPE, 0, 0, vx * TILE - 8, vy * TILE - 22, 1, 1.5, 16);
+  const ropeH = (vx0: number, vx1: number, vy: number) => {
+    for (let x = vx0; x < vx1; x++) sheetCell(ctx, VELVET_ROPE, 1, 0, x * TILE, vy * TILE - 22, 1, 1.5, 16);
+  };
+  // the front rope hangs lower (knee height), so the car on show reads over it
+  const ropeHLow = (vx0: number, vx1: number, vy: number) => {
+    for (let x = vx0; x < vx1; x++) sheetCell(ctx, VELVET_ROPE, 1, 0, x * TILE, vy * TILE - 15, 1, 1.5, 16);
+  };
+  const ropeV = (vx: number, vy0: number, vy1: number) => {
+    const x = vx * TILE - 1;
+    for (let y = vy0 * TILE - 16; y < vy1 * TILE - 16; y++) {
+      ctx.fillStyle = (y >> 1) % 3 === 0 ? VELVET[3] : VELVET[2];
+      ctx.fillRect(x, y, 2, 1);
+      ctx.fillStyle = VELVET[1];
+      ctx.fillRect(x + 2, y, 1, 1);
+    }
+  };
+  const top = S.y0;
+  const bot = S.y1 + 1;
+  const left = S.x0;
+  const right = S.x1 + 1;
+  props.push({ y: top * TILE, fn: () => { ropeH(left, right, top); post(left, top); post(right, top); } });
+  props.push({ y: bot * TILE - 2, fn: () => { ropeV(left, top, bot); ropeV(right, top, bot); } });
+  if (!g.carOwned) {
+    props.push({ y: S.carY, fn: () => void paintCar(ctx, S.carX, S.carY, "e", 0, "body") });
+    glow.push((c) => void paintCar(c, S.carX, S.carY, "e", 0, "em"));
+  } else props.push({ y: S.carY, fn: () => void sheetCell(ctx, VELVET_ROPE, 2, 0, S.carX - 8, S.carY - 16, 1, 1.5, 16) });
+  props.push({ y: bot * TILE + 1, fn: () => { ropeHLow(left, right, bot); for (const [vx, vy] of S.posts) if (vy === bot) post(vx, vy); } });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the skull headlamps' cold fire.
+/** The beams: length, half-width at the skull and at the far end (px); the cool multiply and the blue add per band (0..1,
+ * band 4 = full); the skull halo radius; the parked/showroom pool. seat: the hero's lantern colour while driving. */
+export const COLD_FIRE = {
+  beam: { len: 140, w0: 7, w1: 54 },
+  bands: 4,
+  cool: [0.62, 0.8, 1] as RGB,
+  add: [0.1, 0.36, 0.72] as RGB,
+  halo: 11,
+  eye: [0.35, 0.75, 1] as RGB,
+  pool: { len: 60, w0: 4, w1: 24, k: 0.95 },
+  seat: [0.45, 0.65, 1] as RGB,
+} as const;
+const BAYER_CF = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+/** The band (0..bands) of a beam pixel at (u along, v across) from the skull, pinned to world pixel (wx, wy). */
+export function coldBand(u: number, v: number, len: number, w0: number, w1: number, wx: number, wy: number, k = 1): number {
+  if (u < 0 || u > len) return 0;
+  const hw = w0 + (w1 - w0) * (u / len);
+  const a = Math.abs(v) / hw;
+  if (a >= 1) return 0;
+  const lead = u < 6 ? 0.55 + (u / 6) * 0.45 : 1; // the beam leaves the skull narrow and bright
+  const q = Math.pow(1 - u / len, 0.6) * (1 - a * a) * lead * k * COLD_FIRE.bands;
+  let b = Math.floor(q);
+  const frac = q - b;
+  if (frac > 0.6 && b < COLD_FIRE.bands && ((frac - 0.6) / 0.4) * 16 > BAYER_CF[(wy & 3) * 4 + (wx & 3)] + 0.5) b++;
+  return Math.max(0, Math.min(COLD_FIRE.bands, b));
+}
+const coldCache = new Map<string, { mul: HTMLCanvasElement; add: HTMLCanvasElement; ox: number; oy: number }>();
+/** One beam baked: dir e/w/s/n, its size, for a skull on world pixel (sx, sy) (the dither phase is sx&3, sy&3). */
+function coldSprite(dir: CarFacing, len: number, w0: number, w1: number, k: number, sx: number, sy: number) {
+  if (typeof document === "undefined") return null;
+  const key = `${dir}|${len}|${w0}|${w1}|${k}|${sx & 3}|${sy & 3}`;
+  const hit = coldCache.get(key);
+  if (hit) return hit;
+  const side = dir === "e" || dir === "w";
+  const bw = side ? len + 1 : w1 * 2 + 1;
+  const bh = side ? w1 * 2 + 1 : len + 1;
+  const ox = dir === "e" ? 0 : dir === "w" ? len : w1;
+  const oy = dir === "s" ? 0 : dir === "n" ? len : w1;
+  const mk = () => { const c = document.createElement("canvas"); c.width = bw; c.height = bh; return c; };
+  const mul = mk();
+  const add = mk();
+  const mx = mul.getContext("2d");
+  const ax = add.getContext("2d");
+  if (!mx || !ax) return null;
+  const mi = mx.createImageData(bw, bh);
+  const ai = ax.createImageData(bw, bh);
+  for (let j = 0; j < bh; j++) {
+    for (let i = 0; i < bw; i++) {
+      const dx = i - ox;
+      const dy = j - oy;
+      const u = dir === "e" ? dx : dir === "w" ? -dx : dir === "s" ? dy : -dy;
+      const v = side ? dy * 1.6 : dx; // seen from above at 3/4: the pool is flatter across a side beam
+      const b = coldBand(u, v, len, w0, w1, sx - ox + i, sy - oy + j, k) / COLD_FIRE.bands;
+      const o = (j * bw + i) * 4;
+      mi.data[o] = Math.round((1 - (1 - COLD_FIRE.cool[0]) * b) * 255);
+      mi.data[o + 1] = Math.round((1 - (1 - COLD_FIRE.cool[1]) * b) * 255);
+      mi.data[o + 2] = Math.round((1 - (1 - COLD_FIRE.cool[2]) * b) * 255);
+      mi.data[o + 3] = 255;
+      ai.data[o] = Math.round(COLD_FIRE.add[0] * b * 255);
+      ai.data[o + 1] = Math.round(COLD_FIRE.add[1] * b * 255);
+      ai.data[o + 2] = Math.round(COLD_FIRE.add[2] * b * 255);
+      ai.data[o + 3] = 255;
+    }
+  }
+  mx.putImageData(mi, 0, 0);
+  ax.putImageData(ai, 0, 0);
+  const out = { mul, add, ox, oy };
+  coldCache.set(key, out);
+  return out;
+}
+/** Where the skull lamps sit (world px) on a car whose seat point is (x, y), facing f: one beam per lamp seen. */
+export function skullLamps(x: number, y: number, f: CarFacing): { x: number; y: number }[] {
+  const X = Math.round(x);
+  const Y = Math.round(y);
+  if (f === "e") return [{ x: X + 24, y: Y - 14 }];
+  if (f === "w") return [{ x: X - 24, y: Y - 14 }];
+  if (f === "s") return [{ x: X - 4, y: Y - 4 }, { x: X + 4, y: Y - 4 }];
+  return [{ x: X - 4, y: Y - 30 }, { x: X + 4, y: Y - 30 }];
+}
+/** The ground the beam lands on starts a little ahead of and below the skull (the lamp is at hood height). */
+function beamFoot(l: { x: number; y: number }, f: CarFacing) {
+  return f === "e" ? { x: l.x + 2, y: l.y + 12 } : f === "w" ? { x: l.x - 2, y: l.y + 12 } : f === "s" ? { x: l.x, y: l.y + 6 } : { x: l.x, y: l.y - 2 };
+}
+function blitCold(ctx: CanvasRenderingContext2D, f: CarFacing, at: { x: number; y: number }, len: number, w0: number, w1: number, k: number) {
+  const sp = coldSprite(f, len, w0, w1, k, at.x, at.y);
+  if (!sp) return;
+  ctx.globalCompositeOperation = "multiply";
+  ctx.drawImage(sp.mul, at.x - sp.ox, at.y - sp.oy);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.drawImage(sp.add, at.x - sp.ox, at.y - sp.oy);
+}
+/** The halo round a lit skull eye: a small round dithered glow, added (baked per dither phase). */
+function blitHalo(ctx: CanvasRenderingContext2D, at: { x: number; y: number }) {
+  if (typeof document === "undefined") return;
+  const r = COLD_FIRE.halo;
+  const key = `halo|${r}|${at.x & 3}|${at.y & 3}`;
+  let sp = coldCache.get(key);
+  if (!sp) {
+    const c = document.createElement("canvas");
+    c.width = c.height = r * 2 + 1;
+    const x = c.getContext("2d");
+    if (!x) return;
+    const im = x.createImageData(r * 2 + 1, r * 2 + 1);
+    for (let j = 0; j <= r * 2; j++) {
+      for (let i = 0; i <= r * 2; i++) {
+        const b = coldBand(Math.hypot(i - r, j - r), 0, r, 1, 1, at.x - r + i, at.y - r + j, 0.8) / COLD_FIRE.bands;
+        const o = (j * (r * 2 + 1) + i) * 4;
+        im.data[o] = Math.round(COLD_FIRE.eye[0] * b * 255);
+        im.data[o + 1] = Math.round(COLD_FIRE.eye[1] * b * 255);
+        im.data[o + 2] = Math.round(COLD_FIRE.eye[2] * b * 255);
+        im.data[o + 3] = 255;
+      }
+    }
+    x.putImageData(im, 0, 0);
+    sp = { mul: c, add: c, ox: r, oy: r };
+    coldCache.set(key, sp);
+  }
+  ctx.globalCompositeOperation = "lighter";
+  ctx.drawImage(sp.add, at.x - r, at.y - r);
+}
+/** After the night's light layer: the beams ahead of a driven car, and the small pool and eye halos of a parked or showroom car. */
+export function paintColdFire(ctx: CanvasRenderingContext2D, g: Game) {
+  if (!sceneAmbient(g) || g.mapId === "dungeon") return;
+  const cars: { x: number; y: number; f: CarFacing; drive: boolean }[] = [];
+  if (g.mapId === "world" && g.driving) cars.push({ x: g.px, y: g.py, f: g.carFacing, drive: true });
+  else if (g.mapId === "world" && g.carOwned) cars.push({ x: g.carX, y: g.carY, f: g.carFacing, drive: false });
+  if (g.mapId === "town" && !g.carOwned) cars.push({ x: SHOWROOM.carX, y: SHOWROOM.carY, f: "e", drive: false });
+  if (!cars.length) return;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  for (const c of cars) {
+    for (const l of skullLamps(c.x, c.y, c.f)) {
+      const B = c.drive ? COLD_FIRE.beam : COLD_FIRE.pool;
+      blitCold(ctx, c.f, beamFoot(l, c.f), B.len, B.w0, B.w1, c.drive ? 1 : COLD_FIRE.pool.k);
+      blitHalo(ctx, l);
+    }
+  }
+  ctx.restore();
+}
+
+/** playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: is the hero behind boulder b (north of its foot, his body under the stone's picture)? */
+export function boulderHides(g: Game, b: BoulderT): boolean {
+  const foot = (b.y + 2) * TILE;
+  return g.mapId === "world" && g.py < foot - 6 && g.py > foot - BOULDER.cell.foot - 4 && g.px > b.x * TILE - 6 && g.px < (b.x + 2) * TILE + 6;
+}
+/** One boulder's cell (or its glow mask's), its foot row on the block's bottom edge, centred on the block. */
+function paintBoulder(ctx: CanvasRenderingContext2D, g: Game, b: BoulderT, em: boolean): boolean {
+  const C = BOULDER.cell;
+  const season = b.biome === "snow" ? "winter" : seasonNow;
+  const row = Math.max(0, BOULDER_SEASONS.indexOf(season as (typeof BOULDER_SEASONS)[number]));
+  const veil = !em && boulderHides(g, b);
+  if (veil) ctx.globalAlpha = CANOPY_VEIL;
+  const url = em ? BOULDERS_EM : BOULDERS_SHEET;
+  if (!prop2Ready(url)) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(landSheet[url]!, boulderCol(b.biome, b.kind) * C.w, row * C.h, C.w, C.h, b.x * TILE + TILE - C.w / 2, (b.y + 2) * TILE - 1 - C.foot, C.w, C.h);
+  if (veil) ctx.globalAlpha = 1;
+  return true;
+}
+
+/** playtest1v: how much of a tree shows while the hero stands behind its canopy. */
+export const CANOPY_VEIL = 0.55;
+/** playtest1v: does the tree on tile (tx, ty) stand in front of the hero (drawn after) and over the hero's body? */
+export function canopyHides(g: Game, tx: number, ty: number): boolean {
+  const t = PROP2.tree;
+  // the canopy's core (40 px across, from 24 px under the cell top) over the hero's middle
+  const fx = tx * TILE + t.dx + 12;
+  const fy = ty * TILE + t.dy + 24;
+  if (ty * TILE + 8 <= g.py) return false;
+  return g.px > fx && g.px < fx + t.w - 24 && g.py - 22 < ty * TILE && g.py - 8 > fy;
+}
+
+export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
+  syncZone(g); // playtest1v
+  seasonNow = g.season();
+  sceneStart(g); // fade2: the scene clock is kept every frame, foes on screen or not
+  roomStyleNow = roomStyle(g.inside); // playtest1i
+  warmPt1i();
+  warmPt1t(); // playtest1t
+  const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
+  const cam = cameraFor(g, viewW, viewH, zoom);
+  const camX = cam.x + mag;
+  const camY = cam.y;
+  ctx.setTransform(zoom, 0, 0, zoom, -camX * zoom, -camY * zoom);
+  ctx.imageSmoothingEnabled = false;
+  // playtest1v: a tree is 6 tiles tall and 4 wide now (PROP2), so the slack is 6 rows below and 2 columns beside.
+  const x0 = Math.max(0, Math.floor(camX / TILE) - PROP2_SLACK.cols);
+  const y0 = Math.max(0, Math.floor(camY / TILE) - 1);
+  const x1 = Math.min(g.w, Math.ceil((camX + viewW / zoom) / TILE) + PROP2_SLACK.cols);
+  // Rows of slack below the view: a town grave is three tiles tall and a tree six, and their
+  // base tile must still be visited while the top of the sprite is on screen, or it pops.
+  const y1 = Math.min(g.h, Math.ceil((camY + viewH / zoom) / TILE) + PROP2_SLACK.rows);
+  const night = g.phase === "night" && (g.mapId === "world" || g.mapId === "village");
+  // gfx1: where the light layer runs, it is the night; the old speckle dimming is its fallback (no canvas).
+  const lit = !!sceneAmbient(g) && typeof document !== "undefined";
+  // actor: the same draw, for the light layer's actor clamp. glow: emissive draws, set to full light.
+  const props: { y: number; fn: () => void; actor?: (c: CanvasRenderingContext2D) => void }[] = [];
+  const glow: ((c: CanvasRenderingContext2D) => void)[] = [];
+  const skin = valeGround(g);
+  const hix = hamletIndex(g); // playtest1u
+  // gfx2: the floor kit of this dungeon floor (null elsewhere), read by drawTile; its decals go on below.
+  kitNow = floorKit(g);
+  boneFloorNow = boneFloorScene(g); // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]
+  // On the vale, open ground shows its skin biome; road verges read the skin too. Every other tile is as before.
+  const look = (j: number, t: number) => (skin && SKIN_OPEN.has(t) && t !== T.tree && t !== T.rock && t !== T.pump && t !== T.grave ? VALE_GROUND[skin.biome[j]] : t);
+  const bx0 = Math.floor(camX / TILE) - PROP2_SLACK.cols;
+  const by0 = Math.floor(camY / TILE) - 1;
+  const bx1 = Math.ceil((camX + viewW / zoom) / TILE) + PROP2_SLACK.cols;
+  const by1 = Math.ceil((camY + viewH / zoom) / TILE) + PROP2_SLACK.rows;
+  // playtest1e: only when the view itself reaches past the map (a map smaller than the screen; the vale's clamped
+  // camera never does), and from a cache where the map has no fog, so the border costs one blit a frame.
+  const past = camX < 0 || camY < 0 || camX + viewW / zoom > g.w * TILE || camY + viewH / zoom > g.h * TILE;
+  if (g.mode !== "title" && past) {
+    if (g.fog || typeof document === "undefined") paintBeyond(ctx, g, bx0, by0, bx1, by1, props);
+    else beyondCached(ctx, g, bx0, by0, bx1, by1, props);
+  }
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = y * g.w + x;
+      if (g.fog && g.fog[i] === 0) {
+        px(ctx, x * TILE, y * TILE, TILE, TILE, "#07060a");
+        continue;
+      }
+      // A sealed secret room is drawn as the rock it is cut from, so nothing gives it away.
+      const at = (j: number) => (g.hidden.has(j) ? T.wall : look(j, g.tiles[j]));
+      const tile = at(i) as Tile;
+      const above = y > 0 ? at((y - 1) * g.w + x) : -1;
+      const below = y + 1 < g.h ? at((y + 1) * g.w + x) : -1;
+      const left = x > 0 ? at(y * g.w + x - 1) : -1;
+      const right = x + 1 < g.w ? at(y * g.w + x + 1) : -1;
+      const n = ((x * 13 + y * 7) % 10) / 10;
+      const prop = tile === T.tree || tile === T.rock || tile === T.pump || tile === T.grave;
+      // playtest1u: a hamlet lot's tiles show the biome's ground (its building stands on them as a prop), not a grey block
+      const hamletLot = !!hix && tile === T.wall && hix.lot.has(i);
+      const base = prop || hamletLot ? (skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : tile;
+      // playtest1h: a chest stands on the ground around it (floor indoors and below, the biome outside), not a flat square
+      const chestOn = tile === T.chest ? (g.mapId === "inside" || g.mapId === "dungeon" ? T.floor : skin ? (VALE_GROUND[skin.biome[i]] as Tile) : propGround(g.theme, x, y, tile)) : -1;
+      // playtest1g: a vale, snow, ash or sand trail tile draws its biome's ground here (no flat dirt square under it)
+      const trailG = skin && tile === T.dirt ? trailGround(skin.biome[i]) : -1;
+      const trailDone = trailG >= 0 && trailComposite(ctx, g, x, y, trailG);
+      if (trailDone) {
+        // ground and path in one copy from the trail atlas
+      } else if (trailG >= 0) drawTile(ctx, trailG as Tile, x, y, n, g.theme, trailG, g.frame, trailG, trailG, trailG);
+      else if (chestOn >= 0 && chestArt()) {
+        const slab = g.mapId === "dungeon" && sheetCell(ctx, `/art/writer/floor-${g.theme in CAVES ? g.theme : "cave"}.png`, Math.abs(x * 3 + y * 5) % 4, 0, x * TILE, y * TILE);
+        if (!slab) drawTile(ctx, chestOn as Tile, x, y, n, g.theme, above, g.frame, left, right, below);
+        sheetCell(ctx, PROP_CHEST, 0, 0, x * TILE, y * TILE);
+      } else drawTile(ctx, base, x, y, n, g.theme, above, g.frame, left, right, below);
+      if (boneFloorNow && tile === T.bone) {
+        // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: calm earth, a rare small accent, no heap
+        const bf = boneFloorCells(x, y);
+        sheetCell(ctx, BONE_FLOOR.sheet, bf.cell, 0, x * TILE, y * TILE);
+        if (bf.accent >= 0) sheetCell(ctx, BONE_FLOOR.accents, bf.accent, 0, x * TILE, y * TILE);
+      }
+      if (kitNow && kitNow.decals[i] >= 0) sheetCell(ctx, `/art/writer/decal-${g.theme in CAVES ? g.theme : "cave"}.png`, kitNow.decals[i], 0, x * TILE, y * TILE);
+      if (skin) paintFringes(ctx, skin, g, x, y, n);
+      if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
+      const hw = hix?.walk.get(i); // playtest1u: the hamlet's walk (planks, flags, packed snow, cinder slabs) on its green
+      if (hw) sheetCell(ctx, HAMLET_WALK, Math.abs(x * 3 + y * 5) % 4, HAMLET_WALK_ROW[hw.biome], x * TILE, y * TILE);
+      // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)
+      if (skin && tile === T.dirt && VALE_GROUND[skin.biome[i]] === T.swamp) paintSwampPath(ctx, g, x, y);
+      // playtest1g: so do the vale's, the snow's, the ash's and the sand's (worn dirt and leaf litter, packed snow,
+      // cracked cinder, wind-swept sand), each over its own ground
+      if (trailG >= 0 && !trailDone) paintTrailPath(ctx, g, x, y, trailG);
+      if (g.floodAt(x, y)) sheetCell(ctx, FLOOD_SHEET, (x * 3 + y * 5 + (g.frame >> 5)) % 4, 0, x * TILE, y * TILE);
+      if (secretTile(tile)) paintSecret(ctx, g, tile, x, y);
+      // playtest1d (owner-reported 2026-10-02, "a grey square with an arrow on the ice"): g.feats outlives the last dungeon
+      // floor (the sim only fires plates below ground), so its trap index used to paint a phantom plate on the vale.
+      const trap = g.mapId === "dungeon" ? g.trapAt(i) : -1;
+      if (trap >= 0) paintTrap(ctx, g, trap, x, y);
+      const cap = g.mapId === "dungeon" ? g.feats?.captive : undefined;
+      if (cap && cap.x === x && cap.y === y) sheetCell(ctx, CAPTIVE_SHEET, g.escort?.state === "bound" ? 0 : 1, 0, x * TILE, y * TILE);
+      const mim = g.mapId === "dungeon" && tile === T.chest ? g.feats?.mimic : undefined;
+      if (mim && mim.x === x && mim.y === y) {
+        const cell = mimicHint(g.worldMs / 1000, x, y);
+        // playtest1h: over the prop writer's chest, its own lifted lid (so a mimic still looks like every other chest)
+        if (cell >= 0 && !(chestArt() && sheetCell(ctx, PROP_MIMIC_LID, cell, 0, x * TILE, y * TILE))) sheetCell(ctx, MIMIC_SLEEP, cell, 0, x * TILE, y * TILE);
+      }
+      if (g.mapId === "inside" && g.inside === "croft" && x === DERBY.trophyX && y === DERBY.trophyY && g.hasDerbyTrophy()) sheetCell(ctx, DERBY_TROPHY, 0, 0, x * TILE, y * TILE);
+      if (g.mapId === "inside" && g.inside === "croft") {
+        // Item 10: bought furniture and boss trophies. Only what you own is drawn; the derby spot (9,0) is never a slot.
+        const piece = g.decorPieces().find((p) => p.x === x && p.y === y);
+        if (piece) sheetCell(ctx, CROFT_DECOR, piece.cell, 0, x * TILE, y * TILE);
+        const head = y === 0 ? g.bossTrophies().find((t) => t.slot === x) : undefined;
+        if (head) paintBossTrophy(ctx, head.family, x, y);
+      }
+      if (g.mapId === "inside" && g.inside === "guild" && x === BOUNTY.boardX && y === BOUNTY.boardY) {
+        sheetCell(ctx, BOUNTY_SHEET, !g.bountyPost() ? 2 : g.bountyPaid() ? 1 : 0, 0, x * TILE, y * TILE);
+      }
+      if ((tile === T.grass || tile === T.dirt || tile === T.snow) && below === T.water && g.theme !== "town") {
+        px(ctx, x * TILE + 3, y * TILE + 12, 1, 4, "#143028");
+        px(ctx, x * TILE + 4, y * TILE + 10, 2, 2, "#4a8a48");
+        px(ctx, x * TILE + 11, y * TILE + 11, 1, 5, "#143028");
+      }
+      if ((tile === T.water || tile === T.pool || tile === T.ice) && (g.theme === "over" || g.theme === "camp" || g.theme === "town")) paintShore(ctx, g, tile, x, y, at);
+      else if (tile === T.water || tile === T.pool || tile === T.ice) {
+        const shore = (nx: number, ny: number, ox: number, oy: number, sw: number, sh: number) => {
+          if (nx < 0 || ny < 0 || nx >= g.w || ny >= g.h) return;
+          const nt = g.tiles[ny * g.w + nx];
+          if (nt === T.water || nt === T.pool || nt === T.ice) return;
+          const bn = ((nx * 13 + ny * 7) % 10) / 10;
+          px(ctx, x * TILE + ox, y * TILE + oy, sw, sh, ground(nt as Tile, g.theme, bn));
+        };
+        shore(x, y - 1, 0, 0, TILE, 2);
+        shore(x, y + 1, 0, TILE - 2, TILE, 2);
+        shore(x - 1, y, 0, 0, 2, TILE);
+        shore(x + 1, y, TILE - 2, 0, 2, TILE);
+      }
+      const built = tile === T.wall || tile === T.door || tile === T.floor || tile === T.water || tile === T.pool || tile === T.ice || tile === T.stairD || tile === T.stairU;
+      if (!built && night && !lit && g.mapId !== "inside" && g.mapId !== "town") dimGround(ctx, x * TILE, y * TILE, "#060810");
+      // playtest1 (owner-reported 2026-10-01, town edge): a writer fence rings the town; the road gates stay open.
+      if (g.mapId === "town" && tile === T.exit) {
+        const side = x === 0 || x === g.w - 1;
+        const gateNext = side ? above === T.cobble || below === T.cobble : left === T.cobble || right === T.cobble;
+        const cell = gateNext ? 2 : side ? 1 : 0;
+        props.push({ y: y * TILE + 14, fn: () => void sheetCell(ctx, PT1_FENCE, cell, 0, x * TILE, y * TILE, 1, 1) });
+      }
+      if (g.theme === "camp" && tile === T.dirt && (above === T.grass || below === T.grass || left === T.tree || right === T.tree) && (x + y) % 2 === 0) {
+        props.push({
+          y: y * TILE + 14,
+          fn: () => {
+            // playtest1b B2: the old orange stumps are gone; a few writer stones mark the clearing's edge instead.
+            if ((x + y) % 4 === 0) sheetCell(ctx, CAMP_GEAR, GEAR.stones, 0, x * TILE, y * TILE - 2, 1, 1);
+          },
+        });
+      }
+      if (tile === T.wall && g.theme === "camp" && above !== T.wall && left !== T.wall) {
+        props.push({
+          y: y * TILE + 40,
+          fn: () => {
+            const gx = x * TILE;
+            const gy = y * TILE;
+            // playtest1b B2: the writer tent, 80x80, standing on the 5x4 footprint with its flap on the door column.
+            if (sheetCell(ctx, CAMP_TENT, 0, 0, gx, gy - 16, 5, 5)) {
+              glow.push((c) => void sheetCell(c, CAMP_TENT_EM, 0, 0, gx, gy - 16, 5, 5));
+              return;
+            }
+            px(ctx, gx + 4, gy + TILE * 3, TILE * 4, 3, "#1a2414");
+            px(ctx, gx, gy + 8, TILE * 5, TILE * 2, "#4a3020");
+            px(ctx, gx + 8, gy, TILE * 4, 10, "#6a3c28");
+            px(ctx, gx + 24, gy - 8, TILE * 2, 10, "#6a3c28");
+            px(ctx, gx + 32, gy - 14, 8, 8, "#c4a574");
+            px(ctx, gx + 8, gy, TILE * 4, 2, "#e0c898");
+            px(ctx, gx + 20, gy + 16, 12, 18, "#2a1c14");
+          },
+        });
+      }
+      if (tile === T.tree && villageEdge(g, x, y)) shadeEdge(ctx, x, y); // playtest1w: the village ring's wood floor
+      // playtest1w: a boulder's four rock tiles draw it once, from the block's bottom-left tile
+      const bd = g.mapId === "world" && tile === T.rock ? boulderAt(i) : undefined;
+      if (bd && prop2Ready(BOULDERS_SHEET)) {
+        if (x === bd.x && y === bd.y + 1) {
+          props.push({ y: (bd.y + 1) * TILE + 10, fn: () => void paintBoulder(ctx, g, bd, false) });
+          if (BOULDER_GLOW.has(bd.biome)) glow.push((c) => void paintBoulder(c, g, bd, true));
+        }
+        continue;
+      }
+      if ((tile === T.tree && villageTreeShows(g, x, y)) || tile === T.rock || tile === T.pump || tile === T.grave) {
+        const kind = tile === T.tree ? "tree" : tile === T.rock ? "rock" : tile === T.pump ? "pump" : "grave";
+        const by = y * TILE + (kind === "tree" ? 8 : 10);
+        const dug = kind === "grave" && g.graveDug(x, y);
+        // On the vale a prop matches the ground it stands on: a frosted tree on snow skin, a dead one on ash or swamp.
+        const biome = skin ? SKIN_PROP[skin.biome[i]] : biomeOf(g.theme, y, x);
+        props.push({
+          y: by,
+          fn: () => {
+            // playtest1v: a tall tree in front of the hero thins so the hero still reads through its canopy
+            const veil = kind === "tree" && canopyHides(g, x, y);
+            if (veil) ctx.globalAlpha = CANOPY_VEIL;
+            propSprite(ctx, kind, x * TILE, y * TILE, biome, g.frame);
+            if (veil) ctx.globalAlpha = 1;
+            if (dug) sheetCell(ctx, GRAVE_DUG, 0, 0, x * TILE, y * TILE + 9);
+          },
+        });
+        // playtest1c: the wild art's glow (yew wisps, cinder embers, a swamp light, a grave candle, a carved face)
+        const tree = biome === "ash" || biome === "swamp" || (biome === "sand" ? tileRoll(x, y, 2) === 0 : TREE_GLOW.has(tileRoll(x, y, 8)));
+        const lit = kind === "pump" || (kind === "grave" && tileRoll(x, y, 4) === GRAVE_CELL.candle) || (kind === "rock" && biome === "ash") || (kind === "tree" && tree);
+        if (lit) glow.push((c) => void propSprite(c, kind, x * TILE, y * TILE, biome, g.frame, true));
+      }
+      // playtest1c (owner-reported 2026-10-02, "dungeon entrances are a tiny ladder"): a dungeon's way in on the vale is
+      // a 48x48 mouth over its stair tile (a mason's stairwell, a crypt mouth or a barrow arch) with cold-fire braziers;
+      // the town's Opened Grave is a 32x32 broken grave over 2x2 tiles. Drawn with the actors, its foot on the stair's.
+      if (tile === T.stairD && (g.mapId === "world" || g.mapId === "town")) {
+        const look: EntranceKind | "grave" = g.mapId === "town" ? "grave" : entranceKind(g.entrances[`${x},${y}`] ?? "");
+        props.push({ y: (y + 1) * TILE - 1, fn: () => void paintEntrance(ctx, look, x, y, g.frame) });
+        glow.push((c) => void paintEntrance(c, look, x, y, g.frame, true));
+      }
+      if (caveBone(g, i, tile) && !boneFloorNow) { // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: no heap on the calm bone floor
+        props.push({
+          y: y * TILE + 12,
+          fn: () => {
+            // playtest1h: a bone heap from the prop writer; the three dashes below are the not-yet-loaded fallback.
+            if (sheetCell(ctx, PROP_BONES, Math.abs(x * 3 + y * 5) % 4, 0, x * TILE, y * TILE)) return;
+            px(ctx, x * TILE + 3, y * TILE + 8, 8, 2, "#e6dcc8");
+            px(ctx, x * TILE + 2, y * TILE + 7, 2, 3, "#e6dcc8");
+            px(ctx, x * TILE + 10, y * TILE + 7, 2, 3, "#e6dcc8");
+          },
+        });
+      }
+    }
+  }
+  // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]: each hamlet in (or just under) the view stands
+  // its lots' buildings as y-sorted props on their ground shadows, lit windows and lanterns on the glow pass at night.
+  if (hix) {
+    for (const m of hix.list) {
+      if ((m.x + m.w) * TILE < camX - TILE || m.x * TILE > camX + viewW / zoom + TILE) continue;
+      if ((m.y + m.h) * TILE < camY - TILE || m.y * TILE - 48 > camY + viewH / zoom) continue;
+      for (const l of m.lots) {
+        if (g.fog && g.fog[l.y * g.w + l.x] === 0 && g.fog[(l.y + l.h - 1) * g.w + l.x + l.w - 1] === 0) continue;
+        if (!sheetReady(hamletSheet(l.kind))) {
+          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintHamletBlock(ctx, m, l) });
+          continue;
+        }
+        props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintHamletLot(ctx, l) });
+        if (lit) glow.push((c) => paintHamletLot(c, l, true));
+      }
+    }
+  }
+  // Town buildings come from their whole footprint, not from the door tile, so a house never
+  // pops when its door leaves the view. Sixteen sprites; the canvas clips what is offscreen.
+  if (g.theme === "town") {
+    for (const b of townBuildings(g)) {
+      // playtest1t: each room's lot draws its own writer building (house_writer.py), its seeded variant in this season,
+      // on a ground shadow; the old house or cabin is only the fallback while a lot's sheet loads.
+      const lots = lotsIn(g, b);
+      if (lots.length && lots.every((l) => sheetReady(bldgSheet(l.room)) && !!lotCell(l, seasonNow))) {
+        for (const l of lots) {
+          props.push({ y: (l.y + l.h) * TILE - 1, fn: () => paintLot(ctx, l, false, roofBodies(g, l)) });
+          if (lit) glow.push((c) => paintLot(c, l, true));
+        }
+        continue;
+      }
+      props.push({ y: (b.y + b.h) * TILE - 1, fn: () => paintTownBuilding(ctx, g, b) });
+      if (lit) glow.push((c) => paintTownBuilding(c, g, b, true));
+    }
+    // playtest1b (owner-reported 2026-10-02 01:04 ET, "fences around homes gone"): each home's yard has its writer
+    // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
+    // the seeded footprint and never touches g.tiles, so placement and collision are as they were.
+    for (const f of yardFences(g)) {
+      props.push({ y: f.y * TILE + 14, fn: () => void sheetCell(ctx, PT1_FENCE, f.cell, 0, f.x * TILE, f.y * TILE, 1, 1) });
+    }
+    // playtest1b (owner-requested 2026-10-02): every house with a door hangs its trade's sign beside it, the icon in a
+    // neon tube (blue cold fire, violet, red); the tube is emissive, so it glows at night.
+    for (const d of roomDoors(g)) {
+      const at = signSpot(d.x, d.y);
+      props.push({ y: (d.y + 1) * TILE, fn: () => void drawSign(ctx, d.room.kind, at.x, at.y, g.frame, d.bx) });
+      glow.push((c) => void drawSign(c, d.room.kind, at.x, at.y, g.frame, d.bx, true));
+    }
+  }
+  // playtest1b B2 (owner-reported 2026-10-02, "camp graphics unchanged"): the camp is a lit clearing. A cold-blue fire on
+  // the hearth (four frames), log seats, a bedroll, a pack, two lantern posts, glow caps on the grass, and the way out
+  // is a trail stake with a lantern. All looks: the camp grid, the mark and the hearth are where they always were.
+  if (g.theme === "camp") {
+    for (let i = 0; i < g.tiles.length; i++) {
+      const t = g.tiles[i];
+      const x = i % g.w;
+      const y = (i - x) / g.w;
+      if (t === T.hearth) {
+        const f = Math.floor(g.frame) % 4;
+        props.push({ y: y * TILE + 13, fn: () => void sheetCell(ctx, CAMP_FIRE, f, 0, x * TILE, y * TILE - 16, 1, 2) });
+        glow.push((c) => void sheetCell(c, CAMP_FIRE_EM, f, 0, x * TILE, y * TILE - 16, 1, 2));
+      } else if (t === T.door) {
+        const f = signFrameOf(g.frame, x) ? GEAR.mark2 : GEAR.mark;
+        props.push({ y: y * TILE + 14, fn: () => void sheetCell(ctx, CAMP_GEAR, f, 0, x * TILE, y * TILE - 4, 1, 1) });
+        glow.push((c) => void sheetCell(c, CAMP_GEAR_EM, f, 0, x * TILE, y * TILE - 4, 1, 1));
+      } else if (t === T.grass && x > 1 && y > 1 && x < g.w - 2 && y < g.h - 2 && (x * 7 + y * 3) % 11 === 0) {
+        props.push({ y: y * TILE + 12, fn: () => void sheetCell(ctx, CAMP_GEAR, GEAR.caps, 0, x * TILE, y * TILE, 1, 1) });
+        glow.push((c) => void sheetCell(c, CAMP_GEAR_EM, GEAR.caps, 0, x * TILE, y * TILE, 1, 1));
+      }
+    }
+    for (const d of CAMP_DRESS) {
+      const cell = d.cell === GEAR.lantern && signFrameOf(g.frame, d.x) ? GEAR.lantern2 : d.cell;
+      props.push({ y: d.y * TILE + 12, fn: () => void sheetCell(ctx, CAMP_GEAR, cell, 0, d.x * TILE, d.y * TILE - (d.lit ? 4 : 0), 1, 1) });
+      if (d.lit) glow.push((c) => void sheetCell(c, CAMP_GEAR_EM, cell, 0, d.x * TILE, d.y * TILE - 4, 1, 1));
+    }
+  }
+  // playtest1b B2 (owner-reported 2026-10-02, "cottage interior: flat colored rectangles"): writer furniture on the spots
+  // the painted shapes held: a quilted bed, a table with a cold candle and stools, a dresser, an iron stove, a plant.
+  if (g.theme.startsWith("room:")) {
+    for (const d of [...(ROOM_DRESS[g.theme.slice(5)] ?? []), ...roomKitExtra(g.inside)]) {
+      const cell = d.cell === 4 && Math.floor(g.frame / 2) % 2 === 1 ? 5 : d.cell;
+      props.push({ y: d.y + 30, fn: () => void sheetCell(ctx, ROOM_KIT, cell, 0, d.x, d.y, 2, 2, 32) });
+      glow.push((c) => void sheetCell(c, ROOM_KIT_EM, cell, 0, d.x, d.y, 2, 2, 32));
+    }
+    // playtest1i: the trade furniture (counters, shelves, pews and altar, forge and anvil, card table, cauldron, orrery,
+    // nets, crates, strongbox, mannequin, rack), y-sorted with the folk; its glowing parts go to the light layer.
+    // playtest1o (Bill, 2026-10-03 19:49 ET: "signs to designate what buildings are"): the trade's neon sign hangs on the back
+    // wall inside too (the same sign as over its door), with the building's name in gold under it (paintLabels).
+    const here = roomNameOf(g.inside);
+    if (here) {
+      const at = insideSignSpot(g);
+      props.push({ y: 15, fn: () => void drawSign(ctx, here.kind, at.x, at.y, g.frame, 7) });
+      glow.push((c) => void drawSign(c, here.kind, at.x, at.y, g.frame, 7, true));
+    }
+    for (const p of roomFurniture(g.inside)) {
+      const anim = FURN_ANIM[p.k];
+      const k = anim && Math.floor(g.frame / 3) % 2 === 1 ? anim : p.k;
+      props.push({ y: p.y + 30, fn: () => void sheetCell(ctx, ROOM_FURN, FURN[k], 0, p.x, p.y, 2, 2, 32) });
+      glow.push((c) => void sheetCell(c, ROOM_FURN_EM, FURN[k], 0, p.x, p.y, 2, 2, 32));
+    }
+    // playtest1x: the Felt's three tables, its stage (curtains, boards, the microphone) and the prize counter (casino_writer.py)
+    if (g.inside === "casino") for (const p of CASINO_FURNITURE) {
+      const col = CASINO_KINDS.indexOf(p.k);
+      props.push({ y: p.z, fn: () => void sheetCell(ctx, CASINO_SHEET, col, 0, p.x, p.y, 2, 2, 32) });
+      glow.push((c) => void sheetCell(c, CASINO_SHEET_EM, col, 0, p.x, p.y, 2, 2, 32));
+    }
+    for (let x = 4; x < g.w - 1; x += 4) glow.push((c) => void (sheetCell(c, roomWallEm(roomStyleNow), ROOM_CELL.sconce, 0, x * TILE, 0) || sheetCell(c, ROOM_WALL_EM, ROOM_CELL.sconce, 0, x * TILE, 0)));
+  }
+  // playtest1b: the town on the vale is a walled hamlet standing on its door (the old one-tile house is its fallback).
+  if (g.mapId === "world") {
+    for (const d of townDoors(g)) {
+      props.push({ y: (d.y + 1) * TILE - 1, fn: () => void drawTownIcon(ctx, d.x, d.y, g.frame) });
+      glow.push((c) => void drawTownIcon(c, d.x, d.y, g.frame, true));
+    }
+  }
+  // playtest1o (Bill, 2026-10-03 19:49 ET: "walk the right directions"): every body faces the way it walks (facing.ts),
+  // worked out once a frame here so its glow mask matches. A townsperson the hero walks up to turns to the hero.
+  const hero = { x: g.px, y: g.py };
+  for (const n of g.npcs) {
+    const nf = faceOf(n, n.x, n.y, !!n.moving, Math.hypot(n.x - g.px, n.y - g.py) < FACE.near ? hero : null).face;
+    const draw = (c: CanvasRenderingContext2D) => person(c, n.x, n.y, n.look ?? n.role, n.coat, nf, g.frame, 1, g.poseFor(n.x, n.y, !!n.moving, false), "npc", 1, n.id);
+    props.push({ y: n.y, fn: () => { blobShadow(ctx, g, n.x, n.y - 2); draw(ctx); }, actor: draw });
+  }
+  for (const r of g.roamers) {
+    const sc = scaleOf(r); // playtest1p: boss 5, mini 3, rare 2 (bigboss.ts BIG); scaleFor stays the people's 1 for the rest
+    // playtest1o: a foe faces its walk; standing in a fight (or swinging) it faces its target; a shove or stun holds its face.
+    const foeAt = (r.taunt ?? 0) > g.worldMs && g.companion ? g.companion : r.atEscort && g.escort ? g.escort : hero;
+    const rv = faceOf(r, r.x, r.y, !!r.moving, r.aggro || (r.actFor ?? 0) > 0 ? foeAt : null, (r.shoveT ?? 0) > 0 || (r.stun ?? 0) > 0);
+    const body = (c: CanvasRenderingContext2D) => monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
+    props.push({
+      y: r.y,
+      actor: body,
+      fn: () => {
+        // playtest1c: a boss stands in its cold-fire ring (under its shadow and body)
+        if (r.boss && sc > 1) bigAura(ctx, r.x, r.y, g.frame, sc, false); // playtest1p: the ring grows with the body
+        else if (r.boss) sheetCell(ctx, BOSS_AURA, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32);
+        if (sc > 1) blobShadow(ctx, g, r.x, r.y - 2 - footOf(r).ry / 4, 2 * footOf(r).rx + 8, 2 * footOf(r).ry + 4); // playtest1p: the foot's shadow
+        else if (r.boss) blobShadow(ctx, g, r.x, r.y - 4, BLOB.bossW, BLOB.bossH);
+        else blobShadow(ctx, g, r.x, r.y - 2);
+        body(ctx);
+        // playtest1t: a big body flashes in its own silhouette; the frame is only the not-yet-loaded fallback
+        if ((r.flash ?? 0) > 0 && sc > 1) {
+          if (!bigFlash(ctx, r.flash ?? 0, g.frame, body)) flashBox(ctx, r.x, r.y, sc, r);
+        }
+        else if ((r.flash ?? 0) > 0) {
+          px(ctx, r.x - 7, r.y - 20, 14, 1, "#f4f0ea");
+          px(ctx, r.x - 7, r.y - 6, 14, 1, "#f4f0ea");
+          px(ctx, r.x - 7, r.y - 20, 1, 14, "#f4f0ea");
+          px(ctx, r.x + 6, r.y - 20, 1, 14, "#f4f0ea");
+        }
+      },
+    });
+    // gfx3 glow mask: the eyes, lantern face and sparks stay lit in the dark. Not on unexplored rock.
+    const glowFrom = glow.length;
+    if (r.boss && sc > 1 && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) glow.push((c) => bigAura(c, r.x, r.y, g.frame, sc, true));
+    else if (r.boss && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) glow.push((c) => void sheetCell(c, BOSS_AURA_EM, Math.floor(g.frame / 2) % AURA_FRAMES, 0, Math.round(r.x) - 16, Math.round(r.y) - 12, 2, 1, 32));
+    if (hasGlowMask(r.family) && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) {
+      glow.push((c) => {
+        emPass = true;
+        try {
+          body(c);
+        } finally {
+          emPass = false;
+        }
+      });
+    }
+    // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.
+    const fade = fadeOf(r, g.worldMs, sceneStart(g));
+    if (fade < 1) {
+      fadeStep(ctx, props[props.length - 1], glow, glowFrom, fade, r.x, r.y, sc);
+      const onView = r.x > camX - 8 && r.x < camX + viewW / zoom + 8 && r.y > camY && r.y < camY + viewH / zoom + 20;
+      if (onView && !(g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0)) mistPuff(g.fx, r, fade);
+    }
+  }
+  for (const c of g.critters) {
+    // playtest1o: a cat, rat or bat runs on its walk frames (it used to glide in its stand pose) and faces its run.
+    const runs = Math.abs(c.vx) > 0.01;
+    const cv = faceOf(c, c.x, c.y, runs);
+    props.push({
+      y: c.y,
+      fn: () => {
+        blobShadow(ctx, g, c.x, c.y - 2, BLOB.smallW, BLOB.smallH);
+        monsterSprite(ctx, c.x, c.y, c.kind === "rat" ? "rat" : c.kind === "cat" ? "cat" : "bat", "#2a2a2e", 1, g.frame, "", runs, "mob", 1, cv.face, cv.side);
+      },
+    });
+  }
+  if (g.companion) {
+    const ally = g.companion;
+    // playtest1s [OWNER-APPROVED 2026-10-04 13:42 ET: playtest1s companion steps back from a boss]: backing off a big body
+    // (or out of a mark) the companion keeps its face to it
+    const back = g.allyFace;
+    const af = faceOf(ally, ally.x, ally.y, !!ally.moving && !back, back ?? ((ally.actFor ?? 0) > 0 ? nearestOf(g.roamers, ally.x, ally.y) : null)).face; // playtest1o
+    const draw = (c: CanvasRenderingContext2D) =>
+        person(
+          c,
+          ally.x,
+          ally.y,
+          ally.look,
+          ally.coat,
+          af,
+          g.frame,
+          ally.hp > 0 ? 1 : 0.8,
+          (ally.actFor ?? 0) > 0 ? (ally.act === "cast" ? "cast" : "swing") : g.poseFor(ally.x, ally.y, !!ally.moving, ally.equip.feet?.special === "Waterwalk"),
+          "ally",
+          actPhase(ally.actFor ?? 0),
+        );
+    props.push({ y: ally.y, fn: () => { blobShadow(ctx, g, ally.x, ally.y - 2); draw(ctx); }, actor: draw });
+  }
+  // Rescue: a captive is a townsperson in one of their role's crowd looks. Bound on the stake, or at your back.
+  const esc = g.mapId === "dungeon" ? g.escort : null;
+  const who = esc ? rescueFor(g.dungeon) : undefined;
+  if (esc && who) {
+    const ef = faceOf(esc, esc.x, esc.y, esc.state === "follow" && !!esc.moving).face; // playtest1o
+    const ti = Math.floor(esc.y / TILE) * g.w + Math.floor(esc.x / TILE);
+    if (esc.state === "follow" || !g.fog || g.fog[ti] !== 0) {
+      props.push({
+        y: esc.y,
+        fn: () => {
+          if (esc.state !== "down") blobShadow(ctx, g, esc.x, esc.y - 2);
+          if (esc.state === "down" && sheetCell(ctx, ESCORT_DOWN, Math.max(0, RESCUES.indexOf(who)) * 2, 0, Math.round(esc.x) - 16, Math.round(esc.y) - 12, 2, 1)) return;
+          person(ctx, esc.x, esc.y, who.body, "#888888", ef, g.frame, 1, esc.state === "follow" ? g.poseFor(esc.x, esc.y, !!esc.moving, false) : "stand", "npc", 1, who.seed);
+          if ((esc.flash ?? 0) > 0) {
+            px(ctx, esc.x - 7, esc.y - 20, 14, 1, "#f4f0ea");
+            px(ctx, esc.x - 7, esc.y - 6, 14, 1, "#f4f0ea");
+          }
+        },
+      });
+    }
+  }
+  for (const d of g.drops) {
+    if (d.mapId !== g.mapId || d.dungeon !== g.dungeon || d.floor !== g.floor) continue;
+    if ((d.inside || "") !== (g.inside || "")) continue;
+    props.push({
+      y: d.y,
+      fn: () => paintDrop(ctx, d.x, d.y, d.silver, d.item, g.frame),
+      actor: (c) => paintDrop(c, d.x, d.y, d.silver, d.item, g.frame),
+    });
+  }
+  // playtest1v: the bone car: parked on the vale, on show in town (velvet ropes, brass posts), its steam
+  if (g.mapId === "world" && g.carOwned && !g.driving) {
+    props.push({ y: g.carY, fn: () => paintCar(ctx, g.carX, g.carY, g.carFacing, 0, "body") });
+    glow.push((c) => paintCar(c, g.carX, g.carY, g.carFacing, 0, "em"));
+  }
+  if (g.mapId === "town") paintShowroom(ctx, g, props, glow);
+  for (const p of g.carPuffs ?? []) props.push({ y: p.y + 120, fn: () => paintPuff(ctx, p) });
+  if (g.driving && g.mapId === "world") {
+    glow.push((c) => paintCar(c, g.px, g.py, g.carFacing, Math.floor(g.frame / 2) % 2, "em"));
+    props.push({
+      y: g.py,
+      fn: () => {
+        const f = g.carFacing;
+        const wheel = g.moving ? Math.floor(g.frame / 2) % 2 : 0;
+        paintCar(ctx, g.px, g.py, f, wheel, "body");
+        // the rider: the hero's upper half in the seat, clipped at the cushion, then the ribs / skull / boiler over it
+        const dy = Math.round(g.py) + CAR_DY;
+        const sx = f === "e" ? -4 : f === "w" ? 4 : 0;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(Math.round(g.px) - 16, dy - 4, 32, CAR_SEAT_ROW + 4);
+        ctx.clip();
+        person(ctx, g.px + sx, Math.round(g.py) + CAR_RIDER_DY, g.cls, "#888888", heroFace(f), 0, 1, "stand", "hero", 1);
+        ctx.restore();
+        paintCar(ctx, g.px, g.py, f, wheel, "front");
+      },
+    });
+  } else props.push({
+    y: g.py,
+    fn: () => {
+      const role = g.cls;
+      const face = heroFace(g.facing); // playtest1o: the game's facing (it aims the swing too)
+      const acting = g.mode === "fish" ? "fish" : g.actFor > 0 ? g.actPose : "";
+      const onLadder = g.climbUntil > g.worldMs;
+      const pose = acting === "swing" || acting === "cast" || acting === "fish" ? acting : g.wading ? "wade" : g.sliding ? "slide" : onLadder ? "climb" : g.moving ? "walk" : "stand";
+      if (pose !== "wade" && pose !== "slide" && pose !== "fish") blobShadow(ctx, g, g.px, g.py - 2);
+      person(ctx, g.px, g.py, role, "#888888", face, g.frame, 1, pose, "hero", actPhase(g.actFor));
+    },
+  });
+  // playtest1j: every telegraph is a neon ground mark that fills over its tell (big red, mid violet, a rare's tint blue,
+  // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
+  paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
+  roomScene(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // playtest1n: the room's props, patches and marks
+  if (g.darkUntil > g.worldMs) {
+    for (let i = 0; i < 40; i++) px(ctx, g.px - 70 + (i * 17) % 140, g.py - 50 + (i * 13) % 90, 2, 2, "#0c0a08");
+  }
+  // Map writer (OWNER-APPROVED EXCEPTION 2026-10-01): a rift mouth on the overworld. gfx1 (owner-requested
+  // 2026-10-01): it is a stone portal gate with a spinning vortex (paintPortalGate, the "rift" look), y-sorted on the
+  // gate tile's foot so you pass in front of it from the south and behind it from the north. The vortex is
+  // emissive and its hex-violet light feeds the light layer. The ash swirl is still the Portal burst (sim.ts riftSwirl).
+  for (const r of g.riftMouths()) {
+    props.push({ y: (r.y + 1) * TILE - 1, fn: () => { if (!paintPortalGate(ctx, "rift", r.x, r.y, g.frame)) paintRift(ctx, r.x, r.y, g.frame); } });
+    glow.push((c) => paintPortalGate(c, "rift", r.x, r.y, g.frame, "vortex"));
+  }
+  // playtest1f [OWNER-APPROVED 2026-10-02: playtest1f portals]: the wayrifts, y-sorted on their footprint's foot (you
+  // pass in front of one from the south, and step into its mouth from there). Awake ones swirl and their fire and
+  // runes are emissive; a sealed festival rift is dark and still.
+  if (g.mapId === "world" || g.mapId === "town") {
+    const season = g.season();
+    const map = g.mapId as "town" | "world";
+    for (const w of WAYRIFTS) {
+      if (w.map !== map) continue;
+      if ((w.x + WAYRIFT.fw) * TILE < camX || w.x * TILE > camX + viewW / zoom || (w.y + WAYRIFT.fh + 1) * TILE < camY || (w.y - WAYRIFT.stand) * TILE > camY + viewH / zoom) continue;
+      const cell = wayCell(w, season, g.frame);
+      props.push({ y: (w.y + WAYRIFT.fh + (w.platform ? 2 : 0)) * TILE - 1, fn: () => paintWayrift(ctx, w, cell) });
+      if (cell < WAYRIFT.frames) glow.push((c) => {
+        const sheet = landSheet[WAYRIFT_EM];
+        if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
+        const dx = w.x * TILE + (WAYRIFT.fw * TILE - WAYRIFT.artW) / 2;
+        const dy = (w.y - WAYRIFT.stand) * TILE;
+        c.drawImage(sheet, cell * WAYRIFT.artW, 0, WAYRIFT.artW, WAYRIFT.artH, dx, dy, WAYRIFT.artW, WAYRIFT.artH);
+      });
+    }
+    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: town park statues + arch
+    if (g.mapId === "town") props.push({ y: 18 * TILE, fn: () => paintParkProps(ctx) });
+    // playtest1z: wild spawn portal on the vale
+    if (g.mapId === "world" && g.wildPortal) {
+      const p = g.wildPortal;
+      const cell = Math.floor(Math.max(0, g.frame)) % WILD_PORTAL.frames;
+      props.push({ y: (p.y + 1) * TILE - 1, fn: () => paintWildPortal(ctx, p.x, p.y, cell) });
+      glow.push((c) => {
+        const sheet = landSheet[WILD_PORTAL_EM];
+        if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
+        const dx = p.x * TILE + (TILE - WILD_PORTAL.artW) / 2;
+        const dy = (p.y - WILD_PORTAL.stand) * TILE;
+        c.drawImage(sheet, cell * WILD_PORTAL.artW, 0, WILD_PORTAL.artW, WILD_PORTAL.artH, dx, dy, WILD_PORTAL.artW, WILD_PORTAL.artH);
+      });
+    }
+  }
+  // gfx1: wall torches on dungeon faces. The bracket is lit art; the 4-frame flame is emissive.
+  for (const s of sconces(g)) {
+    if (!sconceShows(g, s)) continue;
+    const fx = s.x * TILE;
+    const fy = s.y * TILE - 4;
+    const flame = (c: CanvasRenderingContext2D) => sheetCell(c, LAMP_SHEET, 1 + ((Math.floor(g.frame / 1.5) + s.seed) & 3), 0, fx, fy);
+    props.push({ y: (s.y + 1) * TILE - 1, fn: () => { sheetCell(ctx, LAMP_SHEET, 0, 0, fx, fy); flame(ctx); } });
+    glow.push(flame);
+  }
+  // Items 12/14: festival props in town on their night. Harvest Moon: the six lanterns (lit as you light
+  // them) and Hessa's stall beside her; Krampusnacht: snow lanterns on the same six posts.
+  if (g.mapId === "town") {
+    const fest = g.festivalId();
+    if (fest === "harvest" || fest === "krampus") {
+      const lit = fest === "harvest" ? g.lanternsLit() : [];
+      HARVEST.lanterns.forEach(([x, y], i) => {
+        const col = fest === "krampus" ? 2 : lit.includes(i) ? 1 : 0;
+        props.push({ y: y * TILE + 12, fn: () => sheetCell(ctx, FESTIVAL_PROPS, col, 0, x * TILE, y * TILE - 4) });
+      });
+      if (fest === "harvest") props.push({ y: HARVEST.stall.y * TILE + 4, fn: () => sheetCell(ctx, FESTIVAL_PROPS, 3, 0, (HARVEST.stall.x - 1) * TILE, HARVEST.stall.y * TILE - 2) });
+    }
+    // Drowned Bloom: bloom bowls on the six posts and Ottla's stall. Ashen Fair: ember braziers (flaring as the
+    // barker calls them, and as you walk them right) and Sallow's booth.
+    if (fest === "bloom" || fest === "ashen") {
+      const dance = fest === "ashen" ? g.danceFlare() : { now: -1, done: [] as number[] };
+      HARVEST.lanterns.forEach(([x, y], i) => {
+        const col = fest === "bloom" ? 0 : dance.now === i || dance.done.includes(i) ? 4 : 3;
+        props.push({ y: y * TILE + 12, fn: () => sheetCell(ctx, FESTIVAL_PROPS2, col, 0, x * TILE, y * TILE - 4) });
+      });
+      props.push({ y: HARVEST.stall.y * TILE + 4, fn: () => sheetCell(ctx, FESTIVAL_PROPS2, fest === "bloom" ? 1 : 5, 0, (HARVEST.stall.x - 1) * TILE, HARVEST.stall.y * TILE - 2) });
+    }
+  }
+  // Drowned Bloom: tonight's unpicked blooms floating on the flood.
+  if (g.mapId === "world" && g.festivalId() === "bloom") {
+    g.bloomsTonight().forEach((b, i) => {
+      if (!g.bloomPicked(i)) props.push({ y: b.y * TILE + 8, fn: () => sheetCell(ctx, FESTIVAL_PROPS2, 2, 0, b.x * TILE, b.y * TILE - ((g.frame >> 4) % 2)) });
+    });
+  }
+  props.sort((a, b) => a.y - b.y);
+  for (const d of props) d.fn();
+  // playtest1 (owner-reported 2026-10-01, spells did not show): spells are drawn over every actor, not under them.
+  for (const s of g.spells) paintSpell(ctx, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
+  if (night && g.mapId !== "dungeon" && g.mapId !== "inside" && !(g.driving && g.mapId === "world")) { // playtest1w: no lantern in the car seat
+    px(ctx, Math.round(g.px) - 2, Math.round(g.py) - 14, 2, 2, "#f0d080");
+    px(ctx, Math.round(g.px) + 1, Math.round(g.py) - 13, 1, 1, "#fff0c0");
+  }
+  if (lit) {
+    // gfx1 light layer. Emissive and must-read things go to full light: lit brazier flames, telegraphs, spells.
+    const rune = g.mapId === "dungeon" ? g.feats?.rune : undefined;
+    if (rune) {
+      const solved = g.tiles[rune.door.y * g.w + rune.door.x] !== T.runeDoor;
+      for (const m of rune.marks) {
+        if (g.tiles[m.y * g.w + m.x] === T.brazier && (solved || g.runeLit.includes(m.glyph))) glow.push((c) => sheetCell(c, FEAT_FIRE, Math.floor(g.frame / 4 + m.x) % 3, 0, m.x * TILE, m.y * TILE - 12));
+      }
+    }
+    glow.push((c) => {
+      paintTells(c, tellView(g), true, TILE, LINE_HALF); // playtest1j: the marks and wind-ups at full light
+      for (const s of g.spells) paintSpell(c, s.x, s.y, s.tx, s.ty, s.kind, s.color, g.frame, spellProgress(s));
+    });
+    const actors = props.flatMap((d) => (d.actor ? [d.actor] : []));
+    paintLight(ctx, g, camX, camY, viewW / zoom, viewH / zoom, actors, glow);
+    paintColdFire(ctx, g); // playtest1w: the skull headlamps' cold fire, over the night
+  }
+  labelView = { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom, zoom }; // playtest1q: the view, for the HUD-safe boss name
+  paintLabels(ctx, g);
+  for (const n of g.nums) {
+    let x = Math.round(n.x);
+    const y = Math.round(n.y);
+    for (const ch of n.text) {
+      if (ch === "!") {
+        // Item 11 Watchful: a companion's trap call-out, over the trap.
+        px(ctx, x + 1, y - 1, 2, 4, "#140c10");
+        px(ctx, x + 1, y + 4, 2, 2, "#140c10");
+        px(ctx, x, y - 2, 2, 4, "#e0c060");
+        px(ctx, x, y + 3, 2, 2, "#e0c060");
+        x += 4;
+        continue;
+      }
+      const d = ch.charCodeAt(0) - 48;
+      if (d < 0 || d > 9) continue;
+      px(ctx, x, y, 3, 1, "#f4efe4");
+      px(ctx, x, y + 2, 3, 1, "#f4efe4");
+      px(ctx, x, y + 4, 3, 1, "#f4efe4");
+      if (d !== 1 && d !== 4 && d !== 7) px(ctx, x, y + 1, 1, 1, "#f4efe4");
+      px(ctx, x + 2, y + 1, 1, 1, "#f4efe4");
+      px(ctx, x + 2, y + 3, 1, 1, "#f4efe4");
+      x += 4;
+    }
+  }
+  warmPt1h();
+  paintWhirlRings(ctx, g);
+  drawParticles(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
+  if (g.curseOn() && g.curse === "dark") {
+    paintLightless(ctx, g, camX, camY, viewW / zoom, viewH / zoom);
+    // A decal must always read: telegraphs sit on top of the dark.
+    paintTells(ctx, tellView(g), false, TILE, LINE_HALF, true); // playtest1j: rims and leading edges over the dark
+    roomRims(ctx, g); // playtest1n: the room's marks too
+  }
+  paintCombos(ctx, g); // playtest1k: statuses, orders and the combo pops, over the light and the Lightless dark
+  drawWeather(ctx, g, viewW, viewH);
+  if (g.travel) paintTravel(ctx, g, camX, camY, viewW, viewH, zoom);
+}
+
+/**
+ * playtest1k [OWNER-APPROVED 2026-10-03: elemental combos, companion commands]: a fighting foe's statuses as small motes
+ * over its head (poison green, wet blue, chill frost, oil amber; a gold "!" while it is taunted), the companion's orders
+ * (a violet reticle on the focused foe, a violet pin over a companion told to stay, gold over a guarding one), and the
+ * combo and order pops in the writer's pixel font. Drawn last in the world pass, so they read at night and in the dark.
+ */
+export const STATUS_MOTE = {
+  poison: ["#6aaa58", "#6a8a48"],
+  wet: ["#4ab8ff", "#3a6aa8"],
+  chill: ["#c5d4e8", "#9ec8e8"],
+  oil: ["#e07a2f", "#2a2018"],
+} as const;
+function paintCombos(ctx: CanvasRenderingContext2D, g: Game) {
+  const f = g.frame;
+  const bob = Math.floor(f / 8) % 2;
+  for (const r of g.roamers) {
+    if (!r.aggro || (r.hp ?? 0) <= 0) continue;
+    if (g.fog && g.fog[Math.floor(r.y / TILE) * g.w + Math.floor(r.x / TILE)] === 0) continue;
+    const st = r.st;
+    const top = Math.round(r.y) - (scaleOf(r) > 1 ? topOf(r) + 14 : r.boss ? 44 : 28); // playtest1p: over a big body (playtest1r: its shape's top)
+    const kinds = [(st?.poison ?? 0) > 0 && "poison", (st?.wet ?? 0) > 0 && "wet", (st?.chill ?? 0) > 0 && "chill", g.oiled(r) && "oil"].filter(Boolean) as (keyof typeof STATUS_MOTE)[];
+    let x = Math.round(r.x) - kinds.length * 2;
+    kinds.forEach((k, i) => {
+      const [hi, lo] = STATUS_MOTE[k];
+      const y = top + ((bob + i) % 2);
+      px(ctx, x, y, 2, 2, lo);
+      px(ctx, x, y, 1, 1, hi);
+      if (k === "poison" || k === "wet") px(ctx, x, y + 2 + ((f >> 3) % 2), 1, 1, hi);
+      x += 4;
+    });
+    if ((r.taunt ?? 0) > g.worldMs) drawLabel(ctx, "!", r.x, top - 1, "gold");
+  }
+  const t = g.allyFocus;
+  if (t && g.focusUntil > g.worldMs && (t.hp ?? 0) > 0) {
+    const ts = scaleOf(t); // playtest1p: the focus corners round a big body
+    const x0 = Math.round(t.x) - (ts > 1 ? halfOf(t) + 1 : 9); // playtest1r: round its own shape
+    const y0 = Math.round(t.y) - (ts > 1 ? topOf(t) + 2 : t.boss ? 36 : 22);
+    const x1 = Math.round(t.x) + (ts > 1 ? halfOf(t) : 8);
+    const y1 = Math.round(t.y) + 3;
+    for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+      px(ctx, sx > 0 ? cx : cx - 2, cy, 3, 1, "#b07aff");
+      px(ctx, cx, sy > 0 ? cy : cy - 2, 1, 3, "#b07aff");
+    }
+  }
+  paintLock(ctx, g);
+  const c = g.companion;
+  if (c && g.mapId !== "camp") {
+    const top = Math.round(c.y) - LABEL.lift - 5;
+    if (g.allyStay && bob) px(ctx, Math.round(c.x) - 1, top, 2, 2, "#b07aff");
+    if (g.guardUntil > g.worldMs) {
+      px(ctx, Math.round(c.x) - 3, top + bob, 2, 1, "#e0c060");
+      px(ctx, Math.round(c.x) + 1, top + bob, 2, 1, "#e0c060");
+    }
+  }
+  for (const p of g.pops) if (p.life > 0.3 || f % 2 === 0) drawLabel(ctx, p.text, p.x, p.y, p.row);
+}
+
+/**
+ * playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]: the tapped foe's lock in neon blue: a ring
+ * on the ground round its feet (its own foot for a big body) and four corner brackets round its drawn body (its shape's
+ * half-width and top), pulsing a pixel; its name and HP over it go on with the labels (paintLabels).
+ */
+export const LOCK_BLUE = { hi: "#4ab8ff", lo: "#1f5a8a" } as const;
+function lockOf(g: Game) {
+  const t = g.lock;
+  if (!t || (t.hp ?? 1) <= 0 || !g.roamers.includes(t)) return null;
+  if (g.fog && g.fog[Math.floor(t.y / TILE) * g.w + Math.floor(t.x / TILE)] === 0) return null;
+  return t;
+}
+function paintLock(ctx: CanvasRenderingContext2D, g: Game) {
+  const t = lockOf(g);
+  if (!t) return;
+  const big = scaleOf(t) > 1;
+  const pulse = Math.floor(g.frame / 4) % 2;
+  const ft = footOf(t);
+  const rx = (big ? ft.rx + 4 : 9) + pulse;
+  const ry = (big ? ft.ry + 2 : 4) + (pulse ? 1 : 0);
+  const cx = Math.round(t.x);
+  const cy = Math.round(t.y) + 1;
+  for (let i = 0; i < 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    px(ctx, Math.round(cx + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), 1, 1, i % 8 < 5 ? LOCK_BLUE.hi : LOCK_BLUE.lo);
+  }
+  const x0 = cx - (big ? halfOf(t) + 2 : 10) - pulse;
+  const x1 = cx + (big ? halfOf(t) + 1 : 9) + pulse;
+  const y0 = Math.round(t.y) - (big ? topOf(t) + 3 : t.boss ? 37 : 23) - pulse;
+  const y1 = Math.round(t.y) + 4 + pulse;
+  for (const [qx, qy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+    px(ctx, sx > 0 ? qx : qx - 3, qy, 4, 1, LOCK_BLUE.hi);
+    px(ctx, qx, sy > 0 ? qy : qy - 3, 1, 4, LOCK_BLUE.hi);
+  }
+}
+/** The lock's name and HP (blue, in the label font) with a thin HP bar: over its head, or under its feet for a boss
+ * (whose red name already hangs over it). */
+function paintLockLabel(ctx: CanvasRenderingContext2D, g: Game, taken: { x: number; y: number; w: number; h: number }[] = []) {
+  const t = lockOf(g);
+  if (!t) return;
+  const big = scaleOf(t) > 1;
+  const hp = Math.max(0, Math.ceil(t.hp ?? 0));
+  const max = Math.max(1, Math.ceil(t.max ?? t.hp ?? 1));
+  const text = `${t.name ?? "Foe"} HP ${hp}`; // the font has no slash: the bar under it shows hp of max
+  let cx = t.x;
+  let y = t.boss ? Math.round(t.y) + 14 : Math.round(t.y) - (big ? topOf(t) + 8 : LABEL.lift + 6);
+  // with the HUD measured, the name and its bar (7 + 5 px) go clear of its panels and of the boss names, as a boss name
+  // does (hudsafe.ts placeLabel); with no HUD (no DOM) it is where it always was
+  const cam = labelView;
+  const hud = cam ? hudBoxes(ctx.canvas, g.frame) : [];
+  const lw = hud.length || taken.length ? labelCanvas(text, "blue")?.width ?? 0 : 0;
+  if (cam && lw) {
+    const at = placeLabel(t.x, y + 5, Math.round(t.y) + (t.boss ? 14 : 0), Math.max(lw, 26), 12, cam, [...worldBoxes(hud, cam.x, cam.y, cam.zoom), ...taken]);
+    cx = at.cx;
+    y = at.y - 5;
+  }
+  drawLabel(ctx, text, cx, y, "blue");
+  const w = 24;
+  const bx = Math.round(cx) - w / 2;
+  const by = y + 2;
+  px(ctx, bx - 1, by - 1, w + 2, 4, "#0a0e14");
+  px(ctx, bx, by, w, 2, LOCK_BLUE.lo);
+  px(ctx, bx, by, Math.max(1, Math.round((w * hp) / max)), 2, LOCK_BLUE.hi);
+}
+
+/**
+ * Lightless curse. Everything past the hero's lamp is cave black (#0c0a08, the last-wick dark),
+ * with one dithered shade step at the edge. Hard pixels, opaque, no blur. The mask is built once;
+ * its checker is pinned to world pixels so the dither does not crawl as the hero walks.
+ */
+let lampMask: HTMLCanvasElement | null = null;
+function lightlessMask(): HTMLCanvasElement | null {
+  if (lampMask) return lampMask;
+  if (typeof document === "undefined") return null;
+  const r = RUNS.darkRadius;
+  const e = RUNS.darkEdge;
+  const n = 2 * (r + e) + 2;
+  const c = document.createElement("canvas");
+  c.width = n;
+  c.height = n;
+  const m = c.getContext("2d");
+  if (!m) return null;
+  m.fillStyle = "#0c0a08";
+  const mid = r + e + 1;
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const d = Math.hypot(x + 0.5 - mid, y + 0.5 - mid);
+      if (d < r) continue;
+      if (d < r + e && (x + y) % 2 === 0) continue;
+      m.fillRect(x, y, 1, 1);
+    }
+  }
+  lampMask = c;
+  return c;
+}
+
+function paintLightless(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: number, viewW: number, viewH: number) {
+  const mask = lightlessMask();
+  const n = mask ? mask.width : 0;
+  const half = n / 2;
+  let ox = Math.round(g.px) - half;
+  const oy = Math.round(g.py) - 10 - half;
+  if ((ox + oy) % 2 !== 0) ox += 1;
+  const x0 = Math.floor(camX) - 2;
+  const y0 = Math.floor(camY) - 2;
+  const x1 = Math.ceil(camX + viewW) + 2;
+  const y1 = Math.ceil(camY + viewH) + 2;
+  ctx.fillStyle = "#0c0a08";
+  if (!mask) {
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    return;
+  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(mask, ox, oy);
+  ctx.fillRect(x0, y0, x1 - x0, Math.max(0, oy - y0));
+  ctx.fillRect(x0, oy + n, x1 - x0, Math.max(0, y1 - oy - n));
+  ctx.fillRect(x0, oy, Math.max(0, ox - x0), n);
+  ctx.fillRect(ox + n, oy, Math.max(0, x1 - ox - n), n);
+}
+
+/**
+ * The particle pass. After the world, before the HUD (the HUD is DOM above the canvas).
+ * One atlas, one loop, one drawImage per live chip at a whole native pixel. Offscreen chips are skipped.
+ */
+let fxAtlas: HTMLCanvasElement | null = null;
+function drawParticles(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: number, viewW: number, viewH: number) {
+  const p = g.fx;
+  if (!fxAtlas) fxAtlas = buildAtlas();
+  if (!fxAtlas) return;
+  ctx.imageSmoothingEnabled = false;
+  for (let i = 0; i < p.size; i++) {
+    if (p.life[i] <= 0) continue;
+    const kind = p.kind[i];
+    const frame = p.frameOf(i);
+    const [w, h] = maskSize(kind, frame);
+    // The old spark was drawn from its corner; every other chip is centered on its point.
+    const dx = Math.round(p.x[i]) - (kind === K_SPARK ? 0 : w >> 1);
+    const dy = Math.round(p.y[i]) - (kind === K_SPARK ? 0 : h >> 1);
+    if (dx + w < camX || dy + h < camY || dx > camX + viewW || dy > camY + viewH) continue;
+    ctx.drawImage(fxAtlas, (kind * 2 + frame) * ATLAS_CELL, p.color[i] * ATLAS_CELL, w, h, dx, dy, w, h);
+  }
+}
+
+/** Place a strip along the line so a beam or a bolt reads as one shot. */
+function stampSpell(
+  ctx: CanvasRenderingContext2D,
+  file: string,
+  frame: number,
+  x: number,
+  y: number,
+  tx: number,
+  ty: number,
+  step: number,
+): boolean {
+  const dist = Math.hypot(tx - x, ty - y);
+  const n = Math.max(1, Math.round(dist / step));
+  let drew = false;
+  for (let i = 1; i <= n; i++) {
+    const px0 = Math.round(x + ((tx - x) * i) / n);
+    const py0 = Math.round(y + ((ty - y) * i) / n);
+    if (spellFrame(ctx, file, frame + i, 6, px0 - 8, py0 - 8, 16, 16, "/art/spells/gen")) drew = true;
+  }
+  return drew;
+}
+
+/** Rain needs more than one cell, or it reads as a single drop. */
+function stampCluster(ctx: CanvasRenderingContext2D, file: string, frame: number, cx: number, cy: number): boolean {
+  const spots = [
+    [0, 0],
+    [-12, -8],
+    [10, -6],
+    [-8, 10],
+    [12, 8],
+    [0, -14],
+  ];
+  let drew = false;
+  for (let i = 0; i < spots.length; i++) {
+    if (spellFrame(ctx, file, frame + i, 6, cx + spots[i][0] - 8, cy + spots[i][1] - 8, 16, 16, "/art/spells/gen")) drew = true;
+  }
+  return drew;
+}
+
+/** Red is fire, blue is ice, green is venom, purple is shadow, pale gold is lightning. */
+function spellElement(color: string): string {
+  const h = color.replace("#", "");
+  if (h.length < 6) return "lightning";
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return "lightning";
+  if (g > r + 15 && g >= b) return "venom";
+  // gfx3: a purple (red and blue both well over green, like the Deathbolt's #6a3a8a) is shadow, not ice, so it draws
+  // the shadow beam and lights hex violet (C11). Only purples move: every other spell colour keeps its element.
+  if (r > g + 25 && b > g + 25 && b > 70) return "shadow";
+  if (b > r + 10 && b > g) return "ice";
+  if (r > 150 && r > g + 25 && r > b + 25) return "fire";
+  if (b > 70 && r > 60 && r > g && b + 15 > g) return "shadow";
+  if (r > 210 && g > 200 && b > 180) return "holy";
+  return "lightning";
+}
+
+/** A hard-pixel bolt or ring. The strip comes from the spell writer. The old sheets are the fallback. */
+function paintSpell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tx: number,
+  ty: number,
+  kind: "bolt" | "ring" | "nova" | "mend" | "cone",
+  color: string,
+  frame = 0,
+  t = -1,
+) {
+  if (t >= 0 && paintSpellPhased(ctx, x, y, tx, ty, kind, color, frame, t)) return;
+  const cx = Math.round(tx);
+  const cy = Math.round(ty);
+  const element = spellElement(color);
+  let drew = false;
+  if (kind === "bolt" && element === "lightning") {
+    drew = stampSpell(ctx, "lightning.png", frame, x, y, tx, ty, 10);
+  } else if (kind === "bolt") {
+    const beam =
+      element === "ice" ? "beam-ice" : element === "fire" ? "beam-fire" : element === "shadow" ? "beam-shadow" : element === "venom" ? "beam-venom" : "beam-holy";
+    drew = stampSpell(ctx, `${beam}.png`, frame, x, y, tx, ty, 8);
+  } else if (kind === "cone" || (kind === "nova" && (element === "fire" || element === "ice"))) {
+    const rain = element === "ice" ? "ice-rain.png" : "fire-rain.png";
+    drew = stampCluster(ctx, rain, frame, cx, cy);
+  } else if (kind === "ring" || kind === "mend") {
+    const t = (Math.abs(Math.floor(frame)) % 6) / 5;
+    const ox = Math.round(x + (tx - x) * t);
+    const oy = Math.round(y + (ty - y) * t);
+    drew = spellFrame(ctx, "orb.png", frame, 6, ox - 8, oy - 8, 16, 16, "/art/spells/gen");
+  } else if (kind === "nova") {
+    drew = spellFrame(ctx, "nova.png", frame, 6, cx - 8, cy - 8, 16, 16, "/art/spells/gen");
+  }
+  if (drew) return;
+  const cool = color.startsWith("#3") || color.startsWith("#4") || color.startsWith("#5") || color.startsWith("#6") || color.startsWith("#7") || color.startsWith("#8") || color.startsWith("#9");
+  if (kind === "mend" && spellFrame(ctx, "holy.png", frame / 2, 6, cx - 8, cy - 16)) return;
+  if (kind === "nova" && spellFrame(ctx, "ring.png", frame / 3, 6, cx - 8, cy - 8)) return;
+  if (kind === "ring" && spellFrame(ctx, "orb.png", frame / 2, 6, cx - 8, cy - 8)) return;
+  if (kind === "cone" && spellFrame(ctx, "cone.png", frame / 2, 6, cx - 8, cy - 8)) return;
+  if (kind === "bolt" && spellFrame(ctx, cool ? "ice.png" : "fire.png", frame / 2, 6, cx - 8, cy - 8)) return;
+  if (kind === "mend") {
+    px(ctx, cx, cy - 10, 1, 1, color);
+    px(ctx, cx + 2, cy - 14, 1, 1, color);
+    px(ctx, cx - 2, cy - 12, 1, 1, color);
+    return;
+  }
+  if (kind === "nova" || kind === "ring") {
+    px(ctx, cx - 6, cy, 4, 1, color);
+    px(ctx, cx + 3, cy, 4, 1, color);
+    px(ctx, cx, cy - 4, 1, 3, color);
+    px(ctx, cx, cy + 2, 1, 3, color);
+    if (kind === "nova") {
+      px(ctx, cx - 4, cy - 3, 2, 2, color);
+      px(ctx, cx + 3, cy - 3, 2, 2, color);
+      px(ctx, cx - 4, cy + 2, 2, 2, color);
+      px(ctx, cx + 3, cy + 2, 2, 2, color);
+    }
+    return;
+  }
+  if (kind === "cone") {
+    px(ctx, cx - 2, cy, 5, 1, color);
+    px(ctx, cx - 4, cy + 3, 3, 1, color);
+    px(ctx, cx + 2, cy + 3, 3, 1, color);
+    return;
+  }
+  const x0 = Math.round(x);
+  const y0 = Math.round(y);
+  const steps = 6;
+  for (let i = 0; i <= steps; i++) {
+    px(ctx, x0 + Math.round(((cx - x0) * i) / steps), y0 + Math.round(((cy - y0) * i) / steps), 2, 2, i % 2 ? "#fff8e0" : color);
+  }
+}
+
+/**
+ * playtest1 (owner-reported 2026-10-01, spells did not show): a spell in two beats. In flight (the first 55%) a bolt's
+ * beam runs from the hand to its moving head and an orb flies; then the impact: the strip's burst at the target, a
+ * hot core and eight sparks thrown out in the spell's colour. A nova or a cone blooms where it lands from the start.
+ * The spell writer's strips (public/art/spells/gen) carry every frame; the sparks are the locked colours passed in.
+ */
+function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, tx: number, ty: number, kind: "bolt" | "ring" | "nova" | "mend" | "cone", color: string, frame: number, t: number): boolean {
+  const element = spellElement(color);
+  const head = spellHead({ x, y, tx, ty, kind }, t);
+  const hx = Math.round(head.x);
+  const hy = Math.round(head.y);
+  let drew = false;
+  if (!head.hit) {
+    const k = Math.min(1, t / SPELL_FLIGHT);
+    if (kind === "bolt") {
+      const from = Math.max(0, k - 0.5);
+      const sx = x + (tx - x) * from;
+      const sy = y + (ty - y) * from;
+      const strip = element === "lightning" ? "lightning.png" : `${element === "ice" ? "beam-ice" : element === "fire" ? "beam-fire" : element === "shadow" ? "beam-shadow" : element === "venom" ? "beam-venom" : "beam-holy"}.png`;
+      drew = Math.hypot(hx - sx, hy - sy) < 1 ? spellFrame(ctx, strip, frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") : stampSpell(ctx, strip, frame, sx, sy, hx, hy, element === "lightning" ? 10 : 8);
+      drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") || drew;
+    } else drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen");
+    px(ctx, hx - 1, hy - 1, 3, 3, "#fff8e0");
+    // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the cast beat, a turning
+    // sigil at the hand for the first fifth of the flight (fx_writer.cast).
+    if (t < SPELL_FLIGHT * 0.4) spellFrame(ctx, `cast-${fxElement(color, element)}.png`, Math.floor((t / (SPELL_FLIGHT * 0.4)) * 4), 4, Math.round(x) - 8, Math.round(y) - 8, 16, 16, SPELL_FX);
+    // playtest1: drawn either way (the hot core shows while a strip loads); never the old DevWizard strips.
+    return drew || true;
+  }
+  const travel = kind === "bolt" || kind === "ring" || kind === "mend";
+  const k = travel ? Math.min(1, (t - SPELL_FLIGHT) / (1 - SPELL_FLIGHT)) : t;
+  const cx = Math.round(tx);
+  const cy = Math.round(ty);
+  if (kind === "cone" || (kind === "nova" && (element === "fire" || element === "ice"))) drew = stampCluster(ctx, element === "ice" ? "ice-rain.png" : "fire-rain.png", frame, cx, cy);
+  // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the hit is the fx writer's
+  // round impact (core, broken ring, thrown chips), not the 16 px burst at 2x that read as a box; a self-centred art
+  // (Earthshatter, Summon Shade, Grave Nova, Vanish, the stances and cries) also lays the area burst on the ground.
+  const fi = Math.min(5, Math.floor(k * 6));
+  const selfCast = Math.abs(tx - x) < 2 && ty - y >= 0 && ty - y <= 14;
+  const fxEl = fxElement(color, element);
+  // the area burst lies on the ground (a nova anywhere, e.g. Tripwire's snare, too): its centre a few pixels below the point
+  if (selfCast || kind === "nova") drew = spellFrame(ctx, `shock-${fxEl}.png`, fi, 6, cx - 32, cy - 10, 64, 32, SPELL_FX) || drew;
+  const hit = spellFrame(ctx, `impact-${fxEl}.png`, fi, 6, cx - 16, cy - 16, 32, 32, SPELL_FX);
+  drew = hit || drew;
+  if (hit) return true;
+  color = spellGlow(color);
+  const burst = kind === "ring" || kind === "mend" ? "ring.png" : "nova.png";
+  // the burst strip at twice its size (whole pixels, nearest neighbour), so the hit reads on a phone
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(2, 2);
+  drew = spellFrame(ctx, burst, Math.min(5, Math.floor(k * 6)), 6, -8, -8, 16, 16, "/art/spells/gen") || drew;
+  ctx.restore();
+  // the flash: a hot core and a ring in the spell's colour, then eight sparks flying out, each with a short trail
+  if (k < 0.3) {
+    px(ctx, cx - 3, cy - 3, 7, 7, "#fff8e0");
+    const r = 5 + Math.round(k * 12);
+    px(ctx, cx - r, cy - 1, 2, 2, color);
+    px(ctx, cx + r - 1, cy - 1, 2, 2, color);
+    px(ctx, cx - 1, cy - r, 2, 2, color);
+    px(ctx, cx - 1, cy + r - 1, 2, 2, color);
+  }
+  const reach = (kind === "nova" ? 10 : 6) + Math.round(k * (kind === "nova" ? 26 : 16));
+  for (let i = 0; i < 8; i++) {
+    if (k > 0.75 && i % 2) continue;
+    const a = (i * Math.PI) / 4 + Math.PI / 8;
+    const sx = cx + Math.round(Math.cos(a) * reach);
+    const sy = cy + Math.round(Math.sin(a) * reach);
+    px(ctx, sx, sy, 2, 2, i % 2 ? "#fff8e0" : color);
+    px(ctx, cx + Math.round(Math.cos(a) * (reach - 3)), cy + Math.round(Math.sin(a) * (reach - 3)), 1, 1, color);
+  }
+  return drew || true;
+}
+
+/**
+ * playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): a spell colour that reads on
+ * the gloom. Summon Shade (#2a241c) and Vanish (#1a140c) were near-black sparks on a near-black floor; a colour that
+ * dark glows violet neon (palette v3 #b07aff) instead. Drawing only: the spell's own colour is unchanged.
+ */
+export function spellGlow(color: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
+  if (!m) return color;
+  const hi = Math.max(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
+  return hi < 0x50 ? "#b07aff" : color;
+}
+
+/** playtest1k: the element a spell colour draws as (its 1h fx strip); combos.ts SPELL_ELEMENT is checked against it. */
+export function elementOfColor(color: string): string {
+  return fxElement(color, spellElement(color));
+}
+
+/** playtest1h: the fx strips' element: a near-black spell (Summon Shade, Vanish) is shadow's violet, not the holy gold its colour falls to. */
+function fxElement(color: string, element: string): string {
+  return spellGlow(color) !== color ? "shadow" : element;
+}
+
+/** playtest1h: every strip the spell and prop draws name, so the first cast and the first chest are never a blank frame. */
+export const PT1H_ART = [
+  ...["fire", "ice", "lightning", "venom", "shadow", "holy"].flatMap((el) => [`impact-${el}`, `shock-${el}`, `cast-${el}`]).map((n) => `${SPELL_FX}/${n}.png`),
+  `${SPELL_FX}/whirl.png`,
+  "/art/writer/prop-chest.png",
+  "/art/writer/prop-mimic-lid.png",
+  "/art/writer/prop-bones.png",
+  ...Object.keys(CAVES).map(caveLiquid),
+];
+/** playtest1i: the interior sheets (every style's floor, wall and glow, the furniture and rugs), loaded up front. */
+export const PT1I_ART = [...INTERIOR_SHEETS, CASINO_SHEET, CASINO_SHEET_EM]; // playtest1x: the Felt's sheet too
+let pt1iWarm = false;
+function warmPt1i() {
+  if (pt1iWarm || typeof Image === "undefined") return;
+  pt1iWarm = true;
+  for (const url of PT1I_ART) {
+    if (landSheet[url]) continue;
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+}
+/** playtest1t: every town building sheet and glow mask, asked for on the first frame drawn (the title's), so the town
+ * is never first drawn with the old houses. */
+export const PT1T_ART = [...BLDG_SHEETS];
+/** playtest1u: the hamlet sheets, glow masks and walk, warmed with the town's so a hamlet is never first drawn as a block. */
+export const PT1U_ART = [...HAMLET_SHEETS];
+let pt1tWarm = false;
+function warmPt1t() {
+  if (pt1tWarm || typeof Image === "undefined") return;
+  pt1tWarm = true;
+  for (const url of [...PT1T_ART, ...PT1U_ART]) {
+    if (landSheet[url]) continue;
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+}
+let pt1hWarm = false;
+function warmPt1h() {
+  if (pt1hWarm || typeof Image === "undefined") return;
+  pt1hWarm = true;
+  for (const url of PT1H_ART) {
+    if (landSheet[url]) continue;
+    const im = new Image();
+    im.src = url;
+    landSheet[url] = im;
+  }
+}
+
+/**
+ * playtest1h: Whirl's foot dust ring (rules/GAME_LAYOUT_TWO.txt: "Whirl = dust-ring quad"). The particle pool's whirl
+ * (8-12 dust specks for 0.2 s) is the only K_DUST emitter; their centre is the swing's feet and their age the frame.
+ * The pool is read, never written.
+ */
+/** The fx writer's Whirl ring (public/art/spells/fx, not the spell writer's gen/ strips). */
+const WHIRL_STRIP = "whirl.png";
+let whirlSeen: { x: number; y: number; at: number } | null = null;
+function paintWhirlRings(ctx: CanvasRenderingContext2D, g: Game) {
+  const p = g.fx;
+  let n = 0;
+  let sx = 0;
+  let sy = 0;
+  let age = 0;
+  for (let i = 0; i < p.size; i++) {
+    if (p.life[i] <= 0 || p.kind[i] !== K_DUST) continue;
+    n++;
+    sx += p.x[i];
+    sy += p.y[i];
+    age = Math.max(age, 1 - p.life[i] / Math.max(0.001, p.maxLife[i]));
+  }
+  // the specks live 0.2 s; the ring is held for 0.36 s from the swing so it reads (drawing only, the pool is untouched)
+  const RING_MS = 360;
+  if (n) {
+    const at = g.worldMs - age * 200;
+    if (!whirlSeen || Math.abs(whirlSeen.at - at) > 60) whirlSeen = { x: Math.round(sx / n), y: Math.round(sy / n), at };
+  }
+  if (!whirlSeen) return;
+  const k = (g.worldMs - whirlSeen.at) / RING_MS;
+  if (k < 0 || k >= 1) {
+    if (!n) whirlSeen = null;
+    return;
+  }
+  spellFrame(ctx, WHIRL_STRIP, Math.min(5, Math.floor(k * 6)), 6, whirlSeen.x - 24, whirlSeen.y - 12, 48, 24, SPELL_FX);
+}
+
+/** A piece of loot. The shape is the slot. The sparkle is the rank. */
+function paintDrop(ctx: CanvasRenderingContext2D, x: number, y: number, silver: number, item: Item | null, frame: number) {
+  const ox = Math.round(x) - 4;
+  const oy = Math.round(y) - 8;
+  // playtest1o (Bill, 2026-10-03 19:49 ET: "all the graphics ... upgraded to the same level?"): the drop is the loot
+  // writer's cell (loot.ts), its foot on the ground; the painted shapes below are only the not-loaded fallback.
+  if (sheetCell(ctx, LOOT_SHEET, lootCell(item, silver), 0, Math.round(x) - 8, Math.round(y) - 14)) {
+    sparkle(ctx, ox, oy - 3, silver > 0 || !item ? 3 : item.rank, frame);
+    return;
+  }
+  if (silver > 0 || !item) {
+    px(ctx, ox + 1, oy + 3, 6, 5, "#8a8680");
+    px(ctx, ox + 2, oy + 2, 4, 5, "#d4d0c8");
+    px(ctx, ox + 3, oy + 1, 2, 2, "#6a6660");
+    px(ctx, ox + 3, oy + 4, 2, 2, "#f4f0ea");
+    sparkle(ctx, ox, oy, 3, frame);
+    return;
+  }
+  const rank = item.rank;
+  if (item.kind === "potion") {
+    const mana = (item.bonus ?? 1) === 2;
+    const liquid = mana ? "#3a6ad0" : "#c43838";
+    px(ctx, ox + 2, oy + 1, 4, 1, "#c4b48a");
+    px(ctx, ox + 3, oy + 2, 2, 1, "#e8dcc8");
+    px(ctx, ox + 2, oy + 3, 4, 5, "#f4f0ea");
+    px(ctx, ox + 3, oy + 4, 2, 3, liquid);
+    const rise = Math.floor(frame) % 3;
+    px(ctx, ox + 3, oy - rise, 1, 1, mana ? "#d0e4ff" : "#ffd0d0");
+    return;
+  }
+  if (item.kind === "gem" || item.kind === "jewel") {
+    px(ctx, ox + 3, oy + 1, 2, 1, "#f4f0ea");
+    px(ctx, ox + 2, oy + 2, 4, 2, "#7ec8e0");
+    px(ctx, ox + 3, oy + 4, 2, 2, "#3a8ab0");
+    sparkle(ctx, ox, oy, Math.max(2, rank), frame);
+    return;
+  }
+  if (item.slot === "head") {
+    px(ctx, ox + 2, oy + 2, 4, 3, "#8a9098");
+    px(ctx, ox + 1, oy + 4, 6, 2, "#5a6068");
+  } else if (item.slot === "chest") {
+    px(ctx, ox + 1, oy + 2, 6, 5, "#8a9098");
+    px(ctx, ox + 3, oy + 3, 2, 3, "#c4b48a");
+  } else if (item.slot === "legs") {
+    px(ctx, ox + 2, oy + 2, 2, 5, "#3a4a68");
+    px(ctx, ox + 5, oy + 2, 2, 5, "#3a4a68");
+  } else if (item.slot === "feet") {
+    px(ctx, ox + 1, oy + 4, 3, 2, "#2a241c");
+    px(ctx, ox + 5, oy + 4, 3, 2, "#2a241c");
+  } else if (item.slot === "ring") {
+    px(ctx, ox + 2, oy + 3, 4, 3, "#c4a050");
+    px(ctx, ox + 3, oy + 4, 2, 1, "#1a140c");
+  } else if (item.slot === "neck") {
+    px(ctx, ox + 2, oy + 2, 4, 1, "#c4a050");
+    px(ctx, ox + 3, oy + 3, 2, 2, "#c43838");
+  } else if (item.slot === "off") {
+    px(ctx, ox + 2, oy + 1, 4, 5, "#4a2870");
+    px(ctx, ox + 3, oy + 2, 2, 1, "#f4e27a");
+  } else if (item.kind === "fish") {
+    px(ctx, ox + 1, oy + 3, 5, 2, "#6a9a48");
+    px(ctx, ox + 6, oy + 3, 1, 2, "#2a4a28");
+  } else if (item.kind === "bait") {
+    px(ctx, ox + 2, oy + 3, 4, 1, "#c4a574");
+    px(ctx, ox + 3, oy + 4, 2, 2, "#8a6844");
+  } else if (item.kind === "weapon" || item.slot === "main") {
+    px(ctx, ox + 3, oy + 1, 1, 4, "#d8dce0");
+    px(ctx, ox + 2, oy + 4, 3, 1, "#c4b48a");
+    px(ctx, ox + 3, oy + 5, 1, 2, "#5a4030");
+  } else {
+    px(ctx, ox + 2, oy + 3, 4, 3, "#6a5038");
+    px(ctx, ox + 3, oy + 2, 2, 1, "#c4a574");
+  }
+  sparkle(ctx, ox, oy, rank, frame);
+}
+
+/** Rank 1 is quiet. Higher ranks throw more sparks. Rank 4 and 5 are gold. */
+function sparkle(ctx: CanvasRenderingContext2D, ox: number, oy: number, rank: number, frame: number) {
+  if (rank < 2) return;
+  const flick = Math.floor(frame) % 4;
+  const gold = rank >= 4 ? "#f4e27a" : "#f4f0ea";
+  if (flick !== 1) px(ctx, ox + 6, oy, 1, 1, gold);
+  if (rank >= 3 && flick !== 3) px(ctx, ox, oy + 1, 1, 1, gold);
+  if (rank >= 5 && flick % 2 === 0) px(ctx, ox + 3, oy - 1, 1, 1, "#fff8e0");
+}
+
+/** Opaque dusk speckles on the ground only. A full-screen wash made sprites look faded. */
+function dimGround(ctx: CanvasRenderingContext2D, gx: number, gy: number, ink: string) {
+  for (let py = 0; py < TILE; py += 2) {
+    for (let px0 = py % 4; px0 < TILE; px0 += 4) px(ctx, gx + px0, gy + py, 1, 1, ink);
+  }
+}
+
+/** Indoors and dungeons stay dry. The hero's feet decide, not the camera. */
+function sheltered(g: Game) {
+  if (g.mapId === "dungeon" || g.mapId === "inside") return true;
+  if (g.mapId !== "town") return false;
+  const tx = Math.floor(g.px / TILE);
+  const ty = Math.floor(g.py / TILE);
+  if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) return false;
+  return buildingTile(g.tiles[ty * g.w + tx]);
+}
+
+/** Screen-space rain, snow, and lightning. Drawn after the camera transform is cleared. */
+function drawWeather(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {
+  const kind = g.weather;
+  if (kind === "still" || sheltered(g) || g.mode === "map") return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  const time = g.worldMs;
+  const battle = g.mode === "battle";
+  const span = Math.max(0.55, Math.min(1.15, (viewW * viewH) / (1280 * 800))) * (battle ? 0.45 : 1);
+  /** Screen-space weather. Thin diagonal rain and small flakes, the way a town walk looks in the rain. */
+  if (kind === "snow") {
+    const count = Math.round(100 * span);
+    for (let i = 0; i < count; i++) {
+      const drift = Math.sin(time / 900 + i) * 10;
+      const x = Math.floor((hash(i, 2) * viewW + drift + viewW) % viewW);
+      const y = Math.floor((hash(i, 5) * viewH + time * (i % 3 === 0 ? 0.02 : 0.045)) % viewH);
+      const big = i % 5 === 0;
+      px(ctx, x, y, big ? 2 : 1, big ? 2 : 1, i % 2 === 0 ? "#ffffff" : "#e7f2f8");
+    }
+    return;
+  }
+  const heavy = kind === "heavy" || kind === "storm";
+  const count = Math.round((heavy ? 220 : 120) * span);
+  const color = heavy ? "#f4fbff" : "#e7f4ff";
+  const len = heavy ? 8 : 5;
+  const speed = heavy ? 0.7 : 0.38;
+  // playtest1 (owner-reported 2026-10-01, rain slowdown): every drop moves by the same step, so the sheet of rain is
+  // drawn once into a wrapping layer (the same drops, the same streaks) and slid by that step: four blits a frame
+  // in place of up to 1,760 one-pixel rects.
+  const W = Math.max(1, Math.ceil(viewW));
+  const H = Math.max(1, Math.ceil(viewH));
+  const layer = rainSheet(heavy, count, len, color, W, H);
+  if (layer) {
+    const ox = Math.floor((time * 0.04) % W);
+    const oy = Math.floor((time * speed) % H);
+    for (const [dx, dy] of [[ox, oy], [ox - W, oy], [ox, oy - H], [ox - W, oy - H]] as const) ctx.drawImage(layer, dx, dy);
+  } else
+    for (let i = 0; i < count; i++) {
+      const x0 = Math.floor((hash(i, 3) * viewW + time * 0.04) % viewW);
+      const y0 = Math.floor((hash(i, 8) * viewH + time * speed) % viewH);
+      for (let k = 0; k < len; k++) {
+        const x = x0 + k;
+        const y = y0 + k * 2;
+        if (x >= 0 && x < viewW && y >= 0 && y < viewH) px(ctx, x, y, 1, 1, color);
+      }
+    }
+  if (kind === "storm" && g.boltFlash()) {
+    const seed = Math.floor(time / 900);
+    let x = Math.floor(hash(seed, 2) * (viewW * 0.6) + viewW * 0.2);
+    let y = 0;
+    const stop = Math.floor(viewH * 0.46);
+    while (y < stop) {
+      const step = 8 + Math.floor(hash(seed, y + 1) * 10);
+      px(ctx, x, y, 3, step, "#f7fbff");
+      px(ctx, x + 1, y, 1, Math.min(4, step), "#fff6c8");
+      if (hash(seed, y + 6) > 0.74) px(ctx, x + 3, y + 2, 10, 2, "#d7ecf8");
+      x += Math.floor(hash(seed, y + 3) * 18) - 9;
+      y += step;
+    }
+    if (!battle) px(ctx, 0, 0, viewW, 3, "#e7f4ff");
+  }
+}
+
+/** playtest1: the rain layer, one per look and view size; the drops sit where frame 0 of the old loop put them. */
+let rainCache: { key: string; c: HTMLCanvasElement } | null = null;
+function rainSheet(heavy: boolean, count: number, len: number, color: string, W: number, H: number): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const key = `${heavy}:${count}:${len}:${color}:${W}x${H}`;
+  if (rainCache?.key === key) return rainCache.c;
+  const c = rainCache?.c ?? document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  if (!x) return null;
+  x.clearRect(0, 0, W, H);
+  x.fillStyle = color;
+  for (let i = 0; i < count; i++) {
+    const x0 = Math.floor(hash(i, 3) * W);
+    const y0 = Math.floor(hash(i, 8) * H);
+    for (let k = 0; k < len; k++) x.fillRect((x0 + k) % W, (y0 + k * 2) % H, 1, 1);
+  }
+  rainCache = { key, c };
+  return c;
+}
+
+function caveBone(g: Game, i: number, tile: number) {
+  return g.theme !== "over" && !townish(g.theme) && tile === T.bone;
+}
+
+/** Battle backdrop and the two sides. Weather still falls, thinner than on the road. */
+export function drawBattle(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  const p = g.theme !== "over" && g.theme !== "town" ? palOf(g.theme) : palOf("harrow");
+  ctx.fillStyle = "#100c12";
+  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.fillStyle = shade(p.wall, -20);
+  ctx.fillRect(0, 0, viewW, viewH * 0.42);
+  ctx.fillStyle = p.floor;
+  ctx.fillRect(0, viewH * 0.46, viewW, viewH * 0.28);
+  ctx.fillStyle = shade(p.floor, -20);
+  ctx.fillRect(0, viewH * 0.7, viewW, viewH * 0.08);
+  const b = g.battle;
+  if (!b) return;
+  const now = g.worldMs;
+  const fx = g.battleFx.find((f) => now >= f.at && now < f.at + 420);
+  const u = fx ? (now - fx.at) / 420 : 0;
+  const pulse = Math.sin(u * Math.PI);
+  const foeAt = (i: number) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    return { x: viewW * 0.58 + col * Math.min(90, viewW * 0.12), y: viewH * 0.5 + row * 48 };
+  };
+  const hero = { x: viewW * 0.28, y: viewH * 0.62 };
+  const ally = { x: viewW * 0.14, y: viewH * 0.68 };
+  const stepOf = (who: "you" | "ally" | "foe") => {
+    if (!fx || fx.who !== who || (fx.kind !== "swing" && fx.kind !== "shot")) return 0;
+    const reach = fx.kind === "shot" ? 10 : who === "you" ? 26 : 16;
+    return (who === "foe" ? -1 : 1) * pulse * reach;
+  };
+  const beat = u < 0.34 ? 0 : u < 0.67 ? 1 : 2;
+  b.foes.forEach((f, i) => {
+    if (f.hp <= 0) return;
+    const at = foeAt(i);
+    const step = fx?.who === "foe" && (fx.foe === i || fx.foe < 0) ? stepOf("foe") : 0;
+    const sc = f.boss ? 4 : f.mini ? 3 : 2;
+    const foePose = fx && fx.who === "foe" && (fx.foe === i || fx.foe < 0) ? (fx.kind === "spell" || fx.kind === "heal" || fx.kind === "buff" ? "cast" : fx.kind === "swing" || fx.kind === "shot" ? "swing" : "") : "";
+    monsterSprite(ctx, at.x + step, at.y, f.family, f.tint, sc, g.frame, foePose, false, f.boss ? "boss" : f.mini ? "mini" : f.rare ? "rare" : "mob", beat, 3, 3); // playtest1o: the foe faces the hero (side view, mirrored)
+    const bw = 36;
+    ctx.fillStyle = "#140e12";
+    ctx.fillRect(at.x - 18, at.y + 8, bw, 4);
+    ctx.fillStyle = "#8f2d2d";
+    ctx.fillRect(at.x - 18, at.y + 8, Math.max(0, (f.hp / f.max) * bw), 4);
+  });
+  const youPose = fx?.who === "you" ? (fx.kind === "swing" ? "swing" : fx.kind === "spell" || fx.kind === "shot" ? "cast" : "stand") : "stand";
+  const allyPose = fx?.who === "ally" ? (fx.kind === "swing" ? "swing" : fx.kind === "spell" || fx.kind === "heal" ? "cast" : "stand") : "stand";
+  person(ctx, hero.x + stepOf("you"), hero.y, g.cls, "#888", 1, g.frame, 3, youPose, "hero", beat);
+  if (g.companion && g.companion.hp > 0) {
+    person(ctx, ally.x + stepOf("ally"), ally.y, g.companion.look, g.companion.coat, 1, g.frame, 2.4, allyPose, "ally", beat);
+  }
+  if (fx) paintBattleFx(ctx, fx, u, pulse, hero, ally, foeAt, b.foes.length);
+  drawWeather(ctx, g, viewW, viewH);
+}
+
+/** A lunge, a bolt, or a ring. Opaque pixels only, so the figures stay solid. */
+function paintBattleFx(
+  ctx: CanvasRenderingContext2D,
+  fx: Game["battleFx"][number],
+  u: number,
+  pulse: number,
+  hero: { x: number; y: number },
+  ally: { x: number; y: number },
+  foeAt: (i: number) => { x: number; y: number },
+  foes: number,
+) {
+  const body = (who: "you" | "ally" | "foe", index: number) => {
+    if (who === "you") return hero;
+    if (who === "ally") return ally;
+    return foeAt(Math.max(0, index));
+  };
+  const from = body(fx.who, fx.foe);
+  if (fx.kind === "swing" && pulse > 0.35) {
+    const dir = fx.who === "foe" ? -1 : 1;
+    const x = Math.floor(from.x + dir * (18 + pulse * 10));
+    const y = Math.floor(from.y - 16);
+    for (let i = 0; i < 6; i++) px(ctx, x + dir * i * 3, y - i * 2, 2, 2, i % 2 ? "#fff6c8" : "#e0b060");
+    return;
+  }
+  if (fx.kind === "buff" || fx.kind === "heal") {
+    const on = fx.kind === "heal" && fx.who !== "foe" ? hero : from;
+    const color = fx.kind === "heal" ? "#8fd18a" : "#e6c56a";
+    const r = 6 + Math.floor(u * 16);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      px(ctx, Math.floor(on.x + Math.cos(a) * r), Math.floor(on.y - 16 + Math.sin(a) * r * 0.6), 2, 2, color);
+    }
+    if (fx.kind === "heal") px(ctx, Math.floor(on.x - 1), Math.floor(on.y - 22 - u * 14), 2, 2, "#d8f0c8");
+    return;
+  }
+  if (fx.kind !== "spell" && fx.kind !== "shot") return;
+  const color = fx.kind === "shot" ? "#d5e8f4" : "#c9a0e8";
+  const targets: { x: number; y: number }[] = [];
+  if (fx.aim === "foes" && fx.foe < 0) {
+    for (let i = 0; i < foes; i++) targets.push(foeAt(i));
+  } else if (fx.aim === "ally") targets.push(ally);
+  else if (fx.aim === "you") targets.push(hero);
+  else targets.push(foeAt(Math.max(0, fx.foe)));
+  for (const to of targets) {
+    const x = Math.floor(from.x + (to.x - from.x) * u);
+    const y = Math.floor(from.y - 12 + (to.y - 12 - (from.y - 12)) * u);
+    px(ctx, x, y, 3, 3, color);
+    px(ctx, x - 3, y + 1, 2, 2, fx.kind === "shot" ? "#8eb4c8" : "#7a58a0");
+    if (u > 0.72) px(ctx, Math.floor(to.x - 2), Math.floor(to.y - 14), 4, 3, "#fff6c8");
+  }
+}
+
+/** The full map opened with M. */
+export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number) {
+  syncZone(g); // playtest1v
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "#140e12";
+  ctx.fillRect(0, 0, viewW, viewH);
+  const scale = Math.max(2, Math.min(8, Math.floor(Math.min((viewW - 24) / g.w, (viewH - 24) / g.h))));
+  const ox = Math.floor((viewW - g.w * scale) / 2);
+  const oy = Math.floor((viewH - g.h * scale) / 2);
+  const seen = seenOf(g); // playtest1v map fog: what has not been seen stays dark
+  for (let y = 0; y < g.h; y++) {
+    for (let x = 0; x < g.w; x++) {
+      const i = y * g.w + x;
+      if ((g.fog && g.fog[i] === 0) || (seen && !seen[i])) {
+        ctx.fillStyle = "#07060a";
+        ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+        continue;
+      }
+      const t = g.hidden.has(i) ? T.wall : g.tiles[i];
+      ctx.fillStyle = mapColor(t, g.theme, y, x);
+      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+    }
+  }
+  ctx.fillStyle = "#e07a2f";
+  const px0 = ox + Math.floor(g.px / TILE) * scale;
+  const py0 = oy + Math.floor(g.py / TILE) * scale;
+  ctx.fillRect(px0, py0, Math.max(2, scale), Math.max(2, scale));
+  if (g.theme === "over") {
+    for (let y = 0; y < g.h; y++) {
+      for (let x = 0; x < g.w; x++) {
+        // playtest1b: the town's own icon (the walled hamlet); the old roof stamp is its fallback
+        if (g.tiles[y * g.w + x] === T.door && seenAtOf(g, x, y) && !drawTownMapIcon(ctx, ox + x * scale + scale / 2, oy + (y + 1) * scale, Math.max(1, Math.round(scale / 3)))) stampHamlet(ctx, ox, oy, scale, x, y);
+      }
+    }
+  }
+  // playtest1v: every village icon on the full map (a lit gold roof), at its doorstep
+  if (g.mapId === "world") for (const m of worldHamlets()) if (m.entry && seenAtOf(g, m.entry.x, m.entry.y)) villageMarker(ctx, ox + Math.floor((m.entry.x + 0.5) * scale), oy + Math.floor(m.entry.y * scale), Math.max(1, Math.round(scale / 3)));
+  // playtest1v: a dungeon mouth or a rift shows on the full map once seen (a violet stud)
+  if (g.mapId === "world") {
+    for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+      if (g.tiles[y * g.w + x] !== T.stairD || !seenAtOf(g, x, y)) continue;
+      const k = Math.max(1, Math.round(scale / 3));
+      ctx.fillStyle = "#07060a";
+      ctx.fillRect(ox + x * scale - k, oy + y * scale - k, scale + 2 * k, scale + 2 * k);
+      ctx.fillStyle = "#b07aff";
+      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
+    }
+    // the parked bone car, a bone-white stud with a blue eye
+    if (g.carOwned && !g.driving && seenAtOf(g, Math.floor(g.carX / TILE), Math.floor(g.carY / TILE))) {
+      const cx = ox + Math.floor((g.carX / TILE) * scale);
+      const cy = oy + Math.floor((g.carY / TILE) * scale);
+      ctx.fillStyle = "#07060a";
+      ctx.fillRect(cx - 4, cy - 3, 9, 7);
+      ctx.fillStyle = "#e6dcc8";
+      ctx.fillRect(cx - 3, cy - 2, 7, 5);
+      ctx.fillStyle = "#4ab8ff";
+      ctx.fillRect(cx + 1, cy - 1, 2, 2);
+    }
+  }
+  // playtest1f: every wayrift on the full map (sealed ones dim), so a player can plan a journey
+  if (g.mapId === "world") {
+    const season = g.season();
+    const k = Math.max(1, Math.round(scale / 4));
+    for (const w of WAYRIFTS) {
+      if (w.map !== "world") continue;
+      if (!seenAtOf(g, w.x, w.y)) continue; // playtest1y: half-size footprint mouth
+      const mx = ox + Math.floor((w.x + WAYRIFT.fw / 2) * scale);
+      const my = oy + Math.floor((w.y + WAYRIFT.fh / 2) * scale);
+      if (!wayMarker(ctx, mx, my, wayAwake(w, season), k)) {
+        ctx.fillStyle = "#07060a";
+        ctx.fillRect(mx - 3, my - 3, 7, 7);
+        ctx.fillStyle = wayAwake(w, season) ? "#4ab8ff" : "#2a3a6a";
+        ctx.fillRect(mx - 2, my - 2, 5, 5);
+      }
+    }
+    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portal marker
+    if (g.wildPortal && seenAtOf(g, g.wildPortal.x, g.wildPortal.y)) {
+      const mx = ox + Math.floor((g.wildPortal.x + 0.5) * scale);
+      const my = oy + Math.floor((g.wildPortal.y + 0.5) * scale);
+      ctx.fillStyle = "#07060a";
+      ctx.fillRect(mx - 2, my - 2, 5, 5);
+      ctx.fillStyle = "#9ae4ff";
+      ctx.fillRect(mx - 1, my - 1, 3, 3);
+    }
+  }
+}
+
+function mapColor(t: number, theme: string, y: number, x: number): string {
+  // The map keeps secrets: cracked brick, braziers, and saints read as plain rock. A rune door shows.
+  if (t === T.runeDoor) return "#c4a15a";
+  if (secretTile(t)) t = T.wall;
+  if (t === T.wall) return townish(theme) ? houseLook(x, y).roof : "#3a4450";
+  if (t === T.door) return townish(theme) ? "#f0d080" : "#e07a2f";
+  if (t === T.water || t === T.pool) return "#3a78a0";
+  if (t === T.ice) return "#b7d2e0";
+  if (t === T.road || t === T.cobble) return townish(theme) ? "#c4a574" : "#6a5a4a";
+  if (t === T.dirt) return "#a07850";
+  if (t === T.stairD || t === T.stairU || t === T.chest) return "#e07a2f";
+  if (t === T.tree) return townish(theme) ? "#2f7a40" : "#1e4a34";
+  if (t === T.snow || (t === T.grass && theme === "over" && zoneAt(x, y) === "snow")) return "#d5e4ee";
+  if (t === T.sand || (theme === "over" && zoneAt(x, y) === "sand" && t !== T.road)) return "#c4b48a";
+  if (t === T.ash) return "#4a4038";
+  if (t === T.swamp) return "#243428";
+  if (t === T.floor) return "#c4a574";
+  if (t === T.grass && townish(theme)) return (x + y) % 5 === 0 ? "#6aaa48" : "#3f8a38";
+  return "#1e3a28";
+}
+
+/** A cluster of roofs, so the vale map shows a town and not a single tile. */
+function stampHamlet(ctx: CanvasRenderingContext2D, ox: number, oy: number, scale: number, tx: number, ty: number) {
+  const roofs = ["#8a3038", "#2f6a4a", "#c4a15a", "#3a4a68", "#6a6e78"];
+  const spots = [
+    [-2, -1],
+    [1, -1],
+    [-1, 1],
+    [2, 1],
+    [0, -2],
+  ];
+  for (let i = 0; i < spots.length; i++) {
+    const [dx, dy] = spots[i];
+    const px0 = ox + (tx + dx) * scale;
+    const py0 = oy + (ty + dy) * scale;
+    ctx.fillStyle = roofs[i];
+    ctx.fillRect(px0, py0, scale * 2, Math.max(2, scale));
+    ctx.fillStyle = "#f4ead8";
+    ctx.fillRect(px0, py0 + Math.max(2, scale), scale * 2, Math.max(1, scale));
+    ctx.fillStyle = "#f0d080";
+    ctx.fillRect(px0 + Math.floor(scale / 2), py0 + Math.max(2, scale), Math.max(1, Math.floor(scale / 2)), Math.max(1, scale));
+  }
+  ctx.fillStyle = "#f4f0ea";
+  ctx.fillRect(ox + tx * scale + scale, oy + (ty - 2) * scale - scale, Math.max(1, Math.floor(scale / 2)), scale);
+}
+
+/** Corner map. Dragging it is handled by the React shell, not here. */
+export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number) {
+  syncZone(g); // playtest1v
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "#140e12";
+  ctx.fillRect(0, 0, size, size);
+  const span = 24;
+  const mhix = hamletIndex(g);
+  const mseen = seenOf(g); // playtest1v
+  const cx = Math.floor(g.px / TILE);
+  const cy = Math.floor(g.py / TILE);
+  const s = size / span;
+  for (let y = 0; y < span; y++) {
+    for (let x = 0; x < span; x++) {
+      const tx = cx - span / 2 + x;
+      const ty = cy - span / 2 + y;
+      if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) {
+        // playtest1e: past the edge outdoors the corner map shows the border forest too, not black
+        if (OUTDOOR_EDGE.has(g.theme) && seenAtOf(g, Math.max(0, Math.min(g.w - 1, tx)), Math.max(0, Math.min(g.h - 1, ty)))) {
+          ctx.fillStyle = mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
+          ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
+        }
+        continue;
+      }
+      const i = ty * g.w + tx;
+      if (g.fog && g.fog[i] === 0) continue;
+      if (mseen && !mseen[i]) continue; // playtest1v map fog
+      const hl = mhix?.lot.get(i); // playtest1u: a hamlet's lots show in its biome's roof colour
+      ctx.fillStyle = hl ? HAMLET_MAP[hl.m.biome] : mapColor(g.hidden.has(i) ? T.wall : g.tiles[i], g.theme, ty, tx);
+      ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
+    }
+  }
+  // playtest1b: the town icon on the corner map too
+  if (g.theme === "over") {
+    for (const d of townDoors(g)) {
+      const mx = (d.x - (cx - span / 2)) * s;
+      const my = (d.y - (cy - span / 2)) * s;
+      if (mx > -12 && my > -12 && mx < size + 12 && my < size + 12 && seenAtOf(g, d.x, d.y)) drawTownMapIcon(ctx, mx + s / 2, my + s, 1);
+    }
+  }
+  // playtest1b (owner-reported 2026-10-02 01:06 ET, "mini map needs a framed border and more detail"): markers for
+  // the things you steer by, drawn over the ground: dungeon stairs (violet), gates and road exits (cold-fire blue),
+  // doors (gold), then the hero as an outlined pointer, then an iron frame with neon corner studs.
+  const mark = (x: number, y: number, fill: string, r: number) => {
+    const mx = Math.floor(x * s + s / 2);
+    const my = Math.floor(y * s + s / 2);
+    ctx.fillStyle = "#07060a";
+    ctx.fillRect(mx - r - 1, my - r - 1, r * 2 + 3, r * 2 + 3);
+    ctx.fillStyle = fill;
+    ctx.fillRect(mx - r, my - r, r * 2 + 1, r * 2 + 1);
+  };
+  for (let y = 0; y < span; y++) {
+    for (let x = 0; x < span; x++) {
+      const tx = cx - span / 2 + x;
+      const ty = cy - span / 2 + y;
+      if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) continue;
+      const i = ty * g.w + tx;
+      if ((g.fog && g.fog[i] === 0) || g.hidden.has(i) || (mseen && !mseen[i])) continue;
+      const t = g.tiles[i];
+      if (t === T.stairD || t === T.stairU) mark(x, y, "#b07aff", 1);
+      else if (t === T.exit && (g.theme !== "town" || (tx + ty) % 4 === 0)) mark(x, y, "#4ab8ff", 0);
+      else if (t === T.door && g.theme !== "over") mark(x, y, "#e0c060", 0);
+    }
+  }
+  // playtest1v: a village icon's marker (a lit gold roof) at its doorstep
+  if (g.mapId === "world") {
+    for (const m of worldHamlets()) {
+      if (!m.entry || !seenAtOf(g, m.entry.x, m.entry.y)) continue; // playtest1v: once seen
+      const mx = Math.floor((m.entry.x + 0.5 - (cx - span / 2)) * s);
+      const my = Math.floor((m.entry.y - (cy - span / 2)) * s);
+      if (mx > -8 && my > -8 && mx < size + 8 && my < size + 8) villageMarker(ctx, mx, my, 1);
+    }
+  }
+  // playtest1f: the wayrifts, as the rift writer's marker (sealed ones dim), centred on the footprint
+  if (g.mapId === "world") {
+    const season = g.season();
+    for (const w of WAYRIFTS) {
+      if (w.map !== "world") continue;
+      if (!seenAtOf(g, w.x, w.y)) continue; // playtest1y
+      const mx = Math.floor((w.x + WAYRIFT.fw / 2 - (cx - span / 2)) * s);
+      const my = Math.floor((w.y + WAYRIFT.fh / 2 - (cy - span / 2)) * s);
+      if (mx < -6 || my < -6 || mx > size + 6 || my > size + 6) continue;
+      if (!wayMarker(ctx, mx, my, wayAwake(w, season), 1)) mark(w.x + WAYRIFT.fw / 2 - (cx - span / 2), w.y + WAYRIFT.fh / 2 - (cy - span / 2), wayAwake(w, season) ? "#4ab8ff" : "#2a3a6a", 1);
+    }
+  }
+  const hx = Math.floor(size / 2);
+  const hy = Math.floor(size / 2);
+  ctx.fillStyle = "#07060a";
+  ctx.fillRect(hx - 3, hy - 2, 7, 5);
+  ctx.fillRect(hx - 2, hy - 3, 5, 7);
+  ctx.fillStyle = "#e07a2f";
+  ctx.fillRect(hx - 2, hy - 1, 5, 3);
+  ctx.fillRect(hx - 1, hy - 2, 3, 5);
+  ctx.fillStyle = "#fff8ee";
+  ctx.fillRect(hx, hy - 1, 1, 1);
+  miniFrame(ctx, size);
+}
+
+/** playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]: a village's map marker, centred on (cx, cy): an
+ * ink-outlined gold roof over a dark wall with one lit (neon blue) window, k px a cell (7 x 6 cells). */
+export const VILLAGE_MARK = { roof: "#e0b050", wall: "#3a2c24", lit: "#7ad8ff", ink: "#07060a" } as const;
+export function villageMarker(ctx: CanvasRenderingContext2D, cx: number, cy: number, k: number) {
+  const M = VILLAGE_MARK;
+  const x0 = Math.round(cx - 3.5 * k);
+  const y0 = Math.round(cy - 3 * k);
+  const cell = (x: number, y: number, w: number, h: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(x0 + x * k, y0 + y * k, w * k, h * k);
+  };
+  cell(-1, 2, 9, 5, M.ink);
+  cell(1, 0, 5, 3, M.ink);
+  cell(2, -1, 3, 1, M.ink);
+  cell(0, 2, 7, 1, M.roof);
+  cell(1, 1, 5, 1, M.roof);
+  cell(2, 0, 3, 1, M.roof);
+  cell(1, 3, 5, 3, M.wall);
+  cell(3, 4, 1, 1, M.lit);
+}
+
+/** playtest1b: the corner map's frame: ink edge, iron band, a bevel, and a cold-fire stud in each corner. */
+function miniFrame(ctx: CanvasRenderingContext2D, size: number) {
+  const band = (o: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(o, o, size - o * 2, 1);
+    ctx.fillRect(o, size - 1 - o, size - o * 2, 1);
+    ctx.fillRect(o, o, 1, size - o * 2);
+    ctx.fillRect(size - 1 - o, o, 1, size - o * 2);
+  };
+  band(0, "#07060a");
+  band(1, "#4a4450");
+  band(2, "#6a6660");
+  band(3, "#2a2420");
+  for (const [x, y] of [[0, 0], [size - 6, 0], [0, size - 6], [size - 6, size - 6]]) {
+    ctx.fillStyle = "#07060a";
+    ctx.fillRect(x, y, 6, 6);
+    ctx.fillStyle = "#3a6ad0";
+    ctx.fillRect(x + 1, y + 1, 4, 4);
+    ctx.fillStyle = "#4ab8ff";
+    ctx.fillRect(x + 2, y + 2, 2, 2);
+    ctx.fillStyle = "#e7f4ff";
+    ctx.fillRect(x + 2, y + 2, 1, 1);
+  }
+}
+
+/**
+ * playtest1o: one body as the world draws it, walking (dx, dy) or standing, for the direction contact sheet and its
+ * check. Drawing only; the game never calls it.
+ */
+export function bodyPreview(
+  ctx: CanvasRenderingContext2D,
+  body: { kind: "person"; look: string; cast: "npc" | "hero" | "ally"; seed?: string; pose?: "stand" | "walk" | "wade" | "slide" | "swing" | "cast" | "fish" | "climb" } | { kind: "foe"; family: string; rank?: "mob" | "boss" | "mini" | "rare" },
+  x: number,
+  y: number,
+  dx: number,
+  dy: number,
+  frame: number,
+  moving: boolean,
+): void {
+  const face = axisFace(dx, dy);
+  if (body.kind === "person") person(ctx, x, y, body.look, "#888888", face, frame, 1, body.pose ?? (moving ? "walk" : "stand"), body.cast, 1, body.seed ?? "");
+  else monsterSprite(ctx, x, y, body.family, "#2a2a2e", 1, frame, "", moving, body.rank ?? "mob", 1, face, dx < 0 ? 3 : 1);
+}

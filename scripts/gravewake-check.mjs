@@ -29,6 +29,28 @@ import { createHash as hashTop } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import fsWake from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+// Wake batch (2026-10-21, after earlysinks): source, art, writer and rules files the wake batch replaces (src/, public/, tools/) are
+// frozen as playtest2b shipped them under scripts/frozen/wake/files/<path> (refresh: python3 scripts/frozen/wake/refresh.py).
+// Every group older than earlysinks reads those paths (live, relative, or through a frozen tree under the temp dir) from the
+// frozen copy; group earlysinks and every later group read the live files. The sim, draw and shell go through esView instead.
+const WAKE_ROOT = process.cwd();
+const WAKE_FZ = join(WAKE_ROOT, "scripts/frozen/wake/files");
+const WAKE_SET = new Set();
+{ const walkW = (d, rel) => { if (!fsWake.existsSync(d)) return; for (const n of fsWake.readdirSync(d)) { const pth = join(d, n), r = rel ? `${rel}/${n}` : n; if (fsWake.statSync(pth).isDirectory()) walkW(pth, r); else WAKE_SET.add(r); } }; walkW(WAKE_FZ, ""); }
+let WAKE_OLD = true;
+function wakeRel(p) {
+  if (typeof p !== "string" || !WAKE_SET.size) return null;
+  let r = p.startsWith("/") ? (p.startsWith(`${WAKE_ROOT}/`) ? p.slice(WAKE_ROOT.length + 1) : (p.match(/\/gravewake-[^/]+\/(.+)$/) ?? [])[1]) : p.replace(/^\.\//, "");
+  if (r && !WAKE_SET.has(r) && p.startsWith("/")) { const m = p.match(/^\/tmp\/[^/]+\/(.+)$/); if (m) r = m[1]; }
+  return r && WAKE_SET.has(r) ? r : null;
+}
+{
+  const orig = fsWake.readFileSync;
+  fsWake.readFileSync = function (p, ...rest) { if (WAKE_OLD) { const r = wakeRel(p); if (r) p = join(WAKE_FZ, r); } return orig.call(this, p, ...rest); };
+  syncBuiltinESMExports();
+}
 
 const TILE = 16;
 // playtest1 [OWNER-REPORTED 2026-10-01 23:25 ET]: eight doors moved to their house's south face (inn 9,5→5,6, shop
@@ -15607,6 +15629,7 @@ if (on("playtest2b")) {
 // early boss by the road gate, and the silver sinks (sinks.ts). The older groups read sim.ts, draw.ts and Gravewake.tsx as
 // playtest2b shipped them (scripts/frozen/earlysinks/) and count every other file at its 2b md5 (base-md5.json); this group
 // checks the live game: the frozen copies, an old save, Mulch's fight and his blue rune-ring telegraph.
+WAKE_OLD = false; // earlysinks and every later group read the live files
 if (on("earlysinks")) {
   asLive();
   const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
@@ -15639,7 +15662,7 @@ if (on("earlysinks")) {
   const draw = readFileSync("src/game/draw.ts", "utf8");
   const png = (p) => { const b = readFileSync(p); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
   const ring = "public/art/writer/runering_blue_64x32.png";
-  check("earlysinks", "the warden's strike shows the blue rune ring (Art's telegraphs: 8 frames of 64x32, filling over his tell, lit on the hit, on the floor and the glow pass)", existsSync(ring) && png(ring).join("x") === "512x32" && /paintRuneRing\(c, r\.x, r\.y, "blue", false/.test(draw) && draw.includes("paintRuneRings(ctx, g, glow)"));
+  check("earlysinks", "the warden's strike shows the blue rune ring (Art's telegraphs: 8 frames of 64x32, filling over his tell, lit on the hit, on the floor and the glow pass)", existsSync(ring) && png(ring).join("x") === "512x32" && /if \(r\.early\) return \{ col: "blue", big: false \};/.test(draw) && /const mx = r\.early \? r\.x/.test(draw) && draw.includes("paintRuneRings(ctx, g, glow)"));
   const w = png("public/art/writer/barrow_warden.png");
   check("earlysinks", "the warden's sheet faces right (staff and swing on the right), so he flips only when the hero is on his left (wardenFlip = hero.x < r.x)", w.join("x") === "192x48" && draw.includes("const wardenFlip = hero.x < r.x;"));
 }

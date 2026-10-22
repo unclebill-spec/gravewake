@@ -445,7 +445,23 @@ export const FESTIVAL_BOSSES: MonsterDef[] = [
   { id: "krampus", name: "Krampus", family: "krampus", tint: "#3a2418", hp: 150, atk: 17, ac: 5, xp: 96, silver: 80, boss: true },
 ];
 
+/**
+ * Wake batch (2026-10-21, Bill's brief via the parent run): four mini-bosses from Art's staged sheets
+ * (staging/art/mini_bosses), mid-floor guards in the dungeons that fill the XP gaps (levels 12-22, 34-44, 48-62; see
+ * WAKE_MINI_AT in wake.ts). Mini rank only: spam and mid, no big, stats through scaleMonster like a remnant.
+ */
+export const WAKE_MINIS: MonsterDef[] = [
+  { id: "wraithknight", name: "Wraith Knight", family: "ghost", tint: "#6a5a9a", hp: 70, atk: 12, ac: 4, xp: 48, silver: 34 },
+  { id: "frostgolem", name: "Frost Golem", family: "mummy", tint: "#7a8aa8", hp: 110, atk: 15, ac: 6, xp: 72, silver: 52 },
+  { id: "vampirelord", name: "Vampire Lord", family: "vampire", tint: "#8a1a2a", hp: 140, atk: 17, ac: 5, xp: 88, silver: 66 },
+  { id: "stormelemental", name: "Storm Elemental", family: "lantern", tint: "#6a6ab0", hp: 130, atk: 17, ac: 3, xp: 92, silver: 70 },
+];
+
 export const MINI_NAME: Record<string, string> = {
+  wraithknight: "Wraith Knight",
+  frostgolem: "Frost Golem",
+  vampirelord: "Vampire Lord",
+  stormelemental: "Storm Elemental",
   frank: "The Surgeon's Aid",
   warlock: "Parish Acolyte",
   wrapped: "Canopic Guard",
@@ -531,7 +547,7 @@ export function dungeonById(id: string): DungeonDef | undefined {
 }
 
 export function monsterById(id: string): MonsterDef {
-  return FAMILIES.find((m) => m.id === id) ?? BOSSES.find((m) => m.id === id) ?? FESTIVAL_BOSSES.find((m) => m.id === id) ?? FAMILIES[0];
+  return FAMILIES.find((m) => m.id === id) ?? BOSSES.find((m) => m.id === id) ?? FESTIVAL_BOSSES.find((m) => m.id === id) ?? WAKE_MINIS.find((m) => m.id === id) ?? FAMILIES[0];
 }
 
 /** Grow a baseline monster to the fight's level. A common foe is bulked to last about four swings. Bosses stay ahead of that. */

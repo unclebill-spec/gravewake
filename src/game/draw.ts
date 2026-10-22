@@ -18,6 +18,7 @@ import { HAMLET_MAP, HAMLET_SHEETS, HAMLET_WALK, HAMLET_WALK_ROW, hamletCell, ha
 import { roomLights, roomRims, roomScene } from "./roomdraw"; // playtest1n [OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]
 import { fightLights, paintTells, type TellView } from "./fightlights"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks, dynamic fight lights]
 import { LINE_HALF } from "./telegraph"; // playtest1j
+import { WAKE_SHEETS } from "./wake"; // wake batch
 import { CASINO_FURNITURE, CASINO_KINDS, CASINO_LIGHT, CASINO_RUG, CASINO_SHEET, CASINO_SHEET_EM, CASINO_SIGN_X } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { FURN, FURN_ANIM, FURN_LIGHT, INTERIOR_SHEETS, ROOM_FURN, ROOM_FURN_EM, ROOM_RUGS, STYLE_GLOW, roomFloor, roomFurniture, roomKitExtra, roomStyle, roomWall, roomWallEm, rugRow, type RoomStyle } from "./interiors"; // playtest1i
 import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT, CAMP_TENT_EM, GEAR, HEARTH_SHEETS, LABEL, NEON_LIGHT, ROOM_DRESS, ROOM_BOARDS, ROOM_KIT, ROOM_KIT_EM, ROOM_RUG, ROOM_WALL, ROOM_WALL_EM, SIGN_GLOW, TRADE_ROLES, ROOM_CELL, drawLabel, drawSign, drawTownIcon, drawTownMapIcon, signSpot, townIconLamps, type FontRow } from "./looks"; // playtest1b
@@ -1168,6 +1169,8 @@ function paintEntrance(ctx: CanvasRenderingContext2D, look: EntranceKind | "grav
  * on its 16 px plot. With em the glow mask is drawn instead (the yew's wisps, the embers, the candle, the carved faces),
  * or nothing. The painted pixels below are only the not-yet-loaded fallback.
  */
+/** Wake batch: Art's ghost trees (staging/art/ghost_trees, 4 kinds per sheet) and their wisp masks. */
+export const GHOST_TREES = { big: "/art/writer/ghost-trees_64x96.png", bigEm: "/art/writer/ghost-trees_64x96_em.png", mid: "/art/writer/ghost-trees_48x64.png", midEm: "/art/writer/ghost-trees_48x64_em.png" };
 export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" | "pump" | "grave", x: number, y: number, biome: string, frame = 0, em = false): boolean {
   const ox = x + 8;
   const oy = y + 14;
@@ -1230,6 +1233,17 @@ export function propSprite(ctx: CanvasRenderingContext2D, kind: "tree" | "rock" 
     } else {
       const season = biome === "snow" ? "winter" : seasonNow;
       const cell = tileRoll(tx, ty, 8);
+      // Wake batch art (staging ghost_trees): Art's ghost trees (ashpine, gloomoak, deadash, willow) replace the orange
+      // autumn trees for the ash-slate look; 64x96 or 48x64, anchored bottom centre on the same foot. Looks only.
+      if (season === "autumn" && prop2Ready(GHOST_TREES.big) && prop2Ready(GHOST_TREES.mid)) {
+        const kindG = tileRoll(tx + 3, ty, 4);
+        const mid = tileRoll(tx, ty + 5, 3) === 0;
+        const w = mid ? 48 : 64, h = mid ? 64 : 96;
+        const url = em ? (mid ? GHOST_TREES.midEm : GHOST_TREES.bigEm) : mid ? GHOST_TREES.mid : GHOST_TREES.big;
+        if (em && !prop2Ready(url)) return false;
+        ctx.drawImage(landSheet[url]!, kindG * w, 0, w, h, x + 8 - w / 2, y + 17 - h, w, h);
+        return true;
+      }
       const t2 = PROP2.tree; // playtest1v: the 64x96 tree first, the 1c 32x48 while it loads
       const big = prop2Ready(WILD_TREES2[season]);
       if (em) return TREE_GLOW.has(cell) && (big ? sheetCell(ctx, WILD_TREES2_EM[season], cell, 0, x + t2.dx, y + t2.dy, t2.w / 16, t2.h / 16, t2.w) : sheetCell(ctx, WILD_TREES_EM[season], cell, 0, x - 8, y - 32, 2, 3, 32));
@@ -3710,6 +3724,21 @@ export function paintWarden(ctx: CanvasRenderingContext2D, x: number, y: number,
   return true;
 }
 
+/** Wake batch: a one-row act sheet (idle0, idle1, wind-up, attack, hit, hurt), anchored bottom centre like the warden's. */
+export function paintActSheet(ctx: CanvasRenderingContext2D, sh: { url: string; em: string; w: number; h: number }, x: number, y: number, frame: number, act: number, hurt: boolean, flip: boolean, layer: "body" | "em"): boolean {
+  if (typeof Image === "undefined") return false;
+  const url = layer === "em" ? sh.em : sh.url;
+  if (!prop2Ready(url)) return false;
+  const col = hurt ? 5 : act >= 0 ? 2 + act : Math.floor(frame / 8) % 2;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y));
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(landSheet[url]!, col * sh.w, 0, sh.w, sh.h, -sh.w / 2, -sh.h, sh.w, sh.h);
+  ctx.restore();
+  return true;
+}
+
 /** Telegraph rune rings (Art's telegraphs sheets: 8 frames, 0-5 fill clockwise over the tell, 6 lit, 7 flash). */
 export type RingColour = "blue" | "violet" | "red";
 export function runeRingUrl(col: RingColour, big: boolean): string { return `/art/writer/runering_${col}_${big ? "128x64" : "64x32"}.png`; }
@@ -3725,15 +3754,30 @@ export function paintRuneRing(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.restore();
   return true;
 }
-/** The early boss's strike ring at his feet, filling over his wind-up; drawn on the floor and again on the glow pass. */
+/** Rune rings under the big telegraphs: the early boss's strike (blue, at his feet), every boss's big move (red; the
+ * Wake's lord by phase: blue, violet, red) and a mini's mid (blue), centred on the mark, filling over the tell and lit on
+ * the hit; a boss also gathers a charge orb over its head. Drawn on the floor and again on the glow pass (emissive). */
+export function ringFor(r: { early?: boolean; boss?: boolean; mini?: boolean; casting?: string; phase?: number; final?: boolean }): { col: RingColour; big: boolean } | null {
+  if (r.early) return { col: "blue", big: false };
+  if (r.final) return { col: (r.phase ?? 1) >= 3 ? "red" : (r.phase ?? 1) >= 2 ? "violet" : "blue", big: true };
+  if (r.boss && r.casting === "big") return { col: "red", big: true };
+  if (r.mini && (r.casting === "mid" || r.casting === "big")) return { col: "blue", big: false };
+  return null;
+}
 function paintRuneRings(ctx: CanvasRenderingContext2D, g: Game, glow: ((c: CanvasRenderingContext2D) => void)[]) {
   for (const r of g.roamers) {
-    if (!r.early) continue;
     const tell = r.tell ?? 0, max = r.tellMax ?? 0, act = r.actFor ?? 0;
     if (tell <= 0 && act <= 0) continue;
+    const ring = ringFor(r as Parameters<typeof ringFor>[0]);
+    if (!ring || (!r.early && tell <= 0)) continue;
     const frac = tell > 0 && max > 0 ? 1 - tell / max : 1;
     const lit = tell <= 0;
-    const draw = (c: CanvasRenderingContext2D) => void paintRuneRing(c, r.x, r.y, "blue", false, frac, lit, g.frame);
+    const mx = r.early ? r.x : (r.markX ?? r.x), my = r.early ? r.y : (r.markY ?? r.y);
+    const charge = r.boss && tell > 0 ? `/art/writer/charge_${ring.col}.png` : "";
+    const draw = (c: CanvasRenderingContext2D) => {
+      paintRuneRing(c, mx, my, ring.col, ring.big, frac, lit, g.frame);
+      if (charge && prop2Ready(charge)) c.drawImage(landSheet[charge]!, Math.min(4, Math.floor(frac * 5)) * 32, 0, 32, 32, Math.round(r.x - 16), Math.round(r.y - 72), 32, 32);
+    };
     draw(ctx);
     glow.push(draw);
   }
@@ -4166,7 +4210,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
           },
         });
         // playtest1c: the wild art's glow (yew wisps, cinder embers, a swamp light, a grave candle, a carved face)
-        const tree = biome === "ash" || biome === "swamp" || (biome === "sand" ? tileRoll(x, y, 2) === 0 : TREE_GLOW.has(tileRoll(x, y, 8)));
+        const tree = biome === "ash" || biome === "swamp" || (biome === "sand" ? tileRoll(x, y, 2) === 0 : TREE_GLOW.has(tileRoll(x, y, 8)) || (biome !== "snow" && seasonNow === "autumn")); // wake: ghost trees carry wisps
         const lit = kind === "pump" || (kind === "grave" && tileRoll(x, y, 4) === GRAVE_CELL.candle) || (kind === "rock" && biome === "ash") || (kind === "tree" && tree);
         if (lit) glow.push((c) => void propSprite(c, kind, x * TILE, y * TILE, biome, g.frame, true));
       }
@@ -4327,7 +4371,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     const rv = faceOf(r, r.x, r.y, !!r.moving, r.aggro || (r.actFor ?? 0) > 0 ? foeAt : null, (r.shoveT ?? 0) > 0 || (r.stun ?? 0) > 0);
     const wardenAct = (r.actFor ?? 0) > 0 ? actPhase(r.actFor ?? 0) : -1;
     const wardenFlip = hero.x < r.x;
-    const body = (c: CanvasRenderingContext2D) => (r.early && paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
+    const wakeSheet = r.mini && r.def ? WAKE_SHEETS[r.def] : undefined; // wake batch: Art's mini-boss sheets
+    const body = (c: CanvasRenderingContext2D) => (r.early && paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || (wakeSheet && paintActSheet(c, wakeSheet, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, emPass ? "em" : "body")) || monsterSprite(c, r.x, r.y, r.family, r.tint, sc, g.frame, (r.actFor ?? 0) > 0 ? (r.act === "cast" ? "cast" : "swing") : "", !!r.moving, r.boss ? "boss" : r.mini ? "mini" : r.rare || r.naughty ? "rare" : "mob", actPhase(r.actFor ?? 0), rv.face, rv.side);
     props.push({
       y: r.y,
       actor: body,
@@ -4366,6 +4411,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       });
     }
     if (r.early && !hasGlowMask(r.family)) glow.push((c) => void paintWarden(c, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, "em"));
+    if (wakeSheet && !hasGlowMask(r.family)) glow.push((c) => void paintActSheet(c, wakeSheet, r.x, r.y, g.frame, wardenAct, (r.flash ?? 0) > 0, wardenFlip, "em"));
     // fade1 (OWNER-APPROVED 2026-10-01 19:59 ET): a fresh night roamer dissolves in (fade.ts). Drawing only; the foe is live.
     const fade = fadeOf(r, g.worldMs, sceneStart(g));
     if (fade < 1) {
@@ -4873,6 +4919,32 @@ function stampCluster(ctx: CanvasRenderingContext2D, file: string, frame: number
 }
 
 /** Red is fire, blue is ice, green is venom, purple is shadow, pale gold is lightning. */
+/** Wake batch: Art's bolt, trail and impact for six elements (public/art/spells/fx2; fully emissive). */
+const SPELL_FX2 = "/art/spells/fx2";
+const FX2_ELEMENTS = new Set(["fire", "ice", "lightning", "holy", "shadow", "venom"]);
+/** The bolt head turned in 90 degree steps only (style lock: no free rotation), with its trail laid behind it. */
+function paintBolt2(ctx: CanvasRenderingContext2D, el: string, x0: number, y0: number, hx: number, hy: number, frame: number): boolean {
+  if (typeof Image === "undefined") return false;
+  const boltUrl = `${SPELL_FX2}/${el}_bolt.png`, trailUrl = `${SPELL_FX2}/${el}_trail.png`;
+  if (!prop2Ready(boltUrl) || !prop2Ready(trailUrl)) return false;
+  const dx = hx - x0, dy = hy - y0, len = Math.hypot(dx, dy);
+  // the trail: a puff every 6 px behind the head, older puffs further along their 4-frame decay
+  if (len > 1) for (let i = 1; i <= 4; i++) {
+    const d = i * 6;
+    if (d > len) break;
+    const tx = Math.round(hx - (dx / len) * d), ty = Math.round(hy - (dy / len) * d);
+    ctx.drawImage(landSheet[trailUrl]!, Math.min(3, i - 1) * 16, 0, 16, 16, tx - 8, ty - 8, 16, 16);
+  }
+  const quarter = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 2) : dy >= 0 ? 1 : 3;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(hx), Math.round(hy));
+  if (quarter === 2) ctx.scale(-1, 1);
+  else if (quarter) ctx.rotate((quarter * Math.PI) / 2);
+  ctx.drawImage(landSheet[boltUrl]!, (frame % 4) * 16, 0, 16, 16, -8, -8, 16, 16);
+  ctx.restore();
+  return true;
+}
 function spellElement(color: string): string {
   const h = color.replace("#", "");
   if (h.length < 6) return "lightning";
@@ -4984,8 +5056,12 @@ function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, t
       const sx = x + (tx - x) * from;
       const sy = y + (ty - y) * from;
       const strip = element === "lightning" ? "lightning.png" : `${element === "ice" ? "beam-ice" : element === "fire" ? "beam-fire" : element === "shadow" ? "beam-shadow" : element === "venom" ? "beam-venom" : "beam-holy"}.png`;
-      drew = Math.hypot(hx - sx, hy - sy) < 1 ? spellFrame(ctx, strip, frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") : stampSpell(ctx, strip, frame, sx, sy, hx, hy, element === "lightning" ? 10 : 8);
-      drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") || drew;
+      if (FX2_ELEMENTS.has(element) && paintBolt2(ctx, element, x, y, hx, hy, frame)) {
+        drew = true; // wake batch: Art's bolt with its trail (staging/art/spells)
+      } else {
+        drew = Math.hypot(hx - sx, hy - sy) < 1 ? spellFrame(ctx, strip, frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") : stampSpell(ctx, strip, frame, sx, sy, hx, hy, element === "lightning" ? 10 : 8);
+        drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen") || drew;
+      }
     } else drew = spellFrame(ctx, "orb.png", frame, 6, hx - 8, hy - 8, 16, 16, "/art/spells/gen");
     px(ctx, hx - 1, hy - 1, 3, 3, "#fff8e0");
     // playtest1h ([OWNER-REQUESTED 2026-10-02 19:43 ET: playtest1h art and loading audit]): the cast beat, a turning
@@ -5007,7 +5083,7 @@ function paintSpellPhased(ctx: CanvasRenderingContext2D, x: number, y: number, t
   const fxEl = fxElement(color, element);
   // the area burst lies on the ground (a nova anywhere, e.g. Tripwire's snare, too): its centre a few pixels below the point
   if (selfCast || kind === "nova") drew = spellFrame(ctx, `shock-${fxEl}.png`, fi, 6, cx - 32, cy - 10, 64, 32, SPELL_FX) || drew;
-  const hit = spellFrame(ctx, `impact-${fxEl}.png`, fi, 6, cx - 16, cy - 16, 32, 32, SPELL_FX);
+  const hit = (kind === "bolt" && FX2_ELEMENTS.has(element) && spellFrame(ctx, `${element}_impact.png`, fi, 6, cx - 16, cy - 16, 32, 32, SPELL_FX2)) || spellFrame(ctx, `impact-${fxEl}.png`, fi, 6, cx - 16, cy - 16, 32, 32, SPELL_FX);
   drew = hit || drew;
   if (hit) return true;
   color = spellGlow(color);
