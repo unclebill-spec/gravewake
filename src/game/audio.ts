@@ -37,8 +37,10 @@ const FADE = 0.6;
  */
 export const AMB = {
   wind: { day: 0.35, night: 0.5 },
-  wisp: 0.2, candle: 0.4, fall: 6 * 16,
-  choir: 0.25, choirDucked: 0.1, choirFade: 3,
+  // levels checked through the phone weighting (see MUSIC_TRIM): at the README's 0.2 / 0.4 / 0.1 the wisp hum (-47 LUFS),
+  // the candle crackle (-43) and the ducked choir (-45) vanished under the night music (-32); lifted to sit 5-8 dB under it.
+  wisp: 0.45, candle: 0.8, fall: 6 * 16,
+  choir: 0.25, choirDucked: 0.18, choirFade: 3,
   raven: 0.5, flap: 0.5, cawGap: [6, 16] as [number, number],
   swell: 0.5, swellDuck: 0.6, swellHold: 3,
 } as const;
@@ -74,7 +76,13 @@ export function ambLevels(s: AmbState, musicOn: boolean): Record<AmbLoop, number
 }
 /** polish: a file mastered well under the rest is lifted to sit with them (mean dB: harrow -23.8 against the dungeons' -16.3;
  * its peak is -3.1 dB, so x1.8 (+5.1 dB) keeps headroom under the master). */
-export const MUSIC_TRIM: Record<string, number> = { "dungeon-harrow": 1.8 };
+export const MUSIC_TRIM: Record<string, number> = {
+  "dungeon-harrow": 1.8,
+  // oskaudio: through a phone-speaker weighting (300 Hz high-pass, then EBU R128) dungeon-rift reads -33.7 LUFS against the
+  // dungeons' -18.8..-24.4 (its D drone sits below what a phone moves). x2.2 (+6.8 dB) brings it to about -26.9; its peak
+  // (-5.3 dBFS) stays under 1.0 at the music bus (0.54 x 2.2 x 0.7 = 0.83).
+  "dungeon-rift": 2.2,
+};
 /** How long the casino bed stays ducked after a jukebox note (a note comes every 0.4 s). */
 const SONG_HOLD = 0.9;
 

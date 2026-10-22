@@ -2,6 +2,18 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## oskaudio (2026-10-22)
+Sound's outskirts audio (staging/audio/outskirts, CC0).
+- A wind bed on outdoor maps (0.35 by day, 0.5 at night).
+- The raven caws at random while it sits on its perch, and caws with a wing-flap when it flies off.
+- Wisps hum and candle skulls crackle as you approach them from the town's rim. Both are positional (panned) and fade to nothing at 6 tiles.
+- choir-night plays at night in the vale (outside the fence), ducked under the music. choir-drift is its alternate in the cemetery and near wayrifts. Both fade over about 3 s.
+- choir-swell plays when you take a wayrift or step into the cemetery, and ducks the music by 40% for 3 s.
+- The Ashen Rift plays the new dungeon-rift loop through a "rift" theme value.
+- Levels were checked through a phone-speaker weighting. dungeon-rift is trimmed x2.2. The wisp (0.45), candle (0.8) and ducked choir (0.18) are lifted from the README's suggested levels so they don't vanish under the night music.
+- Each file is decoded once; the synth still beeps for the raven and the swell until their files are ready.
+- New check group: oskaudio.
+
 ## billvid (2026-10-22)
 Fixes from Bill's phone video of main e2f4c6f.
 - Doors: the trigger reaches a little past the door art, both entering and leaving, so the exits at Noll's Cottage, The Needle and The Smithy are no longer tight. You still enter by touching it, and you never spawn back into a door.

@@ -16028,8 +16028,55 @@ if (on("billvid")) {
   check("billvid", `blackjack lays both hands in clean rows (the dealer's hole card face down beside his up card) and always fits the table (${table}); on a computer (fine pointer, no touch) keys mode hides the stick and the action buttons, a touch brings them back, keys or a mouse hide them, K camps and a key hint shows once (${keys})`, table && keys);
 }
 
+// oskaudio [OWNER-REQUESTED 2026-10-22 Bill: outskirts audio from Sound]: the wind, the raven, wisps, candles, the choirs,
+// the swell, the Ashen Rift's own loop; decoded once, the synth still covers anything missing.
+if (on("oskaudio")) {
+  asLive();
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-oa-"));
+  const root = process.cwd();
+  writeTop(join(dir, "b.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as AU from "${root}/src/game/audio.ts";\nexport * as OSK from "${root}/src/game/outskirts.ts";\nexport { CEMETERY } from "${root}/src/game/townplan.ts";\nexport { RIFTS } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "b.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", "--loader:.png=empty", "--loader:.css=empty", `--outfile=${join(dir, "b.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "b.mjs")).href);
+  const AU = X.AU;
+  const files = ["amb-wind", "raven-caw-1", "raven-caw-2", "raven-caw-3", "wing-flap", "wisp-hum", "candle-crackle", "choir-night", "choir-drift", "choir-swell"].filter((f) => existsTop(`public/art/audio/outskirts/${f}.ogg`)).length;
+  const lic = readTop("public/art/audio/LICENSES.md", "utf8").includes("outskirts/*.ogg (11), music/dungeon-rift.ogg");
+  check("oskaudio", `Sound's outskirts files ship (${files}/10 plus dungeon-rift ${existsTop("public/art/audio/music/dungeon-rift.ogg")}), CC0 in LICENSES.md (${lic})`, files === 10 && existsTop("public/art/audio/music/dungeon-rift.ogg") && lic);
+  // the levels: wind outdoors (louder at night), positional hum and crackle fall to 0 at 6 tiles, choirs ducked under music
+  const base = { outdoor: true, night: false, outside: false, drift: false, wisp: null, candle: null, raven: false };
+  const L = (o, m = true) => AU.ambLevels({ ...base, ...o }, m);
+  const lv = [L({})["amb-wind"] === AU.AMB.wind.day, L({ night: true })["amb-wind"] === AU.AMB.wind.night, L({ outdoor: false })["amb-wind"] === 0,
+    L({ wisp: { d: 0, dx: 0 } })["wisp-hum"] === AU.AMB.wisp, L({ wisp: { d: 6 * 16, dx: 0 } })["wisp-hum"] === 0, Math.abs(L({ candle: { d: 48, dx: 0 } })["candle-crackle"] - AU.AMB.candle / 2) < 1e-9,
+    L({ night: true, outside: true })["choir-night"] === AU.AMB.choirDucked, L({ night: true, outside: true }, false)["choir-night"] === AU.AMB.choir, L({ outside: true })["choir-night"] === 0, L({ night: true })["choir-night"] === 0,
+    L({ drift: true })["choir-drift"] > 0 && L({ drift: true, night: true, outside: true })["choir-night"] === 0];
+  check("oskaudio", `levels: wind ${AU.AMB.wind.day}/${AU.AMB.wind.night} outdoors only, wisp hum ${AU.AMB.wisp} and candle crackle ${AU.AMB.candle} falling linearly to 0 at 6 tiles, choir-night only at night outside the fence (${AU.AMB.choir}, ducked to ${AU.AMB.choirDucked} under music), choir-drift as its alternate (${lv.filter(Boolean).length}/${lv.length})`, lv.every(Boolean));
+  // the sim's state: the wisps and candles heard from the town's rim, the vale is outside, the cemetery and rifts drift
+  const calls = [];
+  const fake = () => new Proxy({}, { get: (_, k) => (...a) => { calls.push([k, a[0]]); } });
+  const mk = (ms) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; g.enterTown(); g.audio = fake(); return g; };
+  const g = mk(5 * 60 * 1000);
+  const w = X.OSK.wisps().find((v) => v.y >= 0 && v.y < g.h && v.x >= 0 && v.x < g.w) ?? X.OSK.wisps()[0];
+  const wp = X.OSK.wispAt(w, g.frame);
+  g.px = Math.max(8, Math.min(g.w * 16 - 8, wp.x)); g.py = Math.max(8, Math.min(g.h * 16 - 8, wp.y - 8));
+  const sw = g.ambState();
+  g.px = 27 * 16 + 8; g.py = 20 * 16 + 8; const mid = g.ambState();
+  const C = X.CEMETERY; g.px = (C.path[0]) * 16 + 8; g.py = (C.y1 + 2) * 16; g.update(0.05); calls.length = 0;
+  g.py = (C.y0 + 4) * 16 + 8; g.update(0.05); g.update(0.05);
+  const swells = calls.filter(([k]) => k === "swell").length;
+  const inC = g.ambState().drift;
+  const s1 = sw.wisp && sw.wisp.d < AU.AMB.fall && sw.outdoor && !sw.outside && !mid.wisp;
+  check("oskaudio", `the sim hears the outskirts: a wisp from the town's rim (${!!s1}), none mid-town (${!mid.wisp}); stepping into the cemetery swells the choir once (${swells}) and drifts it (${inC})`, !!s1 && swells === 1 && inC);
+  // the rift: its own loop through a 'rift' theme value; the swell on entering a wayrift; trimmed for a phone
+  const r = mk(5 * 60 * 1000); calls.length = 0;
+  r.enterDungeon(X.RIFTS[0].id); r.update(0.05);
+  const moods = calls.filter(([k]) => k === "mood").map(([, a]) => a);
+  const src = readTop("src/game/sim.ts", "utf8"), au = readTop("src/game/audio.ts", "utf8"), dr = readTop("src/game/draw.ts", "utf8");
+  const rift = AU.musicFor("dungeon:rift:day") === "dungeon-rift" && moods.some((k) => k.startsWith("dungeon:rift:")) && AU.MUSIC_TRIM["dungeon-rift"] > 1 && AU.musicFor("dungeon:ossuary:day") === "dungeon-ossuary";
+  const hooks = /this\.audio\?\.swell\(\); \/\/ oskaudio: the choir swells as the rift takes you/.test(src) && /g\.audio\?\.ravenFly\(\)/.test(dr) && /if \(!this\.ambShot\("choir-swell"[^\n]*this\.tone\(/.test(au) && /if \(!this\.ambShot\(`raven-caw-\$\{n\}`[^\n]*this\.tone\(/.test(au) && /const buf = this\.load\(`\$\{AMB_DIR\}\$\{name\}\.ogg`\)/.test(au);
+  check("oskaudio", `the Ashen Rift plays dungeon-rift through a 'rift' theme value (${rift}, trimmed x${AU.MUSIC_TRIM["dungeon-rift"]} for a phone); a wayrift swells the choir and ducks the music, the raven caws and flaps as it flies off, each file decoded once through the shared cache, the synth beeps while one is missing (${hooks})`, rift && hooks);
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid");
+  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);
