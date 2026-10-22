@@ -471,9 +471,9 @@ function pt1vRoot() {
       if (pt1wNew(f) || pt1xNew(f) || pt1yNew(f) || (pt1zNew(f) && !esNew(f)) || n === "__pycache__") continue; // playtest1y: its new sheets out too
       if (REAL.has(f)) { execFileSync("mkdir", ["-p", join(dir, f)]); mirror(f); }
       else if (f in PT1W_FROZEN || f in PT1X_FROZEN || f in PT1Y_FROZEN) writeTop(join(dir, f), readTop(join(root, pt1vView(f))));
-      // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: a wake-frozen file (bonecar.ts's
-      // showroom moved with the town) is the frozen copy in this tree too, so the bundler sees what the older groups read
-      else if (WAKE_OLD && WAKE_SET.has(f)) writeTop(join(dir, f), readTop(join(root, f)));
+      // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: bonecar.ts's showroom moved with
+      // the town; this tree's town is the old 40x30 one, so its bundle takes the wake-frozen bonecar.ts (the lot that town has)
+      else if (WAKE_OLD && f === "src/game/bonecar.ts" && WAKE_SET.has(f)) writeTop(join(dir, f), readTop(join(root, f)));
       else symlinkTop(join(root, f), join(dir, f));
     }
   };
@@ -7484,7 +7484,7 @@ if (on("playtest1")) {
     const seen = reach(gx, gy);
     for (const [x, y] of doors) if (!seen.has(`${x},${y + 1}`)) unreached.push(`${x},${y} from ${gx},${gy}`);
   }
-  check("playtest1", "the town is 40 x 30 with sixteen doors, each on its house's south face with a walkable stoop below it, and every stoop is reachable on foot from every one of the ten road gates (owner-reported: the bottom houses were unreachable)", (PT1V_LIVE ? town.w === 58 && town.h === 42 : town.w === 40 && town.h === 30) && doors.length === 16 && gates.length === 10 && unreached.length === 0 && doors.every(([x, y]) => !solid(town, x, y + 1)), unreached.slice(0, 6).join("; "));
+  check("playtest1", "the town is 40 x 30 with sixteen doors, each on its house's south face with a walkable stoop below it, and every stoop is reachable on foot from every one of the ten road gates (owner-reported: the bottom houses were unreachable)", ((town.w === 40 && town.h === 30) || (town.w === 58 && town.h === 42 && PT1V_LIVE)) && doors.length === 16 && gates.length === 10 && unreached.length === 0 && doors.every(([x, y]) => !solid(town, x, y + 1)), unreached.slice(0, 6).join("; "));
   const backs = doors.filter(([x, y]) => !solid(town, x, y - 1));
   check("playtest1", "the wall behind every door is solid (no door can be walked into from the house's back)", backs.length === 0, backs.join(" "));
   {
@@ -14306,7 +14306,10 @@ if (on("playtest1v")) {
     const asked = ALL.filter((g) => wanted.has(g));
     const alone = wanted.size === 0 || wanted.has("all") || [...wanted].every((g) => g === "playtest1v");
     const groups = alone ? ALL : asked; // beside other groups only those of them that are older world groups (none: nothing to run live)
-    const PINS = {"move": "5/1/a566f1ae", "doors": "6/2/eeb0676c", "loop": "9/1/78f900af", "season": "17/2/d633de2e", "daysweep": "3/2/de19a6eb", "festival": "19/2/5f3cc38c", "mapwriter": "37/1/aae474d4", "festival2": "21/3/0bb1a74b", "mapwriter2": "8/7/aab7bcf2", "gfx1": "21/1/91e6d5f4", "fade1": "13/2/2da4790b", "fade2": "14/5/cbdf7c3b", "playtest1": "25/1/662ef4fc", "playtest1b": "22/1/b3c7637b", "playtest1e": "16/12/07958d7d", "playtest1f": "23/8/6a591901", "playtest1g": "9/7/f4e0663c", "playtest1j": "12/2/332f76f1", "playtest1k": "16/4/ae8da126", "playtest1n": "18/2/02f5a43f", "playtest1o": "17/7/bf6a48f5", "playtest1p": "5/6/d3b85db4", "playtest1s": "8/6/86dc7d69", "playtest1t": "13/2/fc9bc15f", "playtest1u": "12/11/dd373f39"}; // earlysinks: re-pinned; the new reds are only the moved files' byte pins (sim.ts, draw.ts, Gravewake.tsx). charfix: re-pinned 1o/1p/1s; the new reds are only the replaced art and facing (the -dirs and big sheets and their writers' byte pins, horse/cat/rat drawn in four views, the ghost -dirs in DIRS, the big-sheet audit of the new sheets)
+    // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: re-pinned festival, festival2 (the
+    // plaza stall moved from (26,14) with the town: three stall checks go red live) and fade1, fade2 (content.ts and festivals.ts
+    // changed: their byte pins go red live); every other group as it was
+    const PINS = {"move": "5/1/a566f1ae", "doors": "6/2/eeb0676c", "loop": "9/1/78f900af", "season": "17/2/d633de2e", "daysweep": "3/2/de19a6eb", "festival": "18/3/5a18da72", "mapwriter": "37/1/aae474d4", "festival2": "19/5/25e5b33c", "mapwriter2": "8/7/aab7bcf2", "gfx1": "21/1/91e6d5f4", "fade1": "12/3/1ab0c72c", "fade2": "13/6/f5a1af04", "playtest1": "25/1/662ef4fc", "playtest1b": "22/1/b3c7637b", "playtest1e": "16/12/07958d7d", "playtest1f": "23/8/6a591901", "playtest1g": "9/7/f4e0663c", "playtest1j": "12/2/332f76f1", "playtest1k": "16/4/ae8da126", "playtest1n": "18/2/02f5a43f", "playtest1o": "17/7/bf6a48f5", "playtest1p": "5/6/d3b85db4", "playtest1s": "8/6/86dc7d69", "playtest1t": "13/2/fc9bc15f", "playtest1u": "12/11/dd373f39"}; // earlysinks: re-pinned; the new reds are only the moved files' byte pins (sim.ts, draw.ts, Gravewake.tsx). charfix: re-pinned 1o/1p/1s; the new reds are only the replaced art and facing (the -dirs and big sheets and their writers' byte pins, horse/cat/rat drawn in four views, the ghost -dirs in DIRS, the big-sheet audit of the new sheets)
     let outp = "";
     try { outp = execFileSync("node", ["scripts/gravewake-check.mjs", ...groups], { cwd: root, env: { ...process.env, GW_PT1V_LIVE: "1" }, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }); } catch (e) { outp = String(e.stdout ?? ""); }
     const per = {};
