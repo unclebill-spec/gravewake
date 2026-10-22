@@ -86,6 +86,9 @@ export function Gravewake() {
   const freshIds = useRef(new Set<number>());
   const [portrait, setPortrait] = useState(false);
   const [coarse, setCoarse] = useState(false);
+  // billvid item 9 (Bill, 2026-10-22: "on PC, default to keyboard controls"): keys mode hides the touch stick and the
+  // action buttons. On at start on a fine pointer with no touch screen; the first touch turns it off, keys or a mouse on again.
+  const [keysMode, setKeysMode] = useState(() => typeof window !== "undefined" && keyboardFirst(window));
   const [portraitOk, setPortraitOk] = useState(false);
   const [tip, setTip] = useState(false);
   const [fs, setFs] = useState(false);
@@ -325,6 +328,7 @@ export function Gravewake() {
         return;
       }
       if (!e.repeat) unlockFresh(e.timeStamp || performance.now());
+      setKeysMode(true); // billvid item 9: a key press is the keyboard
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (game.captureAct) {
         e.preventDefault();
@@ -417,6 +421,8 @@ export function Gravewake() {
       }
       // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: B is the bone car (owners only)
       if (e.code === "KeyB" && game.carOwned && !e.repeat && !Object.values(bind).includes("KeyB")) game.carAction();
+      // billvid item 9: K pitches or breaks camp (the Camp button's key)
+      if (e.code === "KeyK" && !e.repeat && !Object.values(bind).includes("KeyK") && game.canCamp()) game.camp();
       if (e.code === bind.area) game.whirl();
       if (e.code === bind.far) game.smite();
       if (e.code === bind.drink) game.usePotion();
@@ -788,7 +794,13 @@ export function Gravewake() {
 
   /** Title, HUD, and the panel for whichever mode the simulation is in. */
   return (
-    <main ref={mainRef} className="relative h-full w-full touch-none overflow-hidden bg-black text-fg">
+    <main
+      ref={mainRef}
+      className="relative h-full w-full touch-none overflow-hidden bg-black text-fg"
+      data-keys={keysMode ? "1" : "0"}
+      onPointerDownCapture={(e) => setKeysMode(e.pointerType !== "touch" && e.pointerType !== "pen")}
+    >
+      {keysMode && game?.mode === "play" ? <KeyHint /> : null}
       {screenSet.preset === "retro" ? (
         // retro1: Retro's 4:3 picture sits in black bars, and a thumb rests on them: in play the left third starts the
         // floating stick there too, and a tap or drag on a bar walks toward that point, as on the picture.
@@ -1237,6 +1249,7 @@ export function Gravewake() {
             className="gw-touch absolute right-3 bottom-3 z-10 flex flex-col items-end gap-1.5"
             data-testid="hud-touch"
             data-idle={touchIdle ? "1" : "0"}
+            hidden={keysMode}
             style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))", opacity: touchIdle ? HUD_FADE.idleOpacity : HUD_FADE.busyOpacity, transition: "opacity 300ms" }}
             onPointerDownCapture={() => {
               pressAt.current = performance.now();
@@ -1345,6 +1358,7 @@ export function Gravewake() {
           <div
             ref={ringRef}
             data-testid="stick"
+            hidden={keysMode}
             className="gw-stick absolute bottom-4 left-3 z-10 flex h-28 w-28 touch-none items-center justify-center rounded-full border border-border bg-surface/70"
             style={{ left: "calc(0.75rem + var(--sal))", bottom: "calc(1rem + var(--sab))" }}
             onPointerDown={(e) => stickStart(e, false)}
@@ -2434,5 +2448,37 @@ function LootIcon({ cell, dim = false }: { cell: number; dim?: boolean }) {
       className="-my-1 mr-1 inline-block shrink-0 align-middle"
       style={{ width: 32, height: 32, backgroundImage: `url(${LOOT_SHEET})`, backgroundSize: `${LOOT.length * 32}px 32px`, backgroundPosition: `-${cell * 32}px 0`, imageRendering: "pixelated", opacity: dim ? 0.35 : 1 }}
     />
+  );
+}
+
+/** billvid item 9: a computer with a fine pointer and no touch screen starts on the keyboard. */
+export function keyboardFirst(w: Pick<Window, "matchMedia" | "navigator">): boolean {
+  return !!w.matchMedia?.("(pointer: fine)").matches && (w.navigator?.maxTouchPoints ?? 0) === 0;
+}
+/** billvid item 9: the keys, shown once (the first play in keys mode), then never again on this machine. */
+export const KEY_HINT = "WASD move · E use · Q whirl · F smite · 1-4 spells · P potion · K camp · B car · M map · I pack · Esc pause";
+function KeyHint() {
+  const [show, setShow] = useState(() => {
+    try {
+      return localStorage.getItem("gravewake-keyhint") !== "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!show) return;
+    try {
+      localStorage.setItem("gravewake-keyhint", "1");
+    } catch {
+      /* private mode: show it this once anyway */
+    }
+    const t = window.setTimeout(() => setShow(false), 9000);
+    return () => window.clearTimeout(t);
+  }, [show]);
+  if (!show) return null;
+  return (
+    <div data-testid="key-hint" className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded border border-border bg-surface/85 px-3 py-1 text-[0.6875rem] text-fg">
+      {KEY_HINT}
+    </div>
   );
 }
