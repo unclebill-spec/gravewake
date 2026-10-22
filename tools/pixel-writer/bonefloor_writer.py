@@ -8,7 +8,7 @@ a bright bone heap (prop-bones.png) on every one of them. This writer draws thei
                      soft clusters one step either side (#342038 / #2a1c30) and now and then a sunk pebble. No grid, no
                      seams, nothing lighter than #3a2a44, so the neon lights keep the scene.
     decal-bone2.png  4 cells, 16x16: rare small accents (draw.ts lays one on about 1 tile in 10): a lone bone, two crossed
-                     bones, a half-sunk skull, a few chips. Muted bone (#6a5a4c body, #8a7a64 tip, #4a382c shade), never
+                     bones, a half-sunk skull, a few chips. Muted bone-slate (#5a6070 body, #7a8088 tip, #2a4a38 shade; the wake palette remap), never
                      the heap's bright #e6dcc8 / #f4f0e8, and none bigger than 7x5 px.
 
 Code-drawn, seeded (random.Random), palette v3 (LOCKED_V3), hard alpha. Nothing on these sheets glows, so neither has an
@@ -28,9 +28,10 @@ SOFT_LO = "#2a1c30"
 PEBBLE = "#3a2a44"
 PEBBLE_SH = "#241830"
 # Muted bone: shade, body, tip.
-BONE_SH = "#4a382c"
-BONE = "#6a5a4c"
-BONE_TIP = "#8a7a64"
+# Wake batch palette remap (staging/art/palette_remap, ash-slate): the accents take the remap's cool bone-slate.
+BONE_SH = "#2a4a38"
+BONE = "#5a6070"
+BONE_TIP = "#7a8088"
 FLOOR_CELLS = 8
 ACCENT_CELLS = 4
 
