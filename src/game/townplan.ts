@@ -53,7 +53,8 @@ export const CEMETERY = {
   x0: 12, y0: 18, x1: 24, y1: 27,
   path: [17, 18] as [number, number],
   stair: { x: 18, y: 19 },
-  graves: [[14, 21], [21, 21], [14, 24], [21, 24], [16, 26]] as [number, number][],
+  // the old yard's three dig sites (graves.ts), spread over the new yard
+  graves: [[14, 21], [21, 21], [15, 24]] as [number, number][],
   undertaker: { x: 20, y: 19 },
 } as const;
 

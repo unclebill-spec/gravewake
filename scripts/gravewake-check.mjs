@@ -105,7 +105,8 @@ function wakePyRoot() {
 const TILE = 16;
 // playtest1 [OWNER-REPORTED 2026-10-01 23:25 ET]: eight doors moved to their house's south face (inn 9,5→5,6, shop
 // 17,5→14,6, smith 34,15→34,19, croft 18,23→18,26, and the south row 13,22 5,22 27,22 34,22 → row 26).
-const DOORS = ["5,6", "14,6", "30,6", "34,6", "5,11", "14,11", "26,11", "5,19", "27,19", "34,19", "18,20", "18,26", "13,26", "5,26", "27,26", "34,26"];
+// townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the sixteen doors of the 56x42 town (src/game/townplan.ts TOWN_BLOCKS)
+const DOORS = ["5,6", "17,6", "23,6", "44,6", "50,6", "5,14", "17,14", "40,14", "5,24", "41,24", "50,24", "5,36", "16,36", "22,36", "41,36", "50,36"];
 const WALKABLE = new Set([0, 1, 2, 21]);
 // 28 to 31 are the dungeon secrets: rune door, cracked brick, brazier, saint. All solid.
 const BLOCKED = new Set([3, 4, 5, 6, 10, 14, 26, 28, 29, 30, 31]);
@@ -998,8 +999,9 @@ if (on("fight")) {
   cast.inv.push(item({ uid: "pole", name: "Rib pole", kind: "tackle", special: "Pole" }));
   cast.inv.push(item({ uid: "bait", name: "Nightcrawlers", kind: "bait", stack: 2, gift: "nightcrawlers" }));
   // playtest2b (sweep fix): playtest1z's town park took the old pond at 16-19,14-16; the cast stands by its one water tile (20,16).
-  cast.px = 21 * TILE + 8;
-  cast.py = 15 * TILE + 8;
+  // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the park moved to the plaza; its water tile is (34,23)
+  cast.px = 35 * TILE + 8;
+  cast.py = 22 * TILE + 8;
   cast.castLine();
   const mark = cast.fishMark;
   const fishClock = cast.worldMs;
@@ -3242,7 +3244,7 @@ if (on("graves")) {
   const F = await feat47Mod();
   const { readFileSync } = await import("node:fs");
   const C = F.CYCLE_MS;
-  const GRAVES = [[12, 17], [15, 17], [13, 19]];
+  const GRAVES = [[14, 21], [21, 21], [15, 24]] // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the three graves in the new yard;
   const spade = () => ({ uid: 9001, name: "Grave spade", kind: "tackle", rank: 1, bonus: F.DIG.spadePrice, special: "Spade", stack: 1 });
   const atNight = (g, night) => { g.worldMs = night * C + F.DAY_MS + 60000; };
   /** Stand on the open tile beside grave (x,y) and face it, then press Main. */
@@ -3264,7 +3266,7 @@ if (on("graves")) {
     g.enterTown();
     const graves = [];
     g.tiles.forEach((t, i) => { if (t === F.T.grave) graves.push(`${i % g.w},${Math.floor(i / g.w)}`); });
-    check("graves", "the town yard's three graves are the dig sites; the sim refuses any other tile", graves.join(" ") === "12,17 15,17 13,19", graves.join(" "));
+    check("graves", "the town yard's three graves are the dig sites; the sim refuses any other tile", graves.join(" ") === "14,21 21,21 15,24", graves.join(" "));
     g.shopRole = "undertaker";
     g.stock = g.buildStock("undertaker");
     const sp = g.stock.find((i) => i.special === "Spade");
@@ -3286,12 +3288,12 @@ if (on("graves")) {
     g.enterTown();
     g.inv.push(spade());
     const t0 = [...g.tiles];
-    digAt(g, 12, 17);
+    digAt(g, 14, 21);
     const dayLine = g.logLine;
     const dayKeys = [...g.opened].filter((k) => k.startsWith("dug:")).length;
     atNight(g, 5);
     g.inv = g.inv.filter((i) => i.special !== "Spade");
-    digAt(g, 12, 17);
+    digAt(g, 14, 21);
     const bare = g.logLine;
     const bareKeys = [...g.opened].filter((k) => k.startsWith("dug:")).length;
     check("graves", "by day the yard is watched: no dig, no key", g.phase === "night" && /after dark/.test(dayLine) && dayKeys === 0, dayLine);
@@ -3299,19 +3301,19 @@ if (on("graves")) {
     g.inv.push(spade());
     const before = g.drops.length;
     let night = 0;
-    for (let n = 1; n < 200 && !night; n++) if (!F.digWakes(n, 12, 17)) night = n;
+    for (let n = 1; n < 200 && !night; n++) if (!F.digWakes(n, 14, 21)) night = n;
     atNight(g, night);
-    digAt(g, 12, 17);
+    digAt(g, 14, 21);
     const got = g.drops.slice(before);
-    check("graves", "a night dig with a spade drops exactly DIG.drops = 1 item from the existing world loot table, and records dug:<night>:12:17", got.length === 1 && F.DIG.drops === 1 && g.opened.has(F.digKey(night, 12, 17)) && /turn the grave/.test(g.logLine), `${got.length} ${g.logLine}`);
+    check("graves", "a night dig with a spade drops exactly DIG.drops = 1 item from the existing world loot table, and records dug:<night>:14:21", got.length === 1 && F.DIG.drops === 1 && g.opened.has(F.digKey(night, 14, 21)) && /turn the grave/.test(g.logLine), `${got.length} ${g.logLine}`);
     const n1 = g.drops.length;
-    digAt(g, 12, 17);
+    digAt(g, 14, 21);
     check("graves", "the same grave the same night gives nothing more", g.drops.length === n1 && /Already turned tonight/.test(g.logLine), g.logLine);
     let next = night + 1;
-    while (F.digWakes(next, 12, 17)) next++;
+    while (F.digWakes(next, 14, 21)) next++;
     atNight(g, next);
-    digAt(g, 12, 17);
-    check("graves", "a later night it can be dug again, and the old night's keys are dropped from the save list", g.drops.length === n1 + 1 && !g.opened.has(F.digKey(night, 12, 17)) && g.opened.has(F.digKey(next, 12, 17)), [...g.opened].filter((k) => k.startsWith("dug:")).join(" "));
+    digAt(g, 14, 21);
+    check("graves", "a later night it can be dug again, and the old night's keys are dropped from the save list", g.drops.length === n1 + 1 && !g.opened.has(F.digKey(night, 14, 21)) && g.opened.has(F.digKey(next, 14, 21)), [...g.opened].filter((k) => k.startsWith("dug:")).join(" "));
     check("graves", "digging changes no town tile", t0.every((t, i) => t === g.tiles[i]));
     const sim = readFileSync("src/game/sim.ts", "utf8");
     const body = sim.split("private digGrave(")[1].split("\n  }\n")[0];
@@ -3330,10 +3332,10 @@ if (on("graves")) {
         atNight(g, n);
         g.enterTown();
         g.inv.push(spade());
-        digAt(g, 15, 17);
+        digAt(g, 21, 21);
         runs.push(g.roamers.some((r) => r.aggro && r.family === "zombie"));
       }
-      same.push(runs[0] === runs[1] && runs[0] === F.digWakes(n, 15, 17));
+      same.push(runs[0] === runs[1] && runs[0] === F.digWakes(n, 21, 21));
     }
     check("graves", "a zombie wakes on the seeded roll for that night and grave, the same every game", same.every(Boolean), same.join(""));
     check("graves", "over 300 nights x 3 graves the wake share is near DIG.wakeChance = 25%", F.DIG.wakeChance === 0.25 && Math.abs(wakes / total - 0.25) < 0.04, `${wakes}/${total}`);
@@ -3342,14 +3344,14 @@ if (on("graves")) {
     const lvls = [];
     for (const lv of [1, 30]) {
       let night = 1;
-      while (!F.digWakes(night, 15, 17)) night++;
+      while (!F.digWakes(night, 21, 21)) night++;
       const g = fresh();
       g.level = lv;
       atNight(g, night);
       g.enterTown();
       g.inv.push(spade());
       const before = g.roamers.length;
-      digAt(g, 15, 17);
+      digAt(g, 21, 21);
       const z = g.roamers.slice(before);
       const want = scaleMonster(F.monsterById("zombie"), zoneLevel(F.GATE.x, F.GATE.y, lv));
       lvls.push(`${lv}:${z.length}:${z[0]?.family}:${z[0]?.hp}/${want.hp}:${z[0]?.atk}/${want.atk}`);
@@ -3361,7 +3363,7 @@ if (on("graves")) {
     atNight(g, 7);
     g.enterTown();
     g.inv.push(spade());
-    digAt(g, 13, 19);
+    digAt(g, 15, 24);
     g.saveSlot(2);
     const back = fresh();
     back.loadSlot(2);
@@ -3369,8 +3371,8 @@ if (on("graves")) {
     back.enterTown();
     back.inv.push(spade());
     const n0 = back.drops.length;
-    digAt(back, 13, 19);
-    check("graves", "a dug grave rides in the saved opened list and stays dug after a reload the same night", back.graveDug(13, 19) && back.drops.length === n0 && /Already turned/.test(back.logLine), back.logLine);
+    digAt(back, 15, 24);
+    check("graves", "a dug grave rides in the saved opened list and stays dug after a reload the same night", back.graveDug(15, 24) && back.drops.length === n0 && /Already turned/.test(back.logLine), back.logLine);
   }
   {
     const png = readFileSync("public/art/writer/grave-dug.png");
@@ -7431,7 +7433,9 @@ if (on("playtest1")) {
   const { createHash } = await import("node:crypto");
   const TAG = "[OWNER-REPORTED 2026-10-01 23:25 ET: playtest1";
   const md5f = (f) => createHash("md5").update(readFileSync(f)).digest("hex");
-  const SIMX = await import(pathToFileURL(out).href);
+  // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the gates come from the same sim
+  // as the town this group walks (playtest1u's 40 x 30 town; the live 56 x 42 one in playtest1v's live pass)
+  const SIMX = PT1V_LIVE ? LIVE_SIM : await pt1uSim();
   const dir = mkdtempSync(join(tmpdir(), "gravewake-"));
   const root = pt1uRoot();
   writeFileSync(join(dir, "pt1.ts"), `export * from "${root}/src/game/draw.ts";\nexport * from "${root}/src/game/light.ts";\nexport { T, KITS } from "${root}/src/game/content.ts";\nexport * as SCR from "${root}/src/game/screen.ts";\n`);
@@ -7477,7 +7481,7 @@ if (on("playtest1")) {
     const seen = reach(gx, gy);
     for (const [x, y] of doors) if (!seen.has(`${x},${y + 1}`)) unreached.push(`${x},${y} from ${gx},${gy}`);
   }
-  check("playtest1", "the town is 40 x 30 with sixteen doors, each on its house's south face with a walkable stoop below it, and every stoop is reachable on foot from every one of the ten road gates (owner-reported: the bottom houses were unreachable)", town.w === 40 && town.h === 30 && doors.length === 16 && gates.length === 10 && unreached.length === 0 && doors.every(([x, y]) => !solid(town, x, y + 1)), unreached.slice(0, 6).join("; "));
+  check("playtest1", "the town is 40 x 30 with sixteen doors, each on its house's south face with a walkable stoop below it, and every stoop is reachable on foot from every one of the ten road gates (owner-reported: the bottom houses were unreachable)", (PT1V_LIVE ? town.w === 56 && town.h === 42 : town.w === 40 && town.h === 30) && doors.length === 16 && gates.length === 10 && unreached.length === 0 && doors.every(([x, y]) => !solid(town, x, y + 1)), unreached.slice(0, 6).join("; "));
   const backs = doors.filter(([x, y]) => !solid(town, x, y - 1));
   check("playtest1", "the wall behind every door is solid (no door can be walked into from the house's back)", backs.length === 0, backs.join(" "));
   {
