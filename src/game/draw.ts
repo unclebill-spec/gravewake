@@ -32,7 +32,8 @@ import { LIGHT, LIGHTS, ambientOf, bucket, flickerStep, lightSprite, rgbCss, typ
 import { FADE, fadeOf, fadeStep, mistPuff, sceneStart } from "./fade";
 import { BIG, CAM, bigMask, bigRow, bigSheet, bodyR, cellAt, footOf, halfOf, scaleOf, topOf, type BigRank } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 import { labelCanvas } from "./looks"; // playtest1q: a boss name's width
-import { PARK_AT, cemeteryFence } from "./townplan"; // townwide
+import { PARK_AT, cemeteryFence, carLotFence } from "./townplan"; // townwide
+import * as OSK from "./outskirts"; // outskirts
 import { hudBoxes, placeLabel, worldBoxes } from "./hudsafe"; // playtest1q [OWNER-APPROVED 2026-10-04 05:43 ET: playtest1q detailed big bosses, wizard back view, Phone boss label]: boss names clear of the HUD
 import { STAIRS_THEMED, TOWN_CABIN, TOWN_GRASS, TOWN_HOUSES, WILD_BORDER_RIM, stairCell, townEm } from "./wild";
 import { BLDG, BLDG_SHEETS, ROOF_RISE, bldgEm, bldgSheet, lotCell, townLots, type BldgRoom, type Lot } from "./buildings"; // playtest1t [OWNER-APPROVED 2026-10-04 14:09 ET: playtest1t varied buildings]
@@ -2153,7 +2154,7 @@ export function yardFences(g: Game): { x: number; y: number; cell: number }[] {
   // playtest1o: the pieces come from blocking.ts, so the fence the town draws is the fence that stops you (and the lane
   // along the next row of houses stays open: it used to shut in the inn's and the shop's doors).
   const out = yardPieces(g.w, g.h, g.tiles, T.wall, T.door, T.grass, townRoomAt, YARD_KINDS);
-  if (g.mapId === "town") out.push(...cemeteryFence()); // townwide: the cemetery's picket fence
+  if (g.mapId === "town") out.push(...cemeteryFence(), ...carLotFence()); // townwide: the cemetery's picket fence; carlot: the car yard's
   yardCache.set(g.tiles, out);
   return out;
 }
@@ -3041,6 +3042,12 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     // gfx-lighting: lit windows spill warm light on the ground, and street lamps pool cold light on the cobbles.
     for (const b of townBuildings(g)) for (const wx of windowCols(b)) out.push({ x: wx * TILE + 8, y: (b.y + b.h) * TILE - 6, r: LIGHT.window, c: LIGHTS.window, seed: wx & 3, flick: true, low: true, wash: LIGHT.wash.window });
     for (const p of streetLamps(g)) out.push({ x: p.x * TILE + 8, y: p.y * TILE + 6, r: LIGHT.street, c: LIGHTS.street, seed: p.x & 3, flick: false, low: true, wash: LIGHT.wash.street });
+    // outskirts: each wisp and candle skull is a mood light (low: inside the 8-a-frame mood cap; off-view ones cull below)
+    for (const w of OSK.wisps()) {
+      const p = OSK.wispAt(w, g.frame);
+      out.push({ x: p.x, y: p.y + 6, r: 44, c: OSK.HUE_LIGHT[w.hue], seed: w.seed & 3, flick: true, low: true });
+    }
+    for (const c of OSK.candles()) out.push({ x: c.x * TILE + 8, y: c.y * TILE + 4, r: 28, c: OSK.HUE_LIGHT[c.hue], seed: c.x & 3, flick: true, low: true });
   }
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
@@ -3622,8 +3629,11 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
  * the view (the camp, a room, the town on a wide screen) sits centred and the border pass paints past its edge. The tap
  * scheme reads the same camera (Gravewake.tsx), so a tap still lands where it was aimed.
  */
-export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null }, viewW: number, viewH: number, zoom: number) {
-  const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(0, Math.min(size - view, hero - view / 2))));
+export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null; mapId?: string }, viewW: number, viewH: number, zoom: number) {
+  // outskirts (Bill, 2026-10-22): in town the camera runs OSK.CAM_PAD tiles past the fence, so the dressed ring outside
+  // it (painted, never void) shows on a phone too
+  const pad = g.mapId === "town" ? OSK.CAM_PAD * TILE : 0;
+  const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(-pad, Math.min(size - view + pad, hero - view / 2))));
   // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: in a fight with a big body the
   // camera frames the big body (sim.ts camFocus: its middle and half-size) and the hero together, the hero's own body kept
   // CAM.edge inside the view (bigboss.ts CAM). The tap aim reads the same.
@@ -3679,6 +3689,7 @@ function beyondCached(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: nu
   for (let y = g.h; y < Math.min(y1, g.h + 2); y++) for (let x = x0; x < x1; x++) {
     const biome = biomeOf(g.theme, g.h - 1, Math.max(0, Math.min(g.w - 1, x)));
     if (!villageTreeShows(g, x, y)) continue; // playtest1w: the village border lattice
+    if (g.mapId === "town" && !OSK.treeShows(x, y)) continue; // outskirts: the thinned ring
     props.push({ y: y * TILE + 8, fn: () => void propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
   }
 }
@@ -3715,6 +3726,78 @@ function shadeEdge(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.restore();
 }
 
+/** outskirts: a 16x16 cell, mirrored or not. */
+function flipCell(ctx: CanvasRenderingContext2D, url: string, col: number, x: number, y: number, flip: boolean): boolean {
+  if (!flip) return sheetCell(ctx, url, col, 0, x, y);
+  ctx.save();
+  ctx.translate(x + 16, y);
+  ctx.scale(-1, 1);
+  const ok = sheetCell(ctx, url, col, 0, 0, 0);
+  ctx.restore();
+  return ok;
+}
+/** outskirts: the raven's flight (null: on its perch); draw-time state. */
+let ravenFlight: { t0: number; gone: boolean } | null = null;
+/** outskirts: the live part of the ring past the town fence (night shade, the raven tree, candle skulls, wisps), culled to the view. */
+function paintOutskirts(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: number, vw: number, vh: number, props: { y: number; fn: () => void }[], glow: ((c: CanvasRenderingContext2D) => void)[]) {
+  if (g.mapId !== "town" || typeof Image === "undefined") return;
+  const view = (x: number, y: number, m: number) => x > camX - m && x < camX + vw + m && y > camY - m && y < camY + vh + m;
+  if (g.phase === "night") {
+    // a deeper dark past the fence, so the neon pops on the ash
+    props.push({ y: -1e9 + 2, fn: () => {
+      ctx.save();
+      ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = "#7a7e98";
+      const W = g.w * TILE, H = g.h * TILE, M = 64 * TILE;
+      ctx.fillRect(-M, -M, W + 2 * M, M); ctx.fillRect(-M, H, W + 2 * M, M); ctx.fillRect(-M, 0, M, H); ctx.fillRect(W, 0, M, H);
+      ctx.restore();
+    } });
+  }
+  const tx = OSK.RAVEN_TREE.x * TILE + 8, ty = (OSK.RAVEN_TREE.y + 1) * TILE;
+  if (view(tx, ty - 24, 64)) {
+    props.push({ y: ty - 1, fn: () => void sheetCell(ctx, OSK.SHEETS.tree, 0, 0, tx - 16, ty - 48, 2, 3, 32) });
+    const d = Math.hypot(g.px - (tx + OSK.PERCH.dx), g.py - (ty + OSK.PERCH.dy));
+    if (!ravenFlight && d < OSK.RAVEN_FLEE + 32) ravenFlight = { t0: g.frame, gone: false };
+    else if (ravenFlight && ravenFlight.gone && d > OSK.RAVEN_BACK) ravenFlight = null;
+    let rx = tx + OSK.PERCH.dx - 8, ry = ty + OSK.PERCH.dy - 13, cell = OSK.ravenIdle(g.frame);
+    if (ravenFlight) {
+      const t = g.frame - ravenFlight.t0;
+      if (t > 150) ravenFlight.gone = true;
+      rx += Math.round(t * 1.4);
+      ry -= Math.round(t * 0.9);
+      cell = 4 + (Math.floor(t / 5) % 2);
+    }
+    if (!ravenFlight?.gone) {
+      const fx = rx, fy = ry, fc = cell;
+      props.push({ y: ty, fn: () => void sheetCell(ctx, OSK.SHEETS.raven, fc, 0, fx, fy) });
+      glow.push((c) => void sheetCell(c, OSK.SHEETS.ravenEm, fc, 0, fx, fy));
+    }
+  }
+  const row = (h: OSK.Hue) => OSK.HUES.indexOf(h);
+  for (const c of OSK.candles()) {
+    const x = c.x * TILE, y = c.y * TILE;
+    if (!view(x, y, 32)) continue;
+    const f = (Math.floor(g.frame / 7) + c.x) % 4;
+    props.push({ y: y + 15, fn: () => void sheetCell(ctx, OSK.SHEETS.candle, f, row(c.hue), x, y) });
+    glow.push((k) => {
+      void sheetCell(k, OSK.SHEETS.halo, 0, row(c.hue), x - 8, y + 6, 2, 1);
+      void sheetCell(k, OSK.SHEETS.candleEm, f, row(c.hue), x, y);
+    });
+  }
+  for (const w of OSK.wisps()) {
+    const p = OSK.wispAt(w, g.frame);
+    if (!view(p.x, p.y, 40)) continue;
+    const f = (Math.floor(g.frame / 10) + w.seed) % 4;
+    const sx = p.x - 8, sy = p.y - 16;
+    const gx = w.x * TILE + 8 + Math.round((p.x - w.x * TILE - 8) / 2) * 2; // the pool under it, on the ground
+    props.push({ y: w.y * TILE + 20, fn: () => void sheetCell(ctx, OSK.SHEETS.wisp, f, row(w.hue), sx, sy) });
+    glow.push((k) => {
+      void sheetCell(k, OSK.SHEETS.halo, 0, row(w.hue), gx - 16, w.y * TILE + 14, 2, 1);
+      void sheetCell(k, OSK.SHEETS.wispEm, f, row(w.hue), sx, sy);
+    });
+  }
+}
+
 function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: number, x1: number, y1: number, props: { y: number; fn: () => unknown }[], treeRow: (y: number) => boolean = () => true) {
   const outdoor = OUTDOOR_EDGE.has(g.theme);
   for (let y = y0; y < y1; y++) {
@@ -3734,7 +3817,14 @@ function paintBeyond(ctx: CanvasRenderingContext2D, g: Game, x0: number, y0: num
       drawTile(ctx, base, x, y, n, g.theme, base, g.frame, base, base, base);
       const biome = biomeOf(g.theme, cy, cx);
       if (g.mapId === "village") shadeEdge(ctx, x, y); // playtest1w: the wood floor past a village's edge
-      if (treeRow(y) && villageTreeShows(g, x, y)) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
+      if (g.mapId === "town" && OSK.ringTile(x, y)) {
+        // outskirts: ash and slate ground, a scattered skull, bones, crooked cross or dead tuft (one per tile at most)
+        const gc = OSK.groundCell(x, y);
+        props.push({ y: -1e9, fn: () => sheetCell(ctx, OSK.SHEETS.ground, gc, 0, x * TILE, y * TILE) });
+        const pr = OSK.propAt(x, y);
+        if (pr) props.push({ y: -1e9 + 1, fn: () => flipCell(ctx, OSK.SHEETS.props, pr.cell, x * TILE, y * TILE, pr.flip) });
+      }
+      if (treeRow(y) && villageTreeShows(g, x, y) && (g.mapId !== "town" || OSK.treeShows(x, y))) props.push({ y: y * TILE + 8, fn: () => propSprite(ctx, "tree", x * TILE, y * TILE, biome, g.frame) });
     }
   }
 }
@@ -4279,6 +4369,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     if (g.fog || typeof document === "undefined") paintBeyond(ctx, g, bx0, by0, bx1, by1, props);
     else beyondCached(ctx, g, bx0, by0, bx1, by1, props);
   }
+  if (g.mode !== "title" && past) paintOutskirts(ctx, g, camX, camY, viewW / zoom, viewH / zoom, props, glow); // outskirts
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const i = y * g.w + x;
@@ -5903,7 +5994,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) {
         // playtest1e: past the edge outdoors the corner map shows the border forest too, not black
         if (OUTDOOR_EDGE.has(g.theme) && seenAtOf(g, Math.max(0, Math.min(g.w - 1, tx)), Math.max(0, Math.min(g.h - 1, ty)))) {
-          ctx.fillStyle = mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
+          ctx.fillStyle = g.mapId === "town" && OSK.ringTile(tx, ty) ? "#4a4e54" : mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
           ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
         }
         continue;

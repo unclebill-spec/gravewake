@@ -114,3 +114,20 @@ SPRITE_CORE = frozenset((
     "#e8eef8", "#ecd8cc", "#f0c8b0", "#f0e0b0", "#f0e2c0", "#f0e2c8", "#f4e27a", "#f4ecdc",
     "#f4f0e8", "#fff8e0",
 ))
+
+# [OWNER-REQUESTED 2026-10-22 11:03 ET: outskirts neon] Bill's neon-ring reference (very saturated electric blue,
+# cyan-teal, magenta-pink, violet, acid green, hot red; a near-white core, the hue, a darker halo into black): palette v4
+# adds the three ramps v3 lacked, green, cyan and magenta (deep halo, mid, tube, core). Their own set again: every
+# older sheet keeps snapping to LOCKED / LOCKED_V2 / LOCKED_V3 byte for byte.
+PALETTE_V4_NEON = frozenset((
+    "#0a2a14", "#14502a", "#1e9a3a", "#5aff4a", "#c8ff9a", "#f4ffe8",
+    "#08282c", "#0e4a50", "#14a0a8", "#2affe0", "#aafff4", "#f0fffc",
+    "#2a0a28", "#5a1450", "#b01e9a", "#ff3ad8", "#ffb0f0", "#fff0fc",
+))
+LOCKED_V4 = LOCKED_V3 | PALETTE_V4_NEON
+NEON_V4 = {
+    **NEON,
+    "green": ("#0a2a14", "#14502a", "#1e9a3a", "#5aff4a", "#c8ff9a", "#f4ffe8"),
+    "cyan": ("#08282c", "#0e4a50", "#14a0a8", "#2affe0", "#aafff4", "#f0fffc"),
+    "magenta": ("#2a0a28", "#5a1450", "#b01e9a", "#ff3ad8", "#ffb0f0", "#fff0fc"),
+}

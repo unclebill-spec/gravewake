@@ -15905,8 +15905,61 @@ if (on("townwide")) {
   }
 }
 
+// outskirts + carlot [OWNER-REQUESTED 2026-10-22 Bill: the car's own yard; the ring outside the fence sparse, gloomy and
+// dead, with neon wisps and candle skulls]: src/game/outskirts.ts, townplan.ts CAR_LOT, bonecar.ts SHOWROOM.
+if (on("outskirts")) {
+  asLive();
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-osk-"));
+  const root = process.cwd();
+  writeTop(join(dir, "o.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as OSK from "${root}/src/game/outskirts.ts";\nexport * as TP from "${root}/src/game/townplan.ts";\nexport { SHOWROOM } from "${root}/src/game/bonecar.ts";\nexport { sceneLights } from "${root}/src/game/draw.ts";\nexport { LIGHT } from "${root}/src/game/light.ts";\nexport { T } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "o.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", "--loader:.png=empty", "--loader:.css=empty", `--outfile=${join(dir, "o.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "o.mjs")).href);
+  const { OSK, TP, T, SHOWROOM: S } = X;
+  const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = 5 * 60 * 1000; g.enterTown();
+  // 1. the lot: the tree is gone, the yard fence stands on grass and stops bodies, the lane north of it stays open, the
+  //    salesman talks, the car can be bought and summoned as before (the playtest1v checks), nothing overlaps
+  const fence = TP.carLotFence();
+  const L = TP.CAR_LOT;
+  const fenceOk = fence.every((f) => g.tiles[f.y * g.w + f.x] === T.grass && g.solidAt(f.x * 16 + 8, f.y * 16 + 8));
+  const inLot = S.x0 > L.x0 && S.x1 < L.x1 && S.y0 >= L.y0 && S.y1 <= L.y1 && Math.floor(S.salesman.x / 16) > L.x0 && S.posts.every(([x]) => x > L.x0 && x < L.x1);
+  const noTree = g.tiles[38 * g.w + 36] !== T.tree;
+  let lane = true; for (let x = L.x0 - 1; x <= L.x1 + 1; x++) if (g.solidAt(x * 16 + 8, (L.y0 - 1) * 16 + 8)) lane = false;
+  const pieces = [...fence.map((f) => `${f.x},${f.y}`), ...S.posts.map(([x, y]) => `${x},${y}`)];
+  g.px = S.salesman.x + 14; g.py = S.salesman.y; g.facing = "w"; g.interact();
+  const talks = g.mode === "talk" && g.talk?.role === "carman";
+  check("outskirts", `the bone car has its own fenced yard where the tree left of it stood (tree gone ${noTree}): ${fence.length} fence pieces on grass that stop bodies (${fenceOk}), the lot, posts and salesman inside (${inLot}), the lane north of it open (${lane}), no two pieces on one tile, and the salesman still sells (${talks})`, noTree && fenceOk && inLot && lane && new Set(pieces).size === pieces.length && talks);
+  // 2. the ring: thinned, props off the roads and the raven's tree, one per tile, all outside the map
+  let ring = 0, trees = 0, props = 0, onRoad = 0;
+  const kinds = new Set();
+  for (let y = -OSK.RING; y < g.h + OSK.RING; y++) for (let x = -OSK.RING; x < g.w + OSK.RING; x++) {
+    if (!OSK.ringTile(x, y)) continue;
+    ring++;
+    if (OSK.treeShows(x, y)) trees++;
+    const p = OSK.propAt(x, y);
+    if (p) { props++; kinds.add(p.cell); if (OSK.onRoad(x, y)) onRoad++; }
+  }
+  const lit = [...OSK.wisps(), ...OSK.candles()];
+  const outside = lit.every((l) => OSK.depth(l.x, l.y) >= 1 && !OSK.onRoad(l.x, l.y)) && OSK.depth(OSK.RAVEN_TREE.x, OSK.RAVEN_TREE.y) >= 1;
+  const hues = new Set(lit.map((l) => l.hue));
+  check("outskirts", `the ring outside the fence is sparse: ${trees} trees in its ${ring} tiles (the forest filled each), ${props} scattered props of ${kinds.size} kinds, none on a gate road (${onRoad}); ${OSK.wisps().length} wisps and ${OSK.candles().length} candle skulls in ${hues.size} neon hues, all outside the map and off the roads (${outside})`, trees < ring * 0.05 && props > 20 && props < ring * 0.1 && kinds.size >= 8 && onRoad === 0 && outside && OSK.wisps().length <= 8 && OSK.candles().length <= 8 && hues.size >= 4);
+  // 3. motion and lights: whole-pixel wisp drift, the raven's idle steps through 4 cells, the lights are mood lights within the cap
+  const wholes = Array.from({ length: 600 }, (_, f) => OSK.wispAt(OSK.wisps()[0], f)).every((p) => Number.isInteger(p.x) && Number.isInteger(p.y));
+  const moved = new Set(Array.from({ length: 600 }, (_, f) => JSON.stringify(OSK.wispAt(OSK.wisps()[0], f)))).size > 4;
+  const idle = new Set(Array.from({ length: 400 }, (_, f) => OSK.ravenIdle(f)));
+  g.worldMs = 15 * 60 * 1000 + 6 * 60 * 1000; g.update(0.01);
+  let most = 0, cap = true;
+  for (const [x, y] of [[OSK.RAVEN_TREE.x, g.h - 1], [1, 22], [g.w - 2, 10], [28, 1]]) {
+    g.px = x * 16 + 8; g.py = y * 16 + 8;
+    const ls = X.sceneLights(g, g.px - 240, g.py - 160, 480, 320);
+    const mine = ls.filter((l) => l.low && l.flick && (l.r === 44 || l.r === 28));
+    most = Math.max(most, mine.length);
+    if (ls.filter((l) => l.low).length > X.LIGHT.lowBudget) cap = false;
+  }
+  check("outskirts", `the wisps drift in whole pixels (${wholes}, ${moved}), the raven idles through cells ${[...idle].sort().join(",")}, and at night up to ${most} wisp and candle lights flicker in a view, all mood lights inside the ${X.LIGHT.lowBudget}-a-frame cap (${cap})`, wholes && moved && idle.size === 4 && most >= 1 && cap);
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a");
+  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);

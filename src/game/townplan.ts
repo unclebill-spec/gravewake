@@ -99,3 +99,12 @@ export function cemeteryFence(): { x: number; y: number; cell: number }[] {
   for (let y = c.y0 + 1; y < c.y1; y++) for (const x of [c.x0, c.x1]) out.push({ x, y, cell: 1 });
   return out;
 }
+
+/** carlot (Bill, 2026-10-22): the bone car's own yard by the south gate: a low picket fence down both sides (x 32 and 39,
+ * rows 38-40), open to the lane on the north; the town fence closes its south. bonecar.ts SHOWROOM sits inside. */
+export const CAR_LOT = { x0: 32, x1: 39, y0: 38, y1: 40 } as const;
+export function carLotFence(): { x: number; y: number; cell: number }[] {
+  const out: { x: number; y: number; cell: number }[] = [];
+  for (let y = CAR_LOT.y0; y <= CAR_LOT.y1; y++) for (const x of [CAR_LOT.x0, CAR_LOT.x1]) out.push({ x, y, cell: y === CAR_LOT.y0 ? 2 : 1 });
+  return out;
+}

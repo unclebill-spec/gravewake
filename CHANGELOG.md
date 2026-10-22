@@ -2,6 +2,13 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## outskirts + carlot (2026-10-22)
+- The bone car, its velvet ropes and Ossian Sprocket moved into their own fenced yard by the south gate (x 32-39, rows 38-40), where the tree left of the car stood; purchase and summon unchanged. Nothing else inside the town fence changed.
+- The ring outside the town fence (10 tiles deep) is sparse, gloomy and dead: ash/slate ground with patches, scattered skulls, bones, crooked, fallen and broken crosses and dead tufts (one per tile, never on a gate road), the forest thinned to a few trees at the ring's far edge, a darker night past the fence.
+- One dead tree (32x48) with a raven: idle head turn, wing ruffle and blink; it flies off when you come close and returns once you leave.
+- Neon will-o'-wisp lanterns (7) and candle skulls (6) in blue, cyan, violet, magenta, red and green (palette v4 adds the green, cyan and magenta ramps): near-white core, saturated tube, stepped dithered ground halos, emissive masks; each a flickering mood light inside the 8-a-frame cap, culled off view. Wisps drift and bob in whole pixels.
+- In town the camera may run 3 tiles past the fence so the ring shows on a phone. Writer: tools/pixel-writer/outskirts_writer.py. Check group: outskirts.
+
 ## 2026-10-22: townwide (a larger town)
 - The town grows from 40x30 to 58x42 (2.03x the area): wide streets and a gap round every building; every building keeps its size, outside, sign and door.
 - The cemetery has its own fenced yard west of the avenue (dirt walk, a path from both streets to the crypt stair, the three dig graves).
