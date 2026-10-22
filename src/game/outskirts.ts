@@ -22,6 +22,7 @@ export const SHEETS = {
   ground: "/art/writer/outskirts-ground.png", props: "/art/writer/outskirts-props.png",
   candle: "/art/writer/outskirts-candle.png", candleEm: "/art/writer/outskirts-candle_em.png",
   wisp: "/art/writer/outskirts-wisp.png", wispEm: "/art/writer/outskirts-wisp_em.png", halo: "/art/writer/outskirts-halo.png",
+  propsVar: "/art/writer/outskirts-props-var.png", treeVar: "/art/writer/outskirts-tree-var.png",
   tree: "/art/writer/outskirts-tree.png", raven: "/art/writer/outskirts-raven.png", ravenEm: "/art/writer/outskirts-raven_em.png",
 } as const;
 
@@ -49,6 +50,13 @@ export const RAVEN_FLEE = 3.5 * 16;
 export const RAVEN_BACK = 7 * 16;
 const nearTree = (x: number, y: number) => Math.abs(x - RAVEN_TREE.x) <= 1 && y >= RAVEN_TREE.y - 2 && y <= RAVEN_TREE.y;
 
+/** oskart: the share of ring props from outskirts-props-var.png, and of ring survivor trees drawn as the perchless dead tree. */
+export const VAR_SHARE = 0.33;
+export const TREE_VAR_SHARE = 0.6;
+/** oskart: does this ring survivor stand as the dead tree (outskirts-tree-var.png) rather than a forest tree? */
+export function treeVar(x: number, y: number): boolean {
+  return ringTile(x, y) && hash(x, y, 10) < TREE_VAR_SHARE;
+}
 export function ringTile(x: number, y: number): boolean {
   const d = depth(x, y);
   return d >= 1 && d <= RING;
@@ -67,12 +75,14 @@ export function groundCell(x: number, y: number): number {
   return Math.floor(hash(x, y, 4) * 4);
 }
 /** A scattered prop (outskirts-props.png cell, flipped or not), or -1. One per tile at most: none overlap. */
-export function propAt(x: number, y: number): { cell: number; flip: boolean } | null {
+export function propAt(x: number, y: number): { cell: number; flip: boolean; sheet?: 1 } | null {
   if (!ringTile(x, y) || onRoad(x, y) || nearTree(x, y) || depth(x, y) < 1) return null;
   if (hash(x, y, 5) >= PROP_ODDS) return null;
   if (treeShows(x, y)) return null;
   if (candles().some((c) => c.x === x && c.y === y)) return null;
   const r = hash(x, y, 6);
+  // oskart (Art's polish drop): a third of the props come from the variant sheet (skull pile, grave crosses, cracked skull, tufts)
+  if (hash(x, y, 8) < VAR_SHARE) return { cell: Math.floor(hash(x, y, 9) * 8), flip: hash(x, y, 7) < 0.5, sheet: 1 };
   return { cell: r < 0.3 ? Math.floor(r / 0.1) : r < 0.65 ? 3 + Math.floor((r - 0.3) / 0.0875) : 7 + Math.floor((r - 0.65) / 0.117), flip: hash(x, y, 7) < 0.5 };
 }
 export type Candle = { x: number; y: number; hue: Hue };

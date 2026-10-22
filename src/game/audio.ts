@@ -9,6 +9,7 @@
  */
 const MUSIC_DIR = "/art/audio/music/";
 const SFX_DIR = "/art/audio/sfx/";
+const AMB_DIR = "/art/audio/outskirts/";
 export const DUNGEON_MUSIC = ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "cave", "grave", "hearth", "wake"];
 export const ROOM_MUSIC = ["alchemy", "bank", "casino", "chapel", "cottage", "croft", "fisher", "guild", "inn", "mystic", "shop", "smith", "tailor"];
 /** The music file (name, no folder) for a mood key, by the staging README's table. */
@@ -17,7 +18,7 @@ export function musicFor(key: string): string {
   if (key.startsWith("battle:boss-final")) return "music-boss-final";
   if (key.startsWith("battle")) return "music-battle";
   const [map, a, b] = key.split(":");
-  if (map === "dungeon") return `dungeon-${DUNGEON_MUSIC.includes(a) ? a : "cave"}`;
+  if (map === "dungeon") return a === "rift" ? "dungeon-rift" : `dungeon-${DUNGEON_MUSIC.includes(a) ? a : "cave"}`; // oskaudio: the Ashen Rift's own loop
   if (map === "inside") return a === "room" ? `room-${ROOM_MUSIC.includes(b) ? b : "cottage"}` : "room-cottage";
   if (map === "camp") return "music-camp";
   const night = key.endsWith(":night");
@@ -29,9 +30,59 @@ export function musicFor(key: string): string {
 export const SFX_TRIM: Record<string, number> = { hit: 0.55, spell: 0.45, door: 0.5, coin: 0.45, hurt: 0.6, steam: 0.4, rattle: 0.35, thunder: 0.6, toll: 0.7, sting: 0.7 };
 const SFX_FILE: Record<string, string> = { hit: "sfx-hit", spell: "sfx-spell", door: "sfx-door", coin: "sfx-coin", hurt: "sfx-hurt", steam: "sfx-steam", rattle: "sfx-rattle", thunder: "sfx-thunder", toll: "sfx-toll", sting: "sting-boss-early" };
 const FADE = 0.6;
+/**
+ * oskaudio [OWNER-REQUESTED 2026-10-22 Bill: outskirts audio] (staging/audio/outskirts, CC0, see its README): volumes as
+ * the README suggests, all scaled by the SFX slider. Loops start once decoded (each file decoded once) and glide to their
+ * level; nothing plays for them while a file is missing. The raven and the swell beep through the synth until decoded.
+ */
+export const AMB = {
+  wind: { day: 0.35, night: 0.5 },
+  // levels checked through the phone weighting (see MUSIC_TRIM): at the README's 0.2 / 0.4 / 0.1 the wisp hum (-47 LUFS),
+  // the candle crackle (-43) and the ducked choir (-45) vanished under the night music (-32); lifted to sit 5-8 dB under it.
+  wisp: 0.45, candle: 0.8, fall: 6 * 16,
+  choir: 0.25, choirDucked: 0.18, choirFade: 3,
+  raven: 0.5, flap: 0.5, cawGap: [6, 16] as [number, number],
+  swell: 0.5, swellDuck: 0.6, swellHold: 3,
+} as const;
+const AMB_LOOPS = ["amb-wind", "wisp-hum", "candle-crackle", "choir-night", "choir-drift"] as const;
+type AmbLoop = (typeof AMB_LOOPS)[number];
+/** What the sim tells the bus each frame about the outskirts (distances in px from the hero; dx for the pan). */
+export type AmbState = {
+  outdoor: boolean;
+  night: boolean;
+  /** Past the town fence (the vale), where the night choir sings. */
+  outside: boolean;
+  /** In the cemetery yard or near a wayrift: the drift choir. */
+  drift: boolean;
+  wisp: { d: number; dx: number } | null;
+  candle: { d: number; dx: number } | null;
+  /** The raven sits on its perch within earshot. */
+  raven: boolean;
+};
+/** A positional level: max at the source, linear to 0 at AMB.fall. */
+export function falloff(d: number, max: number): number {
+  return Math.max(0, max * (1 - d / AMB.fall));
+}
+/** Where the ambience sits (0..1 before the SFX slider) for a state; music on ducks the choirs. */
+export function ambLevels(s: AmbState, musicOn: boolean): Record<AmbLoop, number> {
+  const choir = musicOn ? AMB.choirDucked : AMB.choir;
+  return {
+    "amb-wind": s.outdoor ? (s.night ? AMB.wind.night : AMB.wind.day) : 0,
+    "wisp-hum": s.wisp ? falloff(s.wisp.d, AMB.wisp) : 0,
+    "candle-crackle": s.candle ? falloff(s.candle.d, AMB.candle) : 0,
+    "choir-night": s.outside && s.night && !s.drift ? choir : 0,
+    "choir-drift": s.drift ? choir : 0,
+  };
+}
 /** polish: a file mastered well under the rest is lifted to sit with them (mean dB: harrow -23.8 against the dungeons' -16.3;
  * its peak is -3.1 dB, so x1.8 (+5.1 dB) keeps headroom under the master). */
-export const MUSIC_TRIM: Record<string, number> = { "dungeon-harrow": 1.8 };
+export const MUSIC_TRIM: Record<string, number> = {
+  "dungeon-harrow": 1.8,
+  // oskaudio: through a phone-speaker weighting (300 Hz high-pass, then EBU R128) dungeon-rift reads -33.7 LUFS against the
+  // dungeons' -18.8..-24.4 (its D drone sits below what a phone moves). x2.2 (+6.8 dB) brings it to about -26.9; its peak
+  // (-5.3 dBFS) stays under 1.0 at the music bus (0.54 x 2.2 x 0.7 = 0.83).
+  "dungeon-rift": 2.2,
+};
 /** How long the casino bed stays ducked after a jukebox note (a note comes every 0.4 s). */
 const SONG_HOLD = 0.9;
 
@@ -55,6 +106,9 @@ export class AudioBus {
   private jukeboxUntil = 0;
   private bossPhase = 1;
   private hush = false;
+  private amb = new Map<AmbLoop, { src: AudioBufferSourceNode; gain: GainNode; pan: StereoPannerNode | null; quietSince: number }>();
+  private nextCaw = 0;
+  private duckUntil = 0;
 
   /** Start the context on a user gesture. Later calls only resume it. */
   unlock() {
@@ -89,6 +143,7 @@ export class AudioBus {
     // decode once: the current mood's file first, then the one-shots
     if (this.moodKey) this.mood(this.moodKey, true);
     for (const f of Object.values(SFX_FILE)) void this.load(`${SFX_DIR}${f}.ogg`);
+    for (const f of ["raven-caw-1", "raven-caw-2", "raven-caw-3", "wing-flap", "choir-swell"]) void this.load(`${AMB_DIR}${f}.ogg`); // oskaudio
   }
 
   /** Fetch and decode a file once; later calls return the cached buffer (or null while loading or after a failure). */
@@ -195,6 +250,81 @@ export class AudioBus {
     return true;
   }
 
+  /** oskaudio: one-shot from the outskirts folder (rate for the raven's small pitch spread); false while not decoded. */
+  private ambShot(file: string, vol: number, rate = 1): boolean {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running" || this.sfx <= 0 || !this.comp) return false;
+    const buf = this.load(`${AMB_DIR}${file}.ogg`);
+    if (!buf) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.value = this.sfx * vol;
+    src.connect(g);
+    g.connect(this.comp);
+    src.start();
+    return true;
+  }
+
+  /** oskaudio: a caw (one of three, pitch 0.95-1.05). */
+  caw() {
+    const n = 1 + Math.floor(Math.random() * 3);
+    if (!this.ambShot(`raven-caw-${n}`, AMB.raven, 0.95 + Math.random() * 0.1)) { this.tone(740, 0.12, "sawtooth", 0.05); this.tone(620, 0.16, "sawtooth", 0.04); }
+  }
+
+  /** oskaudio: the raven flies off: a caw and its wings. */
+  ravenFly() {
+    this.caw();
+    if (!this.ambShot("wing-flap", AMB.flap)) this.hiss(0.25, 0.06);
+    if (this.ctx) this.nextCaw = this.ctx.currentTime + AMB.cawGap[0];
+  }
+
+  /** oskaudio: entering a wayrift or the cemetery: the choir swell, the music ducked for 3 s. */
+  swell() {
+    if (this.ctx) this.duckUntil = this.ctx.currentTime + AMB.swellHold;
+    if (!this.ambShot("choir-swell", AMB.swell)) { this.tone(220, 0.9, "triangle", 0.12); this.tone(330, 0.9, "triangle", 0.08); }
+  }
+
+  /** oskaudio: the beds (wind, wisp hum, candle crackle, the choirs) glide to where the state puts them; random caws. */
+  ambience(s: AmbState) {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running" || !this.comp) return;
+    const now = ctx.currentTime;
+    const lv = ambLevels(s, !!this.cur && this.music > 0);
+    for (const name of AMB_LOOPS) {
+      const want = lv[name] * this.sfx;
+      let a = this.amb.get(name);
+      if (!a && want > 0) {
+        const buf = this.load(`${AMB_DIR}${name}.ogg`);
+        if (!buf) continue;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        const pan = typeof ctx.createStereoPanner === "function" ? ctx.createStereoPanner() : null;
+        src.connect(gain);
+        if (pan) { gain.connect(pan); pan.connect(this.comp); } else gain.connect(this.comp);
+        src.start(now, Math.random() * buf.duration);
+        a = { src, gain, pan, quietSince: -1 };
+        this.amb.set(name, a);
+      }
+      if (!a) continue;
+      const tau = name.startsWith("choir") ? AMB.choirFade / 3 : 0.4; // the choirs fade over ~3 s
+      a.gain.gain.setTargetAtTime(Math.max(0.0001, want), now, tau);
+      const p = name === "wisp-hum" ? s.wisp : name === "candle-crackle" ? s.candle : null;
+      if (a.pan) a.pan.pan.setTargetAtTime(p ? Math.max(-1, Math.min(1, p.dx / AMB.fall)) * 0.6 : 0, now, 0.2);
+      if (want > 0) a.quietSince = -1;
+      else if (a.quietSince < 0) a.quietSince = now;
+      else if (now - a.quietSince > tau * 5 + 1) { a.src.stop(); this.amb.delete(name); } // faded out: let it go
+    }
+    if (s.raven && this.sfx > 0) {
+      if (this.nextCaw === 0) this.nextCaw = now + AMB.cawGap[0] * Math.random();
+      else if (now >= this.nextCaw) { this.caw(); this.nextCaw = now + AMB.cawGap[0] + Math.random() * (AMB.cawGap[1] - AMB.cawGap[0]); }
+    }
+  }
+
   /** The Wake Bell's toll (Hollowmourn's Toll wind-up, his phase beats, the Last Toll). */
   toll() {
     if (!this.shot("toll")) { this.tone(110, 0.9, "triangle", 0.3); this.tone(165, 0.7, "sine", 0.12); }
@@ -248,7 +378,9 @@ export class AudioBus {
     if (now < this.silentUntil) return; // the 2 s before the finale
     if (this.cur) {
       // a file is playing: no synth notes. The casino bed ducks under the jukebox.
-      if (this.cur.file === "room-casino") this.cur.bed.gain.setTargetAtTime(now < this.jukeboxUntil ? 0.35 : 1, now, 0.15);
+      const duck = now < this.duckUntil ? AMB.swellDuck : 1; // oskaudio: the choir swell ducks the music for 3 s
+      if (this.cur.file === "room-casino") this.cur.bed.gain.setTargetAtTime((now < this.jukeboxUntil ? 0.35 : 1) * duck, now, 0.15);
+      else this.cur.bed.gain.setTargetAtTime(duck, now, 0.15);
       this.noteAt = now + 0.05;
       return;
     }
