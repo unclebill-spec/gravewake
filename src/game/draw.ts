@@ -9,7 +9,7 @@ import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
 import { CAR, SHOWROOM, carRow, type CarFacing } from "./bonecar"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
-import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, PARK_STATUE, PARK_ARCH, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
+import { SWAMP_PATH, WAYRIFT, WAYRIFTS, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, WAYRIFT_SHEET, WAYRIFT_SHEETS, PARK_STATUE, PARK_ARCH, PARK_GATE, wayAwake, wayLabel, wayLights, wayMouth, type Wayrift } from "./wayrifts";
 import { WILD_PORTAL, WILD_PORTAL_SHEET, WILD_PORTAL_EM, isWildMap } from "./wildportals"; // playtest2a [OWNER-APPROVED 2026-10-06 21:02 ET: playtest2a calmer bone floor]: isWildMap for the calm bone floor
 import type { Game } from "./sim";
 import { boulderAt, roomNameOf, townRoomAt, villageById, worldHamlets } from "./sim";
@@ -2712,10 +2712,11 @@ export function wayCell(w: Wayrift, season: SeasonId, frame: number) {
 
 /** playtest1y [OWNER-APPROVED 2026-10-06 16:27 ET: playtest1y wayrifts + wizard lightning + interior doors]: one half-size wayrift (24x32 on a 2x1 footprint, standing one tile above). Hub rifts also get a
  * raised 3x2 platform under them. Before the sheet loads: a plain slate oval so the rift is never invisible. */
-function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number) {
+function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number, part: "pad" | "art" | "all" = "all") {
   const tile = TILE;
   // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: octagon pad under any platform rift (3x3)
-  if (w.platform) {
+  // billvid: the pad is flat ground, sorted above its top row; the frame sorts on its own foot (part)
+  if (w.platform && part !== "art") {
     const platX = w.x * tile;
     const platY = w.y * tile;
     const lit = cell < WAYRIFT.frames ? 0 : 1;
@@ -2724,7 +2725,9 @@ function paintWayrift(ctx: CanvasRenderingContext2D, w: Wayrift, cell: number) {
       px(ctx, platX + 8, platY + 8, 32, 32, "#3a4048");
       px(ctx, platX + 12, platY + 12, 24, 24, "#4a4e54");
     }
+    if (w.map === "town") paintThreshold(ctx, w, cell < WAYRIFT.frames);
   }
+  if (part === "pad") return;
   const dx = w.x * tile + (WAYRIFT.fw * tile - WAYRIFT.artW) / 2;
   const dy = (w.y - WAYRIFT.stand) * tile;
   const sheet = landSheet[WAYRIFT_SHEET];
@@ -2752,31 +2755,43 @@ function paintWildPortal(ctx: CanvasRenderingContext2D, x: number, y: number, ce
   px(ctx, dx + 3, dy + 4, 6, 8, "#7a5ad0");
 }
 
-/** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: park statues and arch in town. */
-function paintParkProps(ctx: CanvasRenderingContext2D) {
+/** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: park statues and arch in town.
+ * billvid (Bill, 2026-10-22: "the corner arch pillars hover"): each stands on a dark ground shadow at its foot (a base),
+ * and the arch frames the pad's open front (wayrifts.ts PARK_GATE), its pillars on their own solid tiles. */
+function footShadow(ctx: CanvasRenderingContext2D, cx: number, foot: number, w: number) {
+  px(ctx, cx - w / 2 + 1, foot - 3, w - 2, 1, "#14121a");
+  px(ctx, cx - w / 2, foot - 2, w, 2, "#14121a");
+  px(ctx, cx - w / 2 + 1, foot, w - 2, 1, "#2a2a2e");
+}
+function paintParkStatue(ctx: CanvasRenderingContext2D, i: number, sx: number, sy: number) {
   const tile = TILE;
-  // townwide: the park stands in its own plaza (townplan.ts PARK_AT)
-  const [S0, S1] = PARK_AT.statues;
-  const A = PARK_AT.arch;
-  // statues at park corners (cells 0 warrior, 1 mage)
+  footShadow(ctx, sx * tile + 8, (sy + 2) * tile - 1, 14);
   const st = landSheet[PARK_STATUE];
-  if (st && st.complete && st.naturalWidth) {
-    ctx.drawImage(st, 0, 0, 16, 32, S0[0] * tile, S0[1] * tile, 16, 32);
-    ctx.drawImage(st, 16, 0, 16, 32, S1[0] * tile, S1[1] * tile, 16, 32);
-  } else {
-    px(ctx, S0[0] * tile + 4, (S0[1] + 1) * tile, 8, 16, "#6a6e78");
-    px(ctx, S1[0] * tile + 4, (S1[1] + 1) * tile, 8, 16, "#6a6e78");
-  }
+  if (st && st.complete && st.naturalWidth) ctx.drawImage(st, i * 16, 0, 16, 32, sx * tile, sy * tile, 16, 32);
+  else px(ctx, sx * tile + 4, (sy + 1) * tile, 8, 16, "#6a6e78");
+}
+function paintParkArch(ctx: CanvasRenderingContext2D) {
+  const A = PARK_GATE;
+  const foot = (A.y + 1) * TILE;
+  footShadow(ctx, A.px + 4, foot - 1, 12);
+  footShadow(ctx, A.px + 44, foot - 1, 12);
   const arch = landSheet[PARK_ARCH];
-  if (arch && arch.complete && arch.naturalWidth) {
-    ctx.drawImage(arch, 0, 0, 48, 48, A.x * tile, A.y * tile, 48, 48);
-  } else {
-    px(ctx, A.x * tile, (A.y + 1) * tile, 8, 24, "#4a4e54");
-    px(ctx, (A.x + 3) * tile, (A.y + 1) * tile, 8, 24, "#4a4e54");
-    px(ctx, A.x * tile, A.y * tile, 48, 8, "#5a5e64");
+  if (arch && arch.complete && arch.naturalWidth) ctx.drawImage(arch, 0, 0, 48, 48, A.px, foot - 48, 48, 48);
+  else {
+    px(ctx, A.px, foot - 32, 8, 32, "#4a4e54");
+    px(ctx, A.px + 40, foot - 32, 8, 32, "#4a4e54");
+    px(ctx, A.px, foot - 48, 48, 8, "#5a5e64");
   }
 }
-
+/** billvid: the town pad's open front: a stone step with a glowing neon threshold (near-white core, blue, deep halo). */
+function paintThreshold(ctx: CanvasRenderingContext2D, w: Wayrift, awake: boolean) {
+  const x = w.x * TILE + 2, y = (w.y + WAYRIFT.platTiles) * TILE - 4;
+  if (!awake) { px(ctx, x, y, 28, 3, "#3a4048"); return; }
+  px(ctx, x - 2, y - 1, 32, 5, "#16304a");
+  px(ctx, x, y, 28, 3, "#3a6ad0");
+  px(ctx, x + 1, y + 1, 26, 1, "#4ab8ff");
+  px(ctx, x + 4, y + 1, 20, 1, "#e7f4ff");
+}
 
 /** playtest1f: the rift writer's 9x11 map marker centred on (mx, my), k map px a marker px. False before it loads. */
 function wayMarker(ctx: CanvasRenderingContext2D, mx: number, my: number, awake: boolean, k: number) {
@@ -4334,12 +4349,27 @@ function paintBoulder(ctx: CanvasRenderingContext2D, g: Game, b: BoulderT, em: b
 export const CANOPY_VEIL = 0.55;
 /** playtest1v: does the tree on tile (tx, ty) stand in front of the hero (drawn after) and over the hero's body? */
 export function canopyHides(g: Game, tx: number, ty: number): boolean {
+  // billvid: the one rule (heroBehind): the canopy's core, 40 px across from 8 px under the cell top to the trunk's foot
   const t = PROP2.tree;
-  // the canopy's core (40 px across, from 24 px under the cell top) over the hero's middle
-  const fx = tx * TILE + t.dx + 12;
-  const fy = ty * TILE + t.dy + 24;
-  if (ty * TILE + 8 <= g.py) return false;
-  return g.px > fx && g.px < fx + t.w - 24 && g.py - 22 < ty * TILE && g.py - 8 > fy;
+  return heroBehind(g, tx * TILE + t.dx + 12, ty * TILE + t.dy + 8, tx * TILE + t.dx + t.w - 12, ty * TILE + 8, ty * TILE + 8);
+}
+/**
+ * billvid (Bill, 2026-10-22: "fade behind: make it consistent"): a tall thing fades (CANOPY_VEIL) while the hero stands
+ * behind it: the hero's feet north of its foot line and the hero's body box (BEHIND) overlapping its art box. Trees, big
+ * rocks, fence posts, lamp posts, the park statues and arch and the wayrift frames all ask this one rule; the roofs keep
+ * their dithered see-through oval (ROOF_SEE).
+ */
+export const BEHIND = { halfW: 6, head: 26, feet: 2 } as const;
+export function heroBehind(g: Pick<Game, "px" | "py">, x0: number, y0: number, x1: number, y1: number, foot: number): boolean {
+  if (g.py >= foot) return false;
+  return g.px + BEHIND.halfW > x0 && g.px - BEHIND.halfW < x1 && g.py - BEHIND.feet > y0 && g.py - BEHIND.head < y1;
+}
+/** Draw fn faded while the hero is behind the box. */
+function veiled(ctx: CanvasRenderingContext2D, g: Game, box: [number, number, number, number, number], fn: () => unknown) {
+  const v = heroBehind(g, ...box);
+  if (v) ctx.globalAlpha = CANOPY_VEIL;
+  fn();
+  if (v) ctx.globalAlpha = 1;
 }
 
 export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number, viewH: number, zoom = g.zoom) {
@@ -4539,7 +4569,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
           y: by,
           fn: () => {
             // playtest1v: a tall tree in front of the hero thins so the hero still reads through its canopy
-            const veil = kind === "tree" && canopyHides(g, x, y);
+            const veil = kind === "tree" ? canopyHides(g, x, y) : kind === "rock" && heroBehind(g, x * TILE + PROP2.rock.dx, y * TILE + PROP2.rock.dy, x * TILE + PROP2.rock.dx + PROP2.rock.w, y * TILE + 10, y * TILE + 10); // billvid: rocks too
             if (veil) ctx.globalAlpha = CANOPY_VEIL;
             propSprite(ctx, kind, x * TILE, y * TILE, biome, g.frame);
             if (veil) ctx.globalAlpha = 1;
@@ -4610,14 +4640,14 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // gfx-lighting: street lamps on the cobble edges (looks only; the lamp head glows at night).
     for (const p of streetLamps(g)) {
       const lx = p.x * TILE + 7, ly = p.y * TILE;
-      props.push({ y: ly + 1, fn: () => paintStreetLamp(ctx, lx, ly, false, g.frame, p.x & 3) });
+      props.push({ y: ly + 1, fn: () => veiled(ctx, g, [lx - 3, ly - 23, lx + 5, ly, ly], () => paintStreetLamp(ctx, lx, ly, false, g.frame, p.x & 3)) });
       if (lit) glow.push((c) => paintStreetLamp(c, lx, ly, true, g.frame, p.x & 3));
     }
     // playtest1b (owner-reported 2026-10-02 01:04 ET, "fences around homes gone"): each home's yard has its writer
     // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
     // the seeded footprint and never touches g.tiles, so placement and collision are as they were.
     for (const f of yardFences(g)) {
-      props.push({ y: f.y * TILE + 14, fn: () => void sheetCell(ctx, PT1_FENCE, f.cell, 0, f.x * TILE, f.y * TILE, 1, 1) });
+      props.push({ y: f.y * TILE + 14, fn: () => veiled(ctx, g, [f.x * TILE, f.y * TILE - 4, f.x * TILE + 16, f.y * TILE + 14, f.y * TILE + 14], () => sheetCell(ctx, PT1_FENCE, f.cell, 0, f.x * TILE, f.y * TILE, 1, 1)) });
     }
     // playtest1b (owner-requested 2026-10-02): every house with a door hangs its trade's sign beside it, the icon in a
     // neon tube (blue cold fire, violet, red); the tube is emissive, so it glows at night.
@@ -4887,7 +4917,12 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       if (w.map !== map) continue;
       if ((w.x + WAYRIFT.fw) * TILE < camX || w.x * TILE > camX + viewW / zoom || (w.y + WAYRIFT.fh + 1) * TILE < camY || (w.y - WAYRIFT.stand) * TILE > camY + viewH / zoom) continue;
       const cell = wayCell(w, season, g.frame);
-      props.push({ y: (w.y + WAYRIFT.fh + (w.platform ? 2 : 0)) * TILE - 1, fn: () => paintWayrift(ctx, w, cell) });
+      // billvid (Bill: "the portal frame top edge is walk-under"): the pad is ground (sorted over its top row, so a body
+      // north of it stands on it in front), the frame sorts on the mouth's foot and fades while the hero is behind it
+      if (w.platform) props.push({ y: w.y * TILE - TILE, fn: () => paintWayrift(ctx, w, cell, "pad") });
+      const ax = w.x * TILE + (WAYRIFT.fw * TILE - WAYRIFT.artW) / 2, ay = (w.y - WAYRIFT.stand) * TILE, foot = (w.y + WAYRIFT.fh) * TILE - 1;
+      props.push({ y: foot, fn: () => veiled(ctx, g, [ax, ay, ax + WAYRIFT.artW, ay + WAYRIFT.artH - 6, foot - 8], () => paintWayrift(ctx, w, cell, w.platform ? "art" : "all")) });
+      if (w.map === "town" && w.platform) glow.push((c) => paintThreshold(c, w, cell < WAYRIFT.frames));
       if (cell < WAYRIFT.frames) glow.push((c) => {
         const sheet = landSheet[WAYRIFT_EM];
         if (!sheet || !sheet.complete || !sheet.naturalWidth) return;
@@ -4897,7 +4932,16 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       });
     }
     // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: town park statues + arch
-    if (g.mapId === "town") props.push({ y: (PARK_AT.arch.y + 2) * TILE, fn: () => paintParkProps(ctx) });
+    if (g.mapId === "town") {
+      // billvid: each statue and the arch on its own foot, grounded on a shadow, fading while the hero is behind it
+      for (const [i, [sx, sy]] of PARK_AT.statues.entries()) {
+        const foot = (sy + 2) * TILE;
+        props.push({ y: foot - 1, fn: () => veiled(ctx, g, [sx * TILE, sy * TILE, sx * TILE + 16, foot - 4, foot - 4], () => paintParkStatue(ctx, i, sx, sy)) });
+      }
+      const A = PARK_GATE;
+      const afoot = (A.y + 1) * TILE;
+      props.push({ y: afoot - 1, fn: () => veiled(ctx, g, [A.px, afoot - 48, A.px + 48, afoot - 30, afoot - 4], () => paintParkArch(ctx)) });
+    }
     // playtest1z: wild spawn portal on the vale
     if (g.mapId === "world" && g.wildPortal) {
       const p = g.wildPortal;

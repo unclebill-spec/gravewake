@@ -4670,6 +4670,7 @@ export class Game {
     if (this.mapId === "town" && this.yardFences().has(ty * this.w + tx)) return true;
     // billvid (Bill: "the bone car display and the velvet ropes are solid"): the roped lot, its posts included, stops everyone
     if (this.mapId === "town" && showroomSolid(tx, ty)) return true;
+    if (this.mapId === "town" && PARK_AT.statues.some(([sx, sy]) => sx === tx && sy + 1 === ty)) return true; // billvid: a park statue's base
     if (this.mapId === "town" && lampBaseAt(streetLampSpots(this.w, this.h, this.tiles), px, py)) return true; // billvid: a lamp's base
     /** The hero may enter. Townsfolk, critters, and roamers may not. */
     if (t === T.water || t === T.pool || t === T.ice) return !hero;
