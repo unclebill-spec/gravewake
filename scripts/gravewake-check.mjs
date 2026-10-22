@@ -105,8 +105,8 @@ function wakePyRoot() {
 const TILE = 16;
 // playtest1 [OWNER-REPORTED 2026-10-01 23:25 ET]: eight doors moved to their house's south face (inn 9,5→5,6, shop
 // 17,5→14,6, smith 34,15→34,19, croft 18,23→18,26, and the south row 13,22 5,22 27,22 34,22 → row 26).
-// townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the sixteen doors of the 56x42 town (src/game/townplan.ts TOWN_BLOCKS)
-const DOORS = ["5,6", "17,6", "23,6", "44,6", "50,6", "5,14", "17,14", "40,14", "5,24", "41,24", "50,24", "5,36", "16,36", "22,36", "41,36", "50,36"];
+// townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the sixteen doors of the 58x42 town (src/game/townplan.ts TOWN_BLOCKS)
+const DOORS = ["5,6", "14,6", "21,6", "42,6", "46,6", "5,14", "14,14", "38,14", "5,24", "45,24", "52,24", "5,36", "13,36", "21,36", "45,36", "52,36"];
 const WALKABLE = new Set([0, 1, 2, 21]);
 // 28 to 31 are the dungeon secrets: rune door, cracked brick, brazier, saint. All solid.
 const BLOCKED = new Set([3, 4, 5, 6, 10, 14, 26, 28, 29, 30, 31]);
@@ -999,8 +999,8 @@ if (on("fight")) {
   cast.inv.push(item({ uid: "pole", name: "Rib pole", kind: "tackle", special: "Pole" }));
   cast.inv.push(item({ uid: "bait", name: "Nightcrawlers", kind: "bait", stack: 2, gift: "nightcrawlers" }));
   // playtest2b (sweep fix): playtest1z's town park took the old pond at 16-19,14-16; the cast stands by its one water tile (20,16).
-  // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the park moved to the plaza; its water tile is (34,23)
-  cast.px = 35 * TILE + 8;
+  // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the park moved to the plaza; its water tile is (35,23)
+  cast.px = 36 * TILE + 8;
   cast.py = 22 * TILE + 8;
   cast.castLine();
   const mark = cast.fishMark;
@@ -7481,7 +7481,7 @@ if (on("playtest1")) {
     const seen = reach(gx, gy);
     for (const [x, y] of doors) if (!seen.has(`${x},${y + 1}`)) unreached.push(`${x},${y} from ${gx},${gy}`);
   }
-  check("playtest1", "the town is 40 x 30 with sixteen doors, each on its house's south face with a walkable stoop below it, and every stoop is reachable on foot from every one of the ten road gates (owner-reported: the bottom houses were unreachable)", (PT1V_LIVE ? town.w === 56 && town.h === 42 : town.w === 40 && town.h === 30) && doors.length === 16 && gates.length === 10 && unreached.length === 0 && doors.every(([x, y]) => !solid(town, x, y + 1)), unreached.slice(0, 6).join("; "));
+  check("playtest1", "the town is 40 x 30 with sixteen doors, each on its house's south face with a walkable stoop below it, and every stoop is reachable on foot from every one of the ten road gates (owner-reported: the bottom houses were unreachable)", (PT1V_LIVE ? town.w === 58 && town.h === 42 : town.w === 40 && town.h === 30) && doors.length === 16 && gates.length === 10 && unreached.length === 0 && doors.every(([x, y]) => !solid(town, x, y + 1)), unreached.slice(0, 6).join("; "));
   const backs = doors.filter(([x, y]) => !solid(town, x, y - 1));
   check("playtest1", "the wall behind every door is solid (no door can be walked into from the house's back)", backs.length === 0, backs.join(" "));
   {

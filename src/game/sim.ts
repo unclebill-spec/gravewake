@@ -2864,7 +2864,7 @@ export class Game {
     this.npcs.push(
       night
         ? { id: "hunter", name: "Vampire Hunter", x: 37 * TILE + 8, y: 29 * TILE + 8, coat: "#3a3228", role: "hunter" }
-        : { id: "hunter", name: "Vampire Hunter", x: 12 * TILE + 8, y: 5 * TILE + 8, coat: "#3a3228", role: "hunter" },
+        : { id: "hunter", name: "Vampire Hunter", x: 11 * TILE + 8, y: 5 * TILE + 8, coat: "#3a3228", role: "hunter" },
     );
   }
 
@@ -10925,20 +10925,20 @@ function buildTown() {
   for (let x = ZEP_PAD.x0; x <= ZEP_PAD.x1; x++) for (let y = ZEP_PAD.y0; y <= ZEP_PAD.y1; y++) set(x, y, T.cobble);
   // trees in the gardens between the north houses and the cottages, and by the gates; two pumps
   for (const [tx, ty] of [
-    [11, 8], [13, 10], [22, 9], [25, 12], [32, 9], [35, 12], [46, 9], [47, 13],
-    [11, 27], [26, 19], [46, 26], [10, 38], [34, 38], [52, 27],
+    [10, 9], [19, 9], [25, 12], [31, 9], [34, 12], [44, 9], [48, 13],
+    [11, 27], [26, 19], [49, 26], [10, 38], [36, 38],
   ]) {
     if (at(tx, ty) === T.grass) set(tx, ty, T.tree);
   }
-  set(12, 13, T.pump);
-  set(46, 18, T.pump);
+  set(10, 13, T.pump);
+  set(48, 17, T.pump);
   const u = CEMETERY.undertaker;
   const npcs: Npc[] = [
     { id: "undertaker", name: "Undertaker", x: u.x * TILE + 8, y: u.y * TILE + 8, coat: "#16161a", role: "undertaker" },
     { id: "zep", name: "Zeppelin Warden", x: 51 * TILE + 8, y: 13 * TILE, coat: "#4a4038", role: "zeppelin" },
     { id: "guard1", name: "Guard", x: 29 * TILE + 8, y: 17 * TILE + 8, coat: "#2a3140", role: "guard" },
     { id: "guard2", name: "Bank Guard", x: 53 * TILE + 8, y: 13 * TILE + 8, coat: "#2a3140", role: "guard" },
-    { id: "guard3", name: "Casino Guard", x: 43 * TILE + 8, y: 26 * TILE + 8, coat: "#2a3140", role: "guard" },
+    { id: "guard3", name: "Casino Guard", x: 47 * TILE + 8, y: 26 * TILE + 8, coat: "#2a3140", role: "guard" },
     { ...SHOWROOM.salesman }, // playtest1v: the bone car's salesman, by its velvet ropes
   ];
   spreadProps(tiles, w, h, true);

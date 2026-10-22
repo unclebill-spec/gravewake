@@ -35,21 +35,21 @@ export const CAR = {
 
 /** The town showroom: the roped lot (tiles, inclusive), where the car stands in it, the salesman, the rope posts. */
 export const SHOWROOM = {
-  // townwide: the lot moved with the south lane of the 56x42 town (townplan.ts SHOW: the old (29, 27) lot by (14, 10))
-  x0: 43,
+  // townwide: the lot moved with the south lane of the 56x42 town (townplan.ts SHOW: the old (29, 27) lot by (18, 10))
+  x0: 47,
   y0: 37,
-  x1: 46,
+  x1: 50,
   y1: 38,
   /** The car's seat point (px): its 64 px body centred on the lot, its wheels on the lot's bottom row. */
-  carX: 43 * 16 + 32,
+  carX: 47 * 16 + 32,
   carY: 38 * 16 + 3,
-  salesman: { id: "carman", name: "Ossian Sprocket", x: 42 * 16 + 8, y: 38 * 16 + 8, coat: "#3a2c24", role: "carman" },
+  salesman: { id: "carman", name: "Ossian Sprocket", x: 46 * 16 + 8, y: 38 * 16 + 8, coat: "#3a2c24", role: "carman" },
   posts: [
-    [43, 37],
     [47, 37],
-    [43, 39],
+    [51, 37],
     [47, 39],
-    [45, 39],
+    [51, 39],
+    [49, 39],
   ] as [number, number][],
 } as const;
 

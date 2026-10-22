@@ -1,6 +1,6 @@
 /**
  * townwide (Bill, 2026-10-22: "make the Gravewake town larger inside so it isn't cramped. The cemetery and the wayrift
- * portal park need open room and must not sit behind buildings"). The town grows from 40x30 to 56x42 (1.96x the area).
+ * portal park need open room and must not sit behind buildings"). The town grows from 40x30 to 58x42 (2.03x the area).
  *
  * The old plan is spread, not redrawn: wide streets and gaps are put in between the old blocks (OLD_TO_NEW), so every
  * building keeps its size, its sign and its door on its south face, and every spot the game names (a doorstep, a
@@ -8,7 +8,7 @@
  * avenue (CEMETERY) and the portal park to its own cobbled plaza east of it (PLAZA), both in clear view of the streets.
  * Pure data: no imports, so content, sim, draw and the checks can all read it.
  */
-export const TOWN_W = 56;
+export const TOWN_W = 58;
 export const TOWN_H = 42;
 /** The plan's version on a save: a town position saved without it is from the old 40x30 town. */
 export const TOWN_PLAN = 2;
@@ -28,23 +28,25 @@ export const STREETS = { north: [15, 16], south: [29, 30], avenue: [27, 28], lan
 /** Every building: its block (tiles), its door (on its south row). */
 export type TownBlock = { room: string; x: number; y: number; w: number; h: number; doorX: number; doorY: number };
 const block = (room: string, x: number, y: number, w: number, h: number, door: number): TownBlock => ({ room, x, y, w, h, doorX: x + door, doorY: y + h - 1 });
+// Each lot keeps its old column's residue mod 6 (the town draw's pick: an even five-wide lot is a cabin, else house x0 % 3),
+// so every building wears the outside it always had and its room's inside still matches (interiors.ts ROOM_STYLE).
 export const TOWN_BLOCKS: TownBlock[] = [
   block("inn", 2, 2, 8, 5, 3),
-  block("shop", 15, 2, 6, 5, 2),
-  block("fisher", 22, 3, 3, 4, 1),
-  block("guild", 38, 2, 7, 5, 6),
-  block("bank", 49, 2, 5, 5, 1),
+  block("shop", 12, 2, 6, 5, 2),
+  block("fisher", 20, 3, 3, 4, 1),
+  block("guild", 36, 2, 7, 5, 6),
+  block("bank", 45, 2, 5, 5, 1),
   block("bram", 3, 11, 6, 4, 2),
-  block("pell", 15, 11, 6, 4, 2),
-  block("ivy", 38, 11, 6, 4, 2),
+  block("pell", 12, 11, 6, 4, 2),
+  block("ivy", 36, 11, 6, 4, 2),
   block("chapel", 2, 20, 8, 5, 3),
-  block("casino", 38, 20, 7, 5, 3),
-  block("smith", 48, 20, 6, 5, 2),
+  block("casino", 42, 20, 7, 5, 3),
+  block("smith", 50, 20, 6, 5, 2),
   block("tailor", 2, 32, 7, 5, 3),
-  block("noll", 14, 32, 6, 5, 2),
-  block("croft", 21, 33, 3, 4, 1),
-  block("alchemy", 38, 32, 7, 5, 3),
-  block("mystic", 49, 32, 5, 5, 1),
+  block("noll", 11, 32, 6, 5, 2),
+  block("croft", 20, 33, 3, 4, 1),
+  block("alchemy", 42, 32, 7, 5, 3),
+  block("mystic", 51, 32, 5, 5, 1),
 ];
 export const blockOf = (room: string) => TOWN_BLOCKS.find((b) => b.room === room)!;
 
@@ -59,8 +61,8 @@ export const CEMETERY = {
 } as const;
 
 /** The portal plaza (inclusive cobble square) and the park in it: the old 6x4 park block moved by (dx, dy). */
-export const PLAZA = { x0: 29, y0: 18, x1: 37, y1: 27 } as const;
-export const PARK = { dx: 14, dy: 7 } as const;
+export const PLAZA = { x0: 29, y0: 18, x1: 39, y1: 27 } as const;
+export const PARK = { dx: 15, dy: 7 } as const;
 /** The park's pieces in new tiles: the wayrift's tile, the statues' and the arch's top-left tiles, the pool. */
 export const PARK_AT = {
   core: { x: 16 + PARK.dx, y: 14 + PARK.dy, w: 6, h: 4 },
@@ -71,7 +73,7 @@ export const PARK_AT = {
 } as const;
 
 /** The car showroom moves with the south lane: the old lot (29, 27) moved by (dx, dy). */
-export const SHOW = { dx: 14, dy: 10 } as const;
+export const SHOW = { dx: 18, dy: 10 } as const;
 /** The zeppelin pad (inclusive). */
 export const ZEP_PAD = { x0: 50, y0: 12, x1: 53, y1: 14 } as const;
 /** Where the hero stands on a fresh wake (and where an old save's town position is put): the avenue at the plaza. */
