@@ -70,7 +70,8 @@ import { gravewakeFloor, gravewakeRift, guardPick } from "../../tools/map-writer
 import { HAMLET_ENTRY, WORLD_BRIDGE, WORLD_DRESS, gravewakeHamlets, gravewakeWorld } from "../../tools/map-writer/gravewake_world";
 import { VILLAGE_NAMES, buildVillage, type VillageT } from "./villages";
 import { MAPFOG, decodeSeen, encodeSeen, fogKey, reveal } from "./mapfog"; // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]
-import { CAR, CAR_LINES, SHOWROOM, carPoints, inShowroom, type CarFacing } from "./bonecar"; // playtest1v // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]
+import { CAR, CAR_LINES, SHOWROOM, carPoints, inShowroom, type CarFacing } from "./bonecar";
+import { lampBaseAt, lampBaseHits, showroomSolid, streetLampSpots } from "./townprops"; // billvid // playtest1v // playtest1v [OWNER-APPROVED 2026-10-05 21:14 ET: playtest1v hamlet zones]
 import { BOULDER, boulderIndex, layBoulders, type BoulderT } from "./boulders"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]
 import { HAMLET_KINDS, type HamletBiomeId, type HamletT } from "./hamlets"; // playtest1u [OWNER-APPROVED 2026-10-04 20:58 ET: playtest1u hamlets]
 import { edgeBand, riftSeed, rng32, subSeed, type MapResult } from "../../tools/map-writer/map_writer";
@@ -4599,7 +4600,9 @@ export class Game {
       [this.px - 5, this.py + 3],
       [this.px + 5, this.py + 3],
     ];
-    return pts.some(([x, y]) => this.solidAt(x, y, true));
+    if (pts.some(([x, y]) => this.solidAt(x, y, true))) return true;
+    // billvid: a street lamp's small iron base stops the hero (a box test: the base is narrower than the foot's corners)
+    return this.mapId === "town" && lampBaseHits(streetLampSpots(this.w, this.h, this.tiles), this.px - 5, this.py - 2, this.px + 6, this.py + 4);
   }
 
   private tileUnder(px: number, py: number) {
@@ -4665,6 +4668,10 @@ export class Game {
     // The chapel's hearth tile (the way down to the Hearth, under the altar's front) stays a way through.
     if (this.mapId === "inside" && t !== T.hearth && furnitureAt(this.inside, this.theme, px, py)) return true;
     if (this.mapId === "town" && this.yardFences().has(ty * this.w + tx)) return true;
+    // billvid (Bill: "the bone car display and the velvet ropes are solid"): the roped lot, its posts included, stops everyone
+    if (this.mapId === "town" && showroomSolid(tx, ty)) return true;
+    if (this.mapId === "town" && PARK_AT.statues.some(([sx, sy]) => sx === tx && sy + 1 === ty)) return true; // billvid: a park statue's base
+    if (this.mapId === "town" && lampBaseAt(streetLampSpots(this.w, this.h, this.tiles), px, py)) return true; // billvid: a lamp's base
     /** The hero may enter. Townsfolk, critters, and roamers may not. */
     if (t === T.water || t === T.pool || t === T.ice) return !hero;
     return false;
@@ -4765,6 +4772,11 @@ export class Game {
     const ty = Math.floor(this.py / TILE);
     if (this.riftHold && (this.mapId !== "world" || this.riftHold !== `${tx},${ty}`)) this.riftHold = "";
     if (this.tryDoor(tx, ty)) return;
+    // billvid (Bill, 2026-10-22: "doors are hard to enter and exit"): a door's trigger is a little bigger than its art,
+    // by contact: DOOR_ZONE px either side and below a town door (its stoop side), and either side of and above a
+    // room's door. The arrival spots (a stoop, two rows in) stay outside it, so nobody spawns back into a door.
+    const near = this.doorZoneAt();
+    if (near && (near.x !== tx || near.y !== ty) && this.tryDoor(near.x, near.y, true)) return;
     this.tryEntrance(tx, ty);
   }
 
@@ -4857,7 +4869,21 @@ export class Game {
     }
   }
 
-  private tryDoor(tx: number, ty: number) {
+  /** billvid: the door whose widened trigger the hero's feet are in (town and rooms), or null. */
+  doorZoneAt(): { x: number; y: number } | null {
+    if (this.mapId !== "town" && this.mapId !== "inside") return null;
+    const tx = Math.floor(this.px / TILE), ty = Math.floor(this.py / TILE);
+    const Z = DOOR_ZONE;
+    for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) {
+      if (x < 0 || y < 0 || x >= this.w || y >= this.h || this.tiles[y * this.w + x] !== T.door) continue;
+      const cx = x * TILE + 8;
+      if (Math.abs(this.px - cx) > 8 + Z.side) continue;
+      if (this.mapId === "town" ? this.py >= y * TILE + 8 && this.py <= (y + 1) * TILE + Z.reach : this.py >= y * TILE - Z.reach) return { x, y };
+    }
+    return null;
+  }
+
+  private tryDoor(tx: number, ty: number, zone = false) {
     if (tx < 0 || ty < 0 || tx >= this.w || ty >= this.h) return false;
     if (this.tiles[ty * this.w + tx] !== T.door) return false;
     if (this.mapId === "town") {
@@ -4865,6 +4891,7 @@ export class Game {
       if (!room) return false;
       // playtest1 (owner-reported bug): a house door opens only from the front, walking north into it from its stoop.
       if (this.py < ty * TILE + 8) return false;
+      if (zone && this.facing === "s") return false; // billvid: walking away from it down the stoop never opens it
       this.enterInside(room.id);
       return true;
     }
@@ -4884,13 +4911,9 @@ export class Game {
   enterInside(id: string, forced = false) {
     const room = ROOMS.find((r) => r.id === id);
     if (!room) return;
-    if (!forced && room.id === "croft" && !this.ownedHome) {
-      this.px = room.outX * TILE + 8;
-      this.py = room.outY * TILE + 8;
-      this.doorCool = 0.6;
-      this.logLine = "The door is barred. The bank sells the deed.";
-      return;
-    }
+    // billvid (Bill, 2026-10-22: "every building with a door enterable"): the croft no longer bars its door; unbought it
+    // stands bare (its furniture and trophies come with the deed), and says so on the way in (below).
+    const forSale = room.id === "croft" && !this.ownedHome;
     if (!forced && room.home && this.cls === "vampire" && (this.favor[room.home] ?? 0) < 3) {
       this.px = room.outX * TILE + 8;
       this.py = room.outY * TILE + 8;
@@ -4917,7 +4940,7 @@ export class Game {
     this.facing = "n";
     this.doorCool = 0.45;
     this.audio?.door();
-    this.logLine = `${room.name}. The door behind you leads out.`;
+    this.logLine = forSale ? `${room.name}, bare and for sale. The bank sells the deed. The door behind you leads out.` : `${room.name}. The door behind you leads out.`;
   }
 
   private leaveInside() {
@@ -10714,7 +10737,7 @@ type RoomDef = {
   who?: string;
 };
 
-const ROOMS: RoomDef[] = [
+export const ROOMS: RoomDef[] = [
   { id: "inn", name: "The Lantern Inn", kind: "inn", doorX: blockOf("inn").doorX, doorY: blockOf("inn").doorY, outX: blockOf("inn").doorX, outY: blockOf("inn").doorY + 1 },
   { id: "shop", name: "The Counter", kind: "shop", doorX: blockOf("shop").doorX, doorY: blockOf("shop").doorY, outX: blockOf("shop").doorX, outY: blockOf("shop").doorY + 1 },
   { id: "guild", name: "The Guildhall", kind: "guild", doorX: blockOf("guild").doorX, doorY: blockOf("guild").doorY, outX: blockOf("guild").doorX, outY: blockOf("guild").doorY + 1 },
@@ -10743,6 +10766,8 @@ function roomByDoor(x: number, y: number) {
  * caster gets about 6-8 casts from full and refills noticeably faster. Spell costs and damage are not touched.
  */
 export const MANA = { pool: 2.5, regen: 3 } as const;
+/** billvid (Bill, 2026-10-22): a door's trigger reaches this far past its tile (px): side, and reach (below a town door, above a room's). */
+export const DOOR_ZONE = { side: 4, reach: 5 } as const;
 
 /** playtest1b: the log line on stepping into water, and the one that replaces it on climbing out. */
 export const WADE_LINE = "You sink in. Swimming is half speed.";

@@ -86,6 +86,10 @@ export function Gravewake() {
   const freshIds = useRef(new Set<number>());
   const [portrait, setPortrait] = useState(false);
   const [coarse, setCoarse] = useState(false);
+  // billvid item 9 (Bill, 2026-10-22: "on PC, default to keyboard controls"): keys mode hides the touch stick and the
+  // action buttons. On at start on a fine pointer with no touch screen; the first touch turns it off, keys or a mouse on again.
+  const [keysMode, setKeysMode] = useState(false); // billvid: decided after hydration, so the server's HTML matches
+  useEffect(() => { setKeysMode(keyboardFirst(window)); }, []);
   const [portraitOk, setPortraitOk] = useState(false);
   const [tip, setTip] = useState(false);
   const [fs, setFs] = useState(false);
@@ -325,6 +329,7 @@ export function Gravewake() {
         return;
       }
       if (!e.repeat) unlockFresh(e.timeStamp || performance.now());
+      setKeysMode(true); // billvid item 9: a key press is the keyboard
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (game.captureAct) {
         e.preventDefault();
@@ -417,6 +422,8 @@ export function Gravewake() {
       }
       // playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: B is the bone car (owners only)
       if (e.code === "KeyB" && game.carOwned && !e.repeat && !Object.values(bind).includes("KeyB")) game.carAction();
+      // billvid item 9: K pitches or breaks camp (the Camp button's key)
+      if (e.code === "KeyK" && !e.repeat && !Object.values(bind).includes("KeyK") && game.canCamp()) game.camp();
       if (e.code === bind.area) game.whirl();
       if (e.code === bind.far) game.smite();
       if (e.code === bind.drink) game.usePotion();
@@ -788,7 +795,13 @@ export function Gravewake() {
 
   /** Title, HUD, and the panel for whichever mode the simulation is in. */
   return (
-    <main ref={mainRef} className="relative h-full w-full touch-none overflow-hidden bg-black text-fg">
+    <main
+      ref={mainRef}
+      className="relative h-full w-full touch-none overflow-hidden bg-black text-fg"
+      data-keys={keysMode ? "1" : "0"}
+      onPointerDownCapture={(e) => setKeysMode(e.pointerType !== "touch" && e.pointerType !== "pen")}
+    >
+      {keysMode && game?.mode === "play" ? <KeyHint /> : null}
       {screenSet.preset === "retro" ? (
         // retro1: Retro's 4:3 picture sits in black bars, and a thumb rests on them: in play the left third starts the
         // floating stick there too, and a tap or drag on a bar walks toward that point, as on the picture.
@@ -1237,6 +1250,7 @@ export function Gravewake() {
             className="gw-touch absolute right-3 bottom-3 z-10 flex flex-col items-end gap-1.5"
             data-testid="hud-touch"
             data-idle={touchIdle ? "1" : "0"}
+            hidden={keysMode}
             style={{ right: "calc(0.75rem + var(--sar))", bottom: "calc(0.75rem + var(--sab))", opacity: touchIdle ? HUD_FADE.idleOpacity : HUD_FADE.busyOpacity, transition: "opacity 300ms" }}
             onPointerDownCapture={() => {
               pressAt.current = performance.now();
@@ -1345,6 +1359,7 @@ export function Gravewake() {
           <div
             ref={ringRef}
             data-testid="stick"
+            hidden={keysMode}
             className="gw-stick absolute bottom-4 left-3 z-10 flex h-28 w-28 touch-none items-center justify-center rounded-full border border-border bg-surface/70"
             style={{ left: "calc(0.75rem + var(--sal))", bottom: "calc(1rem + var(--sab))" }}
             onPointerDown={(e) => stickStart(e, false)}
@@ -2321,11 +2336,11 @@ function CardTableView({ game, stake, setStake, bump }: { game: Game; stake: num
     <section
       data-padnav
       data-testid="card-table"
-      className="gw-table absolute inset-x-3 top-3 bottom-3 z-30 flex flex-col items-center justify-between gap-1 overflow-auto rounded border border-border p-2"
+      className="gw-table absolute inset-x-3 top-3 bottom-3 z-30 flex flex-col items-center justify-evenly gap-1 overflow-hidden rounded border border-border p-2"
       style={{
         background: kind === "poker" ? "radial-gradient(ellipse at 50% 45%, #3a2468 0%, #1a1030 70%, #07060a 100%)" : "radial-gradient(ellipse at 50% 45%, #1e4634 0%, #0f241c 70%, #07060a 100%)",
         boxShadow: "inset 0 0 0 2px #2a1c14, inset 0 0 24px #000",
-        ["--gw-card" as string]: "clamp(36px, min(11vw, 17vh), 84px)",
+        ["--gw-card" as string]: "clamp(28px, min(11vw, 13vh), 84px)", // billvid: both hands and the buttons always fit (no scroll hides your cards)
         right: "calc(0.75rem + var(--sar))",
         left: "calc(0.75rem + var(--sal, 0px))",
       }}
@@ -2336,11 +2351,13 @@ function CardTableView({ game, stake, setStake, bump }: { game: Game; stake: num
       </div>
       <div className="flex flex-col items-center gap-1" data-testid="dealer-hand">
         <span className="text-xs text-muted">Dealer{t ? ` · ${name(t.dealer)}` : ""}</span>
-        <div className="flex gap-1">{(t ? t.dealer : kind === "poker" ? [null, null, null, null, null] : [null, null]).map((c, i) => <PlayingCard key={i} card={c} />)}</div>
+        {/* billvid (Bill, 2026-10-22: "the dealer's up card overlaps the hole card messily"): one clean row, a gap between
+            every card; while you play, the dealer's face-down hole card sits beside his up card */}
+        <div className="flex gap-2" data-testid="dealer-cards">{(t ? (kind === "blackjack" && live && t.dealer.length === 1 ? [...t.dealer, null] : t.dealer) : kind === "poker" ? [null, null, null, null, null] : [null, null]).map((c, i) => <PlayingCard key={i} card={c} label={c == null ? "face-down card" : undefined} />)}</div>
       </div>
       <p className="min-h-[1.25rem] text-center text-sm" data-testid="table-line">{t ? game.logLine : kind === "poker" ? "Hold what you like, draw once; the better hand wins even money." : `Dealer stands on ${BJ.stand}. Blackjack pays 3:2.`}</p>
       <div className="flex flex-col items-center gap-1" data-testid="your-hand">
-        <div className="flex gap-1">
+        <div className="flex gap-2" data-testid="your-cards">
           {t
             ? t.you.map((c, i) =>
                 kind === "poker" && live ? (
@@ -2432,5 +2449,37 @@ function LootIcon({ cell, dim = false }: { cell: number; dim?: boolean }) {
       className="-my-1 mr-1 inline-block shrink-0 align-middle"
       style={{ width: 32, height: 32, backgroundImage: `url(${LOOT_SHEET})`, backgroundSize: `${LOOT.length * 32}px 32px`, backgroundPosition: `-${cell * 32}px 0`, imageRendering: "pixelated", opacity: dim ? 0.35 : 1 }}
     />
+  );
+}
+
+/** billvid item 9: a computer with a fine pointer and no touch screen starts on the keyboard. */
+export function keyboardFirst(w: Pick<Window, "matchMedia" | "navigator">): boolean {
+  return !!w.matchMedia?.("(pointer: fine)").matches && (w.navigator?.maxTouchPoints ?? 0) === 0;
+}
+/** billvid item 9: the keys, shown once (the first play in keys mode), then never again on this machine. */
+export const KEY_HINT = "WASD move · E use · Q whirl · F smite · 1-4 spells · P potion · K camp · B car · M map · I pack · Esc pause";
+function KeyHint() {
+  const [show, setShow] = useState(() => {
+    try {
+      return localStorage.getItem("gravewake-keyhint") !== "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!show) return;
+    try {
+      localStorage.setItem("gravewake-keyhint", "1");
+    } catch {
+      /* private mode: show it this once anyway */
+    }
+    const t = window.setTimeout(() => setShow(false), 9000);
+    return () => window.clearTimeout(t);
+  }, [show]);
+  if (!show) return null;
+  return (
+    <div data-testid="key-hint" className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded border border-border bg-surface/85 px-3 py-1 text-[0.6875rem] text-fg">
+      {KEY_HINT}
+    </div>
   );
 }

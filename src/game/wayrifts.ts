@@ -101,6 +101,9 @@ export const WAYRIFT_PLATFORM = "/art/writer/wayrift-platform.png";
 /** playtest1z: park props. */
 export const PARK_STATUE = "/art/writer/park-statue.png";
 export const PARK_ARCH = "/art/writer/park-arch.png";
+/** billvid (Bill, 2026-10-22: "make the entry clear"): the park arch stands on the row under the town pad's open front,
+ * its 48 px art at px (x) so its pillars flank the 2-tile lane; the pillars' tiles (pillars) are solid. Its foot row: y. */
+export const PARK_GATE = { px: 33 * 16 - 8, y: 25, pillars: [32, 35] as [number, number] } as const;
 export const SWAMP_PATH = "/art/writer/swamp-path.png";
 export const WAYRIFT_SHEETS = [WAYRIFT_SHEET, WAYRIFT_EM, WAYRIFT_ICON, WAYRIFT_PLATFORM, PARK_STATUE, PARK_ARCH, SWAMP_PATH];
 
@@ -150,6 +153,13 @@ export function wayriftAt(tx: number, ty: number, map: "town" | "world" = "world
 
 /** playtest1z: octagon pad rim solid (3x3) except the 2x1 footprint mouth. */
 export function wayPlatformSolid(tx: number, ty: number, map: "town" | "world" = "world"): boolean {
+  // billvid: the town pad's open front lane (its mouth's columns, rows 1-2) and the arch's two pillar bases
+  if (map === "town") {
+    const G = PARK_GATE;
+    if (ty === G.y && (tx === G.pillars[0] || tx === G.pillars[1])) return true;
+    const hub = WAYRIFTS.find((w) => w.map === "town" && w.platform);
+    if (hub && ty > hub.y && ty < hub.y + WAYRIFT.platTiles && tx >= hub.x && tx < hub.x + WAYRIFT.fw) return false;
+  }
   for (const w of WAYRIFTS) {
     if (!w.platform || w.map !== map) continue;
     // platform top-left = rift footprint top-left (mouth in NW of the 3x3)

@@ -3380,7 +3380,7 @@ if (on("graves")) {
   {
     const png = readFileSync("public/art/writer/grave-dug.png");
     const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readTop("src/game/draw.ts", "utf8");
     check("graves", "grave-dug.png is one 16x16 cell from the pixel writer, palette-locked, drawn only over a grave dug tonight", png.readUInt32BE(16) === 16 && png.readUInt32BE(20) === 16 && /grave_dug\(/.test(writer) && /grave-dug\.png/.test(writer) && /made \+= \[dug, trophy\]/.test(writer) && /const dug = kind === "grave" && g\.graveDug\(x, y\);/.test(draw) && /if \(dug\) sheetCell\(ctx, GRAVE_DUG/.test(draw));
   }
 }
@@ -3539,7 +3539,7 @@ if (on("derby")) {
   {
     const png = readFileSync("public/art/writer/derby-trophy.png");
     const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readTop("src/game/draw.ts", "utf8");
     check("derby", "derby-trophy.png is one 16x16 cell from the pixel writer, palette-locked, drawn on the croft wall only once won", png.readUInt32BE(16) === 16 && png.readUInt32BE(20) === 16 && /derby_trophy\(/.test(writer) && /made \+= \[dug, trophy\]/.test(writer) && /g\.inside === "croft" && x === DERBY\.trophyX && y === DERBY\.trophyY && g\.hasDerbyTrophy\(\)/.test(draw) && F.DERBY.trophyX === 9 && F.DERBY.trophyY === 0);
   }
 }
@@ -3657,7 +3657,7 @@ if (on("decor")) {
     const png = readFileSync("public/art/writer/croft-decor.png");
     const plaque = readFileSync("public/art/writer/boss-plaque.png");
     const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readTop("src/game/draw.ts", "utf8");
     const ui = readFileSync("src/game/Gravewake.tsx", "utf8");
     check("decor", "croft-decor.png (6 cells) and boss-plaque.png (1 cell) come from the palette-locked writer; the draw shows only owned pieces and hung trophies", png.readUInt32BE(16) === 96 && png.readUInt32BE(20) === 16 && plaque.readUInt32BE(16) === 16 && plaque.readUInt32BE(20) === 16 && /made \+= \[decor, plaque\]/.test(writer) && /g\.decorPieces\(\)\.find/.test(draw) && /g\.bossTrophies\(\)\.find\(\(t\) => t\.slot === x\)/.test(draw) && /CROFT_DECOR, BOSS_PLAQUE/.test(draw));
     check("decor", "the casino's points shelf lists the home pieces and trophies as buttons", /game\.decorOffers\(\)\.map/.test(ui) && /game\.buyDecor\(o\.id\)/.test(ui) && /data-testid="home-shelf"/.test(ui));
@@ -5847,7 +5847,7 @@ if (on("gfx2")) {
   const file = join(dir, "gfx2.mjs");
   execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
   const D = await import(pathToFileURL(file).href);
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readTop("src/game/draw.ts", "utf8");
   const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
   const pix = readFileSync("tools/pixel-writer/pixel_writer.py", "utf8");
   const md5 = (f) => createHash("md5").update(readFileSync(pinFile(f))).digest("hex");
@@ -6131,7 +6131,7 @@ if (on("gfx3")) {
   execFileSync("npx", ["esbuild", entry, "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${file}`], { stdio: ["ignore", "ignore", "inherit"] });
   const D = await import(pathToFileURL(file).href);
   const L = D.LIGHT;
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readTop("src/game/draw.ts", "utf8");
   const writer = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
   const pix = readFileSync("tools/pixel-writer/pixel_writer.py", "utf8");
   const md5 = (f) => createHash("md5").update(readFileSync(pinFile(f))).digest("hex");
@@ -6648,7 +6648,7 @@ if (on("retro1")) {
       }
     }
     D.LIGHT.budget = budget;
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readTop("src/game/draw.ts", "utf8");
     check("retro1", `at Retro's 320×240 every scene light in view is lit: the most in any view (town on all four festival nights, the vale at night, ${floors} dungeon floors) is ${worst.n}, under the 24-light budget (light.ts unchanged), so nothing at the edge goes unlit; the minimap's 24-tile span still covers the 20×15-tile view`, budget === 24 && floors >= 60 && worst.n > 0 && worst.n <= 18 && /function drawMinimap[\s\S]{0,200}const span = 24;/.test(draw) && 24 * TILE >= 320, `${worst.n} at ${worst.at}, ${floors} floors`);
   }
 }
@@ -7879,7 +7879,7 @@ if (on("playtest1c")) {
   execFileSync("npx", ["esbuild", join(dir, "pt1c.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=warning", `--outfile=${join(dir, "pt1c.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const D = await import(pathToFileURL(join(dir, "pt1c.mjs")).href);
   const W = D.W;
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readTop("src/game/draw.ts", "utf8");
   const wild = readFileSync("src/game/wild.ts", "utf8");
   const py = (code) => {
     try { return JSON.parse(execFileSync("python3", ["-B", "-c", code], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 24 })); }
@@ -8027,7 +8027,7 @@ if (on("playtest1d")) {
   const X = await import(pathToFileURL(join(dir, "pt1d.mjs")).href);
   const W = X.W;
   const frame = (g) => { drawn = []; X.drawWorld(ctx, g, 960, 640, g.zoom); return drawn.filter(Boolean); };
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readTop("src/game/draw.ts", "utf8");
   const wild = readFileSync("src/game/wild.ts", "utf8");
   const writer = readFileSync("tools/pixel-writer/town_writer.py", "utf8");
   const maker = readFileSync("tools/pixel-writer/make_gravewake.py", "utf8");
@@ -9248,7 +9248,7 @@ if (on("playtest1h")) {
   }
   // 7. liquids mirror the dungeon palette
   {
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readTop("src/game/draw.ts", "utf8");
     const js = JSON.parse(readFileSync("tools/pixel-writer/cave-liquids.json", "utf8"));
     const live = {};
     for (const m of draw.matchAll(/ {2}(\w+): \{ floor: "#\w+", floor2: "#\w+", wall: "#\w+", wallHi: "#\w+", liquid: "(#\w+)", accent: "(#\w+)" \}/g)) live[m[1]] = { liquid: m[2], accent: m[3] };
@@ -15117,7 +15117,7 @@ if (on("playtest1z")) {
     const dims = py(`from PIL import Image; import json; print(json.dumps({k: list(Image.open("public/art/writer/"+k).size) for k in ["wayrift-platform.png","park-statue.png","park-arch.png","wayrift2.png"]}))`);
     const dimOk = dims["wayrift-platform.png"]?.[0] === 96 && dims["wayrift-platform.png"]?.[1] === 48 && dims["park-arch.png"]?.[0] === 48;
     // platform solid: octagon rim (corners open), mouth open
-    const plat = !X.waySolid(33, 22, "town") && !X.waySolid(34, 22, "town") && X.waySolid(33, 23, "town") && !X.waySolid(35, 22, "town"); // (35,22) is NE corner of 3x3 → open (townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: was (18,15)..(20,15))
+    const plat = !X.waySolid(33, 22, "town") && !X.waySolid(34, 22, "town") && X.waySolid(35, 23, "town") && !X.waySolid(33, 23, "town") && !X.waySolid(35, 22, "town"); // billvid [OWNER-REQUESTED 2026-10-22 Bill's video: a clear way in to the plaza portal]: (33,23) is now the pad's open front lane, the rim holds at (35,23). (35,22) is NE corner of 3x3 → open (townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: was (18,15)..(20,15))
     seed(2);
     const g = mk();
     g.enterTown(33 * 16 + 8, 24 * 16 + 8);
@@ -15199,7 +15199,7 @@ if (on("playtest1z")) {
     const wr = readFileSync("src/game/wayrifts.ts", "utf8");
     const wp = readFileSync("src/game/wildportals.ts", "utf8");
     const sim = readFileSync("src/game/sim.ts", "utf8");
-    const draw = readFileSync("src/game/draw.ts", "utf8");
+    const draw = readTop("src/game/draw.ts", "utf8");
     const rift = readFileSync("tools/pixel-writer/rift_writer.py", "utf8");
     check("playtest1z", `owner tag and ## playtest1z in AGENTS.project.md, wayrifts/wildportals/sim/draw/rift_writer`,
       agents.includes(TAG) && /## playtest1z /.test(agents) && wr.includes(TAG) && wp.includes(TAG) && sim.includes(TAG) && draw.includes(TAG) && rift.includes(TAG));
@@ -15720,7 +15720,7 @@ if (on("earlysinks")) {
     const done = { ...rec, earlyDone: true }; const g3 = mk(); g3.loadRecord(done);
     check("earlysinks", "a save after his fight keeps him gone (earlyDone true, no early roamer)", g3.earlyDone === true && !g3.roamers.some((r) => r.early));
   } finally { Object.assign(globalThis, { Image: had.Image, document: had.document, localStorage: had.ls }); Math.random = had.random; }
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readTop("src/game/draw.ts", "utf8");
   const png = (p) => { const b = readFileSync(p); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
   const ring = "public/art/writer/runering_blue_64x32.png";
   check("earlysinks", "the warden's strike shows the blue rune ring (Art's telegraphs: 8 frames of 64x32, filling over his tell, lit on the hit, on the floor and the glow pass)", existsSync(ring) && png(ring).join("x") === "512x32" && /if \(r\.early\) return \{ col: "blue", big: false \};/.test(draw) && /const mx = r\.early \? r\.x/.test(draw) && draw.includes("paintRuneRings(ctx, g, glow)"));
@@ -15744,7 +15744,7 @@ if (on("gfxlight")) {
   const L = X.LT.LIGHT;
   const CYC = 30 * 60 * 1000, NIGHT = CYC + 22 * 60000, DAY = 5 * 60000;
   const mk = (ms) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; return g; };
-  const draw = readFileSync("src/game/draw.ts", "utf8");
+  const draw = readTop("src/game/draw.ts", "utf8");
 
   // 1. frozen references and play untouched
   {
@@ -15958,8 +15958,78 @@ if (on("outskirts")) {
   check("outskirts", `the wisps drift in whole pixels (${wholes}, ${moved}), the raven idles through cells ${[...idle].sort().join(",")}, and at night up to ${most} wisp and candle lights flicker in a view, all mood lights inside the ${X.LIGHT.lowBudget}-a-frame cap (${cap})`, wholes && moved && idle.size === 4 && most >= 1 && cap);
 }
 
+// billvid [OWNER-REQUESTED 2026-10-22 Bill's phone video of main e2f4c6f]: doors, the croft, collision, the park pad,
+// flicker, fade behind, the indoor camera, the card table and the keys mode on a computer.
+if (on("billvid")) {
+  asLive();
+  const dir = mkdtempSync(join(tmpdir(), "gravewake-bv-"));
+  const root = process.cwd();
+  writeTop(join(dir, "b.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as TP from "${root}/src/game/townplan.ts";\nexport * as TPR from "${root}/src/game/townprops.ts";\nexport * as WR from "${root}/src/game/wayrifts.ts";\nexport { SHOWROOM } from "${root}/src/game/bonecar.ts";\nexport { sceneLights, cameraFor, heroBehind, canopyHides, streetLamps, forgeSpot, townLotsOf } from "${root}/src/game/draw.ts";\nexport { LIGHT } from "${root}/src/game/light.ts";\nexport { T } from "${root}/src/game/content.ts";\n`);
+  execFileSync("npx", ["esbuild", join(dir, "b.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", "--loader:.png=empty", "--loader:.css=empty", `--outfile=${join(dir, "b.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
+  const X = await import(pathToFileURL(join(dir, "b.mjs")).href);
+  const { T } = X;
+  const mk = (ms = 5 * 60 * 1000) => { const g = new X.Game(); g.start("warrior", "str", "Q"); g.held.clear(); g.mode = "play"; g.worldMs = ms; g.enterTown(); return g; };
+  const settle = (g, s = 0.8) => { for (let i = 0; i < s / 0.05; i++) g.update(0.05); };
+  // 1+2. every town door enters by contact from a little off its art (DOOR_ZONE), the croft too, and no one loops back in
+  const doors = X.ROOMS.filter((r) => r.doorY < 60);
+  const bad = [], loop = [];
+  for (const r of doors) {
+    const g = mk();
+    g.px = r.doorX * 16 + 8 + X.DOOR_ZONE.side + 6; g.py = (r.doorY + 1) * 16 + X.DOOR_ZONE.reach - 1; g.facing = "n";
+    g.update(0.05);
+    if (g.mapId !== "inside" || g.inside !== r.id) { bad.push(r.id); continue; }
+    settle(g, 1.2);
+    if (g.mapId !== "inside") loop.push(`${r.id} in`);
+    const ix = g.px;
+    g.px = ix + X.DOOR_ZONE.side + 6; g.py = (g.h - 1) * 16 - X.DOOR_ZONE.reach + 1; g.facing = "s"; g.update(0.05);
+    if (g.mapId !== "town") { bad.push(`${r.id} out`); continue; }
+    settle(g, 1.2);
+    if (g.mapId !== "town") loop.push(`${r.id} out`);
+  }
+  const g0 = mk(); const croftIn = (g0.enterInside("croft"), g0.mapId === "inside" && g0.inside === "croft" && /for sale/.test(g0.logLine));
+  check("billvid", `all ${doors.length} town doors enter by contact from ${X.DOOR_ZONE.side + 6} px off the door's middle and ${X.DOOR_ZONE.reach - 1} px below it, and leave from as far inside (Noll's, the Needle, the Smithy included); nobody spawns back into a door (${loop.join(" ") || "none"}); the South Croft opens bare, for sale (${croftIn})`, doors.length === 16 && bad.length === 0 && loop.length === 0 && croftIn, bad.join(" "));
+  // 3. collision: lamp bases, the car display and its posts, the park statue and arch pillar bases; the decorations stay open
+  const g = mk();
+  const lamps = X.streetLamps(g);
+  const foot = (x, y) => { g.px = x; g.py = y; return g.solidFeet(); };
+  const lampOk = lamps.length > 0 && lamps.every((l) => foot(l.x * 16 + 8, l.y * 16 + 1)) && lamps.every((l) => !foot(l.x * 16 + 8, l.y * 16 + 12) || g.solidAt(l.x * 16 + 8, l.y * 16 + 12));
+  const S = X.SHOWROOM;
+  const carOk = S.posts.every(([x, y]) => g.solidAt(x * 16 + 8, y * 16 + 8)) && g.solidAt(S.carX, S.carY - 4) && !g.solidAt(S.salesman.x, S.salesman.y);
+  const G = X.WR.PARK_GATE;
+  const hub = X.WR.WAYRIFTS.find((w) => w.map === "town" && w.platform);
+  const parkOk = G.pillars.every((x) => g.solidAt(x * 16 + 8, G.y * 16 + 8)) && X.TP.PARK_AT.statues.every(([x, y]) => g.solidAt(x * 16 + 8, (y + 1) * 16 + 8)) && !g.solidAt(hub.x * 16 + 8, G.y * 16 + 8) && !g.solidAt((hub.x + 1) * 16 + 8, (hub.y + 1) * 16 + 8);
+  check("billvid", `collision at the base: ${lamps.length} street lamps' bases stop the hero (${lampOk}); the bone car display, its ropes and posts are solid and the salesman's spot open (${carOk}); the park statues' and the arch pillars' bases are solid, the pad's open front lane is clear to the mouth (${parkOk})`, lampOk && carOk && parkOk);
+  // 5. flicker: the forge and every lamp are flickering lights, inside the mood cap
+  const n = mk(15 * 60 * 1000 + 6 * 60 * 1000); n.update(0.01);
+  const smith = X.townLotsOf(n).find((l) => l.room === "smith"); const fs = X.forgeSpot(smith);
+  n.px = fs.x; n.py = fs.y + 20;
+  const ls = X.sceneLights(n, n.px - 240, n.py - 160, 480, 320);
+  const lp = X.streetLamps(n)[0]; n.px = lp.x * 16 + 8; n.py = lp.y * 16 + 20;
+  const ll = X.sceneLights(n, n.px - 240, n.py - 160, 480, 320);
+  const forgeLit = ls.some((l) => l.flick && Math.abs(l.x - fs.x) < 2 && l.r === X.LIGHT.brazier);
+  const lampLit = ll.some((l) => l.r === X.LIGHT.street && l.low && l.flick) && ll.filter((l) => l.low).every((l) => l.flick) && ll.filter((l) => l.low).length <= X.LIGHT.lowBudget && ll.some((l) => l.r === X.LIGHT.street) && /lowBudget/.test(readTop("src/game/draw.ts", "utf8"));
+  check("billvid", `the Smithy's fire pit throws a flickering forge light (${forgeLit}); street lamps burn flickering mood lights inside the ${X.LIGHT.lowBudget}-a-frame cap (${lampLit})`, forgeLit && lampLit);
+  // 6. fade behind: one rule (heroBehind) for a tree canopy, and nothing when the hero stands in front
+  const tb = { px: 100 * 16 + 8, py: 30 * 16 }; const behind = X.canopyHides({ ...tb, py: 28 * 16 }, 100, 32) && !X.canopyHides({ ...tb, py: 33 * 16 + 8 }, 100, 32);
+  const draw = readTop("src/game/draw.ts", "utf8");
+  const users = ["paintStreetLamp(ctx, lx", "sheetCell(ctx, PT1_FENCE", "paintParkStatue(ctx", "paintParkArch(ctx", "paintWayrift(ctx, w, cell, w.platform"].filter((k) => draw.split("\n").some((line) => line.includes("veiled(ctx, g, [") && line.includes(`() => ${k}`)));
+  check("billvid", `fade behind is one rule: a tree fades with the hero 4 tiles behind its trunk, not in front (${behind}); lamps, fences, park statues, the arch and the wayrift frames use it (${users.length}/5)`, behind && users.length === 5 && /kind === "rock" && heroBehind/.test(draw));
+  // 7. indoor camera: The Felt (wider than a 640 px view) follows the hero, clamped to its walls; a small room is centred
+  const c = mk(); c.enterInside("casino", true);
+  const cam = (x) => { c.px = x; c.py = 7 * 16; return X.cameraFor(c, 640, 360, 2); };
+  const r = cam((c.w - 2) * 16 + 8), l = cam(24);
+  const follow = r.x === c.w * 16 - 320 && l.x === 0 && c.px - r.x < 320;
+  const sm = mk(); sm.enterInside("noll", true); const sc = X.cameraFor(sm, 1280, 720, 2);
+  check("billvid", `indoors the camera follows the hero, clamped to the room: The Felt (${c.w * 16} px wide) scrolls ${l.x}..${r.x} and keeps the hero in view (${follow}); Noll's cottage, smaller than the view, is centred (${sc.x}, ${sc.y})`, follow && sc.x < 0);
+  // 8 + 9. the card table and the keys mode (source)
+  const ui = readTop("src/game/Gravewake.tsx", "utf8");
+  const table = /data-testid="dealer-cards"[^\n]*\[\.\.\.t\.dealer, null\]/.test(ui) && /data-testid="your-cards"/.test(ui) && /gw-table[^"]*overflow-hidden/.test(ui) && /"clamp\(28px, min\(11vw, 13vh\), 84px\)"/.test(ui);
+  const keys = /matchMedia\?\.\("\(pointer: fine\)"\)\.matches && \(w\.navigator\?\.maxTouchPoints \?\? 0\) === 0/.test(ui) && /data-testid="hud-touch"[\s\S]{0,80}hidden=\{keysMode\}/.test(ui) && /data-testid="stick"\s*hidden=\{keysMode\}/.test(ui) && /onPointerDownCapture=\{\(e\) => setKeysMode\(e\.pointerType !== "touch"/.test(ui) && /e\.code === "KeyK"[^\n]*game\.camp\(\)/.test(ui) && /data-testid="key-hint"/.test(ui);
+  check("billvid", `blackjack lays both hands in clean rows (the dealer's hole card face down beside his up card) and always fits the table (${table}); on a computer (fine pointer, no touch) keys mode hides the stick and the action buttons, a touch brings them back, keys or a mouse hide them, K camps and a key hint shows once (${keys})`, table && keys);
+}
+
 if (!ran) {
-  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts");
+  console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid");
   process.exit(1);
 }
 console.log(failures.length ? `\n${failures.length} failed` : `\n${ran} checks passed`);
