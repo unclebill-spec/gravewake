@@ -15102,7 +15102,7 @@ if (on("playtest1z")) {
   {
     const onlyFest = hubs.length === 1 && hubs[0].id === "hub-fest" && hubs[0].map === "town" && hubs[0].festival && hubs[0].platform;
     const noOldHubs = !R.some((r) => r.id === "hub-rift" || r.id === "hub-barrow" || r.id === "hub-waste");
-    const parkXY = hubs[0].x === 18 && hubs[0].y === 15;
+    const parkXY = hubs[0].x === 33 && hubs[0].y === 22; // townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: the park moved to its plaza, (18,15) -> (33,22)
     const worldScattered = ["rift", "barrow", "waste"].every((id) => { const r = R.find((z) => z.id === id); return r && r.map === "world" && !r.hub && r.platform && r.to === "hub-fest"; });
     const festFar = R.filter((r) => r.season).every((r) => r.map === "world" && r.platform && r.to === "hub-fest");
     const octagon = X.WAYRIFT.platTiles === 3 && X.WAYRIFT.platW === 48 && X.WAYRIFT.platH === 48;
@@ -15111,11 +15111,11 @@ if (on("playtest1z")) {
     const dims = py(`from PIL import Image; import json; print(json.dumps({k: list(Image.open("public/art/writer/"+k).size) for k in ["wayrift-platform.png","park-statue.png","park-arch.png","wayrift2.png"]}))`);
     const dimOk = dims["wayrift-platform.png"]?.[0] === 96 && dims["wayrift-platform.png"]?.[1] === 48 && dims["park-arch.png"]?.[0] === 48;
     // platform solid: octagon rim (corners open), mouth open
-    const plat = !X.waySolid(18, 15, "town") && !X.waySolid(19, 15, "town") && X.waySolid(18, 16, "town") && !X.waySolid(20, 15, "town"); // (20,15) is NE corner of 3x3 → open
+    const plat = !X.waySolid(33, 22, "town") && !X.waySolid(34, 22, "town") && X.waySolid(33, 23, "town") && !X.waySolid(35, 22, "town"); // (35,22) is NE corner of 3x3 → open (townwide [OWNER-APPROVED 2026-10-22 Bill: larger town, cemetery yard and portal plaza]: was (18,15)..(20,15))
     seed(2);
     const g = mk();
-    g.enterTown(18 * 16 + 8, 17 * 16 + 8);
-    const mouth = X.wayMouthAt(18, 15, "town");
+    g.enterTown(33 * 16 + 8, 24 * 16 + 8);
+    const mouth = X.wayMouthAt(33, 22, "town");
     const link = mouth && X.wayLink(mouth, g.season());
     const linked = link && link.season === g.season();
     // travel town → festival works
@@ -15123,7 +15123,7 @@ if (on("playtest1z")) {
     if (mouth && link) {
       g.startTravel?.(mouth);
       // private — drive by mouth step
-      g.px = 18 * 16 + 8; g.py = 15 * 16 + 8;
+      g.px = 33 * 16 + 8; g.py = 22 * 16 + 8;
       // call through tryEnter path: set feet on mouth
       for (let i = 0; i < 30; i++) { g.tick?.(0.05); if (g.mapId === "world") { traveled = true; break; } }
       // fallback: manually tickTravel via forcing travel state
@@ -15134,8 +15134,8 @@ if (on("playtest1z")) {
       }
     }
     // park tiles laid
-    const parkDirt = g.mapId === "town" ? (g.tiles[15 * g.w + 18] === X.T.dirt) : true;
-    check("playtest1z", `seasonal town-park portal on octagon pad: only hub-fest in town@18,15 (${onlyFest}/${parkXY}), no old hubs ${noOldHubs}, biome portals scattered+return-to-park ${worldScattered}, fest far ${festFar}, octagon 3x3 ${octagon}, sheets ${files}/${dimOk}, platform rim ${plat}, mouth→season link ${!!linked}, park dirt ${parkDirt}`,
+    const parkDirt = g.mapId === "town" ? (g.tiles[22 * g.w + 33] === X.T.dirt) : true;
+    check("playtest1z", `seasonal town-park portal on octagon pad: only hub-fest in town@33,22 (${onlyFest}/${parkXY}), no old hubs ${noOldHubs}, biome portals scattered+return-to-park ${worldScattered}, fest far ${festFar}, octagon 3x3 ${octagon}, sheets ${files}/${dimOk}, platform rim ${plat}, mouth→season link ${!!linked}, park dirt ${parkDirt}`,
       onlyFest && parkXY && noOldHubs && worldScattered && festFar && octagon && files && dimOk && plat && !!linked && parkDirt);
   }
 
