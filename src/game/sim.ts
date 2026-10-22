@@ -259,6 +259,8 @@ export type Roamer = {
   tint: string;
   boss?: boolean;
   mini?: boolean;
+  /** Wake batch: Hollowmourn, the lord of the Wake (ending). Never saved. */
+  final?: boolean;
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild-quest tags (heads to gather / ring-bearer). */
   wildHead?: boolean;
   wildRing?: boolean;
@@ -433,6 +435,8 @@ type SaveBlob = {
   carOwned?: boolean;
   /** fun-early-sinks: Old Mulch beaten, silver-sink purchases (ids), and the worn title. Absent on an old save. */
   earlyDone?: boolean;
+  /** Wake batch: the early-boss sting has played in this save. Absent on an old save (it plays once more). */
+  stingSeen?: boolean;
   sinks?: string[];
   title?: string;
   carX?: number;
@@ -595,6 +599,8 @@ export class Game {
   /** playtest1v bone car: owned, where it stands on the vale (px; the seat point), driving, its facing, its puffs. */
   carOwned = false;
   earlyDone = false;
+  /** Wake batch: the early-boss sting played (saved). */
+  stingSeen = false;
   sinks: string[] = [];
   title = "";
   carX = 0;
@@ -1533,6 +1539,7 @@ export class Game {
     this.fogMark = "";
     this.carOwned = false;
     this.earlyDone = false;
+    this.stingSeen = false;
     this.sinks = [];
     this.title = "";
     this.carX = 0;
@@ -3904,7 +3911,13 @@ export class Game {
 
   private syncMood() {
     const fighting = this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0);
-    const key = fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
+    // Wake batch: a dungeon's key carries its theme (dungeon:<theme>:<phase>), so its own loop plays (audio.ts musicFor).
+    const key = fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
+    // Wake batch: the early-boss sting, once per save, on the first boss or mini that turns on you (saved stingSeen).
+    if (fighting && !this.stingSeen && this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0 && (r.boss || r.mini) && !r.final)) {
+      this.stingSeen = true;
+      this.audio?.sting();
+    }
     if (key === this.mood) return;
     this.mood = key;
     this.audio?.mood(key);
@@ -9761,6 +9774,7 @@ export class Game {
     if (s.noteT <= 0) {
       const f = song.notes[s.note % song.notes.length];
       if (f) {
+        this.audio?.jukebox(); // wake batch: the casino bed ducks to 0.35 under her
         this.audio?.tone(f, SONG.noteGap * 0.9, "triangle", 0.16);
         this.audio?.tone(f * 2, SONG.noteGap * 0.6, "sine", 0.05);
       }
@@ -9871,6 +9885,7 @@ export class Game {
       mapSeen: this.fogStrings(),
       carOwned: this.carOwned,
       earlyDone: this.earlyDone,
+      stingSeen: this.stingSeen || undefined,
       sinks: [...this.sinks],
       title: this.title,
       carX: this.driving && this.mapId === "world" ? this.px : this.carX,
@@ -9972,6 +9987,7 @@ export class Game {
     if (!raw.mapSeen) this.seedOldFog(raw);
     this.carOwned = !!raw.carOwned;
     this.earlyDone = !!raw.earlyDone;
+    this.stingSeen = !!raw.stingSeen;
     this.sinks = Array.isArray(raw.sinks) ? raw.sinks.filter((x) => typeof x === "string") : [];
     this.title = typeof raw.title === "string" ? raw.title : "";
     if (this.earlyDone) this.roamers = this.roamers.filter((r) => !r.early);

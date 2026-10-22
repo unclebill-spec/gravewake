@@ -26,31 +26,11 @@ def palette():
 
 
 def ghosts():
-    # ghost_trees/README: each rank sheet into the ghost family's 11-frame run of foes.png (and its glow mask); the -dirs
-    # sheet (rows: back, east, west) gets the same front art (east as is, west turned over, back with no eye glow).
-    fam = FAMS.index("ghost")
-    for sheet, em, rows in ((f"{S}/foes.png", f"{S}/foes_em.png", 1), (f"{S}/foes-dirs.png", f"{S}/foes-dirs_em.png", 3)):
-        body, glow = Image.open(sheet).convert("RGBA"), Image.open(em).convert("RGBA")
-        for r, rank in enumerate(RANKS):
-            x0 = (fam * 4 + r) * 11 * 16
-            art = Image.open(f"{ST}/ghost_trees/ghost_{rank}.png").convert("RGBA")
-            msk = Image.open(f"{ST}/emissive_masks/ghost_{rank}_em.png").convert("RGBA")
-            for row in range(rows):
-                y0 = row * 32
-                a, m = art, msk
-                if rows == 3 and row == 2:  # west: each frame turned over
-                    a, m = Image.new("RGBA", art.size), Image.new("RGBA", msk.size)
-                    for c in range(11):
-                        a.paste(art.crop((c * 16, 0, c * 16 + 16, 32)).transpose(Image.FLIP_LEFT_RIGHT), (c * 16, 0))
-                        m.paste(msk.crop((c * 16, 0, c * 16 + 16, 32)).transpose(Image.FLIP_LEFT_RIGHT), (c * 16, 0))
-                if rows == 3 and row == 0:
-                    m = Image.new("RGBA", msk.size)  # from behind the eyes are gone
-                body.paste(Image.new("RGBA", (176, 32)), (x0, y0))
-                body.paste(a, (x0, y0))
-                glow.paste(Image.new("RGBA", (176, 32)), (x0, y0))
-                glow.paste(m, (x0, y0))
-        body.save(sheet)
-        glow.save(em)
+    # ghost_trees/README: one 11-frame sheet per rank (mob, boss, mini, rare) with its glow mask. They ship beside the
+    # sprite writer's foes.png (which stays the writer's own output) and the draw reads them for the ghost family.
+    for rank in RANKS:
+        cp(f"{ST}/ghost_trees/ghost_{rank}.png", f"{W}/ghost_{rank}.png")
+        cp(f"{ST}/emissive_masks/ghost_{rank}_em.png", f"{W}/ghost_{rank}_em.png")
 
 
 def trees():

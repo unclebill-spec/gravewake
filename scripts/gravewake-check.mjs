@@ -41,10 +41,14 @@ const WAKE_SET = new Set();
 { const walkW = (d, rel) => { if (!fsWake.existsSync(d)) return; for (const n of fsWake.readdirSync(d)) { const pth = join(d, n), r = rel ? `${rel}/${n}` : n; if (fsWake.statSync(pth).isDirectory()) walkW(pth, r); else WAKE_SET.add(r); } }; walkW(WAKE_FZ, ""); }
 let WAKE_OLD = true;
 function wakeRel(p) {
+  // only a read that lands on the live repo file (directly, relative to the repo, or through a tree's symlink) is redirected;
+  // a frozen tree's own written copy is left alone
   if (typeof p !== "string" || !WAKE_SET.size) return null;
-  let r = p.startsWith("/") ? (p.startsWith(`${WAKE_ROOT}/`) ? p.slice(WAKE_ROOT.length + 1) : (p.match(/\/gravewake-[^/]+\/(.+)$/) ?? [])[1]) : p.replace(/^\.\//, "");
-  if (r && !WAKE_SET.has(r) && p.startsWith("/")) { const m = p.match(/^\/tmp\/[^/]+\/(.+)$/); if (m) r = m[1]; }
-  return r && WAKE_SET.has(r) ? r : null;
+  let real;
+  try { real = fsWake.realpathSync(p); } catch { return null; }
+  if (!real.startsWith(`${WAKE_ROOT}/`)) return null;
+  const r = real.slice(WAKE_ROOT.length + 1);
+  return WAKE_SET.has(r) ? r : null;
 }
 {
   const orig = fsWake.readFileSync;

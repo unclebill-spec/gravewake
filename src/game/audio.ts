@@ -2,6 +2,36 @@
  * Mixer for a phone speaker. The tune sits in the middle register, where a
  * small speaker can actually move air. A sub drone at a whisper was silent.
  */
+/**
+ * Wake batch audio (staging/audio, CC0, see public/art/audio/LICENSES.md): 36 OGG loops and 10 one-shots. Each file is
+ * fetched and decoded once (cache by url); the music crossfades over 0.6 s; while a file plays the synth is skipped, and
+ * while a file is missing, loading or failed the synth plays as before, so the game is never silent.
+ */
+const MUSIC_DIR = "/art/audio/music/";
+const SFX_DIR = "/art/audio/sfx/";
+export const DUNGEON_MUSIC = ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "cave", "grave", "hearth", "wake"];
+export const ROOM_MUSIC = ["alchemy", "bank", "casino", "chapel", "cottage", "croft", "fisher", "guild", "inn", "mystic", "shop", "smith", "tailor"];
+/** The music file (name, no folder) for a mood key, by the staging README's table. */
+export function musicFor(key: string): string {
+  if (key === "finale") return "music-finale";
+  if (key.startsWith("battle:boss-final")) return "music-boss-final";
+  if (key.startsWith("battle")) return "music-battle";
+  const [map, a, b] = key.split(":");
+  if (map === "dungeon") return `dungeon-${DUNGEON_MUSIC.includes(a) ? a : "cave"}`;
+  if (map === "inside") return a === "room" ? `room-${ROOM_MUSIC.includes(b) ? b : "cottage"}` : "room-cottage";
+  if (map === "camp") return "music-camp";
+  const night = key.endsWith(":night");
+  if (map === "town") return night ? "music-night" : "music-town-day";
+  if (map === "world" || map === "village") return night ? "music-night" : "music-world-day";
+  return night ? "music-night" : "music-town-day";
+}
+/** Per-call trims for a phone speaker (the files peak near -3 dBFS; the synth's beeps sat around 0.2-0.34). */
+export const SFX_TRIM: Record<string, number> = { hit: 0.55, spell: 0.45, door: 0.5, coin: 0.45, hurt: 0.6, steam: 0.4, rattle: 0.35, thunder: 0.6, toll: 0.7, sting: 0.7 };
+const SFX_FILE: Record<string, string> = { hit: "sfx-hit", spell: "sfx-spell", door: "sfx-door", coin: "sfx-coin", hurt: "sfx-hurt", steam: "sfx-steam", rattle: "sfx-rattle", thunder: "sfx-thunder", toll: "sfx-toll", sting: "sting-boss-early" };
+const FADE = 0.6;
+/** How long the casino bed stays ducked after a jukebox note (a note comes every 0.4 s). */
+const SONG_HOLD = 0.9;
+
 export class AudioBus {
   ctx: AudioContext | null = null;
   music = 0.7;
@@ -13,6 +43,15 @@ export class AudioBus {
   private out: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private comp: DynamicsCompressorNode | null = null;
+  /** Decoded files by url; "loading" while a fetch is out, null when it failed (the synth covers it). */
+  private bufs = new Map<string, AudioBuffer | "loading" | null>();
+  /** The file playing on the music bus: its name, its sources (one, or the boss's three stems) and their gains. */
+  private cur: { file: string; srcs: AudioBufferSourceNode[]; gains: GainNode[]; bed: GainNode } | null = null;
+  private want = "";
+  private silentUntil = 0;
+  private jukeboxUntil = 0;
+  private bossPhase = 1;
+  private hush = false;
 
   /** Start the context on a user gesture. Later calls only resume it. */
   unlock() {
@@ -44,6 +83,123 @@ export class AudioBus {
     this.musicGain = musicGain;
     this.noteAt = ctx.currentTime + 0.05;
     this.step = 0;
+    // decode once: the current mood's file first, then the one-shots
+    if (this.moodKey) this.mood(this.moodKey, true);
+    for (const f of Object.values(SFX_FILE)) void this.load(`${SFX_DIR}${f}.ogg`);
+  }
+
+  /** Fetch and decode a file once; later calls return the cached buffer (or null while loading or after a failure). */
+  private load(url: string): AudioBuffer | null {
+    const have = this.bufs.get(url);
+    if (have !== undefined) return have === "loading" ? null : have;
+    const ctx = this.ctx;
+    if (!ctx || typeof fetch === "undefined") return null;
+    this.bufs.set(url, "loading");
+    fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((ab) => new Promise<AudioBuffer>((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && typeof (p as Promise<AudioBuffer>).catch === "function") (p as Promise<AudioBuffer>).catch(rej); }))
+      .then((buf) => {
+        this.bufs.set(url, buf);
+        if (url.startsWith(MUSIC_DIR) && this.want && url.includes(`/${this.want}.ogg`)) this.startFile(this.want);
+        if (this.want === "music-boss-final" && url.includes("music-boss-final")) this.startFile(this.want);
+      })
+      .catch(() => this.bufs.set(url, null));
+    return null;
+  }
+
+  /** Start the wanted file once its buffer (and, for the boss, all three stems) is decoded; crossfade from the last one. */
+  private startFile(file: string) {
+    const ctx = this.ctx;
+    if (!ctx || !this.musicGain || this.cur?.file === file || ctx.currentTime < this.silentUntil - FADE) return;
+    const names = file === "music-boss-final" ? ["music-boss-final", "music-boss-final-p2", "music-boss-final-p3"] : [file];
+    const bufs = names.map((n) => this.load(`${MUSIC_DIR}${n}.ogg`));
+    if (bufs.some((b) => !b)) return;
+    const t0 = Math.max(ctx.currentTime + 0.02, this.silentUntil);
+    const bed = ctx.createGain();
+    bed.gain.setValueAtTime(0.0001, ctx.currentTime);
+    bed.gain.setValueAtTime(0.0001, t0);
+    bed.gain.linearRampToValueAtTime(1, t0 + FADE);
+    bed.connect(this.musicGain);
+    const srcs: AudioBufferSourceNode[] = [];
+    const gains: GainNode[] = [];
+    bufs.forEach((b, i) => {
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = i === 0 ? (names.length > 1 ? 1.4 : 1) : i < this.bossPhase ? 1 : 0; // the base alone sits ~3 dB up in phase 1
+      src.connect(g);
+      g.connect(bed);
+      src.start(t0); // one start time: the stems stay sample-aligned
+      srcs.push(src);
+      gains.push(g);
+    });
+    this.fadeOut();
+    this.cur = { file, srcs, gains, bed };
+  }
+
+  private fadeOut(over = FADE) {
+    const ctx = this.ctx;
+    const c = this.cur;
+    if (!ctx || !c) return;
+    const t = ctx.currentTime;
+    c.bed.gain.cancelScheduledValues(t);
+    c.bed.gain.setValueAtTime(c.bed.gain.value, t);
+    c.bed.gain.linearRampToValueAtTime(0.0001, t + over);
+    for (const s of c.srcs) s.stop(t + over + 0.05);
+    this.cur = null;
+  }
+
+  /** Hollowmourn's music builds with his phases: phase 2 brings in the p2 stem, phase 3 the bell stem (1.5 s ramps). */
+  bossStage(phase: number) {
+    this.bossPhase = phase;
+    const ctx = this.ctx;
+    const c = this.cur;
+    if (!ctx || !c || c.file !== "music-boss-final") return;
+    c.gains.forEach((g, i) => {
+      if (i === 0) { g.gain.setTargetAtTime(phase > 1 ? 1 : 1.4, ctx.currentTime, 0.4); return; }
+      g.gain.cancelScheduledValues(ctx.currentTime);
+      g.gain.setValueAtTime(g.gain.value, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(i < phase ? 1 : 0, ctx.currentTime + 1.5);
+    });
+  }
+
+  /** Lights Out: the music hushes to about 0.3 and comes back after. */
+  setHush(on: boolean) {
+    if (this.hush === on) return;
+    this.hush = on;
+    if (this.musicGain && this.ctx) this.musicGain.gain.setTargetAtTime(on ? this.music * 0.3 : this.music, this.ctx.currentTime, 0.25);
+  }
+
+  /** The casino jukebox is singing: the room bed ducks to 0.35 while notes come, and comes back when it stops. */
+  jukebox() {
+    if (this.ctx) this.jukeboxUntil = this.ctx.currentTime + SONG_HOLD;
+  }
+
+  /** Play a one-shot file through the compressor at the SFX level; false if it is not decoded (the caller beeps). */
+  private shot(name: string): boolean {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running" || this.sfx <= 0 || !this.comp) return false;
+    const buf = this.load(`${SFX_DIR}${SFX_FILE[name]}.ogg`);
+    if (!buf) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = this.sfx * (SFX_TRIM[name] ?? 0.5);
+    src.connect(g);
+    g.connect(this.comp);
+    src.start();
+    return true;
+  }
+
+  /** The Wake Bell's toll (Hollowmourn's Toll wind-up, his phase beats, the Last Toll). */
+  toll() {
+    if (!this.shot("toll")) { this.tone(110, 0.9, "triangle", 0.3); this.tone(165, 0.7, "sine", 0.12); }
+  }
+
+  /** The first boss or mini to turn on you in a save (the sim keeps the flag). */
+  sting() {
+    if (!this.shot("sting")) { this.tone(196, 0.3, "triangle", 0.26); this.tone(147, 0.5, "triangle", 0.2); }
   }
 
   setMusic(v: number) {
@@ -56,10 +212,28 @@ export class AudioBus {
   }
 
   /** Pick the tune for town, night, a dungeon, or a fight. */
-  mood(key: string) {
-    if (key === this.moodKey) return;
+  mood(key: string, force = false) {
+    if (key === this.moodKey && !force) return;
+    const was = this.moodKey;
     this.moodKey = key;
     this.step = 0;
+    const file = musicFor(key);
+    if (file === this.want && !force) return; // several keys share a file: no restart
+    this.want = file;
+    if (!this.ctx) return;
+    if (file === "music-finale" && was !== "finale") {
+      // the Last Toll: the stems fade over 1 s, then 2 s of silence (no synth either), then the finale
+      this.fadeOut(1);
+      this.silentUntil = this.ctx.currentTime + 3;
+      for (const n of [file]) void this.load(`${MUSIC_DIR}${n}.ogg`);
+      setTimeout(() => this.startFile(file), 3000);
+      return;
+    }
+    if (file === "music-boss-final") this.bossPhase = 1;
+    const names = file === "music-boss-final" ? ["music-boss-final", "music-boss-final-p2", "music-boss-final-p3"] : [file];
+    for (const n of names) this.load(`${MUSIC_DIR}${n}.ogg`);
+    if (names.every((n) => this.bufs.get(`${MUSIC_DIR}${n}.ogg`) instanceof AudioBuffer)) this.startFile(file);
+    else this.fadeOut(); // the synth plays while the file loads
   }
 
   /** Keep a few notes queued. Skipped until the context is actually running. */
@@ -68,6 +242,13 @@ export class AudioBus {
     if (!ctx || ctx.state !== "running" || !this.musicGain || this.music <= 0) return;
     const now = ctx.currentTime;
     if (this.noteAt < now) this.noteAt = now + 0.05;
+    if (now < this.silentUntil) return; // the 2 s before the finale
+    if (this.cur) {
+      // a file is playing: no synth notes. The casino bed ducks under the jukebox.
+      if (this.cur.file === "room-casino") this.cur.bed.gain.setTargetAtTime(now < this.jukeboxUntil ? 0.35 : 1, now, 0.15);
+      this.noteAt = now + 0.05;
+      return;
+    }
     const { notes, gap } = this.pattern();
     const horizon = now + 0.35;
     let guard = 0;
@@ -135,25 +316,30 @@ export class AudioBus {
   }
 
   hit() {
+    if (this.shot("hit")) return;
     this.tone(220, 0.09, "triangle", 0.32);
     this.tone(440, 0.06, "square", 0.08);
   }
 
   spell() {
+    if (this.shot("spell")) return;
     this.tone(523, 0.14, "triangle", 0.26);
     this.tone(784, 0.1, "triangle", 0.14);
   }
 
   door() {
+    if (this.shot("door")) return;
     this.tone(196, 0.12, "triangle", 0.28);
   }
 
   coin() {
+    if (this.shot("coin")) return;
     this.tone(880, 0.07, "triangle", 0.2);
     this.tone(1318, 0.1, "triangle", 0.12);
   }
 
   hurt() {
+    if (this.shot("hurt")) return;
     this.tone(174, 0.16, "triangle", 0.34);
     this.tone(130, 0.12, "sawtooth", 0.08);
   }
@@ -161,12 +347,14 @@ export class AudioBus {
   /** playtest1v [OWNER-APPROVED 2026-10-05 21:31 ET: playtest1v map fog + bone car]: the bone car's boiler hiss (a short
    * noise breath through the same low-pass) and a whistle. */
   steam() {
+    if (this.shot("steam")) return;
     this.hiss(0.32, 0.14);
     this.tone(1046, 0.12, "triangle", 0.06);
   }
 
   /** playtest1v: the bone car's rattle, three dry clacks of bone. */
   rattle() {
+    if (this.shot("rattle")) return;
     this.tone(330, 0.03, "square", 0.05);
     this.tone(247, 0.03, "square", 0.04);
     this.tone(392, 0.025, "square", 0.035);
@@ -190,6 +378,7 @@ export class AudioBus {
 
   /** A rumble with enough mid in it that a phone speaker can carry it. */
   thunder() {
+    if (this.shot("thunder")) return;
     this.tone(110, 0.42, "triangle", 0.3);
     this.tone(220, 0.28, "triangle", 0.16);
     this.rumble();

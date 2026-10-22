@@ -93,7 +93,7 @@ const landSheet: Partial<Record<string, HTMLImageElement>> = {};
  * emissive copy of a sprite sheet (only its flame and eye pixels: #f4e27a, #fff8e0, #e0a040). While emPass is on,
  * sheetCell draws the mask instead, so a foe's eyes, lantern face and cast sparks go to full light in the dark.
  * The mimic has no mask on purpose: glowing eyes on a chest would give it away. */
-export const EM_SHEETS: Record<string, string> = { "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
+export const EM_SHEETS: Record<string, string> = { "/art/writer/ghost_mob.png": "/art/writer/ghost_mob_em.png", "/art/writer/ghost_boss.png": "/art/writer/ghost_boss_em.png", "/art/writer/ghost_mini.png": "/art/writer/ghost_mini_em.png", "/art/writer/ghost_rare.png": "/art/writer/ghost_rare_em.png", "/art/sprites/foes.png": "/art/sprites/foes_em.png", "/art/sprites/pumpkin-lord.png": "/art/sprites/pumpkin-lord_em.png", "/art/sprites/krampus.png": "/art/sprites/krampus_em.png" };
 export const EM_COLOURS = ["#f4e27a", "#fff8e0", "#e0a040"] as const;
 let emPass = false;
 /**
@@ -1699,6 +1699,11 @@ function paintMonster(
     return;
   }
   if (family === "mimic" && sheetCell(ctx, MIMIC_SHEET, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), 0, 0, -12, 1, 2, 16)) {
+    ctx.restore();
+    return;
+  }
+  // Wake batch (staging ghost_trees): Art's ghost, a hooded figure with tunic and sash, one sheet per rank, front view.
+  if (family === "ghost" && sheetCell(ctx, `/art/writer/ghost_${ranks.includes(rank) ? rank : "mob"}.png`, poseCol(pose || (moving ? "walk" : "stand"), frame, phase, idleSeed(x, y)), 0, 0, -12, 1, 2, 16)) {
     ctx.restore();
     return;
   }
