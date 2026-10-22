@@ -6,7 +6,9 @@
 import { TOWN_W, TOWN_H } from "./townplan";
 
 /** How deep (tiles) the sparse ring runs past the fence; the old deep forest stands beyond it. */
-export const RING = 7;
+export const RING = 10; // deep enough that the tall forest crowns past it stop short of the camera's pad
+/** How far (tiles) the town camera may run past the fence to show the ring. */
+export const CAM_PAD = 3;
 /** One tree in this many ring tiles survives the thinning (the forest used to fill every one). */
 export const TREE_KEEP = 0.05;
 export const PROP_ODDS = 0.07;
@@ -55,7 +57,7 @@ export function ringTile(x: number, y: number): boolean {
 export function treeShows(x: number, y: number): boolean {
   if (!ringTile(x, y)) return true;
   if (onRoad(x, y) || nearTree(x, y)) return false;
-  return depth(x, y) >= 3 && hash(x, y, 1) < TREE_KEEP;
+  return depth(x, y) >= RING - 1 && hash(x, y, 1) < TREE_KEEP * 3; // only at the ring's far edge, so no tall crown reaches the fence
 }
 /** The ground cell (outskirts-ground.png): ash with slate and pale patches from a coarse noise. */
 export function groundCell(x: number, y: number): number {
@@ -77,13 +79,13 @@ export type Candle = { x: number; y: number; hue: Hue };
 export type Wisp = { x: number; y: number; hue: Hue; seed: number };
 /** A handful of each, hand set round the ring (tiles), off the roads, apart from each other. */
 const CANDLES: Candle[] = [
-  { x: 18, y: TOWN_H + 1, hue: "green" }, { x: 33, y: TOWN_H + 1, hue: "magenta" }, { x: -2, y: 22, hue: "cyan" },
-  { x: TOWN_W + 1, y: 9, hue: "violet" }, { x: 12, y: -2, hue: "red" }, { x: TOWN_W + 1, y: 36, hue: "green" },
+  { x: 18, y: TOWN_H, hue: "green" }, { x: 33, y: TOWN_H, hue: "magenta" }, { x: -1, y: 22, hue: "cyan" },
+  { x: TOWN_W, y: 9, hue: "violet" }, { x: 12, y: -1, hue: "red" }, { x: TOWN_W, y: 36, hue: "green" },
 ];
 const WISPS: Wisp[] = [
-  { x: 24, y: TOWN_H + 2, hue: "blue", seed: 0 }, { x: 37, y: TOWN_H + 3, hue: "red", seed: 1 }, { x: -3, y: 10, hue: "violet", seed: 2 },
-  { x: TOWN_W + 2, y: 23, hue: "green", seed: 3 }, { x: 40, y: -3, hue: "cyan", seed: 4 }, { x: -2, y: 35, hue: "magenta", seed: 5 },
-  { x: 8, y: TOWN_H + 3, hue: "cyan", seed: 6 },
+  { x: 24, y: TOWN_H + 1, hue: "blue", seed: 0 }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: -2, y: 10, hue: "violet", seed: 2 },
+  { x: TOWN_W + 1, y: 23, hue: "green", seed: 3 }, { x: 40, y: -2, hue: "cyan", seed: 4 }, { x: -2, y: 35, hue: "magenta", seed: 5 },
+  { x: 8, y: TOWN_H + 1, hue: "cyan", seed: 6 },
 ];
 export const candles = (): readonly Candle[] => CANDLES;
 export const wisps = (): readonly Wisp[] => WISPS;

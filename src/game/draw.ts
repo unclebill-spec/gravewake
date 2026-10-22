@@ -3629,8 +3629,11 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
  * the view (the camp, a room, the town on a wide screen) sits centred and the border pass paints past its edge. The tap
  * scheme reads the same camera (Gravewake.tsx), so a tap still lands where it was aimed.
  */
-export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null }, viewW: number, viewH: number, zoom: number) {
-  const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(0, Math.min(size - view, hero - view / 2))));
+export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null; mapId?: string }, viewW: number, viewH: number, zoom: number) {
+  // outskirts (Bill, 2026-10-22): in town the camera runs OSK.CAM_PAD tiles past the fence, so the dressed ring outside
+  // it (painted, never void) shows on a phone too
+  const pad = g.mapId === "town" ? OSK.CAM_PAD * TILE : 0;
+  const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(-pad, Math.min(size - view + pad, hero - view / 2))));
   // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: in a fight with a big body the
   // camera frames the big body (sim.ts camFocus: its middle and half-size) and the hero together, the hero's own body kept
   // CAM.edge inside the view (bigboss.ts CAM). The tap aim reads the same.
@@ -3744,7 +3747,7 @@ function paintOutskirts(ctx: CanvasRenderingContext2D, g: Game, camX: number, ca
     props.push({ y: -1e9 + 2, fn: () => {
       ctx.save();
       ctx.globalCompositeOperation = "multiply";
-      ctx.fillStyle = "#6a6e88";
+      ctx.fillStyle = "#7a7e98";
       const W = g.w * TILE, H = g.h * TILE, M = 64 * TILE;
       ctx.fillRect(-M, -M, W + 2 * M, M); ctx.fillRect(-M, H, W + 2 * M, M); ctx.fillRect(-M, 0, M, H); ctx.fillRect(W, 0, M, H);
       ctx.restore();
@@ -3777,7 +3780,7 @@ function paintOutskirts(ctx: CanvasRenderingContext2D, g: Game, camX: number, ca
     const f = (Math.floor(g.frame / 7) + c.x) % 4;
     props.push({ y: y + 15, fn: () => void sheetCell(ctx, OSK.SHEETS.candle, f, row(c.hue), x, y) });
     glow.push((k) => {
-      void sheetCell(k, OSK.SHEETS.halo, 0, row(c.hue), x - 8, y + 6, 2, 1, 32);
+      void sheetCell(k, OSK.SHEETS.halo, 0, row(c.hue), x - 8, y + 6, 2, 1);
       void sheetCell(k, OSK.SHEETS.candleEm, f, row(c.hue), x, y);
     });
   }
@@ -3789,7 +3792,7 @@ function paintOutskirts(ctx: CanvasRenderingContext2D, g: Game, camX: number, ca
     const gx = w.x * TILE + 8 + Math.round((p.x - w.x * TILE - 8) / 2) * 2; // the pool under it, on the ground
     props.push({ y: w.y * TILE + 20, fn: () => void sheetCell(ctx, OSK.SHEETS.wisp, f, row(w.hue), sx, sy) });
     glow.push((k) => {
-      void sheetCell(k, OSK.SHEETS.halo, 0, row(w.hue), gx - 16, w.y * TILE + 14, 2, 1, 32);
+      void sheetCell(k, OSK.SHEETS.halo, 0, row(w.hue), gx - 16, w.y * TILE + 14, 2, 1);
       void sheetCell(k, OSK.SHEETS.wispEm, f, row(w.hue), sx, sy);
     });
   }
@@ -5991,7 +5994,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) {
         // playtest1e: past the edge outdoors the corner map shows the border forest too, not black
         if (OUTDOOR_EDGE.has(g.theme) && seenAtOf(g, Math.max(0, Math.min(g.w - 1, tx)), Math.max(0, Math.min(g.h - 1, ty)))) {
-          ctx.fillStyle = mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
+          ctx.fillStyle = g.mapId === "town" && OSK.ringTile(tx, ty) ? "#4a4e54" : mapColor(T.tree, g.theme, Math.max(0, Math.min(g.h - 1, ty)), Math.max(0, Math.min(g.w - 1, tx)));
           ctx.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
         }
         continue;
