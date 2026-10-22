@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: polish (labels, Car button, big-boss fit, harrow level)
+- Townsfolk names keep clear of the HUD panels and of each other (over the head, moved aside, or under the feet).
+- The Car/Step button sits beside Camp instead of under the minimap.
+- The big-body fit spans the boss's crown to the hero's feet, so the big Horseman's crown no longer clips on a phone.
+- dungeon-harrow.ogg plays x1.8 (+5 dB) to sit with the other dungeon tracks.
+
 ## 2026-10-21: follow-up (fit, dark glass, queued lines, ghost eyes, dawn)
 - A fight with a big body (5x boss, mini) zooms down like the Wake Hall until it and the hero fit; the epilogue keeps the hall's zoom.
 - Lights Out: the stained glass adds no glow. The intro queues the fight's own lines (up to 4) and plays them after it, 1.2 s apart.
