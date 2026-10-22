@@ -53,6 +53,9 @@ function wakeRel(p) {
 {
   const orig = fsWake.readFileSync;
   fsWake.readFileSync = function (p, ...rest) { if (WAKE_OLD) { const r = wakeRel(p); if (r) p = join(WAKE_FZ, r); } return orig.call(this, p, ...rest); };
+  // charfix: a copy of a frozen file (a writer's inputs copied to a scratch folder) is the frozen copy too
+  const origCopy = fsWake.copyFileSync;
+  fsWake.copyFileSync = function (src, ...rest) { if (WAKE_OLD) { const r = wakeRel(src); if (r) src = join(WAKE_FZ, r); } return origCopy.call(this, src, ...rest); };
   syncBuiltinESMExports();
 }
 // charfix (2026-10-21): the python the older groups run (writers, pixel counts) reads the same frozen copies. A python call made
