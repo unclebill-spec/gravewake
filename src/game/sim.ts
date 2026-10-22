@@ -627,6 +627,9 @@ export class Game {
     procs: [] as { y: number; x: number; dir: number; hit: boolean }[],
     lastEmptyHero: false,
     orbN: 0,
+    lines: [] as string[],
+    line: "",
+    lineAt: 0,
   };
   /** Wake batch: the epilogue in progress (scene index; 8 = credits). */
   ending: { scene: number } | null = null;
@@ -8001,8 +8004,9 @@ export class Game {
       r.cool = Math.max(r.cool ?? 0, 0.8);
       r.act = "cast";
       r.actFor = 0.8;
-      for (const line of wakeIntro(this.cls)) this.pushLog(line);
-      this.logLine = 'Hollowmourn: "Sit. The service is long."';
+      // the intro plays a line at a time over his first moves (out of battle the log shows one line)
+      this.wake.lines = wakeIntro(this.cls);
+      this.wake.lineAt = 0;
       if (!this.wake.orbs.length) this.seedOrbs();
     }
     this.tickWakeHall(r, dt);
@@ -8096,6 +8100,8 @@ export class Game {
     w.lanes = [];
     w.procs = [];
     w.orbs = [];
+    w.lines = [];
+    w.line = "";
     if (this.floor < 3) return;
     for (const g of GRAVES) for (const dx of [0, 1]) if (this.tiles[g.y * this.w + g.x + dx] === T.wall) this.tiles[g.y * this.w + g.x + dx] = T.floor;
     this.seedOrbs();
@@ -8165,6 +8171,12 @@ export class Game {
   private tickWakeHall(r: Roamer, dt: number) {
     const w = this.wake;
     const frozen = r.pattern === "lightsout" && (r.tell ?? 0) > 0;
+    if (w.lines.length && this.worldMs >= w.lineAt) {
+      w.line = w.lines.shift() ?? "";
+      w.lineAt = this.worldMs + 2600;
+    }
+    if (w.line && this.worldMs < w.lineAt) this.logLine = w.line; // each intro line holds its 2.6 s over the fight's chatter
+    else w.line = "";
     const cx = WAKE_HALL.cx * TILE, cy = WAKE_HALL.cy * TILE;
     if (!frozen) for (const o of w.orbs) {
       o.a += (ORBS.speed / Math.max(30, o.r)) * dt;
