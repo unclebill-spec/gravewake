@@ -2,6 +2,14 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## 2026-10-21: wake batch (art, audio, the ending, boss variety)
+- Merged gfx-lighting (ccceeb6) into main (7108c82); both freezes hold (esView chains to gfxlView).
+- Art: palette remap, Art's ghost foes (their own sheets beside foes.png) and ghost trees, six-element spell bolts/trails/impacts, rune-ring and charge telegraphs, four mini-bosses (Wraith Knight, Frost Golem, Vampire Lord, Storm Elemental) on the middle floor of the XP-gap dungeons, emissive masks on the glow pass (ghosts, minis, Hollowmourn). decal-bone2 stays the bone writer's (its remap is not shipped).
+- Audio: 46 OGG files (public/art/audio, first-party CC0), each decoded once, music crossfades, the synth is skipped while a file plays and kept as fallback; syncMood sends dungeon:<theme>:<phase>; casino bed ducks to 0.35 under the jukebox; the early-boss sting plays once per save (stingSeen); SFX trimmed for a phone speaker.
+- The ending (design/ending.md): The Wake Below (L72, 3 floors) by a stair on Blackroot's last floor once the Root Widow falls (wakeOpen; old saves with a Root Widow kill get it). Hollowmourn (2790 HP / 100 / 13 / 787 xp / 502 silver at L72; 3 mourners at most): phases at 66% and 33% with The Toll, The Procession and Lights Out; the Last Toll at 5% (4 s unkillable, Smite breaks it, otherwise 40% max HP never killing; the next hit ends him). His music adds stems per phase; 2 s of silence before the finale. 8 epilogue scenes, credits, then post-game (endingSeen saved; nights unchanged; no NG+). The view zooms down in his fight so he fits.
+- Boss variety (bossvariety.ts): every roster boss has its own big move per phase instead of the shared aimed ring; story bosses (Lantern King, Horseman, Dracula, Wicked Witch, Root Widow, Wolfman, Queen, Tzar, Leech Bishop) have three phases at 66/33%, the minor bosses one change at 50%. Damage unchanged.
+- Older groups read playtest2b copies of the files this batch replaces (scripts/frozen/wake). check:game 1073/1073 under Node 22, typecheck 0, test 159/153/0/6, phone run 0 JS errors.
+
 ## 2026-10-21: earlysinks, fun-early-sinks merged into main, pins refrozen, warden finished
 - Merged fun-early-sinks (2893247) into main. Under Node 22, check:game on the merge showed 28 failures: 26 byte-freeze pins plus 2 roll-ups of them (playtest1p's live 1k pass and playtest1v's live world pass). Each red was confirmed to be a byte pin. A live-pass diff against pre-merge main showed no gameplay check changed.
 - Refroze the pins: sim.ts, draw.ts and Gravewake.tsx are frozen as playtest2b shipped them (`scripts/frozen/earlysinks/`, read through `esView`). Every other file counts at its 2b md5 (`scripts/frozen/earlysinks/base-md5.json`). Files added after 2b are later modules (`esNew`). playtest1v's live pins are re-pinned by name (only the byte pins went red).
