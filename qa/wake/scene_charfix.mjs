@@ -6,7 +6,7 @@ export default async function ({ page, ev, shot }) {
     g.zoom = 3; if (g.fog) g.fog.fill(1);
     const t = g.roamers[0] ?? { id: "t", x: 0, y: 0, family: "zombie", tint: "#888", hp: 10, max: 10, atk: 1, ac: 0, xp: 1, silver: 0 };
     const hx = g.px, hy = g.py;
-    g.roamers = list.map(([fam, rank], i) => ({ ...JSON.parse(JSON.stringify(t)), family: fam, def: undefined, boss: rank === "boss", mini: rank === "mini", rare: rank === "rare", id: "cf" + i + fam + rank, final: false, early: false, helper: false, name: fam, mood: undefined, x: hx + (rank === "boss" || rank === "mini" ? 70 : i * 22 - (list.length - 1) * 11), y: hy + (rank === "boss" || rank === "mini" ? -24 : -30), aggro: false, hp: 9999, max: 9999, moving: tag === "walk", tell: 0, casting: "", actFor: 0 }));
+    g.roamers = list.map(([fam, rank], i) => ({ ...JSON.parse(JSON.stringify(t)), family: fam, def: undefined, boss: rank === "boss", mini: rank === "mini", rare: rank === "rare", id: "cf" + i + fam + rank, final: false, early: false, helper: false, name: fam, mood: undefined, x: hx + (rank === "boss" || rank === "mini" ? 70 : i * 22 - (list.length - 1) * 11), y: hy + (rank === "boss" || rank === "mini" ? -24 : -30), aggro: rank === "boss" || rank === "mini", hp: 9999, max: 9999, moving: tag === "walk", tell: 0, casting: "", actFor: 0 }));
     return { at: [hx, hy], n: g.roamers.length, fams: g.roamers.map((r) => r.family) };
   }, [list, tag]);
   out.small = await lineup([["vampire", "mob"], ["mummy", "mob"], ["horse", "mob"], ["ghost", "mob"], ["tree", "mob"], ["scarecrow", "mob"]], "stand");

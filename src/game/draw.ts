@@ -3787,6 +3787,8 @@ export function paintActSheet(ctx: CanvasRenderingContext2D, sh: { url: string; 
 const WAKE_FLOOR = "/art/writer/floor-wake.png";
 const WAKE_ART = { brazier: "/art/writer/wake-brazier.png", grave: "/art/writer/wake-grave.png", window: "/art/writer/wake-window.png", coffin: "/art/writer/wake-coffin.png", mourner: "/art/writer/wake-mourner.png", orb: "/art/writer/wake-orb.png", bell: "/art/writer/wake-bell.png" };
 let wakeHallNow = false;
+/** The tiles (x) along the north wall where dawn comes through the roots, in the order they open. */
+const WAKE_DAWN = [5, 18, 9, 15, 7, 17];
 export function inWakeHall(g: Game): boolean {
   return g.mapId === "dungeon" && g.dungeon === "wake" && g.w === 24 && g.h === 25;
 }
@@ -3812,11 +3814,12 @@ function paintWakeHall(ctx: CanvasRenderingContext2D, g: Game, props: { y: numbe
   // open graves (phase 2+): pits on the floor, candles at the heads
   if (w.open) for (const gr of WAKE_GRAVES) wakeImg(WAKE_ART.grave, 32, 0, 32, 16, gr.x * TILE, gr.y * TILE, ctx);
   // stained glass in the north wall: a window lights for each story boss laid to rest; all glow while a procession gathers
+  const dark = tell === "lightsout" || g.darkUntil > g.worldMs;
   for (const wd of WINDOWS) {
     const cell = tell === "procession" ? 2 : g.bossDead[wd.id] != null ? 1 : 0;
     const dx = wd.x * TILE, dy = (WAKE_HALL.y - 2) * TILE;
     wakeImg(WAKE_ART.window, cell * 16, 0, 16, 32, dx, dy, ctx);
-    if (cell) glow.push((c) => void wakeImg(WAKE_ART.window, cell * 16, 0, 16, 32, dx, dy, c));
+    if (cell && !dark) glow.push((c) => void wakeImg(WAKE_ART.window, cell * 16, 0, 16, 32, dx, dy, c)); // follow-up: no glass glow in Lights Out
   }
   // braziers at the compass points, y-sorted on their foot; Lights Out (phase 3) puts them out
   for (const b of BRAZIERS) {
@@ -3878,7 +3881,6 @@ function paintWakeHall(ctx: CanvasRenderingContext2D, g: Game, props: { y: numbe
     props.push({ y: o.y, fn: () => orb(ctx, o) });
     glow.push((c) => void orb(c, o));
   }
-  const dark = tell === "lightsout" || g.darkUntil > g.worldMs;
   if (dark) {
     props.push({
       y: 1e9,
@@ -3896,6 +3898,22 @@ function paintWakeHall(ctx: CanvasRenderingContext2D, g: Game, props: { y: numbe
         for (const o of w.orbs) orb(ctx, o);
       },
     });
+  }
+  // dawn through the roots (doc 2.4, 5.1 step 7): from phase 3 Blackroot's roots push through the ceiling and thin grey-gold
+  // shafts come down, more as his HP falls; all six once he is gone (the ending). Dithered whole pixels, no gradients.
+  const f = lord ? (lord.hp ?? 1) / (lord.max ?? 1) : 0;
+  const dawn = !lord ? (g.mode === "ending" ? 1 : 0) : (lord.phase ?? 1) >= 3 ? Math.min(1, (0.34 - f) / 0.3 + 0.2) : 0;
+  if (dawn > 0) {
+    const n = Math.max(1, Math.round(dawn * WAKE_DAWN.length));
+    const top = WAKE_HALL.y * TILE - 6;
+    for (const [i, tx] of WAKE_DAWN.slice(0, n).entries()) {
+      const x0 = tx * TILE + 4, len = 40 + ((i * 37) % 5) * 12 + Math.round(dawn * 40);
+      const shaft = (c: CanvasRenderingContext2D) => {
+        for (let y = 0; y < len; y += 2) for (let x = 0; x < 8; x += 2) if (((x + y) >> 1) % 2 === 0 && y < len - x * 2) px(c, x0 + x + (y >> 4), top + y, 2, 2, y < len / 2 ? "#d8c890" : "#a89a78");
+      };
+      props.push({ y: 1e9 - 2, fn: () => { shaft(ctx); for (let k = 0; k < 10; k++) px(ctx, x0 - 3 + ((k * 5) % 13), top - 2 + (k % 4) * 2, 2, 2, "#3a2a20"); px(ctx, x0 + 2, top - 4, 2, 10, "#3a2a20"); } });
+      glow.push(shaft);
+    }
   }
   // the cracked bell, hung high over the hall's heart (drawn over everything below it)
   const bx = WAKE_HALL.cx * TILE - 24, by = WAKE_HALL.cy * TILE - 60 - 48;

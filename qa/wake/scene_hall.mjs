@@ -13,8 +13,11 @@ export default async function ({ page, ev, shot }) {
   out.arenaStair = await shot("hall_arena_stair");
   await ev(() => { const g = window.__gw; const b = g.roamers.find((x) => x.def === "hollowmourn"); g.px = b.x - 40; g.py = b.y + 70; });
   await wait(() => !!window.__gw.roamers.find((x) => x.final), 40);
+  await ev(() => { window.__gw.logLine = "Ghost uses wail-shot for 18."; });
   out.intro = [];
   for (let i = 0; i < 6; i++) { await page.waitForTimeout(i ? 2600 : 300); await keep(); out.intro.push(await ev(() => window.__gw.logLine)); if (i === 3) out.introShot = await shot("hall_intro_classline"); }
+  out.afterIntro = [];
+  for (let i = 0; i < 3; i++) { await page.waitForTimeout(1250); out.afterIntro.push(await ev(() => window.__gw.logLine)); }
   const force = (phase, n) => page.evaluate(([phase, n]) => { const g = window.__gw; const r = g.roamers.find((x) => x.final); r.phase = phase; r.bigN = n; r.casting = ""; r.tell = 0; g.wake.rings = []; g.wake.procs = []; g.wakeLordBig(r); return { big: r.big, pattern: r.pattern, tell: r.tell }; }, [phase, n]);
   const tellAt = async (f) => { for (let i = 0; i < 40; i++) { await page.waitForTimeout(100); await keep(); if (await page.evaluate((f) => { const r = window.__gw.roamers.find((x) => x.final); return !r || !r.tellMax || r.tell <= 0 || 1 - r.tell / r.tellMax >= f; }, f)) return; } };
   out.toll = await force(1, 0); await tellAt(0.6); out.tollTell = await shot("hall_toll_tell");
@@ -39,5 +42,6 @@ export default async function ({ page, ev, shot }) {
   await page.waitForTimeout(400);
   out.drops = await ev(() => window.__gw.inv.filter((i) => /Sexton|Bell-Shard/.test(i.name)).map((i) => ({ name: i.name, kind: i.kind, atk: i.atk, rank: i.rank })));
   out.mode = await ev(() => window.__gw.mode);
+  out.dawn = await shot("hall_dawn_ending");
   return out;
 }

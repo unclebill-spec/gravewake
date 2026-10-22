@@ -630,6 +630,8 @@ export class Game {
     lines: [] as string[],
     line: "",
     lineAt: 0,
+    held: [] as string[],
+    heldAt: 0,
   };
   /** Wake batch: the epilogue in progress (scene index; 8 = credits). */
   ending: { scene: number } | null = null;
@@ -8102,6 +8104,7 @@ export class Game {
     w.orbs = [];
     w.lines = [];
     w.line = "";
+    w.held = [];
     if (this.floor < 3) return;
     for (const g of GRAVES) for (const dx of [0, 1]) if (this.tiles[g.y * this.w + g.x + dx] === T.wall) this.tiles[g.y * this.w + g.x + dx] = T.floor;
     this.seedOrbs();
@@ -8175,8 +8178,17 @@ export class Game {
       w.line = w.lines.shift() ?? "";
       w.lineAt = this.worldMs + 2600;
     }
-    if (w.line && this.worldMs < w.lineAt) this.logLine = w.line; // each intro line holds its 2.6 s over the fight's chatter
-    else w.line = "";
+    if (w.line && this.worldMs < w.lineAt) {
+      // each intro line holds its 2.6 s; the fight's own lines (a ghost's wail-shot) wait in a queue and play after it
+      if (this.logLine && this.logLine !== w.line && !w.held.includes(this.logLine)) w.held = [...w.held, this.logLine].slice(-4);
+      this.logLine = w.line;
+    } else {
+      w.line = "";
+      if (!w.lines.length && w.held.length && this.worldMs >= w.heldAt) {
+        this.logLine = w.held.shift() ?? "";
+        w.heldAt = this.worldMs + 1200;
+      }
+    }
     const cx = WAKE_HALL.cx * TILE, cy = WAKE_HALL.cy * TILE;
     if (!frozen) for (const o of w.orbs) {
       o.a += (ORBS.speed / Math.max(30, o.r)) * dt;
