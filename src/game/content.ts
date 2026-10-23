@@ -583,13 +583,21 @@ export function monsterById(id: string): MonsterDef {
 }
 
 /** Grow a baseline monster to the fight's level. A common foe is bulked to last about four swings. Bosses stay ahead of that. */
+/** batch7 [OWNER-APPROVED 2026-10-23 Bill: New Game+]: the New Game+ count the sim sets on start and load (0 = a first run). */
+export const NG = { plus: 0 };
+/** batch7: New Game+ makes foes tougher: +50% health and +25% attack per cycle (capped at three cycles). */
+export function ngScale(plus = NG.plus): { hp: number; atk: number } {
+  const n = Math.max(0, Math.min(3, Math.floor(plus)));
+  return { hp: 1 + 0.5 * n, atk: 1 + 0.25 * n };
+}
 export function scaleMonster(def: MonsterDef, level: number): MonsterDef {
   const t = Math.max(1, level);
   const bulk = def.boss ? 2 : 4.6;
+  const ng = ngScale();
   return {
     ...def,
-    hp: Math.round(def.hp * (0.55 + t * 0.1) * bulk),
-    atk: Math.round(def.atk * (0.7 + t * 0.06)),
+    hp: Math.round(def.hp * (0.55 + t * 0.1) * bulk * ng.hp),
+    atk: Math.round(def.atk * (0.7 + t * 0.06) * ng.atk),
     ac: def.ac + Math.floor(t / 10),
     xp: Math.round(def.xp * (0.8 + t * 0.08)),
     silver: Math.round(def.silver * (0.7 + t * 0.06)),

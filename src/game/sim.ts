@@ -1,4 +1,5 @@
 import { BOSS_PLANS, planPhase, planMove } from "./bossvariety";
+import { bookKeys, newBadges, type BookFoe } from "./book"; // batch7
 import { WAKE_MINI_AT, wakeMiniFloor, WAKE_PHASES, wakeBig, WAKE_LAST, epilogue, SEXTON_SPADE, BELL_SHARD, carveWakeHall, HALL as WAKE_HALL, GRAVES, BRAZIERS, TOLL, PROC, ORBS, wakeIntro } from "./wake";
 import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
 import {
@@ -49,6 +50,7 @@ import {
   FESTIVAL_BOSSES,
   mulberry,
   scaleMonster,
+  NG,
   starterArmor,
   starterWeapon,
   trapAtk,
@@ -456,6 +458,11 @@ type SaveBlob = {
   /** Wake batch: the Root Widow has fallen (the stair under Blackroot is open) and the ending has played. */
   wakeOpen?: boolean;
   endingSeen?: boolean;
+  /** batch7: the bestiary book (family:rank and s:<id> keys), badges earned, one-off marks, New Game+ count. */
+  book?: string[];
+  badges?: string[];
+  marks?: string[];
+  ngPlus?: number;
   sinks?: string[];
   title?: string;
   carX?: number;
@@ -703,6 +710,12 @@ export class Game {
   entrances: Record<string, string> = {};
   visited: string[] = [];
   bestiary: string[] = [];
+  /** batch7: the bestiary book, the badges, one-off marks (bust, blackjack), New Game+ and the badge toasts. */
+  book: string[] = [];
+  badges: string[] = [];
+  marks: string[] = [];
+  ngPlus = 0;
+  toasts: { id: string; name: string; desc: string; at: number }[] = [];
   portal: Portal | null = null;
   /**
    * OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. Where a rift took you from: the Portal record, kept apart from
@@ -1646,6 +1659,12 @@ export class Game {
     this.carFacing = "e";
     this.carPuffs = [];
     this.bestiary = [];
+    this.book = [];
+    this.badges = [];
+    this.marks = [];
+    this.ngPlus = 0;
+    this.toasts = [];
+    NG.plus = 0;
     this.portal = null;
     this.rentedUntil = 0;
     this.hunterBanUntil = 0;
@@ -3963,6 +3982,7 @@ export class Game {
     if (this.derbyClock <= 0) {
       this.derbyClock = 1;
       this.settleDerby();
+      this.checkBadges(); // batch7
     }
     if (this.mode === "fish") {
       this.tickFish(dt);
@@ -7994,6 +8014,7 @@ export class Game {
     if (!r.helper) {
       this.xp += r.xp ?? 0;
       if (r.family && !this.bestiary.includes(r.family)) this.bestiary.push(r.family);
+      this.noteKill(r); // batch7: the book
       const silver = r.silver ?? 0;
       if (silver > 0) this.dropSilver(r.x - 8, r.y + 6, silver);
       const source = r.boss ? "boss" : r.mini ? "rare" : "common";
@@ -8414,6 +8435,65 @@ export class Game {
     }
   }
 
+  /**
+   * batch7 [OWNER-APPROVED 2026-10-23 Bill: New Game+]: after the credits, a fresh vale and story that keeps the hero
+   * (level, stats, gear, pack, silver, skills), the bestiary and the badges; foes are tougher (content.ts ngScale) and
+   * the HUD shows an NG+ marker.
+   */
+  startNewGamePlus() {
+    const keep = this.saveRecord();
+    const kept = { book: [...this.book], badges: [...this.badges], marks: [...this.marks], bestiary: [...this.bestiary], plus: this.ngPlus + 1, sinks: [...this.sinks], title: this.title };
+    this.ending = null;
+    this.start(keep.cls as ClassId, keep.path as StatPath, keep.name);
+    this.level = keep.level;
+    this.xp = keep.xp;
+    this.str = keep.str;
+    this.dex = keep.dex;
+    this.int = keep.int;
+    this.sta = keep.sta;
+    this.agi = keep.agi;
+    this.fort = keep.fort;
+    this.coin = keep.coin;
+    this.bank = keep.bank ?? 0;
+    this.points = keep.points ?? 0;
+    this.potHp = keep.potHp;
+    this.potMana = keep.potMana;
+    this.specials = [...(keep.specials ?? [])];
+    this.ranks = { ...(keep.ranks ?? {}) };
+    this.inv = (keep.inv ?? []).map((i) => ({ ...i }));
+    this.equip = { ...(keep.equip ?? {}) };
+    this.book = kept.book;
+    this.badges = kept.badges;
+    this.marks = kept.marks;
+    this.bestiary = kept.bestiary;
+    this.sinks = kept.sinks;
+    this.title = kept.title;
+    this.ngPlus = kept.plus;
+    NG.plus = this.ngPlus;
+    this.hp = this.maxHp;
+    this.checkBadges();
+    this.logLine = `New Game+ ${this.ngPlus > 1 ? this.ngPlus : ""}`.trim() + ". The bell rings again, and louder.";
+    this.autosave(false);
+  }
+
+  /** batch7: fill the book's entries for one defeat, then look for new badges. */
+  noteKill(f: BookFoe) {
+    if (f.helper) return;
+    for (const k of bookKeys(f)) if (!this.book.includes(k)) this.book.push(k);
+    this.checkBadges();
+  }
+  /** batch7: award any badge newly earned (each once) and queue its toast. */
+  checkBadges() {
+    if (this.mode === "title") return;
+    const v = { book: new Set(this.book), marks: new Set(this.marks), silver: this.coin + this.bank, level: this.level, endingSeen: this.endingSeen, ngPlus: this.ngPlus, opened: this.opened };
+    for (const b of newBadges(v, this.badges)) {
+      this.badges.push(b.id);
+      this.toasts.push({ id: b.id, name: b.name, desc: b.desc, at: Date.now() });
+      this.audio?.ui("select");
+    }
+    if (this.toasts.length > 4) this.toasts.splice(0, this.toasts.length - 4);
+  }
+
   /** Wake batch: the epilogue (eight scenes, then the credits), then the world, post-game. */
   private startEnding() {
     this.ending = { scene: 0 };
@@ -8430,6 +8510,7 @@ export class Game {
   finishEnding() {
     this.ending = null;
     this.endingSeen = true;
+    this.checkBadges();
     this.mode = "play";
     if (this.mapId === "dungeon") this.enterWorld(85 * TILE, 103 * TILE);
     this.logLine = "The night goes on.";
@@ -9726,6 +9807,7 @@ export class Game {
       silver += f.silver;
       if (f.boss && f.id) this.bossDead[f.id] = this.worldMs + 2 * CYCLE_MS;
       if (!this.bestiary.includes(f.family)) this.bestiary.push(f.family);
+      this.noteKill(f); // batch7: the book
     }
     if (b.hunter) {
       this.hunterGoneUntil = this.phase === "day" ? nextNight(this.worldMs) : nextDay(this.worldMs);
@@ -10307,6 +10389,7 @@ export class Game {
 
   /** Pay a finished hand: blackjack 3 to 2, a win even money, a push the stake back; points as the roulette. */
   private settleCards(r: "blackjack" | "win" | "push" | "lose" | "bust") {
+    if ((r === "bust" || r === "blackjack") && !this.marks.includes(r)) this.marks.push(r); // batch7: badges
     const t = this.table;
     if (!t) return;
     t.phase = "done";
@@ -10485,6 +10568,10 @@ export class Game {
       stingSeen: this.stingSeen || undefined,
       wakeOpen: this.wakeOpen || undefined,
       endingSeen: this.endingSeen || undefined,
+      book: this.book.length ? [...this.book] : undefined,
+      badges: this.badges.length ? [...this.badges] : undefined,
+      marks: this.marks.length ? [...this.marks] : undefined,
+      ngPlus: this.ngPlus || undefined,
       sinks: [...this.sinks],
       title: this.title,
       carX: this.driving && this.mapId === "world" ? this.px : this.carX,
@@ -10589,6 +10676,13 @@ export class Game {
     this.stingSeen = !!raw.stingSeen;
     this.wakeOpen = !!raw.wakeOpen || !!(raw.bossDead && (raw.bossDead as Record<string, number>).rootwidow);
     this.endingSeen = !!raw.endingSeen;
+    const strs = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is string => typeof x === "string") : []);
+    this.book = strs(raw.book);
+    this.badges = strs(raw.badges);
+    this.marks = strs(raw.marks);
+    this.ngPlus = Math.max(0, Math.floor(Number(raw.ngPlus) || 0));
+    NG.plus = this.ngPlus;
+    this.toasts = [];
     this.ending = null;
     this.sinks = Array.isArray(raw.sinks) ? raw.sinks.filter((x) => typeof x === "string") : [];
     this.title = typeof raw.title === "string" ? raw.title : "";

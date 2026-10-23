@@ -48,6 +48,7 @@ import {
 } from "./screen";
 import { BJ, CARD, CARD_SHEET, bjValue, pokerRank, type Card } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { InstallButton } from "../pwa/InstallButton"; // install1
+import { BookPage, BadgesPage, BadgeToast } from "./BookPages"; // batch7: bestiary book + badges
 import { CreditsBody } from "./credits"; // playtest2b [OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs]: Credits and Licenses
 import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
 import { FxOptions } from "./FxOptions"; // playtest1l
@@ -85,7 +86,7 @@ export function Gravewake() {
   const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
   const pinchD = useRef<number | null>(null);
   const lookRef = useRef<View | null>(null);
-  const [pauseTab, setPauseTab] = useState<"pack" | "guide" | "pad" | "display" | "credits">("pack"); // playtest2b: + credits
+  const [pauseTab, setPauseTab] = useState<"pack" | "book" | "badges" | "guide" | "pad" | "display" | "credits">("pack"); // playtest2b: + credits
   // screen1: display settings (saved), the frame in force, the loading cover, the sideways prompt, the pad layer.
   const mainRef = useRef<HTMLElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
@@ -1066,7 +1067,7 @@ export function Gravewake() {
               <HudPortrait role={game.cls} />
               <div className="min-w-0 flex-1">
               <div className="gw-name truncate font-display text-sm text-fg" data-testid="hud-name">
-                {game.name} <span className="font-sans text-[0.625rem] text-muted">Lv {game.level}</span>
+                {game.name} <span className="font-sans text-[0.625rem] text-muted">Lv {game.level}</span>{game.ngPlus > 0 ? <span data-testid="ngplus-mark" className="ml-1 rounded border border-primary px-0.5 font-sans text-[0.55rem] text-primary">NG+{game.ngPlus > 1 ? game.ngPlus : ""}</span> : null}
               </div>
               <div className="mt-0.5 h-1.5 w-full bg-bg" data-testid="hud-hp">
                 <div
@@ -1591,6 +1592,8 @@ export function Gravewake() {
             </Panel>
           ) : null}
 
+          <BadgeToast toasts={game.toasts} />
+
           {game.mode === "ending" && game.ending ? (
             <Panel>
               {/* Wake batch: the epilogue (design/ending.md 6), then the credits, then the world (post-game) */}
@@ -1757,14 +1760,18 @@ export function Gravewake() {
                   <span className="rounded border border-border px-1">WX {game.weatherLabel()}</span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {(["pack", "guide", "pad", "display", "credits"] as const).map((tab) => (
+              <div className="flex flex-wrap gap-1">
+                {(["pack", "book", "badges", "guide", "pad", "display", "credits"] as const).map((tab) => (
                   <button key={tab} type="button" data-testid={`tab-${tab}`} className={`rounded border px-2 py-1 text-xs ${pauseTab === tab ? "border-primary" : "border-border"}`} onClick={() => setPauseTab(tab)}>
-                    {tab === "pack" ? "Pack" : tab === "guide" ? "Guide" : tab === "pad" ? "Controller" : tab === "credits" ? "Credits" : "Display"}
+                    {tab === "pack" ? "Pack" : tab === "book" ? "Bestiary" : tab === "badges" ? "Badges" : tab === "guide" ? "Guide" : tab === "pad" ? "Controller" : tab === "credits" ? "Credits" : "Display"}
                   </button>
                 ))}
               </div>
-              {pauseTab === "credits" ? (
+              {pauseTab === "book" ? (
+                <BookPage book={game.book} />
+              ) : pauseTab === "badges" ? (
+                <BadgesPage badges={game.badges} />
+              ) : pauseTab === "credits" ? (
                 <CreditsBody /> /* playtest2b: Credits and Licenses in the pause menu */
               ) : pauseTab === "display" ? (
                 <ScreenOptions s={screenSet} view={look} fs={fs} onSet={setScreen} onFullscreen={fullscreen} />
