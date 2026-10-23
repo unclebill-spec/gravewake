@@ -536,6 +536,32 @@ export const DUNGEONS: DungeonDef[] = [
  */
 export const RIFTS: DungeonDef[] = [{ id: "riftvale", name: "Ashen Rift", boss: "", level: 1, floors: 1, theme: "ossuary", tx: 28, ty: 85, rift: true }];
 
+/**
+ * new-resources [OWNER-APPROVED 2026-10-23, HD-2D Cozy Builder]: two small side areas. Not in DUNGEONS (the roster,
+ * the vale and its mouths stay as they were). Each opens past an existing pocket's last stair, carves as a two-floor
+ * pocket from existing tiles, and holds a three-step errand. You climb out where the pocket's own mouth is.
+ */
+export type SideArea = DungeonDef & { from: string; quest: string; steps: [string, string, string]; kills: number; reward: { silver: number; item: string }; done: string };
+export const SIDE_AREAS: SideArea[] = [
+  {
+    id: "orchard", name: "Haunted Orchard", boss: "", level: 6, floors: 2, theme: "blackroot", tx: 51, ty: 119, pocket: true, from: "pocketvale",
+    quest: "The Unpicked Orchard",
+    steps: ["Take the Vale Pocket's last stair down.", "Lay the orchard's walkers to rest", "Take the cellar stair at the orchard's end."],
+    kills: 2, reward: { silver: 60, item: "Bell-apple" },
+    done: "The boughs go still. In the cellar dark, one apple nobody picked. It is warm.",
+  },
+  {
+    id: "crypt", name: "Flooded Crypt", boss: "", level: 42, floors: 2, theme: "drowned", tx: 96, ty: 68, pocket: true, from: "pocketswamp",
+    quest: "The Drowned Register",
+    steps: ["Take the Swamp Pocket's last stair down.", "Quiet the crypt's drowned", "Find the stair where the water ends."],
+    kills: 2, reward: { silver: 220, item: "Drowned censer" },
+    done: "The water stops moving. On the last step, a censer, still lit. Someone kept it for you.",
+  },
+];
+export function sideArea(id: string): SideArea | undefined {
+  return SIDE_AREAS.find((d) => d.id === id);
+}
+
 /** Map-writer site settings. seed is the world seed the generated floors and rifts hash from. */
 export const MAP_WRITER = {
   seed: "gravewake",
@@ -545,7 +571,7 @@ export const MAP_WRITER = {
 };
 
 export function dungeonById(id: string): DungeonDef | undefined {
-  return DUNGEONS.find((d) => d.id === id) ?? RIFTS.find((d) => d.id === id) ?? (id === WAKE_DUNGEON.id ? WAKE_DUNGEON : undefined);
+  return DUNGEONS.find((d) => d.id === id) ?? RIFTS.find((d) => d.id === id) ?? SIDE_AREAS.find((d) => d.id === id) ?? (id === WAKE_DUNGEON.id ? WAKE_DUNGEON : undefined);
 }
 
 /** Wake batch (design/ending.md 1.3): the lord of the Wake and his stair under Blackroot. Kept out of BOSSES and DUNGEONS,

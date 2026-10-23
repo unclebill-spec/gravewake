@@ -1,0 +1,443 @@
+{
+ "note": "art-check baseline 2026-10-23 (HD-2D Cozy Builder): art that already broke a rule; it may not get worse. Art was not edited.",
+ "files": {
+  "spells/fx/preview-playtest1h.png": {
+   "colours": 32
+  },
+  "sprites/allies-dirs.png": {
+   "colours": 78
+  },
+  "sprites/allies.png": {
+   "colours": 78
+  },
+  "sprites/foes-dirs.png": {
+   "colours": 150
+  },
+  "sprites/foes.png": {
+   "colours": 148
+  },
+  "sprites/folk-variants-dirs.png": {
+   "colours": 98
+  },
+  "sprites/folk-variants.png": {
+   "colours": 98
+  },
+  "sprites/moves-dirs.png": {
+   "colours": 110
+  },
+  "sprites/moves.png": {
+   "colours": 110
+  },
+  "sprites/people-dirs.png": {
+   "colours": 113
+  },
+  "sprites/people.png": {
+   "colours": 113
+  },
+  "sprites/portraits.png": {
+   "colours": 41
+  },
+  "wow/burst_32.png": {
+   "colours": 36
+  },
+  "wow/burst_64.png": {
+   "colours": 36
+  },
+  "wow/embers_16.png": {
+   "colours": 24
+  },
+  "wow/fireflies_16.png": {
+   "colours": 31
+  },
+  "wow/flash_64.png": {
+   "colours": 36
+  },
+  "wow/glint_16.png": {
+   "colours": 24,
+   "noOutline": true
+  },
+  "wow/loot_twinkle_16.png": {
+   "colours": 34,
+   "noOutline": true
+  },
+  "wow/motes_16.png": {
+   "colours": 36
+  },
+  "wow/shower_16x32.png": {
+   "colours": 30
+  },
+  "wow/sparkle_16.png": {
+   "colours": 36,
+   "noOutline": true
+  },
+  "wow/wayrift2_orbit_24x32.png": {
+   "colours": 36
+  },
+  "wow/wayrift_orbit_48x64.png": {
+   "colours": 36
+  },
+  "writer/bonecar.png": {
+   "colours": 24
+  },
+  "writer/camp-gear.png": {
+   "colours": 25
+  },
+  "writer/festival-props2.png": {
+   "colours": 23
+  },
+  "writer/hamlet-ash_forge.png": {
+   "colours": 38
+  },
+  "writer/hamlet-ash_hovel.png": {
+   "colours": 48
+  },
+  "writer/hamlet-ash_kiln.png": {
+   "colours": 34
+  },
+  "writer/hamlet-bog_hut.png": {
+   "colours": 51
+  },
+  "writer/hamlet-bog_shack.png": {
+   "colours": 45
+  },
+  "writer/hamlet-bog_stilt.png": {
+   "colours": 47
+  },
+  "writer/hamlet-sand_dome.png": {
+   "colours": 36
+  },
+  "writer/hamlet-sand_flat.png": {
+   "colours": 35
+  },
+  "writer/hamlet-sand_tower.png": {
+   "colours": 33
+  },
+  "writer/hamlet-snow_hut.png": {
+   "colours": 55
+  },
+  "writer/hamlet-snow_lodge.png": {
+   "colours": 54
+  },
+  "writer/hamlet-snow_store.png": {
+   "colours": 43
+  },
+  "writer/hamlet2-ash_forge.png": {
+   "colours": 39
+  },
+  "writer/hamlet2-ash_hovel.png": {
+   "colours": 49
+  },
+  "writer/hamlet2-ash_kiln.png": {
+   "colours": 34
+  },
+  "writer/hamlet2-bog_hut.png": {
+   "colours": 50
+  },
+  "writer/hamlet2-bog_shack.png": {
+   "colours": 44
+  },
+  "writer/hamlet2-bog_stilt.png": {
+   "colours": 47
+  },
+  "writer/hamlet2-sand_dome.png": {
+   "colours": 36
+  },
+  "writer/hamlet2-sand_flat.png": {
+   "colours": 35
+  },
+  "writer/hamlet2-sand_tower.png": {
+   "colours": 33
+  },
+  "writer/hamlet2-snow_hut.png": {
+   "colours": 54
+  },
+  "writer/hamlet2-snow_lodge.png": {
+   "colours": 54
+  },
+  "writer/hamlet2-snow_store.png": {
+   "colours": 44
+  },
+  "writer/lamp-flame.png": {
+   "colours": 27
+  },
+  "writer/lamp-flame_em.png": {
+   "colours": 27
+  },
+  "writer/loot.png": {
+   "colours": 36
+  },
+  "writer/outskirts-candle.png": {
+   "colours": 38
+  },
+  "writer/outskirts-candle_em.png": {
+   "colours": 30
+  },
+  "writer/outskirts-props-var.png": {
+   "colours": 21
+  },
+  "writer/outskirts-wisp.png": {
+   "colours": 34
+  },
+  "writer/outskirts-wisp_em.png": {
+   "colours": 30
+  },
+  "writer/preview-playtest1h.png": {
+   "colours": 89
+  },
+  "writer/preview-playtest1i.png": {
+   "colours": 56
+  },
+  "writer/room-casino.png": {
+   "colours": 33
+  },
+  "writer/room-furn.png": {
+   "colours": 44
+  },
+  "writer/room-kit.png": {
+   "colours": 31
+  },
+  "writer/room-props.png": {
+   "colours": 23
+  },
+  "writer/room-rugs.png": {
+   "colours": 22
+  },
+  "writer/room-wall-cabin.png": {
+   "colours": 23
+  },
+  "writer/room-wall-slate.png": {
+   "colours": 24
+  },
+  "writer/room-wall-stone.png": {
+   "colours": 27
+  },
+  "writer/room-wall-warm.png": {
+   "colours": 25
+  },
+  "writer/room-wall2-cabin.png": {
+   "colours": 24
+  },
+  "writer/room-wall2-slate.png": {
+   "colours": 25
+  },
+  "writer/room-wall2-stone.png": {
+   "colours": 28
+  },
+  "writer/room-wall2-warm.png": {
+   "colours": 26
+  },
+  "writer/town-bldg-alchemy.png": {
+   "colours": 75
+  },
+  "writer/town-bldg-bank.png": {
+   "colours": 68
+  },
+  "writer/town-bldg-bram.png": {
+   "colours": 66
+  },
+  "writer/town-bldg-casino.png": {
+   "colours": 55
+  },
+  "writer/town-bldg-chapel.png": {
+   "colours": 64
+  },
+  "writer/town-bldg-croft.png": {
+   "colours": 57
+  },
+  "writer/town-bldg-fisher.png": {
+   "colours": 50
+  },
+  "writer/town-bldg-guild.png": {
+   "colours": 65
+  },
+  "writer/town-bldg-inn.png": {
+   "colours": 60
+  },
+  "writer/town-bldg-ivy.png": {
+   "colours": 62
+  },
+  "writer/town-bldg-mystic.png": {
+   "colours": 73
+  },
+  "writer/town-bldg-noll.png": {
+   "colours": 63
+  },
+  "writer/town-bldg-pell.png": {
+   "colours": 58
+  },
+  "writer/town-bldg-shop.png": {
+   "colours": 58
+  },
+  "writer/town-bldg-smith.png": {
+   "colours": 55
+  },
+  "writer/town-bldg-tailor.png": {
+   "colours": 64
+  },
+  "writer/town-bldg2-alchemy.png": {
+   "colours": 75
+  },
+  "writer/town-bldg2-bank.png": {
+   "colours": 69
+  },
+  "writer/town-bldg2-bram.png": {
+   "colours": 68
+  },
+  "writer/town-bldg2-casino.png": {
+   "colours": 55
+  },
+  "writer/town-bldg2-chapel.png": {
+   "colours": 64
+  },
+  "writer/town-bldg2-croft.png": {
+   "colours": 59
+  },
+  "writer/town-bldg2-fisher.png": {
+   "colours": 51
+  },
+  "writer/town-bldg2-guild.png": {
+   "colours": 65
+  },
+  "writer/town-bldg2-inn.png": {
+   "colours": 60
+  },
+  "writer/town-bldg2-ivy.png": {
+   "colours": 62
+  },
+  "writer/town-bldg2-mystic.png": {
+   "colours": 75
+  },
+  "writer/town-bldg2-noll.png": {
+   "colours": 67
+  },
+  "writer/town-bldg2-pell.png": {
+   "colours": 58
+  },
+  "writer/town-bldg2-shop.png": {
+   "colours": 58
+  },
+  "writer/town-bldg2-smith.png": {
+   "colours": 55
+  },
+  "writer/town-bldg2-tailor.png": {
+   "colours": 64
+  },
+  "writer/town-bldg3-alchemy.png": {
+   "colours": 75
+  },
+  "writer/town-bldg3-bank.png": {
+   "colours": 69
+  },
+  "writer/town-bldg3-bram.png": {
+   "colours": 68
+  },
+  "writer/town-bldg3-casino.png": {
+   "colours": 55
+  },
+  "writer/town-bldg3-chapel.png": {
+   "colours": 64
+  },
+  "writer/town-bldg3-croft.png": {
+   "colours": 59
+  },
+  "writer/town-bldg3-fisher.png": {
+   "colours": 50
+  },
+  "writer/town-bldg3-guild.png": {
+   "colours": 64
+  },
+  "writer/town-bldg3-inn.png": {
+   "colours": 60
+  },
+  "writer/town-bldg3-ivy.png": {
+   "colours": 62
+  },
+  "writer/town-bldg3-mystic.png": {
+   "colours": 75
+  },
+  "writer/town-bldg3-noll.png": {
+   "colours": 67
+  },
+  "writer/town-bldg3-pell.png": {
+   "colours": 58
+  },
+  "writer/town-bldg3-shop.png": {
+   "colours": 57
+  },
+  "writer/town-bldg3-smith.png": {
+   "colours": 55
+  },
+  "writer/town-bldg3-tailor.png": {
+   "colours": 64
+  },
+  "writer/town-house-slate.png": {
+   "colours": 27
+  },
+  "writer/town-house-stone.png": {
+   "colours": 29
+  },
+  "writer/town-house-warm.png": {
+   "colours": 23
+  },
+  "writer/town-icon.png": {
+   "colours": 27
+  },
+  "writer/town-signs.png": {
+   "colours": 22
+  },
+  "writer/trail-vale.png": {
+   "colours": 29
+  },
+  "writer/wayrift.png": {
+   "colours": 23
+  },
+  "writer/wayrift2.png": {
+   "colours": 21
+  },
+  "writer/wild-boulders.png": {
+   "colours": 47
+  },
+  "writer/wild-deadwood.png": {
+   "colours": 26
+  },
+  "writer/wild-deadwood2.png": {
+   "colours": 26
+  },
+  "writer/wild-entrances.png": {
+   "colours": 36
+  },
+  "writer/wild-rocks.png": {
+   "colours": 30
+  },
+  "writer/wild-rocks2.png": {
+   "colours": 30
+  },
+  "writer/wild-stairs-themes.png": {
+   "colours": 23
+  },
+  "writer/wild-trees-autumn.png": {
+   "colours": 47
+  },
+  "writer/wild-trees-spring.png": {
+   "colours": 43
+  },
+  "writer/wild-trees-summer.png": {
+   "colours": 38
+  },
+  "writer/wild-trees-winter.png": {
+   "colours": 32
+  },
+  "writer/wild-trees2-autumn.png": {
+   "colours": 47
+  },
+  "writer/wild-trees2-spring.png": {
+   "colours": 43
+  },
+  "writer/wild-trees2-summer.png": {
+   "colours": 38
+  },
+  "writer/wild-trees2-winter.png": {
+   "colours": 32
+  }
+ }
+}

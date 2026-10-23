@@ -38,6 +38,8 @@ import {
   TRAPS,
   asRank,
   dungeonById,
+  SIDE_AREAS,
+  sideArea,
   hash,
   helperCount,
   insideHome,
@@ -1512,7 +1514,61 @@ export class Game {
     return this.worldMs % 900 < 220;
   }
 
+  /** new-resources: a side area's kill tally and its three steps (state rides in opened). */
+  private sideKills(a: { id: string }): number {
+    for (let n = 9; n > 0; n--) if (this.opened.has(`side:${a.id}:k${n}`)) return n;
+    return 0;
+  }
+
+  private sideKill() {
+    const a = sideArea(this.dungeon);
+    if (!a || this.opened.has(`side:${a.id}:done`)) return;
+    const n = this.sideKills(a);
+    if (n >= a.kills) return;
+    this.opened.add(`side:${a.id}:k${n + 1}`);
+    if (n + 1 === a.kills) this.pushLog(`${a.quest}: ${a.steps[1]} (done). ${a.steps[2]}`);
+  }
+
+  /** The last stair of a side area's pocket goes on into it; the side area's own stair down ends the errand. */
+  private sideStair(a: (typeof SIDE_AREAS)[number]) {
+    if (this.dungeon !== a.id) {
+      this.audio?.door();
+      this.enterDungeon(a.id);
+      this.opened.add(`side:${a.id}:in`);
+      this.logLine = this.opened.has(`side:${a.id}:done`) ? `${a.name}. Quiet now.` : `${a.name}. ${a.quest}: ${a.steps[1].toLowerCase()} (${a.kills}).`;
+      return;
+    }
+    if (this.floor >= (a.floors ?? 2)) {
+      this.logLine = "The stair ends.";
+      return;
+    }
+    const done = this.opened.has(`side:${a.id}:done`);
+    if (!done && this.sideKills(a) < a.kills) {
+      this.logLine = "Not yet. Something still walks back there.";
+      return;
+    }
+    this.floor += 1;
+    this.audio?.door();
+    this.loadFloor("down");
+    if (done) {
+      this.logLine = "Quiet down here now.";
+      return;
+    }
+    this.opened.add(`side:${a.id}:done`);
+    this.coin += a.reward.silver;
+    this.gainItem(makeItem({ name: a.reward.item, kind: "junk", rank: 2, stack: 1 }));
+    this.audio?.wow("levelup");
+    this.pushLog(`${a.quest} done. ${a.done} +${a.reward.silver} silver, ${a.reward.item}.`);
+  }
+
   questLine() {
+    const sa = sideArea(this.dungeon);
+    if (sa && this.mapId === "dungeon" && !this.opened.has(`side:${sa.id}:done`)) {
+      const n = this.sideKills(sa);
+      return n < sa.kills ? `${sa.quest}: ${sa.steps[1].toLowerCase()} (${n}/${sa.kills}).` : `${sa.quest}: ${sa.steps[2].toLowerCase()}`;
+    }
+    const below = this.mapId === "dungeon" ? SIDE_AREAS.find((a) => a.from === this.dungeon && !this.opened.has(`side:${a.id}:in`)) : undefined;
+    if (below && this.floor >= (dungeonById(this.dungeon)?.floors ?? 5)) return `${below.quest}: the last stair here does not end. ${below.steps[0]}`;
     const led = this.escortName();
     if (led) return `Lead ${led} up the stairs and out. A town gate works too.`;
     if (this.remnantId && MINI_NAME[this.remnantId]) return `Chapel notice: ${MINI_NAME[this.remnantId]} still stands. Bring them down for 20 silver.`;
@@ -1755,7 +1811,7 @@ export class Game {
     this.dungeon = id;
     this.floor = 1;
     if (def.scale) this.entryLevel = this.level;
-    if (!def.town && !def.rift && !this.visited.includes(id)) this.visited.push(id);
+    if (!def.town && !def.rift && !sideArea(id) && !this.visited.includes(id)) this.visited.push(id);
     this.audio?.door();
     if (!def.rift) this.beginRun(id);
     this.loadFloor("start");
@@ -1794,6 +1850,11 @@ export class Game {
     this.px = stand.x * TILE + 8;
     this.py = stand.y * TILE + 10;
     if (this.dungeon === "blackroot" && this.floor >= (def?.floors ?? 5) && this.wakeOpen) this.openWakeStair();
+    if (this.floor >= (def?.floors ?? 5) && SIDE_AREAS.some((a) => a.from === this.dungeon) && !this.tiles.includes(T.stairD)) {
+      // new-resources: a pocket with a side area keeps one more stair down on its last floor, on the far open tile.
+      const far = findOpen(this.tiles, this.w, this.h, this.w - 3, this.feats?.hidden);
+      if (far) this.tiles[far.y * this.w + far.x] = T.stairD;
+    }
     if (this.dungeon === "wake") this.resetWakeHall();
     this.placeFloorRoom(def?.rift ? `${this.dungeon}:c${this.riftCycle}` : this.dungeon); // playtest1n: the room's props
     this.reveal();
@@ -5506,6 +5567,11 @@ export class Game {
         this.logLine = "The stair goes down into The Wake Below. Somewhere under you, a bell.";
         return;
       }
+      const side = sideArea(this.dungeon) ?? (this.floor >= max ? SIDE_AREAS.find((a) => a.from === this.dungeon) : undefined);
+      if (side) {
+        this.sideStair(side);
+        return;
+      }
       if (this.floor >= max) {
         this.logLine = "The stair ends.";
         return;
@@ -7896,6 +7962,7 @@ export class Game {
   }
 
   private fellFoe(r: Roamer) {
+    if (this.mapId === "dungeon" && !r.boss) this.sideKill(); // new-resources: side-area errands
     if ((r.boss || r.final) && r.def) this.audio?.voice(voiceFor(r.def, { final: r.final }), "death"); // new-resources
     this.fx.death(r.x, r.y - 8, r.boss ? "boss" : r.mini || r.rare ? "elite" : "trash", boneKin(r));
     if (r.guard && r.rare) this.opened.add(r.guard);
