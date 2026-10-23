@@ -76,7 +76,7 @@ export function installMenuTheme(): () => void {
     }
     g.setAttribute("aria-hidden", "true");
     g.style.cssText += `;position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:60;right:auto;bottom:auto;max-height:none`;
-    g.classList.add("gw-closing");
+    g.classList.add("gw-closing", "gw-ghost");
     document.body.appendChild(g);
     window.setTimeout(() => g.remove(), 160);
   };
