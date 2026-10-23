@@ -12,6 +12,10 @@ const SFX_DIR = "/art/audio/sfx/";
 const AMB_DIR = "/art/audio/outskirts/";
 const WOW_DIR = "/art/audio/wow/";
 const VOICE_DIR = "/art/audio/voice/";
+const BED_DIR = "/art/audio/beds/";
+/** new-resources: Stable Audio Open area beds (crossfade-looped), quiet, scaled by the SFX slider. */
+export const BEDS = { "amb-graveyard": 0.3, "amb-cave": 0.35, "amb-casino": 0.28, "amb-rain": 0.3, "amb-town-night": 0.25 } as const;
+export type BedName = keyof typeof BEDS | "";
 /** new-resources [OWNER-APPROVED 2026-10-23 Bill]: boss voice lines (Kokoro, public/art/audio/voice/<boss>-<intro|death>.ogg). */
 export const VOICE_BOSSES = ["hollowmourn", "bellringer", "mulch", "dracula", "krampus", "pumpkinlord", "frank", "warlock", "wrapped", "lich", "lanternking", "haysaint", "horseman", "witchboss", "rootwidow", "priest", "abbot"];
 /** The voice key for a boss roamer (def id), or "" when it has no lines. Hollowmourn's remnant speaks as the Bellringer. */
@@ -41,19 +45,21 @@ export const ROOM_MUSIC = ["alchemy", "bank", "casino", "chapel", "cottage", "cr
 export function musicFor(key: string): string {
   if (key === "finale") return "music-finale";
   if (key.startsWith("battle:boss-final")) return "music-boss-final";
+  if (key === "battle:boss") return "music-boss-ace"; // new-resources: ACE-Step boss loop (any boss but Hollowmourn)
   if (key.startsWith("battle")) return "music-battle";
   const [map, a, b] = key.split(":");
   if (map === "dungeon") return a === "rift" ? "dungeon-rift" : `dungeon-${DUNGEON_MUSIC.includes(a) ? a : "cave"}`; // oskaudio: the Ashen Rift's own loop
   if (map === "inside") return a === "room" ? `room-${ROOM_MUSIC.includes(b) ? b : "cottage"}` : "room-cottage";
   if (map === "camp") return "music-camp";
   const night = key.endsWith(":night");
-  if (map === "town") return night ? "music-night" : "music-town-day";
+  if (map === "town") return night ? "music-night-ace" : "music-town-day-ace"; // new-resources: ACE-Step town loops
   if (map === "world" || map === "village") return night ? "music-night" : "music-world-day";
   return night ? "music-night" : "music-town-day";
 }
 /** Per-call trims for a phone speaker (the files peak near -3 dBFS; the synth's beeps sat around 0.2-0.34). */
-export const SFX_TRIM: Record<string, number> = { hit: 0.55, spell: 0.45, door: 0.5, coin: 0.45, hurt: 0.6, steam: 0.4, rattle: 0.35, thunder: 0.6, toll: 0.7, sting: 0.7 };
-const SFX_FILE: Record<string, string> = { hit: "sfx-hit", spell: "sfx-spell", door: "sfx-door", coin: "sfx-coin", hurt: "sfx-hurt", steam: "sfx-steam", rattle: "sfx-rattle", thunder: "sfx-thunder", toll: "sfx-toll", sting: "sting-boss-early" };
+export const SFX_TRIM: Record<string, number> = { move: 0.35, select: 0.4, back: 0.4, buy: 0.45, crit: 0.6, pickup: 0.35, lvl: 0.35, hit: 0.55, spell: 0.45, door: 0.5, coin: 0.45, hurt: 0.6, steam: 0.4, rattle: 0.35, thunder: 0.6, toll: 0.7, sting: 0.7 };
+// new-resources: jsfxr one-shots (sfx-hit2 / sfx-coin2 replace the softer hit and coin; the old files stay as spares).
+const SFX_FILE: Record<string, string> = { move: "ui-move", select: "ui-select", back: "ui-back", buy: "sfx-buy", crit: "sfx-crit", pickup: "sfx-pickup", lvl: "sfx-levelup", hit: "sfx-hit2", spell: "sfx-spell", door: "sfx-door", coin: "sfx-coin2", hurt: "sfx-hurt", steam: "sfx-steam", rattle: "sfx-rattle", thunder: "sfx-thunder", toll: "sfx-toll", sting: "sting-boss-early" };
 const FADE = 0.6;
 /**
  * oskaudio [OWNER-REQUESTED 2026-10-22 Bill: outskirts audio] (staging/audio/outskirts, CC0, see its README): volumes as
@@ -104,6 +110,10 @@ export function ambLevels(s: AmbState, musicOn: boolean): Record<AmbLoop, number
 /** polish: a file mastered well under the rest is lifted to sit with them (mean dB: harrow -23.8 against the dungeons' -16.3;
  * its peak is -3.1 dB, so x1.8 (+5.1 dB) keeps headroom under the master). */
 export const MUSIC_TRIM: Record<string, number> = {
+  // new-resources: the ACE-Step loops sit at -19.8..-21.9 LUFS against the town's -17.2; lifted to match.
+  "music-town-day-ace": 1.4,
+  "music-night-ace": 1.25,
+  "music-boss-ace": 1.3,
   "dungeon-harrow": 1.8,
   // oskaudio: through a phone-speaker weighting (300 Hz high-pass, then EBU R128) dungeon-rift reads -33.7 LUFS against the
   // dungeons' -18.8..-24.4 (its D drone sits below what a phone moves). x2.2 (+6.8 dB) brings it to about -26.9; its peak
@@ -121,6 +131,7 @@ export class AudioBus {
   voiceVol = 0.9;
   voiceMute = false;
   private voiceSrc: AudioBufferSourceNode | null = null;
+  private beds = new Map<string, { src: AudioBufferSourceNode; gain: GainNode }>();
   private started = false;
   private moodKey = "";
   private step = 0;
@@ -358,6 +369,32 @@ export class AudioBus {
     }
   }
 
+  /** new-resources: the area bed. The wanted one glides up (2 s), any other glides out and stops. */
+  bed(want: BedName) {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running" || !this.comp) return;
+    const now = ctx.currentTime;
+    if (want && !this.beds.has(want) && this.sfx > 0) {
+      const buf = this.load(`${BED_DIR}${want}.ogg`);
+      if (buf) {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        src.connect(gain);
+        gain.connect(this.comp);
+        src.start(now, Math.random() * buf.duration);
+        this.beds.set(want, { src, gain });
+      }
+    }
+    for (const [name, b] of this.beds) {
+      const lv = name === want ? BEDS[name as keyof typeof BEDS] * this.sfx : 0;
+      b.gain.gain.setTargetAtTime(Math.max(0.0001, lv), now, 0.7);
+      if (lv <= 0 && b.gain.gain.value < 0.002) { b.src.stop(); this.beds.delete(name); }
+    }
+  }
+
   /** The Wake Bell's toll (Hollowmourn's Toll wind-up, his phase beats, the Last Toll). */
   toll() {
     if (!this.shot("toll")) { this.tone(110, 0.9, "triangle", 0.3); this.tone(165, 0.7, "sine", 0.12); }
@@ -530,6 +567,8 @@ export class AudioBus {
   wow(kind: WowSfx) {
     const ctx = this.ctx;
     if (!ctx || ctx.state !== "running" || this.sfx <= 0 || !this.comp) return;
+    if (kind === "levelup") this.shot("lvl"); // new-resources: jsfxr level-up and pickup ticks under Sound's wow cues
+    if (kind === "loot-common") this.shot("pickup");
     const spec = WOW_SFX[kind];
     const st = this.wowLive.get(kind) ?? { n: 0, at: 0, last: -1 };
     this.wowLive.set(kind, st);
@@ -578,6 +617,17 @@ export class AudioBus {
     this.tone(196, 0.12, "triangle", 0.28);
   }
 
+  /** new-resources: menu move / select / back (jsfxr); quiet ticks, no synth fallback. */
+  ui(kind: "move" | "select" | "back") {
+    this.shot(kind);
+  }
+  buy() {
+    if (!this.shot("buy")) this.coin();
+  }
+  crit() {
+    this.shot("crit");
+    this.hit();
+  }
   coin() {
     if (this.shot("coin")) return;
     this.tone(880, 0.07, "triangle", 0.2);

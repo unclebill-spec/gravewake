@@ -133,6 +133,16 @@ export function Gravewake() {
   useEffect(() => {
     const audio = new AudioBus();
     loadVoice(audio); // new-resources
+    // new-resources: menu ticks (jsfxr) from the DOM only: a button press selects, Escape/Backspace in a menu goes back,
+    // arrows or Tab moving between buttons tick. Passive; it never changes what the keys do.
+    const uiClick = (e: MouseEvent) => { if ((e.target as HTMLElement | null)?.closest?.("button")) audio.ui("select"); };
+    const uiKey = (e: KeyboardEvent) => {
+      const onBtn = (document.activeElement as HTMLElement | null)?.tagName === "BUTTON";
+      if (onBtn && /^(Arrow(Up|Down|Left|Right)|Tab)$/.test(e.key)) audio.ui("move");
+      else if ((e.key === "Escape" || e.key === "Backspace") && game.mode !== "play") audio.ui("back");
+    };
+    document.addEventListener("click", uiClick, true);
+    document.addEventListener("keydown", uiKey, true);
     audioRef.current = audio;
     const game = new Game();
     game.audio = audio;
@@ -604,6 +614,8 @@ export function Gravewake() {
     window.addEventListener("popstate", pop);
     canvas.addEventListener("wheel", wheel, { passive: false });
     return () => {
+      document.removeEventListener("click", uiClick, true);
+      document.removeEventListener("keydown", uiKey, true);
       alive = false;
       cancelAnimationFrame(raf);
       fx?.dispose(); // playtest1l

@@ -86,7 +86,7 @@ import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival,
 import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, WILD_CLEAR_REWARD, isWildMap, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest, type WildLayout, type WildStage } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
-import { AMB, type AmbState, type AudioBus, voiceFor } from "./audio";
+import { AMB, type AmbState, type AudioBus, type BedName, voiceFor } from "./audio";
 import * as OSK from "./outskirts";
 import { ParticlePool, paletteIndex } from "./particles";
 import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
@@ -3875,6 +3875,7 @@ export class Game {
     this.pollPad();
     this.audio?.pump();
     if (this.audio) this.audio.ambience(this.ambState()); // oskaudio
+    if (this.audio) this.audio.bed(this.bedName()); // new-resources
     this.cemeteryWatch();
     if (this.endingSeen && this.phase === "night" && (this.mapId === "world" || this.mapId === "town") && this.restlessNight !== nightOf(this.worldMs)) {
       // doc 7: after the ending the night's dead are the restless, not the called (log wording only; the loop is the same)
@@ -4027,10 +4028,21 @@ export class Game {
   }
 
   private voiced = new WeakSet<Roamer>();
+  /** new-resources: which area bed plays here (audio.ts BEDS); "" for none. */
+  bedName(): BedName {
+    if (this.mode === "ending") return "";
+    if (this.mapId === "inside") return this.theme === "room:casino" ? "amb-casino" : "";
+    if (this.mapId === "dungeon") return "amb-cave";
+    const w = this.weather;
+    if (w === "light" || w === "heavy" || w === "storm") return "amb-rain";
+    if (this.inCemetery()) return "amb-graveyard";
+    if (this.mapId === "town" && this.phase === "night") return "amb-town-night";
+    return "";
+  }
   private syncMood() {
     const fighting = this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0);
     // Wake batch: a dungeon's key carries its theme (dungeon:<theme>:<phase>), so its own loop plays (audio.ts musicFor).
-    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${RIFTS.some((r) => r.id === this.dungeon) ? "rift" : this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
+    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting && this.roamers.some((r) => r.boss && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${RIFTS.some((r) => r.id === this.dungeon) ? "rift" : this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
     // Wake batch: the early-boss sting, once per save, on the first boss or mini that turns on you (saved stingSeen).
     if (fighting && !this.stingSeen && this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0 && (r.boss || r.mini) && !r.final)) {
       this.stingSeen = true;
@@ -7155,7 +7167,7 @@ export class Game {
     if (!this.gainItem(taken)) return;
     this.coin -= price;
     if (it.kind !== "potion" && it.kind !== "gift" && it.kind !== "bait" && it.kind !== "tackle") this.stock = this.stock.filter((s) => s.uid !== it.uid);
-    this.audio?.coin();
+    this.audio?.buy(); // new-resources: jsfxr buy (falls back to the coin)
     this.logLine = `Bought ${it.name}.`;
   }
 
@@ -7629,7 +7641,7 @@ export class Game {
       n += 1;
     }
     n += this.strikeProps(aim, half, reach, n > 0); // playtest1n: a lantern, barrel or pillar in the swing
-    if (n) this.audio?.hit();
+    if (n) { if (dmg > this.atk) this.audio?.crit(); else this.audio?.hit(); } // new-resources: jsfxr crit
     return n;
   }
 

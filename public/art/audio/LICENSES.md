@@ -14,3 +14,8 @@ credits.tsx's "Music and sound are synthesized in code" remains true. Build-time
 
 ## Boss voices (new-resources, 2026-10-23)
 `voice/<boss>-<intro|death>.ogg`: Kokoro 82M TTS (Apache-2.0 weights), lines written for Gravewake, processed with sox. 34 files.
+
+## new-resources music, beds and SFX (2026-10-23)
+- `music/music-town-day-ace.ogg`, `music/music-night-ace.ogg`, `music/music-boss-ace.ogg`: ACE-Step 1.5 (MIT code and weights), generated for Gravewake; loop points by pymusiclooper.
+- `beds/amb-*.ogg`: Stable Audio Open 1.0 (Stability AI Community License, cleared by Bill), generated for Gravewake, crossfade-looped.
+- `sfx/ui-*.ogg`, `sfx/sfx-{coin2,buy,levelup,hit2,crit,pickup}.ogg`: jsfxr (Unlicense), seeded presets (staging/jsfxr/make_jsfxr.cjs).
