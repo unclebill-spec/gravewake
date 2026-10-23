@@ -93,10 +93,10 @@ export function BadgesPage({ badges }: { badges: readonly string[] }) {
         {BADGES.map((b) => {
           const got = badges.includes(b.id);
           return (
-            <div key={b.id} data-badge={b.id} data-got={got ? "1" : "0"} className={`gw-badge rounded border px-2 py-1 ${got ? "border-primary" : "border-border opacity-50"}`}>
+            <button type="button" key={b.id} data-badge={b.id} data-got={got ? "1" : "0"} aria-label={`${b.name}: ${b.desc}${got ? " (earned)" : ""}`} className={`gw-badge rounded border px-2 py-1 text-left ${got ? "border-primary" : "border-border opacity-50"}`}>
               <div className="font-display text-sm">{got ? "★ " : "☆ "}{b.name}</div>
               <div className="text-muted">{b.desc}</div>
-            </div>
+            </button>
           );
         })}
       </div>

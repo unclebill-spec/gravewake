@@ -253,7 +253,7 @@ export function Gravewake() {
     let navDir: Dir | null = null;
     let navNext = 0;
     let focusEl: HTMLElement | null = null;
-    const NAV_MODES = new Set(["title", "talk", "shop", "casino", "prizes", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map"]);
+    const NAV_MODES = new Set(["title", "talk", "shop", "casino", "prizes", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map", "ending"]); // batch7: + ending (the epilogue, credits and New Game+ buttons took no pad)
     const lastOf = (sel: string) => {
       const all = document.querySelectorAll<HTMLElement>(sel);
       return all.length ? all[all.length - 1] : null;

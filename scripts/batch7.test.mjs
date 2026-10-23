@@ -124,3 +124,19 @@ test("end credits: the roll credits the creator, the fonts (OFL) and the tools; 
   g.nextEnding();
   assert.equal(g.endingSeen, true);
 });
+
+test("pad and touch: every menu mode takes the pad (the ending too), badges are focusable, touch controls hide in keys mode", async () => {
+  const src = (await import("node:fs")).readFileSync("src/game/Gravewake.tsx", "utf8");
+  const nav = src.match(/const NAV_MODES = new Set\(\[([^\]]*)\]\)/)[1];
+  for (const m of ["title", "talk", "shop", "casino", "prizes", "bank", "zeppelin", "pause", "level", "crypt", "dead", "map", "ending"]) assert.ok(nav.includes(`"${m}"`), m);
+  assert.match(src, /data-testid="hud-touch"[\s\S]{0,120}hidden=\{keysMode\}/);
+  assert.match(src, /\(pointer: fine\)"\)\.matches && \(w\.navigator\?\.maxTouchPoints \?\? 0\) === 0/);
+  const book = (await import("node:fs")).readFileSync("src/game/BookPages.tsx", "utf8");
+  assert.match(book, /<button type="button" key=\{b\.id\} data-badge/);
+  const S = await import(pathToFileURL((execFileSync("npx", ["esbuild", "src/game/screen.ts", "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "screen.mjs")}`]), join(dir, "screen.mjs"))).href);
+  // a 4-wide grid (the bestiary) is fully walkable with the d-pad
+  const rs = []; for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) rs.push({ x: c * 40, y: r * 40, w: 32, h: 32 });
+  const seen = new Set([0]); const q = [0];
+  while (q.length) { const a = q.shift(); for (const d of ["up", "down", "left", "right"]) { const n = S.navPick(rs, a, d); if (n >= 0 && !seen.has(n)) { seen.add(n); q.push(n); } } }
+  assert.equal(seen.size, rs.length);
+});
