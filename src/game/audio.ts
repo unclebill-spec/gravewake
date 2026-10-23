@@ -11,6 +11,15 @@ const MUSIC_DIR = "/art/audio/music/";
 const SFX_DIR = "/art/audio/sfx/";
 const AMB_DIR = "/art/audio/outskirts/";
 const WOW_DIR = "/art/audio/wow/";
+const VOICE_DIR = "/art/audio/voice/";
+/** new-resources [OWNER-APPROVED 2026-10-23 Bill]: boss voice lines (Kokoro, public/art/audio/voice/<boss>-<intro|death>.ogg). */
+export const VOICE_BOSSES = ["hollowmourn", "bellringer", "mulch", "dracula", "krampus", "pumpkinlord", "frank", "warlock", "wrapped", "lich", "lanternking", "haysaint", "horseman", "witchboss", "rootwidow", "priest", "abbot"];
+/** The voice key for a boss roamer (def id), or "" when it has no lines. Hollowmourn's remnant speaks as the Bellringer. */
+export function voiceFor(def: string, opts: { final?: boolean; early?: boolean } = {}): string {
+  if (opts.early) return "mulch";
+  if (def === "hollowmourn") return opts.final ? "hollowmourn" : "bellringer";
+  return VOICE_BOSSES.includes(def) ? def : "";
+}
 /** wow: Sound's README table (vol, pitch +-, voices, cooldown ms). WOW_TRIM is the phone level check's trim. */
 export const WOW_SFX = {
   "loot-common": { vol: 0.8, pitch: 0.03, cap: 2, cool: 60 },
@@ -108,6 +117,10 @@ export class AudioBus {
   ctx: AudioContext | null = null;
   music = 0.7;
   sfx = 0.8;
+  /** new-resources: boss voice level and mute (settings sheet; saved in localStorage "gw-voice"). */
+  voiceVol = 0.9;
+  voiceMute = false;
+  private voiceSrc: AudioBufferSourceNode | null = null;
   private started = false;
   private moodKey = "";
   private step = 0;
@@ -161,6 +174,7 @@ export class AudioBus {
     // decode once: the current mood's file first, then the one-shots
     if (this.moodKey) this.mood(this.moodKey, true);
     for (const f of Object.values(SFX_FILE)) void this.load(`${SFX_DIR}${f}.ogg`);
+    for (const b of VOICE_BOSSES) for (const k of ["intro", "death"]) void this.load(`${VOICE_DIR}${b}-${k}.ogg`); // new-resources
     for (const f of ["raven-caw-1", "raven-caw-2", "raven-caw-3", "wing-flap", "choir-swell"]) void this.load(`${AMB_DIR}${f}.ogg`); // oskaudio
     for (const f of ["loot-common", "loot-rare", "loot-epic", "levelup", "coin-glint", "trophy-shimmer", "boss-relight", "hit-spark-1", "hit-spark-2", "hit-spark-3", "wayrift-swirl"]) void this.load(`${WOW_DIR}${f}.ogg`); // wow
   }
@@ -361,6 +375,35 @@ export class AudioBus {
 
   setSfx(v: number) {
     this.sfx = v;
+  }
+
+  setVoice(v: number, mute = this.voiceMute) {
+    this.voiceVol = v;
+    this.voiceMute = mute;
+    if (mute && this.voiceSrc) { try { this.voiceSrc.stop(); } catch { /* already done */ } this.voiceSrc = null; }
+  }
+
+  /** new-resources: a boss line (intro or death). One line at a time; the music dips under it. Silent while not decoded. */
+  voice(boss: string, when: "intro" | "death"): boolean {
+    const ctx = this.ctx;
+    if (!boss || !ctx || ctx.state !== "running" || this.voiceMute || this.voiceVol <= 0 || !this.comp) return false;
+    const buf = this.load(`${VOICE_DIR}${boss}-${when}.ogg`);
+    if (!buf) return false;
+    if (this.voiceSrc) { try { this.voiceSrc.stop(); } catch { /* already done */ } }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = this.voiceVol;
+    src.connect(g);
+    g.connect(this.comp);
+    src.start();
+    this.voiceSrc = src;
+    if (this.musicGain) {
+      const t = ctx.currentTime;
+      this.musicGain.gain.setTargetAtTime(this.music * 0.45, t, 0.08);
+      this.musicGain.gain.setTargetAtTime(this.music, t + buf.duration, 0.3);
+    }
+    return true;
   }
 
   /** Pick the tune for town, night, a dungeon, or a fight. */

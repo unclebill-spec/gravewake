@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CLASSES, type ClassId, type StatPath } from "./content";
 import { AudioBus } from "./audio";
+
+/** new-resources: the boss-voice setting lives in localStorage ("gw-voice": {v, mute}). */
+function loadVoice(a: AudioBus) {
+  try {
+    const raw = JSON.parse(localStorage.getItem("gw-voice") ?? "null") as { v?: number; mute?: boolean } | null;
+    if (raw) a.setVoice(typeof raw.v === "number" ? Math.max(0, Math.min(1, raw.v)) : a.voiceVol, !!raw.mute);
+  } catch { /* no storage */ }
+}
+function saveVoice(a: AudioBus | null) {
+  if (!a) return;
+  try { localStorage.setItem("gw-voice", JSON.stringify({ v: a.voiceVol, mute: a.voiceMute })); } catch { /* no storage */ }
+}
 import { cameraFor, drawBattle, drawMap, drawMinimap, drawPortrait, drawWorld } from "./draw";
 import { ACTS, Game, roomNameOf, villageById } from "./sim";
 import { LOOT, LOOT_SHEET, lootCell, slotCell } from "./loot";
@@ -120,6 +132,7 @@ export function Gravewake() {
    */
   useEffect(() => {
     const audio = new AudioBus();
+    loadVoice(audio); // new-resources
     audioRef.current = audio;
     const game = new Game();
     game.audio = audio;
@@ -1910,6 +1923,14 @@ export function Gravewake() {
               <label className="text-sm text-muted">
                 Effects
                 <input type="range" min={0} max={100} defaultValue={80} onChange={(e) => audioRef.current?.setSfx(Number(e.target.value) / 100)} />
+              </label>
+              <label className="text-sm text-muted">
+                Voices
+                <input type="range" min={0} max={100} defaultValue={Math.round((audioRef.current?.voiceVol ?? 0.9) * 100)} onChange={(e) => { audioRef.current?.setVoice(Number(e.target.value) / 100); saveVoice(audioRef.current); }} />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-muted">
+                <input type="checkbox" defaultChecked={audioRef.current?.voiceMute ?? false} onChange={(e) => { const a = audioRef.current; a?.setVoice(a.voiceVol, e.target.checked); saveVoice(a); }} />
+                Mute voices
               </label>
               <label className="text-sm text-muted">
                 Screen shake

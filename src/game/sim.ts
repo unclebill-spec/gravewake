@@ -86,7 +86,7 @@ import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival,
 import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, WILD_CLEAR_REWARD, isWildMap, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest, type WildLayout, type WildStage } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
-import { AMB, type AmbState, type AudioBus } from "./audio";
+import { AMB, type AmbState, type AudioBus, voiceFor } from "./audio";
 import * as OSK from "./outskirts";
 import { ParticlePool, paletteIndex } from "./particles";
 import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
@@ -2527,6 +2527,7 @@ export class Game {
     if (!this.sinks.includes("title:warden")) this.sinks.push("title:warden");
     if (!this.title) this.title = EARLY.title;
     this.logLine = EARLY_LINES.won(EARLY.silver, name);
+    this.audio?.voice("mulch", "death"); // new-resources
   }
 
   /** Nearest tile a body can stand on. Used when a boss or a roamer would be left inside a wall. */
@@ -4025,6 +4026,7 @@ export class Game {
     this.wasCemetery = now;
   }
 
+  private voiced = new WeakSet<Roamer>();
   private syncMood() {
     const fighting = this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0);
     // Wake batch: a dungeon's key carries its theme (dungeon:<theme>:<phase>), so its own loop plays (audio.ts musicFor).
@@ -4033,6 +4035,11 @@ export class Game {
     if (fighting && !this.stingSeen && this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0 && (r.boss || r.mini) && !r.final)) {
       this.stingSeen = true;
       this.audio?.sting();
+    }
+    // new-resources: a boss's intro line, once per boss body, when it first turns on you.
+    for (const r of this.roamers) if (r.aggro && (r.boss || r.final) && r.def && (r.hp ?? 0) > 0 && !this.voiced.has(r)) {
+      this.voiced.add(r);
+      this.audio?.voice(voiceFor(r.def, { final: r.final }), "intro");
     }
     this.audio?.setHush(this.roamers.some((r) => r.final && r.casting === "big" && r.bigTag === "dark" && (r.tell ?? 0) > 0));
     if (key === this.mood) return;
@@ -5206,6 +5213,7 @@ export class Game {
       this.roamers = this.roamers.filter((o) => o !== r);
       this.openBattle(this.earlyFoes(), { guard: false, goblin: false, hunter: false, fromRole: "" });
       this.logLine = EARLY_LINES.open;
+      this.audio?.voice("mulch", "intro"); // new-resources
       return;
     }
     if (r.naughty && !r.boss) {
@@ -7876,6 +7884,7 @@ export class Game {
   }
 
   private fellFoe(r: Roamer) {
+    if ((r.boss || r.final) && r.def) this.audio?.voice(voiceFor(r.def, { final: r.final }), "death"); // new-resources
     this.fx.death(r.x, r.y - 8, r.boss ? "boss" : r.mini || r.rare ? "elite" : "trash", boneKin(r));
     if (r.guard && r.rare) this.opened.add(r.guard);
     if (r.boss && r.def === "rootwidow" && !this.wakeOpen) {
