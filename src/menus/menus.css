@@ -1,0 +1,149 @@
+/* menus-restyle (2026-10-23, first pass for Bill's review): gothic menu chrome over the existing menus. Looks only:
+   no menu's markup, buttons, order or controls change. Art: src/menus/art/ (tools/pixel-writer/menu_ui_writer.py).
+   Fonts (SIL OFL 1.1, licences beside them): Jacquarda Bastarda 9 for titles, Pixelify Sans for menu text. */
+@font-face { font-family: "GW Blackletter"; src: url("./art/JacquardaBastarda9-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "GW Pixel"; src: url("./art/PixelifySans.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
+
+:root {
+  --gw-ink: #f0e2c8;
+  --gw-ember: #e07a2f;
+  --gw-flame: #f7c45c;
+  --gw-stone: url("./art/frame-stone.png");
+  --gw-parch: url("./art/frame-parchment.png");
+  --gw-btn: url("./art/btn.png");
+  --gw-btn-hot: url("./art/btn-hot.png");
+  --gw-cur: url("./art/cursor-pumpkin.png") 4 3, auto;
+  --gw-cur-hot: url("./art/cursor-skull.png") 6 2, pointer;
+}
+
+/* the pumpkin cursor everywhere; the skull over anything pressable */
+main { cursor: var(--gw-cur); }
+main button:not(:disabled), main [role="button"], main select, main input[type="range"], main label:has(input) { cursor: var(--gw-cur-hot); }
+
+/* ---- frames: carved stone for panels and modals, iron-and-parchment for talk ---- */
+.gw-panel,
+.gw-title .bg-surface,
+[data-padmodal] > div {
+  border: 16px solid transparent !important;
+  border-image: var(--gw-stone) 8 fill / 16px / 0 stretch !important;
+  border-radius: 0 !important;
+  image-rendering: pixelated;
+  background: radial-gradient(120% 80% at 100% 0%, rgba(224, 122, 47, 0.16), transparent 55%), rgba(20, 14, 18, 0.55) !important;
+  background-clip: padding-box !important;
+  font-family: "GW Pixel", var(--font-sans);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45), 0 0 26px rgba(224, 122, 47, 0.12);
+  animation: gw-glow 3.2s ease-in-out infinite;
+}
+.gw-panel { padding: 4px 8px !important; }
+.gw-panel.gw-parch {
+  border-image: var(--gw-parch) 8 fill / 16px / 0 stretch !important;
+  background: transparent !important;
+  color: #2a1a14;
+  text-shadow: none;
+}
+.gw-panel.gw-parch .text-muted { color: #6b4a34 !important; }
+.gw-panel.gw-parch h2 { color: #6e1f12 !important; text-shadow: none !important; }
+.gw-panel.gw-parch button { color: var(--gw-ink); }
+
+
+/* ---- headings and text ---- */
+.gw-panel h2, .gw-title h1, .gw-title h2, [data-padmodal] h2, .gw-title .font-display, .gw-panel .font-display {
+  font-family: "GW Blackletter", var(--font-display) !important;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+.gw-panel h2, [data-padmodal] h2 { color: var(--gw-flame); text-shadow: 0 0 6px rgba(224, 122, 47, 0.55), 0 2px 0 #000; font-size: 1.6rem; line-height: 1.1; }
+.gw-title h1 {
+  font-size: 4.25rem !important; line-height: 1 !important; color: var(--gw-ember) !important;
+  text-shadow: 0 0 10px rgba(247, 196, 92, 0.55), 0 0 28px rgba(224, 122, 47, 0.45), 0 4px 0 #2a0d06;
+  animation: gw-title-glow 2.8s ease-in-out infinite;
+}
+.gw-title h1::before, .gw-title h1::after {
+  content: ""; display: inline-block; width: 24px; height: 48px; margin: 0 18px; vertical-align: -4px; image-rendering: pixelated;
+  background: url("./art/candle.png") 0 0 / 48px 48px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(247, 196, 92, 0.9));
+  animation: gw-flicker3 0.6s steps(1) infinite;
+}
+.gw-title h1::after { animation-delay: -0.3s; }
+.gw-title {
+  font-family: "GW Pixel", var(--font-sans);
+  background: radial-gradient(60% 45% at 50% 18%, rgba(224, 122, 47, 0.14), transparent 70%),
+    radial-gradient(100% 60% at 50% 110%, rgba(60, 20, 60, 0.45), transparent 70%), #0e090c !important;
+}
+
+/* ---- buttons: iron-bound slate, lit when hovered, focused, picked or primary ---- */
+.gw-panel button, .gw-title button, [data-padmodal] button {
+  border: 8px solid transparent !important;
+  border-image: var(--gw-btn) 4 fill / 8px / 0 stretch !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--gw-ink) !important;
+  font-family: "GW Pixel", var(--font-sans);
+  padding: 2px 8px !important;
+  image-rendering: pixelated;
+  transition: transform 80ms ease-out, filter 80ms ease-out;
+}
+.gw-panel button:hover:not(:disabled), .gw-title button:hover:not(:disabled), [data-padmodal] button:hover:not(:disabled),
+.gw-panel button:focus-visible, .gw-title button:focus-visible, [data-padmodal] button:focus-visible,
+.gw-panel button[data-padfocus], .gw-title button[data-padfocus], [data-padmodal] button[data-padfocus],
+.gw-panel button.border-primary, .gw-title button[aria-pressed="true"] {
+  border-image-source: var(--gw-btn-hot) !important;
+  color: #fff3d6 !important;
+  filter: drop-shadow(0 0 5px rgba(247, 196, 92, 0.55));
+  outline: none !important;
+}
+.gw-panel button:active:not(:disabled), .gw-title button:active:not(:disabled), [data-padmodal] button:active:not(:disabled) { transform: translateY(1px); }
+.gw-panel button.bg-primary, .gw-title button.bg-primary, [data-padmodal] button.bg-primary {
+  border-image-source: var(--gw-btn-hot) !important;
+  color: #fff3d6 !important;
+  font-family: "GW Blackletter", var(--font-display);
+  font-size: 1.25rem;
+  text-shadow: 0 1px 0 #3a1408;
+}
+.gw-panel button.border-danger { filter: hue-rotate(-25deg) saturate(1.4); }
+.gw-panel button:disabled, .gw-title button:disabled { filter: grayscale(0.7) brightness(0.75); }
+/* the hero cards keep their class glow; only their frame turns to stone */
+.gw-title [data-testid="class-cards"] button { border-width: 10px !important; border-image: var(--gw-stone) 8 fill / 10px / 0 stretch !important; padding: 2px 4px !important; }
+.gw-title [data-testid="class-cards"] button[aria-pressed="true"] { border-image-source: var(--gw-stone) !important; }
+.gw-title [data-testid="class-cards"] button:hover { border-image-source: var(--gw-stone) !important; }
+.gw-title [data-testid="class-cards"] button:hover:not([aria-pressed="true"]) { opacity: 1; filter: drop-shadow(0 0 6px rgba(247, 196, 92, 0.45)); }
+.gw-title input:not([type="range"]), .gw-panel input:not([type="range"]), .gw-panel select, .gw-title select {
+  border-radius: 0 !important; border: 2px solid #0c080c !important; box-shadow: inset 0 0 0 2px #3a3040; background: #120c10 !important;
+  font-family: "GW Pixel", var(--font-sans); color: var(--gw-ink);
+}
+
+/* sliders: an iron rail with a lit pumpkin-orange knob */
+main input[type="range"] { -webkit-appearance: none; appearance: none; height: 8px; background: #120c10; border: 2px solid #0c080c; box-shadow: inset 0 0 0 1px #4a3340; accent-color: var(--gw-ember); }
+main input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 16px; background: var(--gw-ember); border: 2px solid #0c080c; box-shadow: inset -2px -2px 0 #8a3a12, inset 2px 2px 0 var(--gw-flame); }
+main input[type="range"]::-moz-range-thumb { width: 10px; height: 14px; border-radius: 0; background: var(--gw-ember); border: 2px solid #0c080c; }
+
+/* ---- HUD cards and log: small stone plates (the canvas is untouched) ---- */
+.gw-card, .gw-log {
+  border: 8px solid transparent !important;
+  border-image: var(--gw-stone) 8 fill / 8px / 0 stretch !important;
+  border-radius: 0 !important;
+  background: rgba(20, 14, 18, 0.6) !important;
+  background-clip: padding-box !important;
+  font-family: "GW Pixel", var(--font-sans);
+  image-rendering: pixelated;
+}
+.gw-card .gw-name { font-family: "GW Blackletter", var(--font-display); color: var(--gw-flame); font-size: 1.05rem; }
+
+/* ---- open / close tweens ---- */
+.gw-panel, [data-padmodal] > div, .gw-title .bg-surface { animation: gw-open 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both, gw-glow 3.2s ease-in-out 160ms infinite; }
+.gw-closing { animation: gw-close 130ms ease-in both !important; pointer-events: none !important; }
+@keyframes gw-open { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes gw-close { to { opacity: 0; transform: translateY(6px) scale(0.97); } }
+@keyframes gw-glow { 0%, 100% { box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45), 0 0 22px rgba(224, 122, 47, 0.10); } 50% { box-shadow: 0 6px 0 rgba(0, 0, 0, 0.45), 0 0 30px rgba(224, 122, 47, 0.2); } }
+@keyframes gw-title-glow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.12); } }
+@keyframes gw-flicker3 { 0%, 49% { background-position: 0 0; } 50%, 100% { background-position: -24px 0; } }
+@keyframes gw-flicker { 0%, 49% { background-position: 0 0; } 50%, 100% { background-position: -16px 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .gw-panel, [data-padmodal] > div, .gw-title .bg-surface, .gw-title h1, .gw-title h1::before, .gw-title h1::after, .gw-closing { animation: none !important; }
+}
+/* a sideways phone: thinner frames so nothing clips */
+@media (max-height: 500px) {
+  .gw-panel, [data-padmodal] > div, .gw-title .bg-surface { border-width: 10px !important; border-image-width: 10px !important; }
+  .gw-title h1 { font-size: 2.6rem !important; }
+  .gw-panel h2, [data-padmodal] h2 { font-size: 1.25rem; }
+}
