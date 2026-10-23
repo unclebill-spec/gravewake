@@ -82,3 +82,45 @@ test("badges: at least 20, each once, with a toast; silver, side areas and full-
   g.checkBadges();
   for (const id of ["bookall", "story", "allbosses", "hollowmourn"]) assert.ok(g.badges.includes(id), id);
 });
+
+test("New Game+: keeps level, gear, coin, bestiary and badges; foes scale up; NG+ mark saved", () => {
+  const g = fresh();
+  g.level = 12; g.coin = 500; g.noteKill({ family: "bat" }); g.checkBadges();
+  const eq = JSON.stringify(g.equip); const inv = g.inv.length;
+  g.endingSeen = true;
+  g.startNewGamePlus();
+  assert.equal(g.ngPlus, 1); assert.equal(g.level, 12); assert.equal(g.coin, 500);
+  assert.equal(JSON.stringify(g.equip), eq); assert.equal(g.inv.length, inv);
+  assert.deepEqual(g.book, ["bat:mob"]); assert.ok(g.badges.includes("ngplus"));
+  assert.equal(g.mode, "play"); assert.equal(g.hp, g.maxHp);
+  const rec = JSON.parse(JSON.stringify(g.saveRecord()));
+  assert.equal(rec.ngPlus, 1);
+  const h = new Game(); h.loadRecord(rec); assert.equal(h.ngPlus, 1);
+});
+
+test("New Game+ scaling: hp x1.5 and attack x1.25 per loop, capped at three loops", async () => {
+  const cOut = join(dir, "content.mjs");
+  execFileSync("npx", ["esbuild", "src/game/content.ts", "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${cOut}`]);
+  const C = await import(pathToFileURL(cOut).href);
+  assert.deepEqual(C.ngScale(0), { hp: 1, atk: 1 });
+  assert.deepEqual(C.ngScale(1), { hp: 1.5, atk: 1.25 });
+  assert.deepEqual(C.ngScale(9), C.ngScale(3));
+});
+
+test("end credits: the roll credits the creator, the fonts (OFL) and the tools; the last scene plays Hollowmourn's voice", async () => {
+  const src = (await import("node:fs")).readFileSync("src/game/credits.tsx", "utf8");
+  assert.match(src, /CREATOR = "Bill Weathersbee"/);
+  assert.match(src, /Jacquarda Bastarda 9[\s\S]*SIL Open Font License 1\.1/);
+  assert.match(src, /Pixelify Sans[\s\S]*SIL Open Font License 1\.1/);
+  assert.doesNotMatch(src, /device's own serif fonts/);
+  const g = fresh();
+  const said = [];
+  g.audio = { voice: (b, w) => (said.push(`${b}-${w}`), true), ui() {}, coin() {} };
+  g.ending = { scene: 0 };
+  g.mode = "ending";
+  const n = g.endingScenes().length;
+  for (let i = 0; i < n; i++) g.nextEnding();
+  assert.deepEqual(said.filter((s) => s.startsWith("hollowmourn")), ["hollowmourn-death"]);
+  g.nextEnding();
+  assert.equal(g.endingSeen, true);
+});

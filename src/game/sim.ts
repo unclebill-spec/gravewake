@@ -8505,6 +8505,8 @@ export class Game {
   nextEnding() {
     if (!this.ending) return;
     this.ending.scene += 1;
+    // batch7: the credits roll opens on Hollowmourn's last words (the finale music keeps playing under it)
+    if (this.ending.scene === this.endingScenes().length) this.audio?.voice("hollowmourn", "death");
     if (this.ending.scene > this.endingScenes().length) this.finishEnding();
   }
   finishEnding() {

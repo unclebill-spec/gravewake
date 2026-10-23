@@ -35,7 +35,24 @@ export const CREDITS_ART: readonly Credit[] = [
 
 /** Everything that is not a pack. */
 export const CREDITS_INHOUSE =
-  "Everything else you see is drawn in code by Gravewake's own pixel, sprite, spell and map writers. Music and sound are synthesized in code. Text uses your device's own serif fonts.";
+  "Everything else you see is drawn in code by Gravewake's own pixel, sprite, spell and map writers. Music and sound are synthesized in code. Text uses the two fonts below.";
+
+/** batch7: the game's maker (the end-credits roll opens with this). */
+export const CREATOR = "Bill Weathersbee";
+
+/** batch7: the menu fonts (both SIL Open Font License 1.1; texts in src/menus/art/OFL-*.txt). */
+export const CREDITS_FONTS: readonly { name: string; author: string; license: string; url: string }[] = [
+  { name: "Jacquarda Bastarda 9", author: "The Soft Type Project Authors", license: "SIL Open Font License 1.1", url: "https://github.com/scfried/soft-type-jacquarda-bastarda" },
+  { name: "Pixelify Sans", author: "The Pixelify Sans Project Authors", license: "SIL Open Font License 1.1", url: "https://github.com/eifetx/Pixelify-Sans" },
+];
+
+/** batch7: the tools the game is built with (not shipped in the bundle). */
+export const CREDITS_TOOLS: readonly { name: string; license: string }[] = [
+  { name: "TypeScript (Microsoft)", license: "Apache-2.0" },
+  { name: "Vite (VoidZero Inc. and Vite contributors)", license: "MIT" },
+  { name: "esbuild (Evan Wallace)", license: "MIT" },
+  { name: "Playwright (Microsoft)", license: "Apache-2.0" },
+];
 
 /** Packs used by earlier test builds; none of their files ship (removed in playtest1m, 2026-10-03). */
 export const CREDITS_EARLIER: readonly Omit<Credit, "files" | "what">[] = [
@@ -105,12 +122,30 @@ export function CreditsBody({ onClose }: { onClose?: () => void }) {
         </ul>
         <p className="text-muted">{CREDITS_INHOUSE}</p>
       </Block>
+      <Block title="Fonts">
+        <ul className="flex flex-col gap-1 text-muted" data-testid="credits-fonts">
+          {CREDITS_FONTS.map((f) => (
+            <li key={f.name}>
+              {f.name} by {f.author}. {f.license}. <span className="text-xs break-all">{f.url}</span>
+            </li>
+          ))}
+        </ul>
+      </Block>
       <Block title="brileta-sprites license">
         <pre data-testid="credits-mit" className="text-xs leading-snug whitespace-pre-wrap text-muted">{BRILETA_MIT}</pre>
       </Block>
       <Block title="Code">
         <ul className="flex flex-col gap-1 text-muted">
           {CREDITS_SOFTWARE.map((s) => (
+            <li key={s.name}>
+              {s.name}: {s.license} License.
+            </li>
+          ))}
+        </ul>
+      </Block>
+      <Block title="Built with">
+        <ul className="flex flex-col gap-1 text-muted">
+          {CREDITS_TOOLS.map((s) => (
             <li key={s.name}>
               {s.name}: {s.license} License.
             </li>
@@ -130,6 +165,24 @@ export function CreditsBody({ onClose }: { onClose?: () => void }) {
       <p data-testid="credits-privacy" className="text-muted">
         {PRIVACY_LINE}
       </p>
+    </div>
+  );
+}
+
+/** batch7: the end-credits roll after the epilogue: the maker first, then every credit, scrolling up on its own. */
+export function CreditsRoll() {
+  return (
+    <div data-testid="credits-roll" className="gw-roll relative h-56 overflow-hidden" aria-live="off">
+      <div className="gw-roll-track flex flex-col items-center gap-4 text-center">
+        <p className="font-display text-2xl text-primary">Gravewake</p>
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted">Created by</p>
+          <p data-testid="credits-creator" className="font-display text-xl">{CREATOR}</p>
+        </div>
+        <p className="text-sm">Thank you for keeping the vale company.</p>
+        <div className="text-left"><CreditsBody /></div>
+        <p className="font-display text-lg text-primary">The bells are quiet now.</p>
+      </div>
     </div>
   );
 }

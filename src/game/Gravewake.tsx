@@ -49,7 +49,7 @@ import {
 import { BJ, CARD, CARD_SHEET, bjValue, pokerRank, type Card } from "./casino"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]
 import { InstallButton } from "../pwa/InstallButton"; // install1
 import { BookPage, BadgesPage, BadgeToast } from "./BookPages"; // batch7: bestiary book + badges
-import { CreditsBody } from "./credits"; // playtest2b [OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs]: Credits and Licenses
+import { CreditsBody, CreditsRoll } from "./credits"; // playtest2b [OWNER-APPROVED 2026-10-17 01:38 ET: Play Store cleanup per Legal Bot recs]: Credits and Licenses
 import { PostFx, fxFrame } from "./postfx"; // playtest1l [OWNER-APPROVED EXCEPTION 2026-10-03 09:21 ET: optional bloom glow and scanlines]
 import { FxOptions } from "./FxOptions"; // playtest1l
 import { TAP } from "./tapfight"; // playtest1u [OWNER-APPROVED 2026-10-04 21:02 ET: playtest1u tap targeting]
@@ -86,6 +86,7 @@ export function Gravewake() {
   const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
   const pinchD = useRef<number | null>(null);
   const lookRef = useRef<View | null>(null);
+  const [ngAsk, setNgAsk] = useState(false); // batch7: the pause tab's New Game+ asks twice
   const [pauseTab, setPauseTab] = useState<"pack" | "book" | "badges" | "guide" | "pad" | "display" | "credits">("pack"); // playtest2b: + credits
   // screen1: display settings (saved), the frame in force, the loading cover, the sideways prompt, the pad layer.
   const mainRef = useRef<HTMLElement>(null);
@@ -1064,10 +1065,14 @@ export function Gravewake() {
               }}
             >
               <div className="gw-info flex items-start gap-2">
+              <div className="relative shrink-0">
               <HudPortrait role={game.cls} />
+              {/* batch7: the New Game+ mark rides the portrait (the name line truncates) */}
+              {game.ngPlus > 0 ? <span data-testid="ngplus-mark" className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded border border-primary bg-bg px-0.5 font-sans text-[0.5rem] leading-tight whitespace-nowrap text-primary">NG+{game.ngPlus > 1 ? game.ngPlus : ""}</span> : null}
+              </div>
               <div className="min-w-0 flex-1">
               <div className="gw-name truncate font-display text-sm text-fg" data-testid="hud-name">
-                {game.name} <span className="font-sans text-[0.625rem] text-muted">Lv {game.level}</span>{game.ngPlus > 0 ? <span data-testid="ngplus-mark" className="ml-1 rounded border border-primary px-0.5 font-sans text-[0.55rem] text-primary">NG+{game.ngPlus > 1 ? game.ngPlus : ""}</span> : null}
+                {game.name} <span className="font-sans text-[0.625rem] text-muted">Lv {game.level}</span>
               </div>
               <div className="mt-0.5 h-1.5 w-full bg-bg" data-testid="hud-hp">
                 <div
@@ -1606,15 +1611,18 @@ export function Gravewake() {
                   <p className="text-xs text-muted">{game.ending.scene + 1} / {game.endingScenes().length}</p>
                 </>
               ) : (
-                <>
-                  <h2 className="font-display text-xl">Gravewake</h2>
-                  <p className="text-sm">Thank you for keeping the vale company.</p>
-                  <CreditsBody />
-                </>
+                <CreditsRoll />
               )}
-              <button type="button" data-padback className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.nextEnding(); bump(); }}>
-                {game.ending.scene < game.endingScenes().length ? "Continue" : "Return to the vale"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" data-padback className="rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.nextEnding(); bump(); }}>
+                  {game.ending.scene < game.endingScenes().length ? "Continue" : "Return to the vale"}
+                </button>
+                {game.ending.scene >= game.endingScenes().length ? (
+                  <button type="button" data-testid="ngplus-start" className="rounded border border-primary px-3 py-2" onClick={() => { game.finishEnding(); game.startNewGamePlus(); bump(); }}>
+                    New Game+ {game.ngPlus + 1}
+                  </button>
+                ) : null}
+              </div>
             </Panel>
           ) : null}
 
@@ -1770,7 +1778,14 @@ export function Gravewake() {
               {pauseTab === "book" ? (
                 <BookPage book={game.book} />
               ) : pauseTab === "badges" ? (
-                <BadgesPage badges={game.badges} />
+                <>
+                  <BadgesPage badges={game.badges} />
+                  {game.endingSeen ? (
+                    <button type="button" data-testid="ngplus-pause" className="rounded border border-primary px-3 py-2 text-sm" onClick={() => { if (ngAsk) { setNgAsk(false); game.startNewGamePlus(); bump(); } else setNgAsk(true); }}>
+                      {ngAsk ? "Sure? Keep level, gear, bestiary and badges; the vale starts over, harder. Press again" : `Begin New Game+ ${game.ngPlus + 1} (foes hit harder)`}
+                    </button>
+                  ) : null}
+                </>
               ) : pauseTab === "credits" ? (
                 <CreditsBody /> /* playtest2b: Credits and Licenses in the pause menu */
               ) : pauseTab === "display" ? (

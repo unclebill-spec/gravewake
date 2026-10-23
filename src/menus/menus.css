@@ -160,3 +160,10 @@ main input[type="range"]::-moz-range-thumb { width: 10px; height: 14px; border-r
 }
 /* checkboxes (Mute voices and friends) in the ember accent */
 main input[type="checkbox"] { accent-color: var(--gw-ember); width: 14px; height: 14px; }
+
+/* batch7: the end-credits roll (scrolls up on its own; reduced motion makes it a plain scroll box) */
+.gw-roll { mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent); }
+.gw-roll-track { animation: gw-roll 70s linear forwards; padding-top: 6rem; }
+
+@keyframes gw-roll { from { transform: translateY(0); } to { transform: translateY(-100%); } }
+@media (prefers-reduced-motion: reduce) { .gw-roll { overflow-y: auto; } .gw-roll-track { animation: none; padding-top: 0; } }
