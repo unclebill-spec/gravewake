@@ -140,3 +140,49 @@ test("pad and touch: every menu mode takes the pad (the ending too), badges are 
   while (q.length) { const a = q.shift(); for (const d of ["up", "down", "left", "right"]) { const n = S.navPick(rs, a, d); if (n >= 0 && !seen.has(n)) { seen.add(n); q.push(n); } } }
   assert.equal(seen.size, rs.length);
 });
+
+test("save export/import: a round trip into a slot, and bad files are turned away before they touch a slot", () => {
+  store.clear();
+  const g = fresh();
+  g.level = 7; g.coin = 321; g.noteKill({ family: "ghoul" }); g.ngPlus = 2;
+  const out = g.exportSave();
+  assert.match(out.name, /^gravewake-a-lv7\.json$/);
+  const wrap = JSON.parse(out.text);
+  assert.equal(wrap.format, "gravewake-save");
+  assert.equal(wrap.version, 1);
+  assert.equal(g.exportSave(1), null, "an empty slot exports nothing");
+  const h = fresh();
+  assert.equal(h.importSave(out.text, 1), null);
+  assert.ok(h.hasSave(1));
+  h.loadSlot(1);
+  assert.equal(h.level, 7); assert.equal(h.coin, 321); assert.equal(h.ngPlus, 2); assert.deepEqual(h.book, ["ghoul:mob"]);
+  assert.equal(JSON.parse(h.exportSave(1).text).save.coin, 321);
+  const bad = (mut) => { const w = JSON.parse(out.text); mut(w); return JSON.stringify(w); };
+  const cases = {
+    "not json": "{nope",
+    empty: "",
+    "wrong format": bad((w) => { w.format = "other"; }),
+    newer: bad((w) => { w.version = 99; }),
+    "bad class": bad((w) => { w.save.cls = "dragon"; }),
+    "bad path": bad((w) => { w.save.path = "luck"; }),
+    "negative coin": bad((w) => { w.save.coin = -5; }),
+    "level zero": bad((w) => { w.save.level = 0; }),
+    "inv not list": bad((w) => { w.save.inv = "x"; }),
+    "book not strings": bad((w) => { w.save.book = [1, 2]; }),
+    "bare array": "[]",
+    huge: " ".repeat(2_000_001),
+  };
+  for (const [name, text] of Object.entries(cases)) {
+    const k = fresh();
+    const err = k.importSave(text, 2);
+    assert.ok(typeof err === "string" && err.length > 0, name);
+    assert.equal(k.hasSave(2), false, `${name} must not write the slot`);
+  }
+  assert.ok(fresh().importSave(out.text, 3), "slot out of range");
+});
+
+test("save export/import: the pause menu and the title's slots both carry the buttons", async () => {
+  const src = (await import("node:fs")).readFileSync("src/game/Gravewake.tsx", "utf8");
+  assert.match(src, /<SaveIo game=\{game\} msg=\{ioMsg\} setMsg=\{setIoMsg\} after=\{bump\} \/>/);
+  assert.match(src, /<SaveIo game=\{game\} msg=\{ioMsg\} setMsg=\{setIoMsg\} after=\{bump\} current \/>/);
+});

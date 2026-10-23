@@ -1,4 +1,5 @@
 import { BOSS_PLANS, planPhase, planMove } from "./bossvariety";
+import { backupName, backupText, parseBackup } from "./backup"; // batch7 item 5
 import { bookKeys, newBadges, type BookFoe } from "./book"; // batch7
 import { WAKE_MINI_AT, wakeMiniFloor, WAKE_PHASES, wakeBig, WAKE_LAST, epilogue, SEXTON_SPADE, BELL_SHARD, carveWakeHall, HALL as WAKE_HALL, GRAVES, BRAZIERS, TOLL, PROC, ORBS, wakeIntro } from "./wake";
 import { EARLY, EARLY_LINES, PRIZES, RIFT_TIERS, RIFT_WARD_MS, TITLES, trophyPrice } from "./sinks";
@@ -10781,6 +10782,33 @@ export class Game {
 
   hasSave(slot: number) {
     return !!this.readSaves()[slot];
+  }
+
+  /** batch7 item 5: this game, or a slot (0-2), as a backup file's name and text; null when the slot is empty. */
+  exportSave(slot?: number): { name: string; text: string } | null {
+    const rec = slot === undefined ? this.saveRecord() : this.readSaves()[slot];
+    if (!rec) return null;
+    return { name: backupName(rec.name, rec.level), text: backupText(rec) };
+  }
+
+  /** batch7 item 5: check a backup file, trial-load it in a scratch game, then write it into a slot. Returns an error or null. */
+  importSave(text: string, slot: number): string | null {
+    if (!Number.isInteger(slot) || slot < 0 || slot > 2) return "Pick a slot from 1 to 3.";
+    const r = parseBackup(text);
+    if (!r.ok) return r.error;
+    const rec = r.save as unknown as SaveBlob;
+    try {
+      const probe = new Game();
+      probe.loadRecord(JSON.parse(JSON.stringify(rec)) as SaveBlob);
+      if (!probe.name || !Number.isFinite(probe.level)) return "That save would not load.";
+    } catch {
+      return "That save would not load.";
+    }
+    const all = this.readSaves();
+    all[slot] = rec;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(all));
+    this.logLine = `Imported ${rec.name} into slot ${slot + 1}.`;
+    return null;
   }
 }
 

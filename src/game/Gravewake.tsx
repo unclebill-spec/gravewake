@@ -86,6 +86,7 @@ export function Gravewake() {
   const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
   const pinchD = useRef<number | null>(null);
   const lookRef = useRef<View | null>(null);
+  const [ioMsg, setIoMsg] = useState(""); // batch7 item 5: the last export/import result
   const [ngAsk, setNgAsk] = useState(false); // batch7: the pause tab's New Game+ asks twice
   const [pauseTab, setPauseTab] = useState<"pack" | "book" | "badges" | "guide" | "pad" | "display" | "credits">("pack"); // playtest2b: + credits
   // screen1: display settings (saved), the frame in force, the loading cover, the sideways prompt, the pad layer.
@@ -1026,6 +1027,7 @@ export function Gravewake() {
                 <span className="text-muted">{game?.saveBrief(slot) ?? "Empty"}</span>
               </button>
             ))}
+            {game ? <SaveIo game={game} msg={ioMsg} setMsg={setIoMsg} after={bump} /> : null}
           </div>
           </div>
         </section>
@@ -1939,6 +1941,7 @@ export function Gravewake() {
                   </button>
                 ))}
               </div>
+              <SaveIo game={game} msg={ioMsg} setMsg={setIoMsg} after={bump} current />
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={!game.canCamp()} className="rounded border border-border px-3 py-2 text-sm disabled:opacity-40" onClick={() => { game.camp(); bump(); }}>
                   Pitch camp
@@ -2535,6 +2538,74 @@ function KeyHint() {
   return (
     <div data-testid="key-hint" className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded border border-border bg-surface/85 px-3 py-1 text-[0.6875rem] text-fg">
       {KEY_HINT}
+    </div>
+  );
+}
+
+/** batch7 item 5: hand a backup to the browser as a .json download. */
+function downloadText(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** batch7 item 5: ask for one .json file and read it as text (null when the player backs out). */
+function pickText(): Promise<string | null> {
+  return new Promise((done) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+    input.dataset.testid = "save-import-file";
+    input.style.display = "none";
+    input.onchange = () => {
+      const f = input.files?.[0];
+      input.remove();
+      if (!f) return done(null);
+      if (f.size > 2_000_000) return done("");
+      f.text().then(done, () => done(""));
+    };
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+/** batch7 item 5: export and import buttons, under the title's slots (per slot) and in the pause menu (this game). */
+function SaveIo({ game, msg, setMsg, after, current }: { game: Game; msg: string; setMsg: (m: string) => void; after: () => void; current?: boolean }) {
+  const doImport = async (slot: number) => {
+    const text = await pickText();
+    if (text === null) return;
+    const err = game.importSave(text, slot);
+    setMsg(err ? `Import failed: ${err}` : `Imported into slot ${slot + 1}.`);
+    after();
+  };
+  const doExport = (slot?: number) => {
+    const out = game.exportSave(slot);
+    if (!out) return setMsg("That slot is empty.");
+    downloadText(out.name, out.text);
+    setMsg(`Exported ${out.name}.`);
+  };
+  return (
+    <div data-testid={current ? "save-io-pause" : "save-io-title"} className="col-span-3 flex flex-col gap-1 text-xs">
+      <div className="flex flex-wrap gap-1">
+        {current ? (
+          <button type="button" data-testid="save-export" className="rounded border border-border px-2 py-1" onClick={() => doExport()}>Export this game</button>
+        ) : (
+          [0, 1, 2].map((s) => (
+            <button key={s} type="button" data-testid={`save-export-${s}`} disabled={!game.hasSave(s)} className="rounded border border-border px-2 py-1 disabled:opacity-40" onClick={() => doExport(s)}>Export {s + 1}</button>
+          ))
+        )}
+        {[0, 1, 2].map((s) => (
+          <button key={s} type="button" data-testid={`save-import-${s}`} className="rounded border border-border px-2 py-1" onClick={() => void doImport(s)}>
+            Import to {s + 1}{game.hasSave(s) ? " (replaces)" : ""}
+          </button>
+        ))}
+      </div>
+      {msg ? <p data-testid="save-io-msg" className="text-muted" role="status">{msg}</p> : null}
     </div>
   );
 }
