@@ -1,0 +1,26 @@
+# 2026-10-23: reviewed false positives (BIND_KEY constant in sim.ts + frozen file-hash maps). Exact fingerprints only.
+1656bf00167621e8ecf5480109d2422d7db4afc4:scripts/frozen/playtest1j/sim.ts.txt:generic-api-key:302
+1ce62772967436af2d02e70cbe4b6596f9b7eb99:scripts/frozen/playtest1n/sim.ts.txt:generic-api-key:316
+27f205f2c111de69fc49a70942218c9339f5f571:scripts/frozen/wake/files/src/game/sim.ts:generic-api-key:346
+3ac8436dedb813974e4161dc582c0adceb50734c:scripts/frozen/playtest1x/sim.ts.txt:generic-api-key:334
+4912b5bbdf62de970843da780a4c9a606191d07c:scripts/frozen/playtest1/sim.ts.txt:generic-api-key:296
+4b118d2bb0eaedc64cf3eec98667b2f8c1574b2e:scripts/frozen/playtest1u/sim.ts.txt:generic-api-key:328
+51da2e12033400c1117fdecfb0f1207c35987f84:scripts/frozen/playtest1y/sim.ts.txt:generic-api-key:342
+598f9edfa1f6a2b419ea5c52b489ea55fdd05c75:scripts/gravewake-check.mjs:generic-api-key:251
+796769a56789429a01829aac097430c46c2e575f:scripts/frozen/playtest1d/sim.ts.txt:generic-api-key:296
+7ad8117786ab514aa74dca04d2e9ed17ebbab52f:scripts/frozen/playtest1v/sim.ts.txt:generic-api-key:330
+83c0e708ebd18ec14c469a23d51f9042b78022f8:scripts/frozen/playtest1r/sim.ts.txt:generic-api-key:327
+9d87b3fe9e74226d2aa282a14b83f9699b2e5fec:scripts/frozen/playtest1o/sim.ts.txt:generic-api-key:325
+9e5a51d2bad57343615d262d77a093e9d9228db9:src/game/sim.ts:generic-api-key:294
+c1d4feb64549e745da7505493978b23b5acb3380:scripts/frozen/playtest1c/sim.ts.txt:generic-api-key:296
+c2b2d403b4657f8c72d44131894440f8b0676f93:scripts/frozen/playtest1p/sim.ts.txt:generic-api-key:326
+c53a082a0055747c285ef256bacd680ecea02dae:scripts/frozen/playtest1s/sim.ts.txt:generic-api-key:327
+c929f3ebc2168a1d7250fe5a21cc1353e48abfd5:scripts/frozen/playtest1b/sim.ts.txt:generic-api-key:296
+df00d6e23faf1b5255eda4782ff1c79f56088615:scripts/frozen/playtest1k/sim.ts.txt:generic-api-key:309
+dff8ec66fee582c7d75423a39a180adb300ffed6:scripts/frozen/playtest1f/sim.ts.txt:generic-api-key:301
+e47342cfd8fd78b9b8fbff9baff144fd5b4e19f9:scripts/frozen/playtest1m/sim.ts.txt:generic-api-key:316
+e47342cfd8fd78b9b8fbff9baff144fd5b4e19f9:scripts/gravewake-check.mjs:generic-api-key:10191
+e47ea97c116993073931edc4ad2d11b8447ef8e5:scripts/frozen/earlysinks/sim.ts.txt:generic-api-key:346
+e882ea964d8ba88fb32b99b6729ef30c40b09baa:scripts/frozen/playtest1w/sim.ts.txt:generic-api-key:333
+ede6e2a78e0d3d844d676f682d643d566cc9db86:scripts/frozen/playtest1z/sim.ts.txt:generic-api-key:346
+ee433e3addf8a3f81e2d22bfbabcb39d6fb3a63f:scripts/frozen/playtest1e/sim.ts.txt:generic-api-key:296
