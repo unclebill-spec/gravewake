@@ -2,6 +2,12 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## mb-final-pass (2026-10-25)
+- New wow2 effects: lightning crit bolts, a gold relight burst when a boss falls, ghost and ash dissolves, falling stars at night, and wisps in the cemetery. Their sounds are new too.
+- New voice lines for Hollowmourn, Old Mulch, and barks for Mara, Bram, Pell and Ivy. New music loops for the Hollowmourn fight, dungeons and the town at night.
+- A new Android launcher icon (the skull-lantern) and splash screen.
+- Story text for new items and side quests is in docs/story (text only).
+
 ## oskart (2026-10-22)
 - Art's outskirts polish is in. The new outskirts-props, -candle, -wisp, -tree and -raven sheets (and their _em masks) replace the old ones. The tree's perch bough now sits right under the raven's feet.
 - The Smithy's forge fire and the street-lamp flames now come from the art sheets (forge-flame.png, lamp-flame.png, with their _em masks on the glow pass). They replace the code-drawn flames.

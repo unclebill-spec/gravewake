@@ -19,6 +19,23 @@ export type BedName = keyof typeof BEDS | "";
 /** new-resources [OWNER-APPROVED 2026-10-23 Bill]: boss voice lines (Kokoro, public/art/audio/voice/<boss>-<intro|death>.ogg). */
 export const VOICE_BOSSES = ["hollowmourn", "bellringer", "mulch", "dracula", "krampus", "pumpkinlord", "frank", "warlock", "wrapped", "lich", "lanternking", "haysaint", "horseman", "witchboss", "rootwidow", "priest", "abbot"];
 /** The voice key for a boss roamer (def id), or "" when it has no lines. Hollowmourn's remnant speaks as the Bellringer. */
+/** MB final pass (Sound-approved ship set, staging/gpu-pilot/SOUND_REVIEW.md): one table from a voice key (<who>-<when>) to its
+ * file under VOICE_DIR. A key not listed falls back to <who>-<when>.ogg. Swapping a take (e.g. the ElevenLabs alternates for
+ * Hollowmourn's three lines) is a one-line change here. */
+export const VOICE_LINES: Record<string, string> = {
+  "hollowmourn-intro": "ship/hollowmourn_hush.ogg", // "Hush. You'll wake them." (arena intro)
+  "hollowmourn-toll": "ship/hollowmourn_toll.ogg", // "Hear it toll. Rise, and mourn." (The Toll)
+  "hollowmourn-lasttoll": "ship/hollowmourn_last_toll.ogg", // "One last toll... and the vale sleeps with me."
+  "mulch-intro": "ship/old_mulch_aggro.ogg", // "Ooh, fresh boots in my patch..."
+  "mara-bark": "ship/mara_bark.ogg",
+  "bram-bark": "ship/bram_bark.ogg",
+  "pell-bark": "ship/pell_bark.ogg",
+  "ivy-bark": "ship/ivy_bark.ogg",
+};
+export const BARK_NPCS = ["mara", "bram", "pell", "ivy"];
+export function voiceUrl(who: string, when: string): string {
+  return `${VOICE_DIR}${VOICE_LINES[`${who}-${when}`] ?? `${who}-${when}.ogg`}`;
+}
 export function voiceFor(def: string, opts: { final?: boolean; early?: boolean } = {}): string {
   if (opts.early) return "mulch";
   if (def === "hollowmourn") return opts.final ? "hollowmourn" : "bellringer";
@@ -36,7 +53,16 @@ export const WOW_SFX = {
   "hit-spark": { vol: 0.6, pitch: 0.04, cap: 3, cool: 40 },
   "wayrift-swirl": { vol: 0.9, pitch: 0.02, cap: 1, cool: 0 },
   "wisp-twinkle": { vol: 0.6, pitch: 0, cap: 1, cool: 0 },
+  // MB final pass: Sound's wow2 cues (public/art/audio/wow2, README volumes)
+  "whoosh-relight": { vol: 0.7, pitch: 0, cap: 1, cool: 0 },
+  "dissolve-ghost": { vol: 0.8, pitch: 0.03, cap: 2, cool: 120 },
+  "dissolve-ash-soft": { vol: 0.6, pitch: 0.03, cap: 2, cool: 120 },
+  "dissolve-wisp-rise": { vol: 0.5, pitch: 0.02, cap: 1, cool: 2000 },
 } as const;
+/** wow2 cues live in their own folder. */
+export const WOW2_SFX = ["whoosh-relight", "dissolve-ghost", "dissolve-ash-soft", "dissolve-wisp-rise"];
+const WOW2_DIR = "/art/audio/wow2/";
+const wowUrl = (f: string) => `${WOW2_SFX.includes(f) ? WOW2_DIR : WOW_DIR}${f}.ogg`;
 export type WowSfx = Exclude<keyof typeof WOW_SFX, "wisp-twinkle">;
 export const WOW_TRIM = 0.5;
 export const DUNGEON_MUSIC = ["harrow", "ossuary", "wraps", "carrion", "wick", "warren", "chapel", "vesper", "drowned", "blackroot", "cave", "grave", "hearth", "wake"];
@@ -45,14 +71,15 @@ export const ROOM_MUSIC = ["alchemy", "bank", "casino", "chapel", "cottage", "cr
 export function musicFor(key: string): string {
   if (key === "finale") return "music-finale";
   if (key.startsWith("battle:boss-final")) return "music-boss-final";
+  if (key === "battle:boss-bellringer") return "gw-hollowmourn-boss-loop"; // MB final pass: Hollowmourn's remnant (Sound ship loop)
   if (key === "battle:boss") return "music-boss-ace"; // new-resources: ACE-Step boss loop (any boss but Hollowmourn)
   if (key.startsWith("battle")) return "music-battle";
   const [map, a, b] = key.split(":");
-  if (map === "dungeon") return a === "rift" ? "dungeon-rift" : `dungeon-${DUNGEON_MUSIC.includes(a) ? a : "cave"}`; // oskaudio: the Ashen Rift's own loop
+  if (map === "dungeon") return a === "rift" ? "dungeon-rift" : DUNGEON_MUSIC.includes(a) && a !== "cave" ? `dungeon-${a}` : "gw-dungeon-loop"; // oskaudio: the Ashen Rift's own loop
   if (map === "inside") return a === "room" ? `room-${ROOM_MUSIC.includes(b) ? b : "cottage"}` : "room-cottage";
   if (map === "camp") return "music-camp";
   const night = key.endsWith(":night");
-  if (map === "town") return night ? "music-night-ace" : "music-town-day-ace"; // new-resources: ACE-Step town loops
+  if (map === "town") return night ? "gw-town-night-loop" : "music-town-day-ace"; // MB final pass: Sound's seamless town-night loop; new-resources: ACE-Step town loops
   if (map === "world" || map === "village") return night ? "music-night" : "music-world-day";
   return night ? "music-night" : "music-town-day";
 }
@@ -185,9 +212,10 @@ export class AudioBus {
     // decode once: the current mood's file first, then the one-shots
     if (this.moodKey) this.mood(this.moodKey, true);
     for (const f of Object.values(SFX_FILE)) void this.load(`${SFX_DIR}${f}.ogg`);
-    for (const b of VOICE_BOSSES) for (const k of ["intro", "death"]) void this.load(`${VOICE_DIR}${b}-${k}.ogg`); // new-resources
+    for (const b of VOICE_BOSSES) for (const k of ["intro", "death"]) void this.load(voiceUrl(b, k)); // new-resources
+    for (const k of Object.keys(VOICE_LINES)) { const i = k.lastIndexOf("-"); void this.load(voiceUrl(k.slice(0, i), k.slice(i + 1))); } // MB final pass
     for (const f of ["raven-caw-1", "raven-caw-2", "raven-caw-3", "wing-flap", "choir-swell"]) void this.load(`${AMB_DIR}${f}.ogg`); // oskaudio
-    for (const f of ["loot-common", "loot-rare", "loot-epic", "levelup", "coin-glint", "trophy-shimmer", "boss-relight", "hit-spark-1", "hit-spark-2", "hit-spark-3", "wayrift-swirl"]) void this.load(`${WOW_DIR}${f}.ogg`); // wow
+    for (const f of ["loot-common", "loot-rare", "loot-epic", "levelup", "coin-glint", "trophy-shimmer", "boss-relight", "hit-spark-1", "hit-spark-2", "hit-spark-3", "wayrift-swirl", ...WOW2_SFX]) void this.load(wowUrl(f)); // wow (+ wow2)
   }
 
   /** Fetch and decode a file once; later calls return the cached buffer (or null while loading or after a failure). */
@@ -421,10 +449,10 @@ export class AudioBus {
   }
 
   /** new-resources: a boss line (intro or death). One line at a time; the music dips under it. Silent while not decoded. */
-  voice(boss: string, when: "intro" | "death"): boolean {
+  voice(boss: string, when: "intro" | "death" | "toll" | "lasttoll" | "bark"): boolean {
     const ctx = this.ctx;
     if (!boss || !ctx || ctx.state !== "running" || this.voiceMute || this.voiceVol <= 0 || !this.comp) return false;
-    const buf = this.load(`${VOICE_DIR}${boss}-${when}.ogg`);
+    const buf = this.load(voiceUrl(boss, when));
     if (!buf) return false;
     if (this.voiceSrc) { try { this.voiceSrc.stop(); } catch { /* already done */ } }
     const src = ctx.createBufferSource();
@@ -576,7 +604,7 @@ export class AudioBus {
     if (st.n >= spec.cap || now - st.at < spec.cool) return;
     let file: string = kind;
     if (kind === "hit-spark") { let k = Math.floor(Math.random() * 3); if (k === st.last) k = (k + 1) % 3; st.last = k; file = `hit-spark-${k + 1}`; }
-    const buf = this.load(`${WOW_DIR}${file}.ogg`);
+    const buf = this.load(wowUrl(file));
     if (!buf) return;
     const src = ctx.createBufferSource();
     src.buffer = buf;

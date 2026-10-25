@@ -91,7 +91,7 @@ import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival,
 import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, WILD_CLEAR_REWARD, isWildMap, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest, type WildLayout, type WildStage } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
-import { AMB, type AmbState, type AudioBus, type BedName, voiceFor } from "./audio";
+import { AMB, type AmbState, type AudioBus, type BedName, voiceFor, BARK_NPCS } from "./audio";
 import * as OSK from "./outskirts";
 import { ParticlePool, paletteIndex } from "./particles";
 import { PHASE, TELL, bigPattern, markRadius, tellFor } from "./telegraph"; // playtest1j [OWNER-APPROVED 2026-10-03: telegraphed attacks]
@@ -674,6 +674,8 @@ export class Game {
   logLine = "";
   combatLog = true;
   talk: { who: string; text: string; role: string; npcId: string } | null = null;
+  /** MB final pass: the talk the last bark played for (visual/audio only, not saved). */
+  private barkTalk: { npcId: string } | null = null;
   shopRole = "";
   stock: Item[] = [];
   battle: Battle | null = null;
@@ -4124,7 +4126,7 @@ export class Game {
   private syncMood() {
     const fighting = this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0);
     // Wake batch: a dungeon's key carries its theme (dungeon:<theme>:<phase>), so its own loop plays (audio.ts musicFor).
-    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting && this.roamers.some((r) => r.boss && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${RIFTS.some((r) => r.id === this.dungeon) ? "rift" : this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
+    const key = this.mode === "ending" ? "finale" : fighting && this.roamers.some((r) => r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-final" : fighting && this.roamers.some((r) => r.boss && r.def === "hollowmourn" && !r.final && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss-bellringer" : fighting && this.roamers.some((r) => r.boss && r.aggro && (r.hp ?? 0) > 0) ? "battle:boss" : fighting ? "battle" : this.mode === "battle" ? "battle" : this.mapId === "inside" ? `inside:${this.theme}:${this.phase}` : this.mapId === "dungeon" ? `dungeon:${RIFTS.some((r) => r.id === this.dungeon) ? "rift" : this.theme}:${this.phase}` : `${this.mapId}:${this.phase}`;
     // Wake batch: the early-boss sting, once per save, on the first boss or mini that turns on you (saved stingSeen).
     if (fighting && !this.stingSeen && this.roamers.some((r) => r.aggro && (r.hp ?? 0) > 0 && (r.boss || r.mini) && !r.final)) {
       this.stingSeen = true;
@@ -4134,6 +4136,11 @@ export class Game {
     for (const r of this.roamers) if (r.aggro && (r.boss || r.final) && r.def && (r.hp ?? 0) > 0 && !this.voiced.has(r)) {
       this.voiced.add(r);
       this.audio?.voice(voiceFor(r.def, { final: r.final }), "intro");
+    }
+    // MB final pass: the four townsfolk barks (audio.ts VOICE_LINES), once each time a talk with them opens
+    if (this.talk !== this.barkTalk) {
+      this.barkTalk = this.talk;
+      if (this.talk && BARK_NPCS.includes(this.talk.npcId)) this.audio?.voice(this.talk.npcId, "bark");
     }
     this.audio?.setHush(this.roamers.some((r) => r.final && r.casting === "big" && r.bigTag === "dark" && (r.tell ?? 0) > 0));
     if (key === this.mood) return;
@@ -8198,6 +8205,7 @@ export class Game {
       r.casting = "big";
       r.big = "the Last Toll";
       r.pattern = "lasttoll";
+      this.audio?.voice("hollowmourn", "lasttoll"); // MB final pass
       r.markX = r.x;
       r.markY = r.y;
       r.markR = 400;
@@ -8242,6 +8250,7 @@ export class Game {
     r.markX = r.x;
     r.markY = r.y;
     if (m.tag === "ring") {
+      this.audio?.voice("hollowmourn", "toll"); // MB final pass
       // The Toll: three rings round his body (BODY+24, +72, +120), landing one after another
       r.pattern = "toll";
       r.markR = bodyR(r) + TOLL.gaps[2] + TOLL.half;

@@ -14,6 +14,7 @@ import { T } from "./content";
 import { WAYRIFTS, WAYRIFT, wayAwake } from "./wayrifts";
 
 export const WOW_DIR = "/art/wow";
+export const WOW2_DIR = "/art/wow2";
 /** Art's sheets: [url, cell w, cell h, frames]. */
 export const WOW_SHEETS = {
   flash: [`${WOW_DIR}/flash_64.png`, 64, 64, 8],
@@ -29,6 +30,14 @@ export const WOW_SHEETS = {
   exhaust: [`${WOW_DIR}/exhaust_16.png`, 16, 16, 6],
   orbit: [`${WOW_DIR}/wayrift_orbit_48x64.png`, 48, 64, 8],
   orbit2: [`${WOW_DIR}/wayrift2_orbit_24x32.png`, 24, 32, 8],
+  // MB final pass: Art's wow2 pack (public/art/wow2, README rows blue, cyan, violet, magenta, red, green; relight row 6 gold)
+  bolt: [`${WOW2_DIR}/bolt_16x64.png`, 16, 64, 8],
+  scorch: [`${WOW2_DIR}/scorch_sparks_16.png`, 16, 16, 6],
+  wraith: [`${WOW2_DIR}/wraith_dissolve_16x32.png`, 16, 32, 8],
+  ash: [`${WOW2_DIR}/ash_fireflies_16.png`, 16, 16, 8],
+  relit: [`${WOW2_DIR}/relight_burst_32.png`, 32, 32, 8],
+  star: [`${WOW2_DIR}/falling_star_32.png`, 32, 32, 6],
+  gwisp: [`${WOW2_DIR}/grave_wisp_16x32.png`, 16, 32, 6],
 } as const;
 export type WowSheet = keyof typeof WOW_SHEETS;
 export const HUE = { blue: 0, cyan: 1, violet: 2, magenta: 3, red: 4, green: 5, gold: 6, silver: 7 } as const;
@@ -148,6 +157,7 @@ function ring(x: number, y: number, n: number, speed: number, hue: number, life:
 }
 export function fxHit(x: number, y: number, hue: number, crit: boolean) {
   ring(x, y, crit ? 14 : 7, crit ? 70 : 50, hue, 0.35, 10, 120);
+  if (crit && hue === HUE.blue) { sprite("bolt", HUE.blue, x, y - 24, 4); sprite("scorch", HUE.blue, x, y + 8, 4); } // wow2: a lightning crit strikes
   if (crit) {
     sprite("burst32", HUE.red, x, y, 3);
     // ember trail: a slow rising stream that cools from white to ember red
@@ -171,6 +181,7 @@ export function fxBoss(x: number, y: number, mulch: boolean) {
   ring(x, y - 16, mulch ? 40 : 20, 60, mulch ? HUE.magenta : HUE.gold, 1.1, 30, 60);
   const cols = mulch ? 6 : 4;
   for (let c = 0; c < cols; c++) sprite("shower", c % 2 ? HUE.magenta : HUE.red, x - (cols * 8) + c * 16 + 8, y - 56, 4, { loop: 1.5 });
+  sprite("relit", 6, x, y - 10, 4); // wow2: the gold relight burst
   relight.push({ x, y: y - 10, t: mulch ? WOW.relightMulch : WOW.relight, max: mulch ? WOW.relightMulch : WOW.relight, big: mulch });
 }
 export function fxLoot(x: number, y: number, rank: number | null) {
@@ -205,10 +216,10 @@ export const pillars: { x: number; y: number; t: number; hue: number }[] = [];
 type Seen = { hp: number; boss: boolean; mulch: boolean; x: number; y: number };
 const seenFoe = new WeakMap<object, Seen>();
 const seenDrop = new WeakSet<object>();
-const watch = { game: null as Game | null, level: 0, coin: 0, travel: false, map: "", lastT: 0, trophyT: 3, carT: 0, twinkleOn: false };
+const watch = { game: null as Game | null, level: 0, coin: 0, travel: false, map: "", lastT: 0, trophyT: 3, carT: 0, starT: 5, twinkleOn: false };
 
 /** Sound hooks: the bus's wow() (null-safe; the check harness has no audio). */
-type WowBus = { wow?: (k: "loot-common" | "loot-rare" | "loot-epic" | "levelup" | "coin-glint" | "trophy-shimmer" | "boss-relight" | "hit-spark" | "wayrift-swirl") => void; wowLoop?: (on: boolean) => void };
+type WowBus = { wow?: (k: "loot-common" | "loot-rare" | "loot-epic" | "levelup" | "coin-glint" | "trophy-shimmer" | "boss-relight" | "hit-spark" | "wayrift-swirl" | "whoosh-relight" | "dissolve-ghost" | "dissolve-ash-soft" | "dissolve-wisp-rise") => void; wowLoop?: (on: boolean) => void };
 function bus(g: Game): WowBus | null {
   return (g as unknown as { audio: WowBus | null }).audio ?? null;
 }
@@ -244,7 +255,13 @@ export function wowWatch(g: Game, dt: number, hueAt: (x: number, y: number) => n
       const crit = s.hp - hp >= atk * 1.6;
       fxHit(r.x, r.y - 10, hueAt(r.x, r.y - 10), crit);
       b?.wow?.("hit-spark");
-      if (hp <= 0 && s.boss) { fxBoss(r.x, r.y, s.mulch); b?.wow?.("boss-relight"); }
+      if (hp <= 0 && s.boss) { fxBoss(r.x, r.y, s.mulch); b?.wow?.("boss-relight"); b?.wow?.("whoosh-relight"); }
+      else if (hp <= 0) {
+        // wow2: a foe's death. Spirits dissolve into smoke and glyphs, the rest into ash and fireflies.
+        const spirit = /ghost|wraith|spirit|shade|banshee|lich|wisp|phantom/.test(String((r as { def?: string }).def ?? ""));
+        if (spirit) { sprite("wraith", hueAt(r.x, r.y - 10) % 6, r.x, r.y - 16, 6); b?.wow?.("dissolve-ghost"); }
+        else { sprite("ash", Math.floor(rnd() * 3), r.x, r.y - 8, 6); b?.wow?.("dissolve-ash-soft"); }
+      }
     }
     s.hp = hp; s.x = r.x; s.y = r.y;
   }
@@ -291,7 +308,16 @@ export function wowAmbient(g: Game, dt: number, v: View, night: boolean, fires: 
         const wx = x * 16 + 8, wy = y * 16;
         if (!inView(v, wx, wy, 0)) continue;
         twinkle = true;
+        if (rnd() < dt / 40 * low) { sprite("gwisp", HUE.violet, wx, wy - 12, 6, { loop: 2 }); b?.wow?.("dissolve-wisp-rise"); } // wow2: a grave wakes
         if (rnd() < dt / 3 * low) sprite("motes", (x + y) % 2 ? HUE.cyan : HUE.violet, wx + (rnd() - 0.5) * 8, wy - 4, 8, { vy: -10 });
+      }
+    }
+    // wow2: a falling star now and then (1 every 4-10 s) high in the view, outdoors
+    if (g.mapId === "world" || g.mapId === "town" || g.mapId === "village") {
+      watch.starT -= dt;
+      if (watch.starT <= 0) {
+        watch.starT = 4 + rnd() * 6;
+        sprite("star", rnd() < 0.5 ? HUE.cyan : HUE.violet, v.x + 24 + rnd() * Math.max(1, v.w - 48), v.y + 16 + rnd() * Math.max(1, v.h * 0.25), 3);
       }
     }
     // green and cyan fireflies, a few per screen, outdoors

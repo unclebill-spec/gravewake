@@ -1,5 +1,5 @@
 {
- "note": "art-check baseline 2026-10-23 (HD-2D Cozy Builder): art that already broke a rule; it may not get worse. Art was not edited.",
+ "note": "art-check baseline 2026-10-23 (HD-2D Cozy Builder): art that already broke a rule; it may not get worse. Art was not edited. | 2026-10-25 Master Builder: wow2 FX sheets added (7 hue rows by design; palette-locked, hard alpha verified).",
  "files": {
   "spells/fx/preview-playtest1h.png": {
    "colours": 32
@@ -438,6 +438,114 @@
   },
   "writer/wild-trees2-winter.png": {
    "colours": 32
+  },
+  "wow2/bolt_16x64.png": {
+   "colours": 36
+  },
+  "wow2/bolt_32x96.png": {
+   "colours": 36
+  },
+  "wow2/brazier_16x32.png": {
+   "colours": 28
+  },
+  "wow2/brazier_16x32_em.png": {
+   "colours": 24
+  },
+  "wow2/campfire_32.png": {
+   "colours": 27
+  },
+  "wow2/campfire_32_em.png": {
+   "colours": 24
+  },
+  "wow2/candle_16.png": {
+   "colours": 29
+  },
+  "wow2/candle_16_em.png": {
+   "colours": 24
+  },
+  "wow2/cast_circle_64x32.png": {
+   "colours": 36
+  },
+  "wow2/chain_arc_64x16.png": {
+   "colours": 30
+  },
+  "wow2/dark_eyes_16.png": {
+   "colours": 24
+  },
+  "wow2/falling_star_32.png": {
+   "colours": 30
+  },
+  "wow2/fire_wall_32.png": {
+   "colours": 24
+  },
+  "wow2/flame_16.png": {
+   "colours": 24
+  },
+  "wow2/flame_16x32.png": {
+   "colours": 24
+  },
+  "wow2/flame_flicker_16.png": {
+   "colours": 24
+  },
+  "wow2/flame_pillar_16x64.png": {
+   "colours": 36
+  },
+  "wow2/freeze_crystal_16.png": {
+   "colours": 30
+  },
+  "wow2/ghost_silk_32x16.png": {
+   "colours": 24
+  },
+  "wow2/glow_ripple_32x16.png": {
+   "colours": 30
+  },
+  "wow2/grave_wisp_16x32.png": {
+   "colours": 30
+  },
+  "wow2/hand_charge_16.png": {
+   "colours": 36
+  },
+  "wow2/heal_column_16x64.png": {
+   "colours": 36
+  },
+  "wow2/light_pillar_16x64.png": {
+   "colours": 30
+  },
+  "wow2/orb_ignite_16.png": {
+   "colours": 36
+  },
+  "wow2/proj_trail_32x16.png": {
+   "colours": 36
+  },
+  "wow2/relight_burst_32.png": {
+   "colours": 41
+  },
+  "wow2/scorch_sparks_16.png": {
+   "colours": 36
+  },
+  "wow2/shadow_tendril_16x32.png": {
+   "colours": 24
+  },
+  "wow2/shield_bubble_32.png": {
+   "colours": 30
+  },
+  "wow2/sky_flash_64x32.png": {
+   "colours": 24
+  },
+  "wow2/spirit_embers_16x32.png": {
+   "colours": 24
+  },
+  "wow2/torch_16x32.png": {
+   "colours": 29
+  },
+  "wow2/torch_16x32_em.png": {
+   "colours": 24
+  },
+  "wow2/will_o_wisp_16.png": {
+   "colours": 37
+  },
+  "wow2/wraith_dissolve_16x32.png": {
+   "colours": 27
   }
  }
 }
