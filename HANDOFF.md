@@ -1,3 +1,6 @@
+2026-10-23 HD-2D Cozy Builder: GPU pilot pack (DRAFTS: Kokoro voice lines, ACE-Step loops, SDXL pixel sprite drafts + contact sheet, qwen2.5 quest/item drafts) ready at /workspace/gravewake/staging/gpu-pilot/ (README.md); sample H3D props in /workspace/hd2d-suite/staging/gpu-pilot/props3d/.
+2026-10-22 Hearthmoor Sound: wow2 SFX (fire whoosh pillar/wall-loop/relight, ghost dissolve ghost/ash-soft/wisp-rise) ready at staging/audio/wow2/ (README maps files to TIMINGS.md effects).
+2026-10-22 Hearthmoor Art: wow2 particle/lightning/flame/spell pack (42 sheets + 4 _em, incl. Wake Bell, graves, Hollowmourn orb, relight, dawn) ready at staging/art/wow2/ (README has hooks, TIMINGS.md has frame ms + sound cues)
 2026-10-22 Hearthmoor Sound: outskirts choir-night/choir-drift reworked (shorter breathy swells, darker, -26 LUFS); wow SFX pack in staging/audio/wow/.
 
 # Gravewake handoff
