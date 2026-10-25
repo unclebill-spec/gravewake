@@ -102,3 +102,32 @@ Gravewake is a gothic Halloween web game with real-time field combat. It uses a 
 - **Decision 4b, seeded grave mounds: DEFERRED.** No writer-made mound sprite exists (a hand-drawn one would break the art rules), and turned earth is brown, which Bill doesn't want. Placement would also need new overlap/stuck checks against doors, the decor and the arenas. Revisit with a writer sprite in violet/slate.
 - **Android icon + splash:** from Art's variant a (skull-lantern). Every mipmap density has ic_launcher, ic_launcher_round (hard-alpha circle), and an adaptive foreground/background (now @mipmap/ic_launcher_background; the colour is #07060A, not white). All splash.png files have the native 57px art at an integer scale, centred on #07060A. Downscales are nearest-neighbour only; 512 has no integer divisor at Android sizes, so these are non-integer NN. The 48px icon is readable. 0 off-palette, 0 soft alpha. Contact sheet: docs/bill/icon-splash.png. The web/PWA icons are custom (not Capacitor defaults), so I left them alone.
 - **Known:** `npm run lint` has 1 error that was already on origin/main (scripts/gravewake-check.mjs:15710, parsing error) plus warnings. My files lint clean.
+
+## MB final pass 2 (Master Builder, 2026-10-25)
+
+Bill approved it: "Do the violet slate version, put stories stuff in and give it stats and new look is great".
+
+### Story items (src/game/story_items.ts)
+None of Story's quests are in the game yet, so each item is sold in an existing shop. They are added after the seeded stock, so the seeded stock does not change. Existing items are untouched, and the new items are plain saved items, so old saves load.
+
+| Item | Kind / slot | Rank | Stats | Compared with | Where |
+|---|---|---|---|---|---|
+| Wraithbane Torch | weapon, off-hand, 1 hand | 2 | atk 3, Lantern Flare | Moon Lantern (atk 2, bonus 1) | Mystic |
+| Lamplighter's Handbell | jewel, neck | 3 | bonus 2 | Moon locket (bonus 1, ac 1, Ward) | Mystic |
+| Sage's Tea Set | jewel, ring | 2 | bonus 1, ac 1 | Caster's ring (bonus 2) | Mystic |
+| Bone Car Lantern | jewel, ring | 3 | bonus 2, ac 1 | r3 rings | Mystic (the carman has no shop) |
+| Silvered Thistle Pin | jewel, neck | 2 | ac 1, bonus 1 | r2 necks | Mystic |
+| Ember Mittens | jewel, ring (there is no hands slot) | 1 | ac 1 | Tansy's/Hooked ring r2 | Shop / Merchant |
+| Moonlit Mince Pie | potion | 1 | bonus 2 (= Spirit draught) | Spirit draught | Shop / Merchant |
+| Wraith Soup | potion | 1 | bonus 1 (= Health draught) | Health draught | Shop / Merchant |
+| Spectral Scythe | weapon, main, 2 hands | 3 | atk 10 + floor(lv/4) + 2 | Cabinet edge (one hand, 2 less atk) | Undertaker |
+| Mourner's Robe | armour, chest, the class's armour type | 3 | ac 4, bonus 1 | Mended armor (ac 4) | Undertaker |
+
+Test: `scripts/story-items.test.mjs` checks that each item is sold, can be bought, equips, and survives a save/load for 4 classes. It also checks the stat caps.
+
+### Grave mounds
+- Writer: `tools/pixel-writer/mound_writer.py [variants] [seed]` writes `public/art/writer/grave-mounds.png`. That is 6 cells of 16x32 in violet slate with an INK outline and hard alpha. Some cells have a headstone, and some have cyan or green moss glints. Every colour is snapped to the locked palette.
+- Placement: `graveMounds()` in townplan.ts uses a fixed seed and places **7 mounds** on bare cemetery grass. It keeps them off the path, the dirt walk, the stair, the undertaker, the dig sites, the spawn and each other. `g.tiles` is never changed.
+- Collision: a mound behaves like a grave. It pushes the hero out (slideOffProps, radius 6), and townsfolk and critters treat it as blocked (blockedProp).
+- Test: `scripts/grave-mounds.test.mjs` checks placement, push-out, and that every yard tile can still be reached.
+- Screenshot: docs/bill/grave-mounds.png.

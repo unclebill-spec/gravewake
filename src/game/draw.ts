@@ -1003,6 +1003,8 @@ export const PT1_GROUND = { cobble: "/art/writer/town-cobble.png", dirt: "/art/w
 const SPELL_GEN = ["lightning", "beam-fire", "beam-holy", "beam-ice", "beam-lightning", "beam-shadow", "beam-venom", "orb", "nova", "ring", "fire-rain", "ice-rain"].map((n) => `/art/spells/gen/${n}.png`);
 /** playtest1: the town's edge fence (h run, v run, gate post). Pixel writer. */
 export const PT1_FENCE = "/art/writer/town-fence.png";
+/** MB final pass 2: the cemetery's grave mounds (tools/pixel-writer/mound_writer.py), 16x32 cells. */
+export const GRAVE_MOUNDS = "/art/writer/grave-mounds.png";
 // playtest1c: the four biome grounds are the wild sheets now (one wrapping ground each, drawn by texCell).
 const FRINGE_SHEETS = ["/art/writer/vale.png", ...["snow", "sand", "ash", "swamp"].map((b) => WILD_GROUND[b])];
 /** Sleeping mimic (owner-approved 2026-09-30): 0 lid lifted a pixel, 1 with a tooth glint. Pixel writer, laid over the chest. */
@@ -1098,7 +1100,7 @@ if (typeof Image !== "undefined") {
   // playtest1 (owner-reported 2026-10-01, rain slowdown): the fringe biome sheets load up front. fringeReady() waits
   // on all four; when no snow, sand, ash or swamp tile had been drawn yet the sheet was never asked for, so the vale
   // rebuilt every fringed tile (a new canvas each) on every frame: ~2,500 canvases a second, the vale's frame drop.
-  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`), ...FRINGE_SHEETS, ...Object.values(PT1_GROUND), PT1_FENCE, ...SPELL_GEN]) {
+  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`), ...FRINGE_SHEETS, ...Object.values(PT1_GROUND), PT1_FENCE, GRAVE_MOUNDS, ...SPELL_GEN]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -4688,6 +4690,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // playtest1b (owner-reported 2026-10-02 01:04 ET, "fences around homes gone"): each home's yard has its writer
     // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
     // the seeded footprint and never touches g.tiles, so placement and collision are as they were.
+    // MB final pass 2 (Bill, 2026-10-25): violet-slate grave mounds on the cemetery grass, seeded; foot on the tile's.
+    for (const m of g.townMounds()) props.push({ y: m.y * TILE + 12, fn: () => void sheetCell(ctx, GRAVE_MOUNDS, m.cell, 0, m.x * TILE, m.y * TILE - 16, 1, 2) });
     for (const f of yardFences(g)) {
       props.push({ y: f.y * TILE + 14, fn: () => veiled(ctx, g, [f.x * TILE, f.y * TILE - 4, f.x * TILE + 16, f.y * TILE + 14, f.y * TILE + 14], () => sheetCell(ctx, PT1_FENCE, f.cell, 0, f.x * TILE, f.y * TILE, 1, 1)) });
     }

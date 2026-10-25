@@ -2,6 +2,10 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## mb-final-pass-2 (2026-10-25)
+- Seven violet-slate grave mounds in the cemetery. They come from a new seeded writer (tools/pixel-writer/mound_writer.py) and block the hero like a grave.
+- Story's ten items can now be bought. The Mystic, the Shop or Merchant, and the Undertaker sell them. Their stats are sidegrades for their tier. See HANDOFF "MB final pass 2".
+
 ## mb-final-pass (2026-10-25)
 - New wow2 effects: lightning crit bolts, a gold relight burst when a boss falls, ghost and ash dissolves, falling stars at night, and wisps in the cemetery. Their sounds are new too.
 - New voice lines for Hollowmourn, Old Mulch, and barks for Mara, Bram, Pell and Ivy. New music loops for the Hollowmourn fight, dungeons and the town at night.

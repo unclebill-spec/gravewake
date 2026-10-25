@@ -83,6 +83,7 @@ import { edgeBand, riftSeed, rng32, subSeed, type MapResult } from "../../tools/
 import { GATE, fromGate, lairTiles, nightOf, postBounty, type Posting } from "./bounty";
 import { DIG, digKey, digWakes } from "./graves";
 import { DERBY, dayOf, derbyDay, derbyMark, derbyRival, derbySize } from "./derby";
+import { storyStock } from "./story_items"; // MB final pass 2
 import { DECOR, decorKey, readTrophy, trophyKey } from "./decor";
 import { FESTIVALS, LIVE_FESTIVALS, SEASON, dayInSeason, festivalHook, seasonAt, seasonPick, seasonWeather, type SeasonId } from "./seasons";
 import { ASHEN_FAIR, DROWNED_BLOOM, HARVEST, KRAMPUSNACHT, bloomSpots, carveScore, courtList, danceOrder, harvestJudge, inFlood, naughtyList, sideshowList, type Naughty } from "./festivals";
@@ -104,7 +105,7 @@ import { CASINO_FOLK, OLD_ROOM, SONG, bjPays, bjSettle, bjValue, dealerDraws, de
 import { roofedAt, townLots } from "./buildings"; // playtest1x [OWNER-APPROVED 2026-10-06 08:44 ET: playtest1x casino + town fixes]: the town walk keeps off roofed tiles
 import { furnitureAt, yardFenceTiles } from "./blocking"; // playtest1o [OWNER-REQUESTED 2026-10-03 19:49 ET: playtest1o motion, collision and art check]
 import { CAM, SPAWN_GAP, type Ranked, arenaR, bodyR, footDepth, footOf, footPoints, halfOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
-import { CEMETERY, PARK_AT, PLAZA, STREETS, TOWN_BLOCKS, TOWN_H, TOWN_PLAN, TOWN_SPAWN, TOWN_W, ZEP_PAD, OLD_TOWN, blockOf, cemeteryFence, carLotFence, townX, townY } from "./townplan"; // townwide (Bill, 2026-10-22: a larger town)
+import { CEMETERY, PARK_AT, PLAZA, STREETS, TOWN_BLOCKS, TOWN_H, TOWN_PLAN, TOWN_SPAWN, TOWN_W, ZEP_PAD, OLD_TOWN, blockOf, cemeteryFence, carLotFence, graveMounds, townX, townY } from "./townplan"; // townwide (Bill, 2026-10-22: a larger town)
 
 /**
  * Gravewake simulation. This file owns movement, town layout, combat, fishing,
@@ -2782,6 +2783,7 @@ export class Game {
     const t = this.tiles[ty * this.w + tx];
     if (this.mapId === "inside" && this.inside === "croft" && this.decorAt(tx, ty)) return true;
     if (this.mapId === "town" && inShowroom(tx, ty)) return true; // playtest1v: the bone car's roped lot
+    if (this.mapId === "town" && this.townMounds().some((m) => m.x === tx && m.y === ty)) return true; // MB final pass 2: a grave mound, as a grave
     return t === T.tree || t === T.rock || t === T.pump || t === T.grave || t === T.wall || t === T.water || t === T.pool || t === T.ice || t === T.shelf || t === T.cauldron || t === T.moon || secretTile(t);
   }
 
@@ -4836,8 +4838,20 @@ export class Game {
     return hit;
   }
 
-  /** Trees, rocks, pumps, and graves push the hero out. They are not whole solid tiles. */
+  /** MB final pass 2: the cemetery's seeded grave mounds (townplan graveMounds), worked out once per town grid. */
+  townMounds(): { x: number; y: number; cell: number }[] {
+    if (this.mapId !== "town") return [];
+    let m = moundCache.get(this.tiles);
+    if (!m) {
+      m = graveMounds((x, y) => x >= 0 && y >= 0 && x < this.w && y < this.h && this.tiles[y * this.w + x] === T.grass);
+      moundCache.set(this.tiles, m);
+    }
+    return m;
+  }
+
+  /** Trees, rocks, pumps, graves and grave mounds push the hero out. They are not whole solid tiles. */
   private slideOffProps() {
+    for (const m of this.townMounds()) if (Math.abs(m.x * TILE + 8 - this.px) < 24 && Math.abs(m.y * TILE + 12 - this.py) < 24) this.pushFrom(m.x * TILE + 8, m.y * TILE + 12, 6); // as a grave
     const tx = Math.floor(this.px / TILE);
     const ty = Math.floor(this.py / TILE);
     for (let y = ty - 2; y <= ty + 2; y++) {
@@ -7175,12 +7189,12 @@ export class Game {
       } else if (rng() > 0.4) {
         list.push(this.makeGem(rng, "rare", lv));
       }
-      return list;
+      return [...list, ...storyStock(role, lv, this.storyArmor())]; // MB final pass 2
     }
     // Item 8: the undertaker sells the grave spade, priced like the fish shack's pole (tackle price = bonus).
     const spade = makeItem({ name: "Grave spade", kind: "tackle", rank: 1, bonus: DIG.spadePrice, special: "Spade", stack: 1 });
     if (role === "undertaker" && this.cls !== "vampire") {
-      return [potion("Cheap draught", 1), makeItem({ name: "Coffin nails", kind: "junk", rank: 1, stack: 3 }), spade];
+      return [potion("Cheap draught", 1), makeItem({ name: "Coffin nails", kind: "junk", rank: 1, stack: 3 }), spade, ...storyStock(role, lv, this.storyArmor())];
     }
     const list: Item[] = [];
     for (let i = 0; i < 6; i++) {
@@ -7216,7 +7230,12 @@ export class Game {
       }
     }
     // After the six rolls, so the cabinet's seeded stock is the same as before a rescue.
-    return [...list, ...this.rescueStock(role, lv), ...(role === "undertaker" ? [spade] : [])];
+    return [...list, ...this.rescueStock(role, lv), ...(role === "undertaker" ? [spade, ...storyStock(role, lv, this.storyArmor())] : [])];
+  }
+
+  /** MB final pass 2: the armour type Story's robe is cut in (vampires wear chain). */
+  storyArmor() {
+    return this.cls === "vampire" ? "chain" : CLASSES[this.cls].armor ?? "chain";
   }
 
   priceOf(it: Item) {
@@ -11041,6 +11060,7 @@ export const DRY_LINE = "You climb out onto dry ground.";
 export const FOLK_WALK = { speed: 12, town: 7, room: 4, min: 2, pause: [1.5, 4.5] as [number, number], retry: 0.8, tries: 14 } as const;
 
 const fenceCache = new WeakMap<object, Set<number>>(); // playtest1o
+const moundCache = new WeakMap<object, { x: number; y: number; cell: number }[]>(); // MB final pass 2
 /**
  * playtest1o (Bill, 2026-10-03 19:49 ET: "there's signs to designate what buildings are?"): the name and trade of the room
  * you stand in, for its sign on the back wall and the HUD's place line. Picture only.

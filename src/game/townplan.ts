@@ -108,3 +108,36 @@ export function carLotFence(): { x: number; y: number; cell: number }[] {
   for (let y = CAR_LOT.y0; y <= CAR_LOT.y1; y++) for (const x of [CAR_LOT.x0, CAR_LOT.x1]) out.push({ x, y, cell: y === CAR_LOT.y0 ? 2 : 1 });
   return out;
 }
+
+/**
+ * MB final pass 2 (Bill, 2026-10-25, "Do the violet slate version"): the cemetery's grave mounds, the writer's
+ * grave-mounds.png (tools/pixel-writer/mound_writer.py, 16x32 cells). A fixed seed picks grass tiles inside the yard
+ * only: never on the path or the dirt walk, never by the crypt stair or the undertaker (8 sides) or a dig site (4 sides),
+ * never beside another mound (so every row and column stays walkable). `open(x, y)` says a tile is bare grass.
+ * Looks plus a grave's push-out; g.tiles is never touched, so saves and the town grid are as they were.
+ */
+export const MOUND_CELLS = 6;
+export function graveMounds(open: (x: number, y: number) => boolean, seed = 4101, want = 7): { x: number; y: number; cell: number }[] {
+  const c = CEMETERY;
+  const keep: [number, number][] = [[c.stair.x, c.stair.y], [c.undertaker.x, c.undertaker.y]];
+  const byGrave = (x: number, y: number) => c.graves.some(([gx, gy]) => Math.abs(gx - x) + Math.abs(gy - y) <= 1); // a dig site keeps its four sides
+  const near = (x: number, y: number, ps: readonly (readonly [number, number])[]) => ps.some(([px, py]) => Math.abs(px - x) <= 1 && Math.abs(py - y) <= 1);
+  const spots: [number, number][] = [];
+  for (let y = c.y0 + 2; y <= c.y1 - 2; y++) {
+    for (let x = c.x0 + 2; x <= c.x1 - 2; x++) {
+      if (x === c.path[0] || x === c.path[1]) continue; // the path
+      if (near(x, y, keep) || byGrave(x, y) || !open(x, y)) continue;
+      spots.push([x, y]);
+    }
+  }
+  let s = seed >>> 0;
+  const rnd = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+  for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+  const out: { x: number; y: number; cell: number }[] = [];
+  for (const [x, y] of spots) {
+    if (out.length >= want) break;
+    if (near(x, y, out.map((m) => [m.x, m.y] as [number, number]))) continue;
+    out.push({ x, y, cell: out.length % MOUND_CELLS });
+  }
+  return out.sort((a, b) => a.y - b.y || a.x - b.x);
+}
