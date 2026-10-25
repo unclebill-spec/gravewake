@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:game": "node scripts/gravewake-check.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs'",
+    "test": "node --test scripts/*.test.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

@@ -38,7 +38,7 @@ Legend: DONE = in the repo and checked; PREPARED = config/script exists, needs B
 5. Complete the Play Console forms: content rating questionnaire (IARC), target audience 13+, Data safety (no data), Ads (none), app access (no login), contact email, price and countries.
 6. Store listing: name (30 chars), short description (80), full description (4,000), icon, feature graphic, screenshots; category Game > Role Playing; support email. Do not name other games; do not write seasonal event dates.
 7. Upload to internal testing, then closed testing, then production (an organization account has no 12-tester rule, but a friends-and-family test is still worth it). Play a real phone build first: this wrapper has been built and its bundle tested in a browser with the network blocked, but not run on a device or emulator here.
-8. Before release: the full inherited fail-proof sweep must finish clean (HANDOFF.md, RESUME HERE). The inherited `check:game` was repaired and is green (1061); the sweep (235 mutations, 2 workers, log `qa/playtest2b/checks/sweep_*.log`) was 126 done with 0 missed when this was written and keeps running. Master Builder's side, not Bill's, but nothing should ship to Play until it is clean.
+8. Fail-proof sweep: DONE. The inherited `check:game` was repaired and is green (1061); the full inherited sweep (235 mutations, 2 workers, logs `qa/playtest2b/checks/sweep_*.log`, last written 2026-10-24 13:22 ET) finished 235/235: 197 CAUGHT + 38 CAUGHT(pin-only), 0 missed. This release gate is clear.
 
 ## D. Package name options (permanent: choose once)
 
