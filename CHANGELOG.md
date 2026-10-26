@@ -2,6 +2,9 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## mb-merge-1026 (2026-10-26)
+- Merged cozy-gw-bugs-1026, mb-sprint-1026 (Track A) and mb-sprint-1026-b (Track B) into main (merge b73d169). No game change beyond those branches; check:game 1105/1105. Not published.
+
 ## mb-sprint-1026 (2026-10-26)
 - Swinging blades (#3): seeded blade lanes on dungeon floors (none on pocket or boss floors) with a 0.45 s tell before each 0.35 s sweep. Art from a new palette-locked writer (tools/pixel-writer/blade_writer.py). Trap damage is unchanged.
 - The night bounty is marked on the full map and the minimap (on the stalker, or its lair) until it is paid.
