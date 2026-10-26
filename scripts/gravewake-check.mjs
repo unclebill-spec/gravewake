@@ -16131,6 +16131,9 @@ if (on("wow")) {
   check("wow", `Sound's wow cues ship and are wired (${sfx}); the draw runs the layer before the light (body + glow pass), relights through the lamp list, and Hollowmourn's Lights Out and Last Toll go black but his lantern and the runes (${hooks}); night choir ${AU.AMB.choirNight} (${AU.AMB.choirNightDucked} under music)`, sfx && hooks && AU.AMB.choirNight <= 0.25);
 }
 
+// MB sprint Oct 26 (b): its own group in its own file.
+if (on("mb1026b")) await (await import("./mb1026b-group.mjs")).run(check);
+
 if (!ran) {
   console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio, oskart, wow");
   process.exit(1);

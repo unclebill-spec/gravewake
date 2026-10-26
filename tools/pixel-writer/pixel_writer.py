@@ -226,7 +226,7 @@ def glyph_strip(names: list[str], colors: list[str]) -> Image.Image:
     return out
 
 
-def crack(kind: int, line: str, chip: str) -> Tile:
+def crack(kind: int, line: str, chip: str, lip_every: int = 3) -> Tile:
     """A hairline crack over a wall. One pixel wide, a lit lip under it, a little grit at the foot."""
     t = Tile()
     paths = (
@@ -236,7 +236,7 @@ def crack(kind: int, line: str, chip: str) -> Tile:
     branch = (((7, 7), (8, 7), (9, 8), (10, 8)), ((9, 6), (10, 5), (11, 5), (12, 4)))
     for x, y in paths[kind % 2]:
         t.set(x, y, line)
-        if (x + y) % 3 == 0:
+        if (x + y) % lip_every == 0:
             t.set(x + 1, y, chip)
     for x, y in branch[kind % 2]:
         t.set(x, y, line)
