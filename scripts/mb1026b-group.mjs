@@ -38,4 +38,12 @@ print(json.dumps(out))
   const draw = fs.readFileSync("src/game/draw.ts", "utf8");
   const wired = (draw.match(/valeNight\(g\.season\(\), LIGHT\.worldNight\)/g) || []).length === 2;
   check("mb1026b", "seasons: summer night ambient lifted on vale/village/camp (still blue-led), autumn/winter/spring keep LIGHT.worldNight exactly", other && lifted && wired, JSON.stringify({ other, sn, wired }));
+
+  // Spec #14: the QA season jump lands each season's festival night (no game UI involved).
+  const { seasonSave } = await import("../qa/mb1026b/season_jump.mjs");
+  const want = { autumn: "harvest", winter: "krampus", spring: "bloom", summer: "ashen" };
+  const got = {};
+  for (const s of Object.keys(want)) { const r = await seasonSave(s, { festival: true }); got[s] = `${r.season}/${r.phase}/${r.festival}/${r.value ? "saved" : "nosave"}`; }
+  const okJ = Object.entries(want).every(([s, f]) => got[s] === `${s}/night/${f}/saved`);
+  check("mb1026b", "festival QA jump: qa/mb1026b/season_jump.mjs saves Harvest, Krampusnacht, Drowned Bloom and Ashen Fair nights into slot 1", okJ, JSON.stringify(got));
 }
