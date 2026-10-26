@@ -76,8 +76,8 @@ export const PARK_AT = {
 export const SHOW = { dx: 18, dy: 10 } as const;
 /** The zeppelin pad (inclusive). */
 export const ZEP_PAD = { x0: 50, y0: 12, x1: 53, y1: 14 } as const;
-/** Where the hero stands on a fresh wake (and where an old save's town position is put): the avenue at the plaza. */
-export const TOWN_SPAWN = { x: 27, y: 20 } as const;
+/** Where the hero stands on a fresh wake (and where an old save's town position is put): the north street by the cemetery, well west of the festival rift (BALANCE.md, Will approved 2026-10-26). */
+export const TOWN_SPAWN = { x: 11, y: 16 } as const;
 
 /** Is (tx, ty) inside a 40x30 town position that the old plan used? (An old save's town spot.) */
 export const OLD_TOWN = { w: 40, h: 30 } as const;
