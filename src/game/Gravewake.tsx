@@ -827,7 +827,7 @@ export function Gravewake() {
       ref={mainRef}
       className="relative h-full w-full touch-none overflow-hidden bg-black text-fg"
       data-keys={keysMode ? "1" : "0"}
-      onPointerDownCapture={(e) => setKeysMode(e.pointerType !== "touch" && e.pointerType !== "pen")}
+      onPointerDownCapture={(e) => setKeysMode(e.pointerType !== "touch" && e.pointerType !== "pen" && hasFinePointer(window))} /* cozy-1026 M2: a mouse-type tap on a touch-only phone stays touch */
     >
       {keysMode && game?.mode === "play" ? <KeyHint /> : null}
       {screenSet.preset === "retro" ? (
@@ -2510,6 +2510,10 @@ function LootIcon({ cell, dim = false }: { cell: number; dim?: boolean }) {
   );
 }
 
+/** cozy-1026 M2: any fine pointer (mouse or trackpad) attached; a touch-only phone has none. */
+export function hasFinePointer(w: Pick<Window, "matchMedia">): boolean {
+  return !!w.matchMedia?.("(any-pointer: fine)").matches;
+}
 /** billvid item 9: a computer with a fine pointer and no touch screen starts on the keyboard. */
 export function keyboardFirst(w: Pick<Window, "matchMedia" | "navigator">): boolean {
   return !!w.matchMedia?.("(pointer: fine)").matches && (w.navigator?.maxTouchPoints ?? 0) === 0;
