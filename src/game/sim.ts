@@ -88,7 +88,7 @@ import { DECOR, decorKey, readTrophy, trophyKey } from "./decor";
 import { FESTIVALS, LIVE_FESTIVALS, SEASON, dayInSeason, festivalHook, seasonAt, seasonPick, seasonWeather, type SeasonId } from "./seasons";
 import { ASHEN_FAIR, DROWNED_BLOOM, HARVEST, KRAMPUSNACHT, bloomSpots, carveScore, courtList, danceOrder, harvestJudge, inFlood, naughtyList, sideshowList, type Naughty } from "./festivals";
 import { BOND, BOND_LINES, bondKey, bondStamp, bondTier, readBond, type BondPassive } from "./bond";
-import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival, wayFront, wayLink, wayMouth, wayMouthAt, waySolid, wayriftById, type Wayrift } from "./wayrifts";
+import { WAYRIFT, WAYRIFTS, WAYRIFT_PLACE, stampWayrifts, wayArtAt, wayFestival, wayFront, wayLabel, wayLink, wayMouth, wayMouthAt, waySolid, wayriftById, type Wayrift } from "./wayrifts";
 import { WILD_PORTAL, WILD_MAP, WILD_SIZE, WILD_QUEST_REWARD, WILD_CLEAR_REWARD, isWildMap, wildLayout, wildQuestKind, wildQuestPitch, wildQuestLog, type WildPortal, type WildQuest, type WildLayout, type WildStage } from "./wildportals";
 
 export { FAMILIES, scaleMonster, zoneLevel };
@@ -113,6 +113,9 @@ import { CEMETERY, PARK_AT, PLAZA, STREETS, TOWN_BLOCKS, TOWN_H, TOWN_PLAN, TOWN
  */
 export type Facing = "n" | "s" | "e" | "w";
 export type Phase = "day" | "night";
+/** rift-confirm: an open "Enter the rift?" ask: what it is, the mouth tile, and the tile you came from. */
+export type RiftAsk = { id: string; name: string; x: number; y: number; back: { x: number; y: number } | null };
+
 export type Mode =
   | "title"
   | "play"
@@ -743,10 +746,17 @@ export class Game {
   travel: { t: number; from: string; to: string; moved: boolean } | null = null;
   /** The rift you just stepped out of: it will not take you back until your feet are off its mouth and front. */
   wayHold = "";
-  /** cozy-1026 M1: the festival rift in town has asked this wake (session only, never saved). */
-  festRiftAsked = false;
-  /** cozy-1026 M1: standing on the asking rift's mouth; cleared once you step off it. */
-  festRiftWait = false;
+  /**
+   * rift-confirm (Will, 2026-10-26): "Enter the rift?" is up. Every rift that zones you asks, every time you step onto its
+   * mouth. Like "Leave camp?" the world waits (update() returns early: no walking, no stick, no foe moves or hits).
+   * Not saved.
+   */
+  riftAsk: RiftAsk | null = null;
+  /** rift-confirm: the rift you said No to; it stays quiet until your feet leave its mouth. Not saved. */
+  riftNo = "";
+  /** rift-confirm: the tile you stand on and the one you stood on before it ("map:x,y"), for No's step back. */
+  tileNow = "";
+  tilePrev = "";
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: active wild spawn portal on the vale (not saved; respawns by chance). */
   wildPortal: WildPortal | null = null;
   /** Seconds until the next wild-portal spawn roll. */
@@ -969,6 +979,7 @@ export class Game {
     if (this.mode === "title" || this.mode === "dead") return;
     // playtest1: while "Leave camp?" is up the pad drives its two buttons (the UI pad layer), not the hero.
     if (this.askLeave) return;
+    if (this.riftAsk) return; // rift-confirm: the dialog's own keys answer it (the UI layer), never the hero
     if (this.mode === "fish") {
       if (act === "use") this.reel();
       else if (act === "pause") this.togglePause();
@@ -4004,6 +4015,8 @@ export class Game {
     if (this.mode === "title" || this.mode === "dead" || this.mode === "pause" || this.mode === "map" || this.mode === "level") return;
     if (this.askLeave && (this.mapId !== "camp" || this.mode !== "play")) this.askLeave = false;
     if (this.askLeave) return;
+    if (this.riftAsk && this.mode !== "play") this.riftAsk = null;
+    if (this.riftAsk) return;
     this.worldMs += dt * 1000;
     this.tickWeather();
     this.revealMap(); // playtest1v map fog
@@ -4957,6 +4970,11 @@ export class Game {
     if (this.mode !== "play") return;
     const tx = Math.floor(this.px / TILE);
     const ty = Math.floor(this.py / TILE);
+    const tk = `${this.mapId}:${tx},${ty}`;
+    if (tk !== this.tileNow) {
+      this.tilePrev = this.tileNow;
+      this.tileNow = tk;
+    }
     if (this.riftHold && (this.mapId !== "world" || this.riftHold !== `${tx},${ty}`)) this.riftHold = "";
     if (this.tryDoor(tx, ty)) return;
     // billvid (Bill, 2026-10-22: "doors are hard to enter and exit"): a door's trigger is a little bigger than its art,
@@ -5021,27 +5039,20 @@ export class Game {
     }
     const way = (this.mapId === "world" || this.mapId === "town") && !this.riftHold && !this.travel ? wayMouthAt(tx, ty, this.mapId as "town" | "world") : undefined;
     if (way && way.id === this.wayHold) return;
-    if (!way) this.festRiftWait = false;
-    if (way && this.festRiftWait) return;
-    // cozy-1026 M1: the town's festival rift asks first (once per wake, not saved), so a new hero can't fall in by accident.
-    if (way && this.mapId === "town" && way.festival && !this.festRiftAsked) {
-      this.festRiftAsked = true;
-      this.festRiftWait = true;
-      this.logLine = FEST_RIFT_ASK;
+    const wild = this.mapId === "world" && this.wildPortal && !this.riftHold && !this.travel && tx === this.wildPortal.x && ty === this.wildPortal.y;
+    const zRift = rift && !hearth && !grave && !pit && !gate && !mouth ? rift : undefined;
+    // rift-confirm: a sealed wayrift can't take you, so it only says when it wakes (startTravel, no dialog)
+    const wayGo = way && wayLink(way, this.season()) ? way : undefined;
+    const askId = wayGo ? `way:${wayGo.id}` : wild ? "wild" : zRift ? `rift:${zRift.id}` : "";
+    if (this.riftNo && this.riftNo !== askId) this.riftNo = "";
+    if (askId) {
+      if (this.riftNo === askId) return;
+      const name = wayGo ? wayLabel(wayGo, this.season()) : wild ? "Wild rift" : zRift!.name;
+      this.openRiftAsk({ id: askId, name, x: tx, y: ty });
       return;
     }
     if (way) {
       this.startTravel(way);
-      return;
-    }
-    // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: step into a wild spawn portal on the vale
-    if (this.mapId === "world" && this.wildPortal && !this.riftHold && !this.travel && tx === this.wildPortal.x && ty === this.wildPortal.y) {
-      this.enterWildPortal();
-      return;
-    }
-    if (rift && !hearth && !grave && !pit && !gate && !mouth) {
-      this.enterDungeon(rift.id);
-      this.doorCool = 0.45;
       return;
     }
     if (!hearth && !grave && !pit && !gate && !mouth) return;
@@ -5499,15 +5510,6 @@ export class Game {
       return;
     }
     if (this.mode !== "play") return;
-    // cozy-1026 M1: Use on the held festival rift in town crosses.
-    if (this.mapId === "town" && this.festRiftWait) {
-      const held = wayMouthAt(Math.floor(this.px / TILE), Math.floor(this.py / TILE), "town");
-      if (held?.festival) {
-        this.festRiftWait = false;
-        this.startTravel(held);
-        return;
-      }
-    }
     // playtest1v: Use in the seat steps down; Use beside the bone car on the vale climbs in
     if (this.driving) {
       this.carOff("step");
@@ -10359,6 +10361,79 @@ export class Game {
     this.logLine = "Leave camp?";
   }
 
+  /**
+   * QA only (rift-confirm batch, qa/warp/README.md): drop the hero beside the first swinging blade or secret (cracked) wall
+   * found in the dungeons, in seed order. No UI calls it; the shell exposes it as window.__qaWarp only with ?qa in the URL.
+   * Returns where it went, or "" if none was found.
+   */
+  qaWarp(kind: "blade" | "secret"): string {
+    for (const d of DUNGEONS) {
+      if (d.town || d.rift || d.gen || !d.tx) continue;
+      for (let fl = 1; fl <= (d.floors ?? 1); fl++) {
+        this.enterDungeon(d.id);
+        if (this.mapId !== "dungeon") continue;
+        if (fl > 1) {
+          this.floor = fl;
+          this.loadFloor("start");
+        }
+        const f = this.feats;
+        const spot = kind === "blade" ? f?.blades?.[0] && { x: f.blades[0].x, y: f.blades[0].y + 2 } : f?.crack?.approach;
+        if (!spot) continue;
+        this.px = spot.x * TILE + 8;
+        this.py = spot.y * TILE + 8;
+        if (this.solidFeet()) this.unstick();
+        this.mode = "play";
+        this.logLine = `QA warp: ${kind} on ${d.name} floor ${fl}.`;
+        return `${d.id}:${fl}:${Math.floor(this.px / TILE)},${Math.floor(this.py / TILE)}`;
+      }
+    }
+    return "";
+  }
+
+  /** rift-confirm: stepping onto a zoning rift's mouth asks first; held keys are dropped so nothing walks on after. */
+  openRiftAsk(a: { id: string; name: string; x: number; y: number }) {
+    if (this.mode !== "play") return;
+    const m = /^([^:]+):(-?\d+),(-?\d+)$/.exec(this.tilePrev);
+    const back = m && m[1] === this.mapId && (Number(m[2]) !== a.x || Number(m[3]) !== a.y) ? { x: Number(m[2]), y: Number(m[3]) } : null;
+    this.riftAsk = { ...a, back };
+    this.held.clear();
+    this.stickX = 0;
+    this.stickY = 0;
+    this.goal = null;
+    this.logLine = `Enter the ${a.name}?`;
+  }
+
+  /** rift-confirm: Yes crosses (as stepping in did before); No steps you back to the tile you came from. */
+  answerRift(yes: boolean) {
+    const a = this.riftAsk;
+    if (!a) return;
+    this.riftAsk = null;
+    this.held.clear();
+    this.stickX = 0;
+    this.stickY = 0;
+    if (yes) {
+      const [kind, id] = [a.id.slice(0, a.id.indexOf(":") < 0 ? a.id.length : a.id.indexOf(":")), a.id.slice(a.id.indexOf(":") + 1)];
+      if (kind === "way") {
+        const w = wayriftById(id);
+        if (w) this.startTravel(w);
+      } else if (kind === "wild") {
+        if (this.wildPortal) this.enterWildPortal();
+      } else if (kind === "rift") {
+        this.enterDungeon(id);
+        this.doorCool = 0.45;
+      }
+      return;
+    }
+    this.riftNo = a.id;
+    const b = a.back ?? { x: a.x, y: a.y + 1 };
+    this.px = b.x * TILE + 8;
+    this.py = b.y * TILE + 8;
+    if (this.solidFeet()) this.unstick();
+    this.facing = b.y > a.y ? "s" : b.y < a.y ? "n" : b.x < a.x ? "w" : "e";
+    this.tileNow = `${this.mapId}:${Math.floor(this.px / TILE)},${Math.floor(this.py / TILE)}`;
+    this.logLine = "You step back from the rift.";
+  }
+
   /** Yes breaks camp as before. No keeps you by the fire, a step back from the south mark. */
   answerLeave(yes: boolean) {
     if (!this.askLeave) return;
@@ -11177,7 +11252,6 @@ export const MANA = { pool: 2.5, regen: 3 } as const;
 export const DOOR_ZONE = { side: 4, reach: 5 } as const;
 
 /** playtest1b: the log line on stepping into water, and the one that replaces it on climbing out. */
-export const FEST_RIFT_ASK = "The festival rift pulls at you. Its boss is no place for a new hero. Press Use (E) or step in again to cross.";
 export const WADE_LINE = "You sink in. Swimming is half speed.";
 export const DRY_LINE = "You climb out onto dry ground.";
 

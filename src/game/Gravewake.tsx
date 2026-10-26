@@ -150,6 +150,8 @@ export function Gravewake() {
     const game = new Game();
     game.audio = audio;
     gameRef.current = game;
+    // QA only (qa/warp/README.md): ?qa in the URL exposes the blade / secret-wall warp; nothing on screen, never for players.
+    if (new URLSearchParams(location.search).has("qa")) window.__qaWarp = (kind: "blade" | "secret") => game.qaWarp(kind);
     window.__controlsTest = {
       getX: () => game.px,
       getY: () => game.py,
@@ -371,6 +373,23 @@ export function Gravewake() {
           void toggleFullscreen();
           return;
         }
+      }
+      // rift-confirm (Will, 2026-10-26): "Enter the rift?" takes E or Enter for Yes, Escape for No; the arrows pick a button
+      // (Enter or Space press the focused one). Every other key is swallowed so held movement can't walk the hero on.
+      if (game.riftAsk) {
+        const box = document.querySelector("[data-testid='rift-ask']");
+        const btns = box ? Array.from(box.querySelectorAll<HTMLButtonElement>("button")) : [];
+        const focused = document.activeElement instanceof HTMLButtonElement && btns.includes(document.activeElement) ? document.activeElement : null;
+        if (e.code === "ArrowLeft" || e.code === "ArrowRight" || e.code === "ArrowUp" || e.code === "ArrowDown") {
+          const i = focused ? btns.indexOf(focused) : -1;
+          btns[i === 0 ? 1 : 0]?.focus();
+        } else if ((e.code === "Enter" || e.code === "Space") && focused) {
+          game.answerRift(focused.dataset.testid === "rift-yes");
+        } else if (e.code === "KeyE" || e.code === "Enter" || e.code === "KeyY") game.answerRift(true);
+        else if (e.code === "Escape" || e.code === "KeyN" || e.code === "Backspace") game.answerRift(false);
+        e.preventDefault();
+        setTick((n) => n + 1);
+        return;
       }
       // playtest1 (owner-reported 2026-10-01): "Leave camp?" takes Y or Enter for yes, N, Escape or Backspace for no.
       // (Arrows and Tab still move between its two buttons, and Enter or Space press the focused one.)
@@ -2025,6 +2044,23 @@ export function Gravewake() {
             </Panel>
           ) : null}
 
+          {game.riftAsk ? (
+            <div data-padmodal data-testid="rift-ask" role="dialog" aria-modal="true" aria-labelledby="rift-ask-title" className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
+              <div className="flex w-full max-w-xs flex-col gap-3 rounded border border-primary bg-surface p-4 text-center">
+                <h2 id="rift-ask-title" className="font-display text-2xl">Enter the rift?</h2>
+                <p className="text-sm text-muted">{game.riftAsk.name}. It pulls you somewhere else.</p>
+                <div className="flex gap-3">
+                  <button type="button" data-testid="rift-yes" data-padfirst autoFocus className="min-h-12 flex-1 rounded bg-primary px-3 py-2 text-bg" onClick={() => { game.answerRift(true); bump(); }}>
+                    Yes
+                  </button>
+                  <button type="button" data-testid="rift-no" data-padback className="min-h-12 flex-1 rounded border border-border px-3 py-2" onClick={() => { game.answerRift(false); bump(); }}>
+                    No
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {game.askLeave ? (
             <div data-padmodal data-testid="leave-camp" role="dialog" aria-modal="true" aria-labelledby="leave-camp-title" className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
               <div className="flex w-full max-w-xs flex-col gap-3 rounded border border-primary bg-surface p-4 text-center">
@@ -2470,6 +2506,7 @@ declare global {
   interface Window {
     /** playtest1: the back-gesture trap (arm once play starts; armed while its history entry is on top). */
     __leaveTrap?: { arm: () => void; armed: () => boolean; drop: () => void };
+    __qaWarp?: (kind: "blade" | "secret") => string;
     __controlsTest?: {
       getX: () => number;
       getY: () => number;
