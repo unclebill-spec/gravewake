@@ -26,4 +26,16 @@ print(json.dumps(out))
 `);
   const bad = Object.entries(r).filter(([, v]) => v.off.length || v.lip < 20 || !v.lighter).map(([k, v]) => `${k}:${JSON.stringify(v)}`);
   check("mb1026b", "secret walls: every cave's two crack cells carry a full lit lip (>= 20 px) one locked-palette shade brighter than the wall light, 0 off-palette pixels", bad.length === 0, bad.join(" "));
+
+  // Spec #13 seasons: summer vale nights are lifted (measured 70% -> 20% near-black, desk; 18% Phone); every other season is untouched.
+  const js = execFileSync("npx", ["esbuild", "src/game/nightlift.ts", "--bundle", "--platform=node", "--format=esm", "--log-level=error"], { encoding: "utf8" });
+  const nl = await import("data:text/javascript;base64," + Buffer.from(js).toString("base64"));
+  const base = [0.32, 0.34, 0.62];
+  const other = ["autumn", "winter", "spring"].every((s) => nl.valeNight(s, base) === base);
+  const sn = nl.valeNight("summer", base);
+  const lifted = sn.every((v, i) => v > base[i]) && sn[2] > sn[0] && sn[2] > sn[1];
+  const fs = await import("node:fs");
+  const draw = fs.readFileSync("src/game/draw.ts", "utf8");
+  const wired = (draw.match(/valeNight\(g\.season\(\), LIGHT\.worldNight\)/g) || []).length === 2;
+  check("mb1026b", "seasons: summer night ambient lifted on vale/village/camp (still blue-led), autumn/winter/spring keep LIGHT.worldNight exactly", other && lifted && wired, JSON.stringify({ other, sn, wired }));
 }

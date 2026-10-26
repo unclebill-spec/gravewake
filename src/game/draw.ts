@@ -5,6 +5,7 @@ import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worl
 import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
+import { valeNight } from "./nightlift";
 import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
 import { VILLAGE } from "./villages"; // playtest1w [OWNER-APPROVED 2026-10-06 00:16 ET: playtest1w polish]: the village border lattice
@@ -2995,10 +2996,10 @@ function paintStreetLamp(ctx: CanvasRenderingContext2D, x: number, y: number, em
 export function sceneAmbient(g: Game): RGB | null {
   if (g.mapId === "dungeon") return ambientOf(g.theme, palOf(g.theme).liquid);
   if (g.phase !== "night") return null;
-  if (g.mapId === "world" || g.mapId === "village") return LIGHT.worldNight; // playtest1v: a village's night is the vale's
+  if (g.mapId === "world" || g.mapId === "village") return valeNight(g.season(), LIGHT.worldNight); // playtest1v: a village's night is the vale's; MB 10-26b: summer lifted
   if (g.mapId === "town") return LIGHT.townNight;
   // playtest1b B2 (gloom and glow): the camp and the town's rooms dim at night too, so their cold-blue fires show.
-  if (g.mapId === "camp") return LIGHT.worldNight;
+  if (g.mapId === "camp") return valeNight(g.season(), LIGHT.worldNight);
   if (g.mapId === "inside" && g.theme.startsWith("room:")) return LIGHT.townNight;
   return null;
 }
