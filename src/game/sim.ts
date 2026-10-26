@@ -735,6 +735,10 @@ export class Game {
   travel: { t: number; from: string; to: string; moved: boolean } | null = null;
   /** The rift you just stepped out of: it will not take you back until your feet are off its mouth and front. */
   wayHold = "";
+  /** cozy-1026 M1: the festival rift in town has asked this wake (session only, never saved). */
+  festRiftAsked = false;
+  /** cozy-1026 M1: standing on the asking rift's mouth; cleared once you step off it. */
+  festRiftWait = false;
   /** playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: active wild spawn portal on the vale (not saved; respawns by chance). */
   wildPortal: WildPortal | null = null;
   /** Seconds until the next wild-portal spawn roll. */
@@ -4995,6 +4999,15 @@ export class Game {
     }
     const way = (this.mapId === "world" || this.mapId === "town") && !this.riftHold && !this.travel ? wayMouthAt(tx, ty, this.mapId as "town" | "world") : undefined;
     if (way && way.id === this.wayHold) return;
+    if (!way) this.festRiftWait = false;
+    if (way && this.festRiftWait) return;
+    // cozy-1026 M1: the town's festival rift asks first (once per wake, not saved), so a new hero can't fall in by accident.
+    if (way && this.mapId === "town" && way.festival && !this.festRiftAsked) {
+      this.festRiftAsked = true;
+      this.festRiftWait = true;
+      this.logLine = FEST_RIFT_ASK;
+      return;
+    }
     if (way) {
       this.startTravel(way);
       return;
@@ -5464,6 +5477,15 @@ export class Game {
       return;
     }
     if (this.mode !== "play") return;
+    // cozy-1026 M1: Use on the held festival rift in town crosses.
+    if (this.mapId === "town" && this.festRiftWait) {
+      const held = wayMouthAt(Math.floor(this.px / TILE), Math.floor(this.py / TILE), "town");
+      if (held?.festival) {
+        this.festRiftWait = false;
+        this.startTravel(held);
+        return;
+      }
+    }
     // playtest1v: Use in the seat steps down; Use beside the bone car on the vale climbs in
     if (this.driving) {
       this.carOff("step");
@@ -11050,6 +11072,7 @@ export const MANA = { pool: 2.5, regen: 3 } as const;
 export const DOOR_ZONE = { side: 4, reach: 5 } as const;
 
 /** playtest1b: the log line on stepping into water, and the one that replaces it on climbing out. */
+export const FEST_RIFT_ASK = "The festival rift pulls at you. Its boss is no place for a new hero. Press Use (E) or step in again to cross.";
 export const WADE_LINE = "You sink in. Swimming is half speed.";
 export const DRY_LINE = "You climb out onto dry ground.";
 
