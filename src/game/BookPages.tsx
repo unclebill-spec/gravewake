@@ -7,7 +7,19 @@ import { useState } from "react";
 import { BADGES, BOOK_FAMILIES, BOOK_RANKS, BOOK_SPECIALS, BOOK_TOTAL, FAMILY_LABEL, RANK_LABEL, SHEET_RANK, bookReachable } from "./book";
 
 const FOES = "/art/sprites/foes.png";
-const OWN_SHEET: Record<string, string> = { krampus: "/art/sprites/krampus.png", pumpkinlord: "/art/sprites/pumpkin-lord.png" };
+const OWN_SHEET: Record<string, string> = { krampus: "/art/sprites/krampus.png", pumpkinlord: "/art/sprites/pumpkin-lord.png", mimic: "/art/sprites/mimic.png" };
+
+/**
+ * Rift-confirm batch (B): the Mimic's page, a field note in the book's format (sprite, name, short lore, tells). Its
+ * lore is the game's own wake line; its tells are MIMICS's (content.ts). Not a book key, so BOOK_TOTAL, the badges and
+ * the save are unchanged.
+ */
+export const MIMIC_PAGE = {
+  key: "p:mimic",
+  name: "Mimic",
+  lore: "The lid shudders. The chest has teeth. A mimic wakes. It only sleeps in dungeon chests, about one floor in seven.",
+  tells: "Asleep, its lid lifts a pixel every few breaths, a tooth glinting. Awake, it bites in a line: sidestep a tile in the 0.35 s tell.",
+} as const;
 
 /** One 16x32 sprite cell, scaled `s` times, pixelated; `seen` false draws it as a silhouette. */
 export function FoeCell({ family, rank, seen, s = 2 }: { family: string; rank: (typeof BOOK_RANKS)[number]; seen: boolean; s?: number }) {
@@ -39,6 +51,7 @@ export function BookPage({ book }: { book: readonly string[] }) {
   const filled = book.filter((k) => !k.includes(":") || k.startsWith("s:") || bookReachable(k.split(":")[0], k.split(":")[1] as (typeof BOOK_RANKS)[number])).length;
   const info = (() => {
     if (!pick) return "Tap an entry. A silhouette is one you have not put to rest yet.";
+    if (pick === MIMIC_PAGE.key) return `${MIMIC_PAGE.name}. ${MIMIC_PAGE.lore} Tells: ${MIMIC_PAGE.tells}`;
     if (pick.startsWith("s:")) {
       const d = BOOK_SPECIALS.find((x) => `s:${x.id}` === pick);
       return d ? (have.has(pick) ? `${d.name}. ${FAMILY_LABEL[d.family] ?? d.family} kin. Health ${d.hp}, attack ${d.atk}, armour ${d.ac}. ${d.boss ? "A named boss." : "A guard of the deep floors."}` : "??? Not yet defeated.") : "";
@@ -80,6 +93,13 @@ export function BookPage({ book }: { book: readonly string[] }) {
             </button>
           );
         })}
+      </div>
+      <p className="mt-1 text-muted">Field notes</p>
+      <div className="grid grid-cols-6 gap-1" data-testid="book-mimic">
+        <button type="button" data-book={MIMIC_PAGE.key} title={MIMIC_PAGE.name} className={`flex flex-col items-center rounded border px-0 py-1 ${pick === MIMIC_PAGE.key ? "border-primary" : "border-border"}`} onClick={() => setPick(MIMIC_PAGE.key)}>
+          <FoeCell family="mimic" rank="rare" seen s={1.5} />
+          <span className="mt-0.5 w-full truncate text-center text-[9px]">{MIMIC_PAGE.name}</span>
+        </button>
       </div>
     </div>
   );
