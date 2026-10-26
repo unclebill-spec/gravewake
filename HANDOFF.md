@@ -147,3 +147,20 @@ Branch `mb-sprint-1026` (Track A of /workspace/gravewake/SPRINT_1026_CLAIMS.md).
 - check:game: the frozen copies for feats/room/fightlights are under `scripts/frozen/wake/files/src/game/`. The playtest1v live PINS for gfx1 and playtest1n each moved by one moved-file pin (comment in the script).
 - Tests: `scripts/mbsprint.test.mjs`. Composites: `docs/will/mb-1026-spec1-blade-before-after.png` and `docs/will/mb-1026-batch2-dig-arrow-rim-bounty-before-after.png`.
 - For Will: the batch7 bestiary book has no Mimic page (the old families list does record "mimic"). Adding one changes BOOK_TOTAL and the badges, so I left it. The rim pulse is a plain blink, not the wow layer's glow mask, and there is no low-effects switch to hook it to.
+
+## MB sprint Oct 26 (b) (Master Builder, 2026-10-26, branch mb-sprint-1026-b)
+Gap fixes only, judged by the acceptance tests in /workspace/qa/gravewake-2026-10-26/2-FEATURE-SPECS.md. Check group `mb1026b` lives in scripts/mb1026b-group.mjs and is hooked once in gravewake-check.mjs. Run it under Node 22.
+- **#8 rune doors, #10 derby, #11 decorating, #12 bond:** all acceptance tests already pass in the existing groups (rune, derby, decor, bond). No code changes.
+- **#9 secret walls:** tools/pixel-writer/crack_bright.py repaints only the crack cells of the feat-*.png sheets, giving them a lit lip one locked shade brighter. Regenerate after make_gravewake with `python3 -c "import crack_bright as c; c.write()"`.
+- **#13 seasons:** src/game/nightlift.ts sets SUMMER_NIGHT to [0.44, 0.46, 0.76]. It is used for vale, village and camp night only, through draw.ts sceneAmbient.
+  - Near-black share: 0.70 → 0.20 on desk and 0.18 on Phone. Autumn stays at 0.69.
+  - The near-black share is steep around this value: [0.42, 0.44, 0.74] still measured 0.67. Will can tune it.
+- **#14 festivals:** qa/mb1026b/season_jump.mjs and shoot.py (see its README) are a dev/QA jump; nothing is in the game UI.
+  - Harvest, Krampusnacht, Drowned Bloom and Ashen Fair each loaded in the browser with 0 errors.
+  - Boss and pack spawns, plus loot, are covered by group `festival`.
+- **FTP idea 4:** src/game/riftflash.ts.
+  - The label font (looks.ts and font-small.png) is byte-pinned by playtest2b, so the colon is stamped as two dots in a space cell.
+  - The label is lifted by LABEL_LIFT, which is 10 px.
+  - Arrival gets a 0.28 s dithered #7a5ad0 veil.
+  - Known: on Phone, the town plaza label can sit above the top edge when you stand on the dais. That is the camera, not the label.
+- **Checks:** check:game passed 1105 of 1105. Typecheck and build are OK, lint has 0 errors, and test passed 169 with 0 failed. Composites are in docs/will/mb1026b-*.png.

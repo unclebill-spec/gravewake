@@ -11,6 +11,12 @@ All dates are America/New_York. The newest entries come first. Each entry matche
 - At night, dig graves, the guild's bounty board and cracked brick get a 1px violet rim pulse.
 - Specs 6 (curse HUD line) and 7 (escort warp, rescue saved) were already in the game; tests now cover them. See HANDOFF "MB sprint Oct 26".
 
+## mb-sprint-1026-b (2026-10-26)
+- Secret walls: the crack in each cave wall now shows a lit lip, one locked-palette shade brighter than the wall, so it reads at Phone zoom.
+- Summer nights on the vale, in villages and at camp are lighter: 70% near-black drops to 20%. The other seasons are unchanged.
+- QA only: qa/mb1026b/season_jump.mjs makes a save on any season's night or festival night, and shoot.py loads it in the browser.
+- Wayrift labels now read "Wayrift: place" and "Sealed rift: place", sit 10 px higher, clear of the hero, and arrival gets a short violet flash.
+
 ## mb-final-pass-2 (2026-10-25)
 - Seven violet-slate grave mounds in the cemetery. They come from a new seeded writer (tools/pixel-writer/mound_writer.py) and block the hero like a grave.
 - Story's ten items can now be bought. The Mystic, the Shop or Merchant, and the Undertaker sell them. Their stats are sidegrades for their tier. See HANDOFF "MB final pass 2".

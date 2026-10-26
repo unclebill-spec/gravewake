@@ -15710,7 +15710,7 @@ if (on("earlysinks")) {
   execFileSync("npx", ["esbuild", join(dir, "es.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "es.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
   globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
-  const ctxGet = (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : () => ({ addColorStop() {} }));
+  const ctxGet = (t, k) => ((k in t) ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? (() => ({ width: 1 })) : (() => ({ addColorStop() {} })));
   globalThis.document = { createElement: () => ({ width: 16, height: 16, getContext: () => new Proxy({}, { get: ctxGet, set: (t, k, v) => { t[k] = v; return true; } }) }) };
   const store = {};
   globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
@@ -16131,6 +16131,9 @@ if (on("wow")) {
   const hooks = /paintWow\(ctx, g,/.test(dr) && /paintHollowDark\(ctx, g,/.test(dr) && /WOWFX\.relight/.test(dr) && /lord\.pattern === "lightsout"\) \|\| \(lord\.lastToll/.test(dr);
   check("wow", `Sound's wow cues ship and are wired (${sfx}); the draw runs the layer before the light (body + glow pass), relights through the lamp list, and Hollowmourn's Lights Out and Last Toll go black but his lantern and the runes (${hooks}); night choir ${AU.AMB.choirNight} (${AU.AMB.choirNightDucked} under music)`, sfx && hooks && AU.AMB.choirNight <= 0.25);
 }
+
+// MB sprint Oct 26 (b): its own group in its own file.
+if (on("mb1026b")) await (await import("./mb1026b-group.mjs")).run(check);
 
 if (!ran) {
   console.log("No checks ran. Groups: earlysinks, playtest2b, move, bodies, doors, fight, gear, loop, fx, crowd, rune, crack, trap, curse, rescue, mimic, bounty, retouch, escort, errand, graves, derby, decor, bond, season, daysweep, festival, mapwriter, festival2, mapwriter2, gfx1, gfx2, gfx3, screen1, retro1, fade1, fade2, playtest1f, install1, playtest1, playtest1b, playtest1c, playtest1d, playtest1e, playtest1g, playtest1h, playtest1i, playtest1j, playtest1k, playtest1l, playtest1m, playtest1n, playtest1o, playtest1p, playtest1q, playtest1r, playtest1s, playtest1t, playtest1u, playtest1v, playtest1w, playtest1x, playtest1y, playtest1z, playtest1z2, playtest2a, townwide, outskirts, billvid, oskaudio, oskart, wow");
