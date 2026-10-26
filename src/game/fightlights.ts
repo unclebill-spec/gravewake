@@ -10,6 +10,8 @@
  */
 import { LIGHT, bucket, type RGB } from "./light";
 import { NEON_LIGHT } from "./looks";
+import { TRAPS } from "./content";
+import { bladeStage, type Trap } from "./feats";
 import { MARK_NEON, markSlot, tellProgress, type MarkSlot } from "./telegraph";
 import { bodyR, footOf, scaleOf, topOf } from "./bigboss"; // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]
 
@@ -198,7 +200,7 @@ export function paintWindup(ctx: CanvasRenderingContext2D, x: number, y: number,
   paintTellMark(ctx, x, y, r, color, 0);
 }
 
-export type TellView = FightView & { plateTell: number; ashTell: number; plateR: number; ashR: number; frame: number };
+export type TellView = FightView & { sec?: number; blades?: readonly Trap[]; plateTell: number; ashTell: number; plateR: number; ashR: number; frame: number };
 
 /**
  * Every live telegraph in the scene (foe marks and wind-ups, live plates, ash bursts), on the ground under the actors;
@@ -218,7 +220,28 @@ export function paintTells(ctx: CanvasRenderingContext2D, v: TellView, white: bo
     const tell = v.plates[i]?.tell ?? 0;
     if (tell > 0) paintTellMark(ctx, t.x * tile + 8, t.y * tile + 8, v.plateR, col("trap"), 1 - tell / v.plateTell, rimOnly);
   });
+  // MB sprint 2026-10-26: a swinging blade's lane is a telegraph box for TRAPS.bladeTell s before its sweep
+  if (v.sec != null) for (const t of v.blades ?? []) if ( bladeStage(t, v.sec) === 1) paintTellBox(ctx, (t.x - 1) * tile, t.y * tile, tile * 3, tile, col("trap"), bladeTellP(t, v.sec), rimOnly);
   for (const a of v.ashes) paintTellMark(ctx, a.x, a.y, v.ashR, white ? "#ffffff" : MARK_NEON.big, 1 - a.tell / v.ashTell, rimOnly);
+}
+
+/** A box telegraph (the blade's lane): a 1 px rim, filled west to east with a dot grid to progress p. */
+export function paintTellBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, p: number, rimOnly = false) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, 1);
+  ctx.fillRect(x, y + h - 1, w, 1);
+  ctx.fillRect(x, y, 1, h);
+  ctx.fillRect(x + w - 1, y, 1, h);
+  if (rimOnly) return;
+  const fill = Math.round(w * Math.max(0, Math.min(1, p)));
+  for (let yy = y + 3; yy < y + h - 2; yy += 4) for (let xx = x + 3; xx < x + fill - 2; xx += 4) ctx.fillRect(xx, yy, 1, 1);
+}
+
+/** How far through its tell a blade is, 0..1. */
+function bladeTellP(t: Trap, sec: number) {
+  const c = TRAPS.bladeCycle;
+  const at = (((sec + t.phase * c) % c) + c) % c;
+  return (at - (c - TRAPS.bladeTell - TRAPS.bladeSweep)) / TRAPS.bladeTell;
 }
 
 /** For the light check: lights carried by a fight never exceed the pool, and LIGHT.budget still caps the scene. */

@@ -619,6 +619,11 @@ export const TRAPS = {
   plateTell: 0.5,
   plateRadius: 20,
   plateRearm: 2.5,
+  // MB sprint 2026-10-26 (FEATURE_TASKS #3, swinging blades): timing only, the hit is the floor's trapAtk like a spike.
+  // A pendulum sweeps 3 tiles once a cycle; its telegraph box shows bladeTell s before the sweep.
+  bladeCycle: 3.2,
+  bladeTell: 0.45,
+  bladeSweep: 0.35,
 } as const;
 
 /** A trap's attack at fight level L: round(5 * (0.70 + L * 0.06)). */
