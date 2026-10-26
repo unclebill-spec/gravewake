@@ -46,4 +46,12 @@ print(json.dumps(out))
   for (const s of Object.keys(want)) { const r = await seasonSave(s, { festival: true }); got[s] = `${r.season}/${r.phase}/${r.festival}/${r.value ? "saved" : "nosave"}`; }
   const okJ = Object.entries(want).every(([s, f]) => got[s] === `${s}/night/${f}/saved`);
   check("mb1026b", "festival QA jump: qa/mb1026b/season_jump.mjs saves Harvest, Krampusnacht, Drowned Bloom and Ashen Fair nights into slot 1", okJ, JSON.stringify(got));
+
+  // First-time-player idea 4: rift labels "Kind: place" lifted clear of the hero; a short violet arrival flash.
+  const rf = await import("data:text/javascript;base64," + Buffer.from(execFileSync("npx", ["esbuild", "src/game/riftflash.ts", "--bundle", "--platform=node", "--format=esm", "--log-level=error"], { encoding: "utf8" })).toString("base64"));
+  const colon = rf.riftLabelText("Drowned Bloom rift (sealed)") === "Sealed rift: Drowned Bloom" && /drawRiftLabel\(ctx, \(t\) => drawLabel/.test(draw);
+  const raised = rf.LABEL_LIFT >= 8 && /WAYRIFT\.stand\) \* TILE - 2 - LABEL_LIFT/.test(draw);
+  const lv = [rf.riftFlashLevel(null), rf.riftFlashLevel({ t: 0.1, moved: false }), rf.riftFlashLevel({ t: 99, moved: true })];
+  const pal = fs.readFileSync("tools/sprite-writer/palette_locked.py", "utf8").toLowerCase().includes(rf.RIFT_FLASH_COL);
+  check("mb1026b", "rift labels: every label reads 'Kind: place' and rides LABEL_LIFT px higher; arrival flash is a locked violet, only after the move, gone within RIFT_FLASH s", colon && raised && lv.every((v) => v === 0) && pal && rf.RIFT_FLASH < 0.5, JSON.stringify({ colon, raised, lv, pal }));
 }
