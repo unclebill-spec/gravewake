@@ -11,6 +11,8 @@
 
 **Read this first, then `CHANGELOG.md` and `AGENTS.project.md`. `rules/` holds the project law.**
 
+- 2026-10-26: `pages-out/` added to .gitignore (`.output/` was already there). Tailwind v4 skips git-ignored paths, so leftover build output no longer leaks classes into the CSS. Checked: a build with a stray pages-out/ now gives the same assets as a clean build (styles-DsHJmbkM.css); before the change it gave styles-DX1UWzlL.css.
+
 ## What it is
 Gravewake is a gothic Halloween web game with real-time field combat. It uses a Stardew-like 16px pixel lock, and is built with Vite, TypeScript and React on canvas. Published build: https://pepper-iris-lotus-coral.grok.me (the owner republishes it from the source zips).
 
