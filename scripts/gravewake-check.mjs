@@ -15709,7 +15709,7 @@ if (on("earlysinks")) {
   execFileSync("npx", ["esbuild", join(dir, "es.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", `--outfile=${join(dir, "es.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
   const had = { Image: globalThis.Image, document: globalThis.document, ls: globalThis.localStorage, random: Math.random };
   globalThis.Image = class { constructor() { this.naturalWidth = 16; this.naturalHeight = 16; } get complete() { return true; } set src(u) { this._s = u; } get src() { return this._s; } };
-  const ctxGet = (t, k) => (k in t ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? () => ({ width: 1 }) : () => ({ addColorStop() {} }));
+  const ctxGet = (t, k) => ((k in t) ? t[k] : k === "getImageData" || k === "createImageData" ? () => ({ data: new Uint8ClampedArray(4) }) : k === "measureText" ? (() => ({ width: 1 })) : (() => ({ addColorStop() {} })));
   globalThis.document = { createElement: () => ({ width: 16, height: 16, getContext: () => new Proxy({}, { get: ctxGet, set: (t, k, v) => { t[k] = v; return true; } }) }) };
   const store = {};
   globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
