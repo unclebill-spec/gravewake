@@ -3,7 +3,7 @@
  * the badge toast. Foes are drawn from the existing sheets (foes.png stand pose, 16x32 cells; the festival sheets for
  * the Pumpkin Lord and Krampus); an entry not yet defeated is the same cell as a black silhouette.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BADGES, BOOK_FAMILIES, BOOK_RANKS, BOOK_SPECIALS, BOOK_TOTAL, FAMILY_LABEL, RANK_LABEL, SHEET_RANK, bookReachable } from "./book";
 
 const FOES = "/art/sprites/foes.png";
@@ -48,6 +48,11 @@ export function FoeCell({ family, rank, seen, s = 2 }: { family: string; rank: (
 export function BookPage({ book }: { book: readonly string[] }) {
   const have = new Set(book);
   const [pick, setPick] = useState<string>("");
+  const infoRef = useRef<HTMLParagraphElement>(null);
+  // gw-followup-1026 (b): the Mimic tile sits at the bottom of the page, so picking it scrolls its notes into view.
+  useEffect(() => {
+    if (pick === MIMIC_PAGE.key) infoRef.current?.scrollIntoView?.({ block: "nearest", behavior: "auto" });
+  }, [pick]);
   const filled = book.filter((k) => !k.includes(":") || k.startsWith("s:") || bookReachable(k.split(":")[0], k.split(":")[1] as (typeof BOOK_RANKS)[number])).length;
   const info = (() => {
     if (!pick) return "Tap an entry. A silhouette is one you have not put to rest yet.";
@@ -63,7 +68,7 @@ export function BookPage({ book }: { book: readonly string[] }) {
   return (
     <div className="flex flex-col gap-2 text-xs" data-testid="bestiary">
       <p className="text-muted" data-testid="book-count">Bestiary {filled} / {BOOK_TOTAL}</p>
-      <p className="min-h-[2.5em] text-sm" data-testid="book-info">{info}</p>
+      <p ref={infoRef} className="min-h-[2.5em] scroll-mt-2 text-sm" data-testid="book-info">{info}</p>
       <div className="grid gap-1" style={{ gridTemplateColumns: "auto repeat(4, minmax(0, 1fr))" }}>
         <span />
         {BOOK_RANKS.map((r) => (

@@ -2,6 +2,11 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## gw-followup-1026 (2026-10-26)
+- Summer nights in town are darker too, matching the vale (about 41% near-black on Phone, was about 12%), with the same soft dither. Other seasons unchanged.
+- Bestiary: tapping the Mimic tile at the bottom scrolls its notes into view.
+- Not published.
+
 ## rift-confirm-fix (2026-10-26)
 - Rifts: stepping onto any rift that would take you somewhere now asks "Enter the rift?" with Yes and No, every time (no more once per wake). The world pauses while it asks. No (or Esc) steps you back off the mouth. Keys: E/Enter Yes, Esc No, arrows choose; on touch, tap a button.
 - Summer nights are darker again (about 40% near-black on Phone, was about 20%), with the hero, path and neon still readable. Other seasons unchanged.

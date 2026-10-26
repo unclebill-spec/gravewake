@@ -10,4 +10,7 @@ export async function run(check) {
   const book = readFileSync("src/game/book.ts", "utf8");
   const noKey = !/mimic/.test(book.match(/BOOK_FAMILIES = \[[^\]]*\]/)[0]);
   check("mimicpage", "bestiary: one Mimic page (its mimic.png sprite, name, the game's own wake line as lore, its sleeping and bite tells) in the book's cell format; not a book key, so the count, badges and save are unchanged", lore && sprite && page && noKey, JSON.stringify({ lore, sprite, page, noKey }));
+  // gw-followup-1026 (b): tapping the bottom Mimic tile scrolls its notes into view (browser: qa/followup/mimic_scroll.py).
+  const scroll = /ref=\{infoRef\}[^>]*data-testid="book-info"/.test(src) && /if \(pick === MIMIC_PAGE\.key\) infoRef\.current\?\.scrollIntoView/.test(src);
+  check("mimicpage", "bestiary: tapping the bottom Mimic tile scrolls the notes text (book-info) into view", scroll);
 }
