@@ -6,6 +6,7 @@ import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
 import { valeNight, valeNightDeep } from "./nightlift";
+import { RIM_COLOR, rimHalo } from "./rimglow";
 import { LABEL_LIFT, drawRiftLabel, paintRiftFlash } from "./riftflash";
 import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
@@ -3690,15 +3691,23 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
     if (lw) bossNames.push({ x: Math.round(at.cx - lw / 2), y: Math.round(at.y - 7), w: lw, h: 7 });
   }
   paintGateArrow(ctx, g, cam);
-  // polish 5: a 1px violet (#b07aff, the palette's neon violet) rim on interactables at night, on for half of each 1.2 s
-  if (typeof performance !== "undefined" && performance.now() % 1200 < 600) {
-    for (const r of g.rimSpots?.() ?? []) {
+  // polish 5: a 1px violet (#b07aff) rim on interactables at night; batch C: steady, with a slow stepped halo (rimglow.ts)
+  const rims = g.rimSpots?.() ?? [];
+  if (rims.length) {
+    const halo = rimHalo(typeof performance !== "undefined" ? performance.now() : 0);
+    for (const r of rims) {
       const rx = r.x * TILE;
       const ry = r.y * TILE;
-      px(ctx, rx, ry, TILE, 1, "#b07aff");
-      px(ctx, rx, ry + TILE - 1, TILE, 1, "#b07aff");
-      px(ctx, rx, ry, 1, TILE, "#b07aff");
-      px(ctx, rx + TILE - 1, ry, 1, TILE, "#b07aff");
+      if (halo) {
+        px(ctx, rx, ry - 1, TILE, 1, halo);
+        px(ctx, rx, ry + TILE, TILE, 1, halo);
+        px(ctx, rx - 1, ry, 1, TILE, halo);
+        px(ctx, rx + TILE, ry, 1, TILE, halo);
+      }
+      px(ctx, rx, ry, TILE, 1, RIM_COLOR);
+      px(ctx, rx, ry + TILE - 1, TILE, 1, RIM_COLOR);
+      px(ctx, rx, ry, 1, TILE, RIM_COLOR);
+      px(ctx, rx + TILE - 1, ry, 1, TILE, RIM_COLOR);
     }
   }
   const dig = g.digCue?.(); // spec 5: the dig cue over the grave the hero stands beside

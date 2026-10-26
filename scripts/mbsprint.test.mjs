@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 
 const dir = mkdtempSync(join(tmpdir(), "gw-mbs-"));
 const root = process.cwd();
-writeFileSync(join(dir, "b.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as C from "${root}/src/game/content.ts";\n`);
+writeFileSync(join(dir, "b.ts"), `export * from "${root}/src/game/sim.ts";\nexport * as C from "${root}/src/game/content.ts";\nexport * as RG from "${root}/src/game/rimglow.ts";\n`);
 execFileSync("npx", ["esbuild", join(dir, "b.ts"), "--bundle", "--platform=node", "--format=esm", "--log-level=error", "--loader:.png=empty", "--loader:.css=empty", `--outfile=${join(dir, "b.mjs")}`], { stdio: ["ignore", "ignore", "inherit"] });
 const store = new Map();
 globalThis.localStorage ??= { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k), clear: () => store.clear() };
@@ -162,4 +162,19 @@ test("polish 5: the rim pulse marks graves, the board and cracks at night only",
   g.update(0.02);
   const n = g.rimSpots();
   assert.ok(n.length >= 1 && n.every((s) => g.tiles[s.y * g.w + s.x] === C.T.grave), `${n.length}`);
+});
+
+test("batch C: the night rim is steady #b07aff with a slow stepped violet halo, no blink", async () => {
+  const { RG } = X;
+  const fs = await import("node:fs");
+  const draw = fs.readFileSync("src/game/draw.ts", "utf8");
+  assert.equal(RG.RIM_COLOR, "#b07aff", "same colour");
+  assert.ok(RG.RIM_PERIOD >= 2000 && RG.RIM_PERIOD <= 3000, "2-3 s period");
+  const seen = new Set();
+  for (let t = 0; t < RG.RIM_PERIOD; t += 10) seen.add(RG.rimHalo(t));
+  assert.deepEqual([...seen].sort(), [null, "#4a2a78", "#7a5ad0"].sort(), "steps through the violet ramp only");
+  assert.equal(RG.rimHalo(0), RG.rimHalo(RG.RIM_PERIOD), "periodic");
+  assert.ok(!/performance\.now\(\) % 1200 < 600/.test(draw), "the hard blink is gone");
+  const i = draw.indexOf("const rims = g.rimSpots");
+  assert.ok(i > 0 && !/globalAlpha|Gradient|shadowBlur|rgba\(/.test(draw.slice(i, i + 900)), "hard pixels");
 });
