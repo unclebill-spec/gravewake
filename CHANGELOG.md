@@ -2,6 +2,13 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## rift-confirm-fix (2026-10-26)
+- Rifts: stepping onto any rift that would take you somewhere now asks "Enter the rift?" with Yes and No, every time (no more once per wake). The world pauses while it asks. No (or Esc) steps you back off the mouth. Keys: E/Enter Yes, Esc No, arrows choose; on touch, tap a button.
+- Summer nights are darker again (about 40% near-black on Phone, was about 20%), with the hero, path and neon still readable. Other seasons unchanged.
+- The bestiary has a Mimic page (sprite, lore, tells).
+- The night rim on graves, the bounty board and cracked brick glows steadily with a slow, soft pulse instead of blinking.
+- QA only: `?qa` exposes `__qaWarp("blade" | "secret")` (qa/warp/README.md). Wow SFX level unchanged (measured quieter than the SFX bus, see HANDOFF). Caption of docs/will/mb-merge-1026-phone.png corrected. Not published.
+
 ## mb-merge-1026 (2026-10-26)
 - Merged cozy-gw-bugs-1026, mb-sprint-1026 (Track A) and mb-sprint-1026-b (Track B) into main (merge b73d169). No game change beyond those branches; check:game 1105/1105. Not published.
 
