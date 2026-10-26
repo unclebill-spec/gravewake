@@ -5,7 +5,7 @@ import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worl
 import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
-import { valeNight } from "./nightlift";
+import { valeNight, valeNightDeep } from "./nightlift";
 import { LABEL_LIFT, drawRiftLabel, paintRiftFlash } from "./riftflash";
 import { HARVEST } from "./festivals";
 import { TRAIL_BY_GROUND, TRAIL_SEASON_ROW, TRAIL_SHEETS, TRAIL_VALE } from "./trails"; // playtest1g
@@ -3262,6 +3262,23 @@ function silhouette(c: HTMLCanvasElement, camX: number, camY: number, fns: ((x: 
  * emissive layer (flames, the vortex, telegraphs, spells) is set to full light, and the whole canvas multiplies
  * over the world. Returns false where the scene has no light layer.
  */
+let deepCheck: { css: string; pat: CanvasPattern } | null = null;
+/** A 2x2 checker (two opposite pixels in the deep level, two clear) as a repeating pattern, cached by colour. */
+function deepChecker(lc: CanvasRenderingContext2D, css: string): CanvasPattern | null {
+  if (deepCheck && deepCheck.css === css) return deepCheck.pat;
+  const c = document.createElement("canvas");
+  c.width = 2;
+  c.height = 2;
+  const x = c.getContext("2d");
+  if (!x) return null;
+  x.fillStyle = css;
+  x.fillRect(0, 0, 1, 1);
+  x.fillRect(1, 1, 1, 1);
+  const pat = lc.createPattern(c, "repeat");
+  if (pat) deepCheck = { css, pat };
+  return pat;
+}
+
 function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: number, vw: number, vh: number, actors: ((c: CanvasRenderingContext2D) => void)[], glow: ((c: CanvasRenderingContext2D) => void)[]): boolean {
   const amb = sceneAmbient(g);
   if (!amb || typeof document === "undefined") return false;
@@ -3275,6 +3292,19 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
   lc.globalCompositeOperation = "source-over";
   lc.fillStyle = rgbCss(amb);
   lc.fillRect(0, 0, W, H);
+  const deep = g.mapId === "world" || g.mapId === "village" || g.mapId === "camp" ? valeNightDeep(g.season()) : null;
+  if (deep && amb !== LIGHT.worldNight) {
+    // Rift-confirm batch (A): summer's night is a world-locked 1px checker of two levels (see nightlift.ts).
+    const pat = deepChecker(lc, rgbCss(deep));
+    if (pat) {
+      lc.fillStyle = pat;
+      const ox = Math.round(camX) & 1;
+      const oy = Math.round(camY) & 1;
+      lc.setTransform(1, 0, 0, 1, -ox, -oy);
+      lc.fillRect(0, 0, W + 2, H + 2);
+      lc.setTransform(1, 0, 0, 1, 0, 0);
+    }
+  }
   lc.globalCompositeOperation = "lighter";
   const washes: { spr: HTMLCanvasElement; x: number; y: number; k: number }[] = [];
   for (const l of sceneLights(g, camX, camY, W, H)) {

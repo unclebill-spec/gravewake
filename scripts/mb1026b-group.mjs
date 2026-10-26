@@ -37,7 +37,12 @@ print(json.dumps(out))
   const fs = await import("node:fs");
   const draw = fs.readFileSync("src/game/draw.ts", "utf8");
   const wired = (draw.match(/valeNight\(g\.season\(\), LIGHT\.worldNight\)/g) || []).length === 2;
-  check("mb1026b", "seasons: summer night ambient lifted on vale/village/camp (still blue-led), autumn/winter/spring keep LIGHT.worldNight exactly", other && lifted && wired, JSON.stringify({ other, sn, wired }));
+  // Rift-confirm batch (A): summer is darker via a second, deeper checker level (measured 18% -> 40% near-black, Phone).
+  const deep = nl.valeNightDeep("summer");
+  const deepOk = !!deep && deep.every((v, i) => v < sn[i] && v > base[i]) && deep[2] > deep[0] && deep[2] > deep[1];
+  const deepOther = ["autumn", "winter", "spring"].every((s) => nl.valeNightDeep(s) === null);
+  const deepWired = /valeNightDeep\(g\.season\(\)\)/.test(draw) && /deepChecker\(lc,/.test(draw);
+  check("mb1026b", "seasons: summer night on vale/village/camp is a world-locked 1px checker of two blue-led levels between LIGHT.worldNight and the old lift (darker, ~40% near-black on Phone); autumn/winter/spring keep LIGHT.worldNight exactly, no checker", other && lifted && wired && deepOk && deepOther && deepWired, JSON.stringify({ other, sn, deep, deepOther, wired, deepWired }));
 
   // Spec #14: the QA season jump lands each season's festival night (no game UI involved).
   const { seasonSave } = await import("../qa/mb1026b/season_jump.mjs");
