@@ -67,7 +67,7 @@ import {
   type StatPath,
   type WeatherId,
 } from "./content";
-import { GLYPH_NAMES, placeFeats, placeTraps, secretTile, spikeStage, type FloorFeats, type Spot } from "./feats";
+import { GLYPH_NAMES, bladeStage, inBladeLane, placeFeats, placeTraps, secretTile, spikeStage, type FloorFeats, type Spot } from "./feats";
 import { curseFloor, pickCurse, placeCaptive, rescueFor } from "./runs";
 import { mimicChest } from "./mimic";
 // OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. Generated floors and rift zones come from the fourth writer.
@@ -346,6 +346,8 @@ export type Roamer = {
   stun?: number;
   oilT?: number;
   spikeAt?: number;
+  /** MB sprint 2026-10-26: world s a swinging blade last bit it. Never saved. */
+  bladeAt?: number;
   homeX?: number;
   homeY?: number;
   hits?: number;
@@ -694,6 +696,12 @@ export class Game {
   plates: { tell: number; cool: number }[] = [];
   private trapIndex = new Map<number, number>();
   /** Index into feats.traps for the trap on tile i, or -1. */
+  /** MB sprint 2026-10-26: the floor's traps and its swinging blades, for the hazard and foe code (not indexed). */
+  trapsAll() {
+    const t = this.feats?.traps ?? [];
+    const b = this.feats?.blades ?? [];
+    return b.length ? [...t, ...b] : t;
+  }
   trapAt(i: number) {
     return this.trapIndex.get(i) ?? -1;
   }
@@ -2025,8 +2033,22 @@ export class Game {
     return post;
   }
 
+  /** MB sprint 2026-10-26 (spec 4): bite tells a mimic has sounded (tests read it; not saved). */
+  mimicTells?: number;
+
   bountyPaid() {
     return this.opened.has(`bounty:${nightOf(this.worldMs)}:paid`);
+  }
+
+  /** MB sprint 2026-10-26 (spec 3, #7): where the map pins tonight's name: the live stalker if it is up, else its lair;
+   * null by day, once paid, or off the overworld. Seeded per night through bountyPost. */
+  bountyMark(): { x: number; y: number } | null {
+    if (this.mapId !== "world") return null;
+    const post = this.bountyPost();
+    if (!post || this.bountyPaid()) return null;
+    const r = this.roamers.find((f) => f.bounty && this.liveFoe(f));
+    if (r) return { x: Math.floor(r.x / TILE), y: Math.floor(r.y / TILE) };
+    return { x: post.x, y: post.y };
   }
 
   /** The posted stalker walks its lair at night until it falls. The day clears it with the other roamers. */
@@ -3178,10 +3200,10 @@ export class Game {
   /** playtest1s: ground the companion will not stand on while it gives room: fire, a lit fuse's blast, a spike plate. */
   private allyBad(x: number, y: number) {
     if (this.mapId !== "dungeon") return false;
-    const traps = this.feats?.traps;
+    const traps = this.trapsAll();
     const tx = Math.floor(x / TILE);
     const ty = Math.floor(y / TILE);
-    return hazardAt(this.room, traps, this.worldMs / 1000, x, y, TILE) || !!traps?.some((t) => t.kind === "spike" && t.x === tx && t.y === ty);
+    return hazardAt(this.room, traps, this.worldMs / 1000, x, y, TILE) || !!traps?.some((t) => (t.kind === "spike" && t.x === tx && t.y === ty) || (t.kind === "blade" && inBladeLane(t, tx, ty)));
   }
 
   private allyOpen(x: number, y: number) {
@@ -6708,6 +6730,71 @@ export class Game {
   }
 
   /** Dig one town grave: once a night, after dark, with a spade. Loot from the world table; sometimes a zombie. */
+  /**
+   * Polish 5: tiles that take a night rim pulse so a first-time player finds them: the town's diggable
+   * graves not yet turned tonight, the guild's bounty board, and a floor's cracked brick. Night only.
+   */
+  rimSpots(): { x: number; y: number }[] {
+    if (this.phase !== "night" || this.mode !== "play") return [];
+    const out: { x: number; y: number }[] = [];
+    if (this.mapId === "town") {
+      const night = nightOf(this.worldMs);
+      for (let i = 0; i < this.tiles.length; i++) {
+        if (this.tiles[i] !== T.grave) continue;
+        const x = i % this.w;
+        const y = Math.floor(i / this.w);
+        if (!this.opened.has(digKey(night, x, y))) out.push({ x, y });
+      }
+    } else if (this.mapId === "inside" && this.inside === "guild") out.push({ x: BOUNTY.boardX, y: BOUNTY.boardY });
+    else if (this.mapId === "dungeon" && this.feats?.crack) {
+      for (let i = 0; i < this.tiles.length; i++) if (this.tiles[i] === T.crack) out.push({ x: i % this.w, y: Math.floor(i / this.w) });
+    }
+    return out;
+  }
+
+  /**
+   * Polish 2: until the first road fight is won (a world win names its zone in `zones`, saved), the town
+   * points the way out: the nearest road gate's centre in world pixels, or null.
+   */
+  gateCue(): { x: number; y: number } | null {
+    if (this.mapId !== "town" || this.mode !== "play" || this.zones.length) return null;
+    let best: { x: number; y: number } | null = null;
+    let bd = Infinity;
+    for (const [x, y] of TOWN_GATES) {
+      const d = Math.hypot(x * TILE + 8 - this.px, y * TILE + 8 - this.py);
+      if (d < bd) {
+        bd = d;
+        best = { x: x * TILE + 8, y: y * TILE + 8 };
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Spec 5: the cue over a diggable town grave the hero stands beside (any side, one tile). By day it
+   * reads "come back at night"; at night "dig" (or "spade" when the hero has none); none once turned
+   * tonight. Only real T.grave tiles cue, so the yard's other mounds stay plain dressing.
+   */
+  digCue(): { x: number; y: number; text: string; row: "gold" | "bone" } | null {
+    if (this.mapId !== "town") return null;
+    const tx = Math.floor(this.px / TILE);
+    const ty = Math.floor(this.py / TILE);
+    const order: [number, number][] = [
+      [this.facing === "e" ? 1 : this.facing === "w" ? -1 : 0, this.facing === "s" ? 1 : this.facing === "n" ? -1 : 0],
+      [0, -1], [0, 1], [-1, 0], [1, 0],
+    ];
+    for (const [dx, dy] of order) {
+      const x = tx + dx;
+      const y = ty + dy;
+      if ((dx || dy) && this.tiles[y * this.w + x] === T.grave) {
+        if (this.phase !== "night") return { x, y, text: "Come back at night", row: "bone" };
+        if (this.opened.has(digKey(nightOf(this.worldMs), x, y))) return null;
+        return { x, y, text: this.hasSpade() ? "Dig" : "Need a spade", row: "gold" };
+      }
+    }
+    return null;
+  }
+
   private digGrave(x: number, y: number) {
     if (this.phase !== "night") {
       this.logLine = "The yard is watched by day. Turn the earth after dark.";
@@ -7010,7 +7097,7 @@ export class Game {
   private callTraps() {
     const c = this.companion;
     if (this.mapId !== "dungeon" || !c || c.hp <= 0 || this.mode !== "play" || !this.bondHas("watchful")) return;
-    const traps = this.feats?.traps ?? [];
+    const traps = this.trapsAll();
     const hx = Math.floor(this.px / TILE);
     const hy = Math.floor(this.py / TILE);
     for (const t of traps) {
@@ -7019,7 +7106,7 @@ export class Game {
       if (this.trapsCalled.has(key)) continue;
       this.trapsCalled.add(key);
       const dir = Math.abs(t.x - hx) >= Math.abs(t.y - hy) ? (t.x > hx ? "east" : t.x < hx ? "west" : "here") : t.y > hy ? "south" : "north";
-      this.logLine = `${c.name}: "${t.kind === "spike" ? "Spikes" : "A plate"}, ${dir === "here" ? "right under you" : `to the ${dir}`}."`;
+      this.logLine = `${c.name}: "${t.kind === "spike" ? "Spikes" : t.kind === "blade" ? "A blade" : "A plate"}, ${dir === "here" ? "right under you" : `to the ${dir}`}."`;
       this.nums.push({ x: t.x * TILE + 8, y: t.y * TILE + 4, text: "!", life: 1.2 });
       return;
     }
@@ -8633,6 +8720,11 @@ export class Game {
     r.tellMax = r.tell;
     r.cool = slot === "big" ? 2.2 : 1.3;
     r.act = "cast";
+    // MB sprint 2026-10-26 (spec 4): the mimic's bite tell is heard as well as seen: the game's own three-clack rattle (no new sound)
+    if (r.mimic && slot === "spam") {
+      this.audio?.rattle();
+      this.mimicTells = (this.mimicTells ?? 0) + 1;
+    }
     r.actFor = r.tell;
     if (slot === "big") r.wave = Math.floor((r.age ?? 0) / this.bigCycle(r));
     this.logLine = r.pattern === "nova" ? `${r.name ?? "It"} gathers ${name} around itself.` : `${r.name ?? "It"} marks ${name}.`;
@@ -8861,8 +8953,8 @@ export class Game {
   /** A foe's step. A wary one (room.ts wary: two in three, never a boss) will not step into a live hazard: it slides
    * round it, or waits. Bold ones walk on. Only below ground, and only while something there is live. */
   private roomStep(r: Roamer, sx: number, sy: number) {
-    const traps = this.feats?.traps;
-    if (this.mapId !== "dungeon" || !wary(r.id, !!r.boss) || (!roomBusy(this.room) && !traps?.some((t) => t.kind === "spike"))) {
+    const traps = this.trapsAll();
+    if (this.mapId !== "dungeon" || !wary(r.id, !!r.boss) || (!roomBusy(this.room) && !traps?.some((t) => t.kind === "spike" || t.kind === "blade"))) {
       this.tryBody(r, sx, sy);
       return;
     }
@@ -9077,11 +9169,22 @@ export class Game {
    */
   private tickRoom(dt: number) {
     const room = this.room;
-    const traps = this.feats?.traps ?? [];
+    const traps = this.trapsAll();
     if (!roomBusy(room) && !traps.length) return;
     const atk = trapAtk(this.dungeonLevel());
     const sec = this.worldMs / 1000;
     for (const t of traps) {
+      // MB sprint 2026-10-26: the swinging blade bites a foe in its lane once per sweep, like a spike (a shove gets it there)
+      if (t.kind === "blade") {
+        if (bladeStage(t, sec) !== 2) continue;
+        for (const r of [...this.roamers]) {
+          if (!this.liveFoe(r) || !inBladeLane(t, Math.floor(r.x / TILE), Math.floor(r.y / TILE))) continue;
+          if (sec - (r.bladeAt ?? -99) < TRAPS.bladeSweep + 0.05) continue;
+          r.bladeAt = sec;
+          this.roomHurt(r, atk * ROOM.foeSpike, "The blade:", false);
+        }
+        continue;
+      }
       if (t.kind !== "spike" || spikeStage(t, sec) !== 2) continue;
       for (const r of [...this.roamers]) {
         if (!this.liveFoe(r) || Math.floor(r.x / TILE) !== t.x || Math.floor(r.y / TILE) !== t.y) continue;
@@ -9138,10 +9241,12 @@ export class Game {
    */
   private tickTraps(dt: number) {
     const traps = this.feats?.traps;
-    if (!traps?.length) return;
     const tx = Math.floor(this.px / TILE);
     const ty = Math.floor(this.py / TILE);
     const dealt = Math.max(1, trapAtk(this.dungeonLevel()) - Math.floor(this.ac / 2));
+    // MB sprint 2026-10-26: a swinging blade's sweep hurts only in its 3-tile lane; outside it, nothing
+    for (const b of this.feats?.blades ?? []) if (inBladeLane(b, tx, ty) && bladeStage(b, this.worldMs / 1000) === 2) this.bite(dealt, `The swinging blade cuts for ${dealt}.`);
+    if (!traps?.length) return;
     traps.forEach((t, i) => {
       const on = t.x === tx && t.y === ty;
       if (t.kind === "spike") {

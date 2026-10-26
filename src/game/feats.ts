@@ -26,9 +26,9 @@ export type RuneFeat = {
 };
 export type CrackFeat = { wall: Spot; approach: Spot; room: Rect; chest: Spot };
 /** A floor trap. phase (0..1) staggers spike cycles so a row of spikes does not move as one. */
-export type Trap = Spot & { kind: "spike" | "plate"; phase: number };
+export type Trap = Spot & { kind: "spike" | "plate" | "blade"; phase: number };
 /** hidden lists every room tile, opened or not, so fog and foe spawns can leave them alone. */
-export type FloorFeats = { rune?: RuneFeat; crack?: CrackFeat; hidden: number[]; traps?: Trap[]; captive?: Spot; mimic?: Spot };
+export type FloorFeats = { rune?: RuneFeat; crack?: CrackFeat; hidden: number[]; traps?: Trap[]; /** MB sprint 2026-10-26: swinging blades, kept apart from traps so trap indices stay put. */ blades?: Trap[]; captive?: Spot; mimic?: Spot };
 
 /** FNV-1a over the dungeon id and floor. */
 export function featSeed(dungeon: string, floor: number, salt = "rune"): number {
@@ -244,6 +244,36 @@ export function spikeStage(trap: Trap, seconds: number): 0 | 1 | 2 {
   return 1;
 }
 
+/**
+ * Swinging blade (MB sprint 2026-10-26): 0 at rest, 1 the telegraph box (bladeTell s), 2 the sweep (it hurts).
+ * The blade crosses its 3-tile lane (x-1..x+1 on its row) once a cycle, west to east on even cycles, back on odd.
+ */
+export function bladeStage(trap: Trap, seconds: number): 0 | 1 | 2 {
+  const c = TRAPS.bladeCycle;
+  const t = (((seconds + trap.phase * c) % c) + c) % c;
+  const rest = c - TRAPS.bladeTell - TRAPS.bladeSweep;
+  if (t < rest) return 0;
+  if (t < rest + TRAPS.bladeTell) return 1;
+  return 2;
+}
+
+/** Where the blade is: -1 (west tile) .. 1 (east tile) and its cycle parity. Read by draw.ts. */
+export function bladeSwing(trap: Trap, seconds: number): number {
+  const c = TRAPS.bladeCycle;
+  const s = seconds + trap.phase * c;
+  const n = Math.floor(s / c);
+  const t = s - n * c;
+  const start = c - TRAPS.bladeSweep;
+  const p = t < start ? 0 : (t - start) / TRAPS.bladeSweep;
+  const dir = n % 2 === 0 ? 1 : -1;
+  return dir * (2 * p - 1);
+}
+
+/** The blade's lane: its row, x-1..x+1, in tiles. */
+export function inBladeLane(trap: Trap, tx: number, ty: number) {
+  return ty === trap.y && Math.abs(tx - trap.x) <= 1;
+}
+
 /** Walkable tiles reachable from a start, with some tiles treated as blocked. */
 function reachCount(tiles: ArrayLike<number>, w: number, h: number, sx: number, sy: number, blocked: Set<number>) {
   const seen = new Uint8Array(w * h);
@@ -320,5 +350,42 @@ export function placeTraps(tiles: Uint8Array, w: number, h: number, dungeon: str
     }
     out.push({ x, y, kind: want[out.length], phase: Math.floor(rng() * 8) / 8 });
   }
+  if (!pocket) {
+    const b = placeBlade(tiles, w, h, dungeon, floor, off, out, ux, uy, base);
+    feats.blades = b ? [b] : [];
+  }
   return out;
+}
+
+/**
+ * MB sprint 2026-10-26: one swinging blade on a full dungeon's trap floor, on its own seed ("blade") so the spikes and
+ * plates above stay where they were. Its lane is 3 open floor tiles in a row, clear of everything a trap must avoid,
+ * 3+ tiles from the other traps, and the floor stays whole with the lane treated as wall.
+ */
+function placeBlade(tiles: Uint8Array, w: number, h: number, dungeon: string, floor: number, off: Set<number>, traps: Trap[], ux: number, uy: number, base: number): Trap | undefined {
+  const rng = mulberry(featSeed(dungeon, floor, "blade"));
+  const cands: number[] = [];
+  for (let y = 2; y < h - 2; y++) {
+    for (let x = 2; x < w - 2; x++) {
+      const lane = [x - 1, x, x + 1].map((xx) => y * w + xx);
+      if (lane.some((i) => tiles[i] !== T.floor || off.has(i))) continue;
+      if (lane.some((i) => tiles[i - w] !== T.floor && tiles[i + w] !== T.floor)) continue;
+      cands.push(y * w + x);
+    }
+  }
+  for (let i = cands.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [cands[i], cands[j]] = [cands[j], cands[i]];
+  }
+  const blocked = new Set<number>(traps.map((t) => t.y * w + t.x));
+  for (const i of cands) {
+    const x = i % w;
+    const y = Math.floor(i / w);
+    if (traps.some((o) => Math.abs(o.y - y) + Math.max(0, Math.abs(o.x - x) - 1) < 3)) continue;
+    const test = new Set(blocked);
+    for (const xx of [x - 1, x, x + 1]) test.add(y * w + xx);
+    if (reachCount(tiles, w, h, ux, uy, test) !== base - test.size) continue;
+    return { x, y, kind: "blade", phase: Math.floor(rng() * 8) / 8 };
+  }
+  return undefined;
 }

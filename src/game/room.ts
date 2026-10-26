@@ -12,7 +12,7 @@
  * No dice: placement hashes the dungeon and floor, and nothing here draws Math.random.
  */
 import { T } from "./content";
-import { featSeed, secretTile, spikeStage, type Trap } from "./feats";
+import { bladeStage, inBladeLane, featSeed, secretTile, spikeStage, type Trap } from "./feats";
 
 export const ROOM_TAG = "[OWNER-APPROVED 2026-10-03 15:41 ET: use-the-room combat]";
 
@@ -257,6 +257,7 @@ export function hazardAt(room: RoomState, traps: readonly Trap[] | undefined, se
     const tx = Math.floor(x / tile);
     const ty = Math.floor(y / tile);
     for (const t of traps) if (t.kind === "spike" && t.x === tx && t.y === ty && spikeStage(t, seconds) > 0) return true;
+    for (const t of traps) if (t.kind === "blade" && inBladeLane(t, tx, ty) && bladeStage(t, seconds) > 0) return true; // MB sprint 2026-10-26
   }
   return false;
 }
