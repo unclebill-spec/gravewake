@@ -131,3 +131,19 @@ Test: `scripts/story-items.test.mjs` checks that each item is sold, can be bough
 - Collision: a mound behaves like a grave. It pushes the hero out (slideOffProps, radius 6), and townsfolk and critters treat it as blocked (blockedProp).
 - Test: `scripts/grave-mounds.test.mjs` checks placement, push-out, and that every yard tile can still be reached.
 - Screenshot: docs/bill/grave-mounds.png.
+
+
+## MB sprint Oct 26
+
+Branch `mb-sprint-1026` (Track A of /workspace/gravewake/SPRINT_1026_CLAIMS.md). Not merged or published: Cozy owns merges.
+
+- Spec 1, blades (#3): `feats.ts` places blades in `feats.blades`, kept apart from `traps`, so old trap counts and pins hold. `sim.trapsAll()` feeds the ally, room and foe paths. `room.hazardAt` knows the lane. Timings are in `content.ts` TRAPS (bladeCycle 3.2, bladeTell 0.45, bladeSweep 0.35); hits use the existing trap damage. Art: `public/art/writer/blade.png` from `tools/pixel-writer/blade_writer.py`. Tests: `scripts/blade.test.mjs`.
+- Spec 3, bounty marker: `sim.bountyMark()` (world map, night, unpaid) is drawn by `draw.ts bountyPin` on the full map and the minimap (clamped to the rim).
+- Spec 4, mimic tell: `beginCast` rattles on a mimic's bite and counts `mimicTells`. The tell stays 0.35 s.
+- Spec 5, graves: `sim.digCue()` plus a label and a gold rim in `paintLabels`. Only `T.grave` tiles cue, never the violet mounds.
+- Spec 6 and spec 7 were already done (the `curse-line` HUD row stays on every cursed floor and the payout is logged; the escort snaps to the heels at `RUNS.escortSnap` and is re-placed on each floor, and `rescued:` rides in the saved opened list). Tests were added only.
+- Polish 2: `sim.gateCue()` / `draw.ts paintGateArrow`, town only, until `zones` has an entry (any world win).
+- Polish 5: `sim.rimSpots()`, a night-only 1px #b07aff rim, on for half of every 1.2 s.
+- check:game: the frozen copies for feats/room/fightlights are under `scripts/frozen/wake/files/src/game/`. The playtest1v live PINS for gfx1 and playtest1n each moved by one moved-file pin (comment in the script).
+- Tests: `scripts/mbsprint.test.mjs`. Composites: `docs/will/mb-1026-spec1-blade-before-after.png` and `docs/will/mb-1026-batch2-dig-arrow-rim-bounty-before-after.png`.
+- For Will: the batch7 bestiary book has no Mimic page (the old families list does record "mimic"). Adding one changes BOOK_TOTAL and the badges, so I left it. The rim pulse is a plain blink, not the wow layer's glow mask, and there is no low-effects switch to hook it to.

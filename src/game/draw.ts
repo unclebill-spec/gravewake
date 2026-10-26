@@ -25,7 +25,7 @@ import { CAMP_DRESS, CAMP_FIRE, CAMP_FIRE_EM, CAMP_GEAR, CAMP_GEAR_EM, CAMP_TENT
 import * as WOWFX from "./wow"; // wow batch [OWNER-REQUESTED 2026-10-22 Bill: sparkles and neon]
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
-import { secretTile, spikeStage } from "./feats";
+import { bladeStage, bladeSwing, secretTile, spikeStage } from "./feats";
 import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
@@ -978,6 +978,8 @@ const FEAT_GLYPHS = "/art/writer/feat-glyphs.png";
 const FEAT_FIRE = "/art/writer/feat-fire.png";
 /** Floor traps: 0 holes, 1 tips (the tell), 2 spikes up, 3 plate, 4 plate pressed. */
 const TRAP_SHEET = "/art/writer/trap.png";
+/** MB sprint 2026-10-26, swinging blade: 0 the floor slot, 1 lean west, 2 upright, 3 lean east. blade_writer.py. */
+const BLADE_SHEET = "/art/writer/blade.png";
 /** Rescue: 0 a captive's stake with the chain on, 1 the chain broken. Pixel writer. */
 const CAPTIVE_SHEET = "/art/writer/captive.png";
 /** Night bounty board: 0 tonight's sheet up, 1 paid and slashed, 2 bare by day. Pixel writer. */
@@ -1091,7 +1093,7 @@ function paintBossTrophy(ctx: CanvasRenderingContext2D, family: string, x: numbe
   ctx.drawImage(im, col * 16 + 3, TROPHY_HEAD_TOP[family] ?? 0, 10, 10, x * TILE + 3, y * TILE + 2, 10, 10);
 }
 if (typeof Image !== "undefined") {
-  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "town-ground"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
+  for (const url of [...HEARTH_SHEETS, FEAT_GLYPHS, FEAT_FIRE, TRAP_SHEET, BLADE_SHEET, CAPTIVE_SHEET, BOUNTY_SHEET, MIMIC_SHEET, MIMIC_SLEEP, ESCORT_DOWN, GRAVE_DUG, DERBY_TROPHY, CROFT_DECOR, BOSS_PLAQUE, FESTIVAL_PROPS, FESTIVAL_PROPS2, FLOOD_SHEET, ...Object.values(FESTIVAL_SHEETS), ...Object.values(EM_SHEETS), ...SEASON.order.flatMap((s) => (["vale", "camp-grass", "town-grass", "town-ground"] as const).map((n) => seasonSheet(s, n))), ...Object.keys(CAVES).map((k) => `/art/writer/feat-${k}.png`), BORDER_SHEET]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -1148,7 +1150,7 @@ function glyphCell(ctx: CanvasRenderingContext2D, glyph: number, state: number, 
 function tellView(g: Game): TellView {
   const below = g.mapId === "dungeon";
   const own = (r: (typeof g.roamers)[number]) => !!r.final && inWakeHall(g) && (r.pattern === "toll" || r.pattern === "procession" || r.pattern === "lightsout");
-  return { roamers: g.roamers.some(own) ? g.roamers.filter((r) => !own(r)) : g.roamers, spells: g.spells, ashes: below ? g.ashes : [], plates: g.plates, traps: below ? (g.feats?.traps ?? []) : [], fog: g.fog, w: g.w, plateTell: TRAPS.plateTell, ashTell: RUNS.ashTell, plateR: TRAPS.plateRadius, ashR: RUNS.ashRadius, frame: g.frame };
+  return { roamers: g.roamers.some(own) ? g.roamers.filter((r) => !own(r)) : g.roamers, spells: g.spells, ashes: below ? g.ashes : [], plates: g.plates, traps: below ? (g.feats?.traps ?? []) : [], fog: g.fog, w: g.w, sec: g.worldMs / 1000, blades: below ? (g.feats?.blades ?? []) : [], plateTell: TRAPS.plateTell, ashTell: RUNS.ashTell, plateR: TRAPS.plateRadius, ashR: RUNS.ashRadius, frame: g.frame };
 }
 
 /** The telegraph box drawn for a foe mark, and for a plate trap's mark (playtest1j: no longer drawn; paintTells). */
@@ -1166,9 +1168,25 @@ export function paintMark(ctx: CanvasRenderingContext2D, mx: number, my: number,
 function paintTrap(ctx: CanvasRenderingContext2D, g: Game, i: number, x: number, y: number) {
   const t = g.feats?.traps?.[i];
   if (!t) return;
+  if (t.kind === "blade") return; // drawn whole by paintBlades
   const p = g.plates[i];
   const cell = t.kind === "spike" ? spikeStage(t, g.worldMs / 1000) : p && (p.tell > 0 || p.cool > 0) ? 4 : 3;
   sheetCell(ctx, TRAP_SHEET, cell, 0, x * TILE, y * TILE);
+}
+
+/**
+ * MB sprint 2026-10-26: swinging blades below ground. The slot on its 3 lane tiles, then the blade: resting at one end
+ * of the lane, crossing it during the sweep (bladeSwing). Plain sheet cells, so the low-effects mode draws it too.
+ */
+function paintBlades(ctx: CanvasRenderingContext2D, g: Game) {
+  if (g.mapId !== "dungeon") return;
+  const sec = g.worldMs / 1000;
+  for (const t of g.feats?.blades ?? []) {
+    for (const dx of [-1, 0, 1]) sheetCell(ctx, BLADE_SHEET, 0, 0, (t.x + dx) * TILE, t.y * TILE);
+    const pos = bladeSwing(t, sec);
+    const lean = bladeStage(t, sec) === 2 && Math.abs(pos) < 0.5 ? 2 : pos < 0 ? 1 : 3;
+    sheetCell(ctx, BLADE_SHEET, lean, 0, Math.round((t.x + pos) * TILE), t.y * TILE - 6);
+  }
 }
 
 function paintSecret(ctx: CanvasRenderingContext2D, g: Game, tile: number, x: number, y: number) {
@@ -3639,6 +3657,31 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
     drawLabel(ctx, r.name, at.cx, at.y, "red"); // playtest1c: over a people-scale boss; playtest1p: over its big body; playtest1q: clear of the HUD
     if (lw) bossNames.push({ x: Math.round(at.cx - lw / 2), y: Math.round(at.y - 7), w: lw, h: 7 });
   }
+  paintGateArrow(ctx, g, cam);
+  // polish 5: a 1px violet (#b07aff, the palette's neon violet) rim on interactables at night, on for half of each 1.2 s
+  if (typeof performance !== "undefined" && performance.now() % 1200 < 600) {
+    for (const r of g.rimSpots?.() ?? []) {
+      const rx = r.x * TILE;
+      const ry = r.y * TILE;
+      px(ctx, rx, ry, TILE, 1, "#b07aff");
+      px(ctx, rx, ry + TILE - 1, TILE, 1, "#b07aff");
+      px(ctx, rx, ry, 1, TILE, "#b07aff");
+      px(ctx, rx + TILE - 1, ry, 1, TILE, "#b07aff");
+    }
+  }
+  const dig = g.digCue?.(); // spec 5: the dig cue over the grave the hero stands beside
+  if (dig) {
+    if (dig.row === "gold") {
+      // the highlight: a 1px locked-palette gold rim on the one grave that can be turned
+      const gx = dig.x * TILE;
+      const gy = dig.y * TILE;
+      px(ctx, gx, gy, TILE, 1, "#e0c060");
+      px(ctx, gx, gy + TILE - 1, TILE, 1, "#e0c060");
+      px(ctx, gx, gy, 1, TILE, "#e0c060");
+      px(ctx, gx + TILE - 1, gy, 1, TILE, "#e0c060");
+    }
+    drawLabel(ctx, dig.text, dig.x * TILE + 8, dig.y * TILE - 2, dig.row);
+  }
   paintLockLabel(ctx, g, bossNames); // playtest1u: after the boss names, clear of them and of the HUD
   if (g.mapId === "world" || g.mapId === "town") {
     // playtest1f / playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: a wayrift's name when you stand near its mouth
@@ -4938,6 +4981,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   });
   // playtest1j: every telegraph is a neon ground mark that fills over its tell (big red, mid violet, a rare's tint blue,
   // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
+  paintBlades(ctx, g); // MB sprint 2026-10-26
   paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
   paintRuneRings(ctx, g, glow); // fun-early-sinks finish: the warden's blue rune ring under his strike
   if (inWakeHall(g)) paintWakeHall(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // wake leftovers
@@ -5220,6 +5264,35 @@ function paintLock(ctx: CanvasRenderingContext2D, g: Game) {
 }
 /** The lock's name and HP (blue, in the label font) with a thin HP bar: over its head, or under its feet for a boss
  * (whose red name already hangs over it). */
+/**
+ * Polish 2: an ember-gold arrow at the view's edge pointing to the nearest road gate, shown in town
+ * until the first road fight is won (sim gateCue). Hidden once the gate itself is in view.
+ */
+function paintGateArrow(ctx: CanvasRenderingContext2D, g: Game, cam: { x: number; y: number; w: number; h: number } | null) {
+  const to = g.gateCue?.();
+  if (!to || !cam) return;
+  const pad = 12;
+  if (to.x > cam.x + pad && to.x < cam.x + cam.w - pad && to.y > cam.y + pad && to.y < cam.y + cam.h - pad) return;
+  const cx = cam.x + cam.w / 2;
+  const cy = cam.y + cam.h / 2;
+  const dx = to.x - cx;
+  const dy = to.y - cy;
+  const k = Math.min((cam.w / 2 - pad) / Math.max(1e-6, Math.abs(dx)), (cam.h / 2 - pad) / Math.max(1e-6, Math.abs(dy)));
+  const ax = Math.round(cx + dx * k);
+  const ay = Math.round(cy + dy * k);
+  const horiz = Math.abs(dx) > Math.abs(dy);
+  const sgn = horiz ? Math.sign(dx) : Math.sign(dy);
+  // a 4-row chevron, the tip toward the gate: a dark #07060a back then the gold #e0c060
+  for (const [col, grow] of [["#07060a", 1], ["#e0c060", 0]] as const) {
+    for (let i = 0; i < 4; i++) {
+      const half = 3 - i + grow;
+      const along = (i - 2) * sgn;
+      if (horiz) px(ctx, ax + along, ay - half, 1, half * 2 + 1, col);
+      else px(ctx, ax - half, ay + along, half * 2 + 1, 1, col);
+    }
+  }
+}
+
 function paintLockLabel(ctx: CanvasRenderingContext2D, g: Game, taken: { x: number; y: number; w: number; h: number }[] = []) {
   const t = lockOf(g);
   if (!t) return;
@@ -6044,6 +6117,9 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
         ctx.fillRect(mx - 2, my - 2, 5, 5);
       }
     }
+    // MB sprint 2026-10-26 (spec 3): tonight's bounty, a blood-red pin with a gold heart
+    const bm = g.bountyMark();
+    if (bm) bountyPin(ctx, ox + Math.floor((bm.x + 0.5) * scale), oy + Math.floor((bm.y + 0.5) * scale));
     // playtest1z [OWNER-APPROVED 2026-10-06 17:14 ET: playtest1z portal redesign + wild spawn portals + mini quest]: wild portal marker
     if (g.wildPortal && seenAtOf(g, g.wildPortal.x, g.wildPortal.y)) {
       const mx = ox + Math.floor((g.wildPortal.x + 0.5) * scale);
@@ -6054,6 +6130,16 @@ export function drawMap(ctx: CanvasRenderingContext2D, g: Game, viewW: number, v
       ctx.fillRect(mx - 1, my - 1, 3, 3);
     }
   }
+}
+
+/** MB sprint 2026-10-26 (spec 3): the bounty pin, locked-palette blood red (#c43838) on the outline black, gold core. */
+function bountyPin(ctx: CanvasRenderingContext2D, mx: number, my: number) {
+  ctx.fillStyle = "#07060a";
+  ctx.fillRect(mx - 3, my - 3, 7, 7);
+  ctx.fillStyle = "#c43838";
+  ctx.fillRect(mx - 2, my - 2, 5, 5);
+  ctx.fillStyle = "#e0c060";
+  ctx.fillRect(mx, my, 1, 1);
 }
 
 function mapColor(t: number, theme: string, y: number, x: number): string {
@@ -6186,6 +6272,13 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, g: Game, size: number
       if (mx < -6 || my < -6 || mx > size + 6 || my > size + 6) continue;
       if (!wayMarker(ctx, mx, my, wayAwake(w, season), 1)) mark(w.x + WAYRIFT.fw / 2 - (cx - span / 2), w.y + WAYRIFT.fh / 2 - (cy - span / 2), wayAwake(w, season) ? "#4ab8ff" : "#2a3a6a", 1);
     }
+  }
+  // MB sprint 2026-10-26 (spec 3): tonight's bounty on the corner map, clamped to the rim when it is out of view
+  const bm = g.bountyMark();
+  if (bm) {
+    const bx = Math.floor((bm.x + 0.5 - (cx - span / 2)) * s);
+    const by = Math.floor((bm.y + 0.5 - (cy - span / 2)) * s);
+    bountyPin(ctx, Math.max(4, Math.min(size - 5, bx)), Math.max(4, Math.min(size - 5, by)));
   }
   const hx = Math.floor(size / 2);
   const hy = Math.floor(size / 2);

@@ -2,6 +2,15 @@
 
 All dates are America/New_York. The newest entries come first. Each entry matches a source zip (`Gravewake-<tag>.zip`) and a commit.
 
+## mb-sprint-1026 (2026-10-26)
+- Swinging blades (#3): seeded blade lanes on dungeon floors (none on pocket or boss floors) with a 0.45 s tell before each 0.35 s sweep. Art from a new palette-locked writer (tools/pixel-writer/blade_writer.py). Trap damage is unchanged.
+- The night bounty is marked on the full map and the minimap (on the stalker, or its lair) until it is paid.
+- A mimic's bite now sounds the rattle as it winds up (tell 0.35 s, unchanged).
+- Diggable graves: standing beside one of the town's real dig graves shows "Dig" (or "Need a spade") with a gold rim at night, and "Come back at night" by day. The decorative mounds never show it.
+- Until your first road fight is won, a small gold arrow at the screen edge in town points to the nearest road gate.
+- At night, dig graves, the guild's bounty board and cracked brick get a 1px violet rim pulse.
+- Specs 6 (curse HUD line) and 7 (escort warp, rescue saved) were already in the game; tests now cover them. See HANDOFF "MB sprint Oct 26".
+
 ## mb-final-pass-2 (2026-10-25)
 - Seven violet-slate grave mounds in the cemetery. They come from a new seeded writer (tools/pixel-writer/mound_writer.py) and block the hero like a grave.
 - Story's ten items can now be bought. The Mystic, the Shop or Merchant, and the Undertaker sell them. Their stats are sidegrades for their tier. See HANDOFF "MB final pass 2".
