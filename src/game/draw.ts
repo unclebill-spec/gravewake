@@ -5,7 +5,7 @@ import { BOUNTY, RESCUES, RUNS, T, TILE, TRAPS, hash, mimicHint, planBiome, worl
 import { DERBY } from "./derby";
 import { TROPHY_HEAD_TOP } from "./decor";
 import { SEASON, seasonSheet, type SeasonId } from "./seasons";
-import { valeNight, valeNightDeep } from "./nightlift";
+import { townNight, townNightDeep, valeNight, valeNightDeep } from "./nightlift";
 import { RIM_COLOR, rimHalo } from "./rimglow";
 import { LABEL_LIFT, drawRiftLabel, paintRiftFlash } from "./riftflash";
 import { HARVEST } from "./festivals";
@@ -3017,7 +3017,7 @@ export function sceneAmbient(g: Game): RGB | null {
   if (g.mapId === "dungeon") return ambientOf(g.theme, palOf(g.theme).liquid);
   if (g.phase !== "night") return null;
   if (g.mapId === "world" || g.mapId === "village") return valeNight(g.season(), LIGHT.worldNight); // playtest1v: a village's night is the vale's; MB 10-26b: summer lifted
-  if (g.mapId === "town") return LIGHT.townNight;
+  if (g.mapId === "town") return townNight(g.season(), LIGHT.townNight); // gw-followup-1026: summer town darker, like the vale
   // playtest1b B2 (gloom and glow): the camp and the town's rooms dim at night too, so their cold-blue fires show.
   if (g.mapId === "camp") return valeNight(g.season(), LIGHT.worldNight);
   if (g.mapId === "inside" && g.theme.startsWith("room:")) return LIGHT.townNight;
@@ -3293,8 +3293,9 @@ function paintLight(ctx: CanvasRenderingContext2D, g: Game, camX: number, camY: 
   lc.globalCompositeOperation = "source-over";
   lc.fillStyle = rgbCss(amb);
   lc.fillRect(0, 0, W, H);
-  const deep = g.mapId === "world" || g.mapId === "village" || g.mapId === "camp" ? valeNightDeep(g.season()) : null;
-  if (deep && amb !== LIGHT.worldNight) {
+  const night = g.mapId !== "dungeon" && g.phase === "night";
+  const deep = !night ? null : g.mapId === "world" || g.mapId === "village" || g.mapId === "camp" ? valeNightDeep(g.season()) : g.mapId === "town" ? townNightDeep(g.season()) : null;
+  if (deep) {
     // Rift-confirm batch (A): summer's night is a world-locked 1px checker of two levels (see nightlift.ts).
     const pat = deepChecker(lc, rgbCss(deep));
     if (pat) {

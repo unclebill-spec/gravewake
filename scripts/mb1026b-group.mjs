@@ -42,6 +42,12 @@ print(json.dumps(out))
   const deepOk = !!deep && deep.every((v, i) => v < sn[i] && v > base[i]) && deep[2] > deep[0] && deep[2] > deep[1];
   const deepOther = ["autumn", "winter", "spring"].every((s) => nl.valeNightDeep(s) === null);
   const deepWired = /valeNightDeep\(g\.season\(\)\)/.test(draw) && /deepChecker\(lc,/.test(draw);
+  // gw-followup-1026 (a): the town's summer night takes the same checker, darker than LIGHT.townNight (Phone 12% -> ~41%).
+  const tb = [0.36, 0.38, 0.68];
+  const tn = nl.townNight("summer", tb);
+  const td = nl.townNightDeep("summer");
+  const townOk = tn.every((v, i) => v < tb[i]) && !!td && td.every((v, i) => v < tn[i]) && tn[2] > tn[0] && td[2] > td[0] && ["autumn", "winter", "spring"].every((x) => nl.townNight(x, tb) === tb && nl.townNightDeep(x) === null) && /townNight\(g\.season\(\), LIGHT\.townNight\)/.test(draw) && /townNightDeep\(g\.season\(\)\)/.test(draw);
+  check("mb1026b", "seasons: summer town night is the same two-level blue-led checker, darker than LIGHT.townNight (~41% near-black on Phone); autumn/winter/spring keep LIGHT.townNight exactly, no checker", townOk, JSON.stringify({ tn, td }));
   check("mb1026b", "seasons: summer night on vale/village/camp is a world-locked 1px checker of two blue-led levels between LIGHT.worldNight and the old lift (darker, ~40% near-black on Phone); autumn/winter/spring keep LIGHT.worldNight exactly, no checker", other && lifted && wired && deepOk && deepOther && deepWired, JSON.stringify({ other, sn, deep, deepOther, wired, deepWired }));
 
   // Spec #14: the QA season jump lands each season's festival night (no game UI involved).

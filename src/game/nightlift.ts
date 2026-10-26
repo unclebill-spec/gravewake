@@ -26,3 +26,17 @@ export function valeNight(season: SeasonId, base: RGB): RGB {
 export function valeNightDeep(season: SeasonId): RGB | null {
   return season === "summer" ? SUMMER_NIGHT_DEEP : null;
 }
+
+/**
+ * gw-followup-1026 (a): the town's summer night (LIGHT.townNight is [0.36, 0.38, 0.68]) takes the same two-level
+ * world-locked checker as the vale, tuned to land in the vale's band (~40-44% near-black on Phone). Summer only.
+ */
+export const SUMMER_TOWN_NIGHT: RGB = [0.14, 0.16, 0.38];
+export const SUMMER_TOWN_DEEP: RGB = [0.06, 0.08, 0.22];
+
+export function townNight(season: SeasonId, base: RGB): RGB {
+  return season === "summer" ? SUMMER_TOWN_NIGHT : base;
+}
+export function townNightDeep(season: SeasonId): RGB | null {
+  return season === "summer" ? SUMMER_TOWN_DEEP : null;
+}
