@@ -178,3 +178,6 @@ Gap fixes only, judged by the acceptance tests in /workspace/qa/gravewake-2026-1
 
 ## RESUME HERE (2026-10-28 14:33 ET, gw-phone-1028)
 Phone glitch fixes from f54aae0: casino sign camera lift (TOWN_LIFTS/townLift), town camera south-bounded at fence, wayrift label HUD-safe via placeLabel below hero, check:game Groups help adds riftconfirm+mimicpage. Shots: /workspace/gw-shots/gw-phone-1028-*. check:game needs Node 22 (npx node@22). Not published.
+
+## RESUME HERE (2026-10-28 15:08 ET, gw-phone-1028 r2, EB notes on b273603)
+1) casino lift top raised 10px (s.y-12): THE FELT header shows at z4 and at 640x360. 2) town camera pad=0: clamped at all four map edges (tap aim reads the same cameraFor). 3) grave cross (25,40), wisp (24,40), candle shrine (31,40) moved inside the south fence (outskirts.ts INSIDE_PROPS / inside:true); paintOutskirts now runs whenever in town. Ambient wisp/candle audio follows their new spots. Other ring candles/wisps (W/E/N) are now off-camera. Shots: /workspace/gw-shots/gw-phone-1028-r2-*. Not published.

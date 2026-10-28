@@ -15944,7 +15944,13 @@ if (on("outskirts")) {
     if (p) { props++; kinds.add(p.cell); if (OSK.onRoad(x, y)) onRoad++; }
   }
   const lit = [...OSK.wisps(), ...OSK.candles()];
-  const outside = lit.every((l) => OSK.depth(l.x, l.y) >= 1 && !OSK.onRoad(l.x, l.y)) && OSK.depth(OSK.RAVEN_TREE.x, OSK.RAVEN_TREE.y) >= 1;
+  const outside = lit.filter((l) => !l.inside).every((l) => OSK.depth(l.x, l.y) >= 1 && !OSK.onRoad(l.x, l.y)) && OSK.depth(OSK.RAVEN_TREE.x, OSK.RAVEN_TREE.y) >= 1;
+  // gw-phone-1028 r2: the cross, wisp and candle moved inside the south fence sit on open, non-door ground, one per tile,
+  // apart from each other, and a body can still stand on each (picture only)
+  const inside = [...lit.filter((l) => l.inside), ...OSK.INSIDE_PROPS];
+  const inSpots = inside.map((l) => `${l.x},${l.y}`);
+  const insideOk = inside.length === 3 && new Set(inSpots).size === 3 && inside.every((l) => OSK.depth(l.x, l.y) === 0 && g.tiles[l.y * g.w + l.x] !== T.door && !g.solidAt(l.x * 16 + 8, l.y * 16 + 8) && !g.blockedProp(l.x * 16 + 8, l.y * 16 + 8));
+  check("outskirts", `gw-phone-1028 r2: the grave cross, wisp and candle shrine stand just inside the south fence (${inSpots.join(" ")}) on open walkable ground, off doors and solid props (${insideOk})`, insideOk);
   const hues = new Set(lit.map((l) => l.hue));
   check("outskirts", `the ring outside the fence is sparse: ${trees} trees in its ${ring} tiles (the forest filled each), ${props} scattered props of ${kinds.size} kinds, none on a gate road (${onRoad}); ${OSK.wisps().length} wisps and ${OSK.candles().length} candle skulls in ${hues.size} neon hues, all outside the map and off the roads (${outside})`, trees < ring * 0.05 && props > 20 && props < ring * 0.1 && kinds.size >= 8 && onRoad === 0 && outside && OSK.wisps().length <= 8 && OSK.candles().length <= 8 && hues.size >= 4);
   // 3. motion and lights: whole-pixel wisp drift, the raven's idle steps through 4 cells, the lights are mood lights within the cap

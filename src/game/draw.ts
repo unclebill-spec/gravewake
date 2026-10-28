@@ -3786,7 +3786,7 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
 export const TOWN_LIFTS: { x: number; y: number; top: number; near: number }[] = (() => {
   const out: { x: number; y: number; top: number; near: number }[] = [];
   const s = WOWFX.casinoSignSpot();
-  if (s) out.push({ x: s.x + s.w / 2, y: s.y + s.h + 2 + 8, top: s.y - 2, near: 3 * TILE });
+  if (s) out.push({ x: s.x + s.w / 2, y: s.y + s.h + 2 + 8, top: s.y - 12, near: 3 * TILE }); // r2: top 10px higher, so the THE FELT header over the neon box shows too
   return out;
 })();
 export function townLift(hx: number, hy: number, y: number, vh: number): number {
@@ -3810,7 +3810,8 @@ export function townLift(hx: number, hy: number, y: number, vh: number): number 
 export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: { x: number; y: number; rx?: number; ry?: number } | null; mapId?: string }, viewW: number, viewH: number, zoom: number) {
   // outskirts (Bill, 2026-10-22): in town the camera runs OSK.CAM_PAD tiles past the fence, so the dressed ring outside
   // it (painted, never void) shows on a phone too
-  const pad = g.mapId === "town" ? OSK.CAM_PAD * TILE : 0;
+  // gw-phone-1028 r2 (EB note 2): the town camera now stops at every map edge (no pad past the fence on any side)
+  const pad = 0;
   const axis = (hero: number, view: number, size: number) => (size <= view ? Math.round((size - view) / 2) : Math.round(Math.max(-pad, Math.min(size - view + pad, hero - view / 2))));
   // playtest1p [OWNER-APPROVED 2026-10-04 01:10 ET: playtest1p view polish and big bosses]: in a fight with a big body the
   // camera frames the big body (sim.ts camFocus: its middle and half-size) and the hero together, the hero's own body kept
@@ -3820,9 +3821,7 @@ export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: 
     const vh = viewH / zoom;
     let y = axis(g.py, vh, g.h * TILE);
     if (g.mapId === "town" && g.h * TILE > vh) {
-      // gw-phone-1028: south edge is bounded at the fence (no bare strip of ring ground below it on a phone)
-      y = Math.min(y, g.h * TILE - vh);
-      y = townLift(g.px, g.py, y, vh);
+      y = Math.max(0, townLift(g.px, g.py, y, vh));
     }
     return { x: axis(g.px, viewW / zoom, g.w * TILE), y };
   }
@@ -3961,6 +3960,10 @@ function paintOutskirts(ctx: CanvasRenderingContext2D, g: Game, camX: number, ca
     }
   }
   const row = (h: OSK.Hue) => OSK.HUES.indexOf(h);
+  for (const pr of OSK.INSIDE_PROPS) {
+    const x = pr.x * TILE, y = pr.y * TILE;
+    if (view(x, y, 32)) props.push({ y: y + 15, fn: () => flipCell(ctx, OSK.SHEETS.propsVar, pr.cell, x, y, pr.flip) });
+  }
   for (const c of OSK.candles()) {
     const x = c.x * TILE, y = c.y * TILE;
     if (!view(x, y, 32)) continue;
@@ -4584,7 +4587,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     if (g.fog || typeof document === "undefined") paintBeyond(ctx, g, bx0, by0, bx1, by1, props);
     else beyondCached(ctx, g, bx0, by0, bx1, by1, props);
   }
-  if (g.mode !== "title" && past) paintOutskirts(ctx, g, camX, camY, viewW / zoom, viewH / zoom, props, glow); // outskirts
+  if (g.mode !== "title" && (past || g.mapId === "town")) paintOutskirts(ctx, g, camX, camY, viewW / zoom, viewH / zoom, props, glow); // outskirts (r2: always in town, for the pieces inside the fence)
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const i = y * g.w + x;

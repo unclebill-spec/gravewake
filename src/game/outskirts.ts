@@ -76,7 +76,7 @@ export function groundCell(x: number, y: number): number {
 }
 /** A scattered prop (outskirts-props.png cell, flipped or not), or -1. One per tile at most: none overlap. */
 export function propAt(x: number, y: number): { cell: number; flip: boolean; sheet?: 1 } | null {
-  if (!ringTile(x, y) || onRoad(x, y) || nearTree(x, y) || depth(x, y) < 1) return null;
+  if (!ringTile(x, y) || onRoad(x, y) || nearTree(x, y) || depth(x, y) < 1 || MOVED_IN.has(`${x},${y}`)) return null;
   if (hash(x, y, 5) >= PROP_ODDS) return null;
   if (treeShows(x, y)) return null;
   if (candles().some((c) => c.x === x && c.y === y)) return null;
@@ -85,15 +85,21 @@ export function propAt(x: number, y: number): { cell: number; flip: boolean; she
   if (hash(x, y, 8) < VAR_SHARE) return { cell: Math.floor(hash(x, y, 9) * 8), flip: hash(x, y, 7) < 0.5, sheet: 1 };
   return { cell: r < 0.3 ? Math.floor(r / 0.1) : r < 0.65 ? 3 + Math.floor((r - 0.3) / 0.0875) : 7 + Math.floor((r - 0.65) / 0.117), flip: hash(x, y, 7) < 0.5 };
 }
-export type Candle = { x: number; y: number; hue: Hue };
-export type Wisp = { x: number; y: number; hue: Hue; seed: number };
+/** gw-phone-1028 r2 (EB note 3): the town camera now stops at the map edge, so the three south-ring pieces a phone used to
+ * see below the fence (grave cross, wisp lantern, candle shrine) stand just inside it, on open ground (row TOWN_H-2), off
+ * the avenue, the car lot and the gates. Picture only, like the rest: nothing walks into them or is stopped by them. */
+export type Candle = { x: number; y: number; hue: Hue; inside?: true };
+export type Wisp = { x: number; y: number; hue: Hue; seed: number; inside?: true };
+/** The grave cross that stood at (23, TOWN_H) in the ring (outskirts-props-var.png cell 2, flipped), now inside the fence. */
+export const INSIDE_PROPS: readonly { x: number; y: number; cell: number; flip: boolean; sheet: 1 }[] = [{ x: 25, y: TOWN_H - 2, cell: 2, flip: true, sheet: 1 }];
+const MOVED_IN = new Set([`23,${TOWN_H}`]);
 /** A handful of each, hand set round the ring (tiles), off the roads, apart from each other. */
 const CANDLES: Candle[] = [
-  { x: 18, y: TOWN_H, hue: "green" }, { x: 33, y: TOWN_H, hue: "magenta" }, { x: -1, y: 22, hue: "cyan" },
+  { x: 18, y: TOWN_H, hue: "green" }, { x: 31, y: TOWN_H - 2, hue: "magenta", inside: true }, { x: -1, y: 22, hue: "cyan" },
   { x: TOWN_W, y: 9, hue: "violet" }, { x: 12, y: -1, hue: "red" }, { x: TOWN_W, y: 36, hue: "green" },
 ];
 const WISPS: Wisp[] = [
-  { x: 24, y: TOWN_H + 1, hue: "blue", seed: 0 }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: -2, y: 10, hue: "violet", seed: 2 },
+  { x: 24, y: TOWN_H - 2, hue: "blue", seed: 0, inside: true }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: -2, y: 10, hue: "violet", seed: 2 },
   { x: TOWN_W + 1, y: 23, hue: "green", seed: 3 }, { x: 40, y: -2, hue: "cyan", seed: 4 }, { x: -2, y: 35, hue: "magenta", seed: 5 },
   { x: 8, y: TOWN_H + 1, hue: "cyan", seed: 6 },
 ];
