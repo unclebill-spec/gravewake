@@ -15945,12 +15945,19 @@ if (on("outskirts")) {
   }
   const lit = [...OSK.wisps(), ...OSK.candles()];
   const outside = lit.filter((l) => !l.inside).every((l) => OSK.depth(l.x, l.y) >= 1 && !OSK.onRoad(l.x, l.y)) && OSK.depth(OSK.RAVEN_TREE.x, OSK.RAVEN_TREE.y) >= 1;
-  // gw-phone-1028 r2: the cross, wisp and candle moved inside the south fence sit on open, non-door ground, one per tile,
-  // apart from each other, and a body can still stand on each (picture only)
+  // gw-phone-1028 r2 / gw-edgeprops-1028: every decoration moved inside the fence (the south cross, wisp and candle side by side
+  // near the gate; the N, W and E candles and wisps on the grass strip inside the fence) sits on its own open tile: not a road
+  // or path (cobble, road, dirt, or a gate road), not a door, not solid, no solid prop, no NPC on it, so a body can still
+  // stand on each (picture only)
   const inside = [...lit.filter((l) => l.inside), ...OSK.INSIDE_PROPS];
   const inSpots = inside.map((l) => `${l.x},${l.y}`);
-  const insideOk = inside.length === 3 && new Set(inSpots).size === 3 && inside.every((l) => OSK.depth(l.x, l.y) === 0 && g.tiles[l.y * g.w + l.x] !== T.door && !g.solidAt(l.x * 16 + 8, l.y * 16 + 8) && !g.blockedProp(l.x * 16 + 8, l.y * 16 + 8));
-  check("outskirts", `gw-phone-1028 r2: the grave cross, wisp and candle shrine stand just inside the south fence (${inSpots.join(" ")}) on open walkable ground, off doors and solid props (${insideOk})`, insideOk);
+  const pathTile = (t) => t === T.cobble || t === T.road || t === T.dirt;
+  const badIn = inside.filter((l) => {
+    const t = g.tiles[l.y * g.w + l.x];
+    return OSK.depth(l.x, l.y) !== 0 || pathTile(t) || OSK.onRoad(l.x, l.y) || t === T.door || g.solidAt(l.x * 16 + 8, l.y * 16 + 8) || g.blockedProp(l.x * 16 + 8, l.y * 16 + 8) || g.npcs.some((n) => Math.floor(n.x / 16) === l.x && Math.floor(n.y / 16) === l.y);
+  });
+  const insideOk = inside.length >= 10 && new Set(inSpots).size === inside.length && badIn.length === 0;
+  check("outskirts", `decorations inside the fence (${inside.length}: ${inSpots.join(" ")}) each on its own open walkable tile, none on a road, path, gate road, door, solid prop or NPC spot (bad: ${badIn.map((l) => `${l.x},${l.y}`).join(" ") || "none"})`, insideOk);
   const hues = new Set(lit.map((l) => l.hue));
   check("outskirts", `the ring outside the fence is sparse: ${trees} trees in its ${ring} tiles (the forest filled each), ${props} scattered props of ${kinds.size} kinds, none on a gate road (${onRoad}); ${OSK.wisps().length} wisps and ${OSK.candles().length} candle skulls in ${hues.size} neon hues, all outside the map and off the roads (${outside})`, trees < ring * 0.05 && props > 20 && props < ring * 0.1 && kinds.size >= 8 && onRoad === 0 && outside && OSK.wisps().length <= 8 && OSK.candles().length <= 8 && hues.size >= 4);
   // 3. motion and lights: whole-pixel wisp drift, the raven's idle steps through 4 cells, the lights are mood lights within the cap
@@ -16091,6 +16098,26 @@ if (on("oskaudio")) {
   const inC = g.ambState().drift;
   const s1 = sw.wisp && sw.wisp.d < AU.AMB.fall && sw.outdoor && !sw.outside && !mid.wisp;
   check("oskaudio", `the sim hears the outskirts: a wisp from the town's rim (${!!s1}), none mid-town (${!mid.wisp}); stepping into the cemetery swells the choir once (${swells}) and drifts it (${inC})`, !!s1 && swells === 1 && inC);
+  // gw-edgeprops-1028: each wisp and candle inside the map is heard from 2 tiles west of it (panned right, dx > 0) and east
+  // (panned left); the ones left in the ring past the fence, and the raven while its tree stands there, are never heard
+  const hearAll = [...X.OSK.wisps().map((v) => ({ k: "wisp", v, p: X.OSK.wispAt(v, g.frame) })), ...X.OSK.candles().map((v) => ({ k: "candle", v, p: { x: v.x * 16 + 8, y: v.y * 16 + 8 } }))];
+  let panOk = true, heard = 0;
+  for (const h of hearAll.filter((h) => X.OSK.depth(h.v.x, h.v.y) === 0)) {
+    for (const side of [-1, 1]) {
+      g.px = Math.max(8, Math.min(g.w * 16 - 8, h.p.x + side * 32)); g.py = Math.max(8, Math.min(g.h * 16 - 8, h.p.y));
+      const a = g.ambState()[h.k];
+      if (!a || Math.sign(a.dx) !== -side) panOk = false; else heard++;
+    }
+  }
+  let silentOk = true;
+  for (const h of hearAll.filter((h) => X.OSK.depth(h.v.x, h.v.y) > 0)) {
+    g.px = Math.max(8, Math.min(g.w * 16 - 8, h.p.x)); g.py = Math.max(8, Math.min(g.h * 16 - 8, h.p.y));
+    const a = g.ambState()[h.k];
+    if (a && Math.abs(a.dx) < 4 && a.d < 24) silentOk = false; // only a nearby inside one may be heard here, never the ring one itself
+  }
+  g.px = X.OSK.RAVEN_TREE.x * 16 + 8; g.py = (g.h - 9) * 16 + 8; // past RAVEN_BACK, inside 14 tiles: where it used to caw
+  const ravenMute = X.OSK.depth(X.OSK.RAVEN_TREE.x, X.OSK.RAVEN_TREE.y) === 0 || !g.ambState().raven;
+  check("oskaudio", `gw-edgeprops-1028: the wisps and candles inside the map play and pan to their side (${heard} heard from both sides, pan ok ${panOk}); those off-camera in the ring are silent (${silentOk}), and so is the raven while its tree stands there (${ravenMute})`, panOk && silentOk && ravenMute);
   // the rift: its own loop through a 'rift' theme value; the swell on entering a wayrift; trimmed for a phone
   const r = mk(5 * 60 * 1000); calls.length = 0;
   r.enterDungeon(X.RIFTS[0].id); r.update(0.05);

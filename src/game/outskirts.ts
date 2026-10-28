@@ -93,14 +93,16 @@ export type Wisp = { x: number; y: number; hue: Hue; seed: number; inside?: true
 /** The grave cross that stood at (23, TOWN_H) in the ring (outskirts-props-var.png cell 2, flipped), now inside the fence. */
 export const INSIDE_PROPS: readonly { x: number; y: number; cell: number; flip: boolean; sheet: 1 }[] = [{ x: 25, y: TOWN_H - 2, cell: 2, flip: true, sheet: 1 }];
 const MOVED_IN = new Set([`23,${TOWN_H}`]);
-/** A handful of each, hand set round the ring (tiles), off the roads, apart from each other. */
+/** A handful of each, hand set round the ring (tiles), off the roads, apart from each other. gw-edgeprops-1028: the town camera
+ * stops at the map edge, so the N, W and E ones (inside: true) stand on open grass just inside the fence (row 1 in the
+ * north; columns 3 and TOWN_W - 4 west and east, clear of the HUD panels on a phone), off the roads, paths, doors and NPC spots; the rest stay in the ring, off-camera and silent. */
 const CANDLES: Candle[] = [
-  { x: 18, y: TOWN_H, hue: "green" }, { x: 31, y: TOWN_H - 2, hue: "magenta", inside: true }, { x: -1, y: 22, hue: "cyan" },
-  { x: TOWN_W, y: 9, hue: "violet" }, { x: 12, y: -1, hue: "red" }, { x: TOWN_W, y: 36, hue: "green" },
+  { x: 18, y: TOWN_H, hue: "green" }, { x: 31, y: TOWN_H - 2, hue: "magenta", inside: true }, { x: 3, y: 26, hue: "cyan", inside: true },
+  { x: TOWN_W - 4, y: 8, hue: "violet", inside: true }, { x: 12, y: 1, hue: "red", inside: true }, { x: TOWN_W - 4, y: 39, hue: "green", inside: true },
 ];
 const WISPS: Wisp[] = [
-  { x: 24, y: TOWN_H - 2, hue: "blue", seed: 0, inside: true }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: -2, y: 10, hue: "violet", seed: 2 },
-  { x: TOWN_W + 1, y: 23, hue: "green", seed: 3 }, { x: 40, y: -2, hue: "cyan", seed: 4 }, { x: -2, y: 35, hue: "magenta", seed: 5 },
+  { x: 24, y: TOWN_H - 2, hue: "blue", seed: 0, inside: true }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: 3, y: 8, hue: "violet", seed: 2, inside: true },
+  { x: TOWN_W - 4, y: 26, hue: "green", seed: 3, inside: true }, { x: 40, y: 1, hue: "cyan", seed: 4, inside: true }, { x: -2, y: 35, hue: "magenta", seed: 5 },
   { x: 8, y: TOWN_H + 1, hue: "cyan", seed: 6 },
 ];
 export const candles = (): readonly Candle[] => CANDLES;

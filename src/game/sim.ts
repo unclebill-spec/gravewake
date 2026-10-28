@@ -4126,14 +4126,15 @@ export class Game {
       for (const p of pts) { const d = Math.hypot(p.x - this.px, p.y - this.py); if (d < AMB.fall && (!best || d < best.d)) best = { d, dx: p.x - this.px }; }
       return best;
     };
-    const wisp = town ? near(OSK.wisps().map((w) => OSK.wispAt(w, this.frame))) : null;
-    const candle = town ? near(OSK.candles().map((c) => ({ x: c.x * TILE + 8, y: c.y * TILE + 8 }))) : null;
+    // gw-edgeprops-1028: only the wisps and candles inside the map are heard (the camera never shows the ring past the fence)
+    const wisp = town ? near(OSK.wisps().filter((w) => OSK.depth(w.x, w.y) === 0).map((w) => OSK.wispAt(w, this.frame))) : null;
+    const candle = town ? near(OSK.candles().filter((c) => OSK.depth(c.x, c.y) === 0).map((c) => ({ x: c.x * TILE + 8, y: c.y * TILE + 8 }))) : null;
     const rift = WAYRIFTS.some((w) => w.map === this.mapId && Math.hypot((w.x + 1) * TILE - this.px, (w.y + 1) * TILE - this.py) < AMB.fall);
     const perch = Math.hypot(OSK.RAVEN_TREE.x * TILE + 8 + OSK.PERCH.dx - this.px, (OSK.RAVEN_TREE.y + 1) * TILE + OSK.PERCH.dy - this.py);
     return {
       outdoor, night: this.phase === "night", outside: this.mapId === "world",
       drift: outdoor && (this.inCemetery() || rift), wisp, candle,
-      raven: town && perch > OSK.RAVEN_BACK && perch < 14 * TILE,
+      raven: town && OSK.depth(OSK.RAVEN_TREE.x, OSK.RAVEN_TREE.y) === 0 && perch > OSK.RAVEN_BACK && perch < 14 * TILE, // gw-edgeprops-1028: silent while its tree stands off-camera in the ring
     };
   }
 
