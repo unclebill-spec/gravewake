@@ -3733,7 +3733,16 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
       if (w.map !== map) continue;
       const m = wayMouth(w);
       if (Math.hypot(m.x * TILE + 8 - g.px, m.y * TILE + 8 - g.py) > 3 * TILE) continue;
-      drawRiftLabel(ctx, (t) => drawLabel(ctx, t, m.x * TILE + 8, (w.y - WAYRIFT.stand) * TILE - 2 - LABEL_LIFT, wayAwake(w, season) ? "violet" : "bone"), wayLabel(w, season), m.x * TILE + 8, (w.y - WAYRIFT.stand) * TILE - 2 - LABEL_LIFT, wayAwake(w, season) ? "violet" : "bone"); // MB 10-26b idea 4
+      const row = wayAwake(w, season) ? "violet" : "bone";
+      let lx = m.x * TILE + 8, ly = (w.y - WAYRIFT.stand) * TILE - 2 - LABEL_LIFT;
+      // gw-phone-1028: on a phone the label could sit off the view's top or under a HUD panel (the plaza dais); it is
+      // placed HUD-safe like a boss name (hudsafe.ts placeLabel: sideways, else under the mouth or the hero's feet, whichever is lower). Unchanged when clear.
+      const lv = labelView, hud = lv ? hudBoxes(ctx.canvas, g.frame) : [];
+      if (lv && hud.length) {
+        const lw = labelCanvas(wayLabel(w, season).replace(":", " "), row)?.width ?? 0;
+        if (lw) { const at = placeLabel(lx, ly, Math.max((m.y + 1) * TILE + 2, Math.round(g.py) + 2), lw, 7, lv, worldBoxes(hud, lv.x, lv.y, lv.zoom)); lx = at.cx; ly = at.y; }
+      }
+      drawRiftLabel(ctx, (t) => drawLabel(ctx, t, lx, ly, row), wayLabel(w, season), lx, ly, row); // MB 10-26b idea 4
     }
     if (g.mapId === "world" && g.wildPortal) {
       const p = g.wildPortal;
@@ -3769,6 +3778,30 @@ function paintLabels(ctx: CanvasRenderingContext2D, g: Game) {
 }
 
 /**
+ * gw-phone-1028: on a short (phone) view at zoom 4 the camera centres on the hero, so the CASINO sign over its door sat
+ * above the top edge. Near it, the town camera eases up (over one
+ * tile of approach) just enough that the sign shows, never so far that the hero's feet come within 16 px of
+ * the bottom. Camera only: nothing moves, collides or is drawn differently; the tap aim reads the same camera.
+ */
+export const TOWN_LIFTS: { x: number; y: number; top: number; near: number }[] = (() => {
+  const out: { x: number; y: number; top: number; near: number }[] = [];
+  const s = WOWFX.casinoSignSpot();
+  if (s) out.push({ x: s.x + s.w / 2, y: s.y + s.h + 2 + 8, top: s.y - 2, near: 3 * TILE });
+  return out;
+})();
+export function townLift(hx: number, hy: number, y: number, vh: number): number {
+  let out = y;
+  for (const l of TOWN_LIFTS) {
+    const d = Math.hypot(hx - l.x, hy - l.y);
+    const k = Math.max(0, Math.min(1, (l.near + TILE - d) / TILE));
+    if (k <= 0 || hy < l.y - TILE) continue;
+    const want = Math.max(l.top, hy + 16 - vh);
+    if (want < out) out = Math.round(out + (want - out) * k);
+  }
+  return out;
+}
+
+/**
  * playtest1e [OWNER-APPROVED 2026-10-02: playtest1e no void] (Bill: "remove the black void past map edges"): the camera
  * follows the hero but stops at the map's edge, so a map wider than the view never shows past it; a map narrower than
  * the view (the camp, a room, the town on a wide screen) sits centred and the border pass paints past its edge. The tap
@@ -3783,7 +3816,16 @@ export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: 
   // camera frames the big body (sim.ts camFocus: its middle and half-size) and the hero together, the hero's own body kept
   // CAM.edge inside the view (bigboss.ts CAM). The tap aim reads the same.
   const f = g.camFocus;
-  if (!f) return { x: axis(g.px, viewW / zoom, g.w * TILE), y: axis(g.py, viewH / zoom, g.h * TILE) };
+  if (!f) {
+    const vh = viewH / zoom;
+    let y = axis(g.py, vh, g.h * TILE);
+    if (g.mapId === "town" && g.h * TILE > vh) {
+      // gw-phone-1028: south edge is bounded at the fence (no bare strip of ring ground below it on a phone)
+      y = Math.min(y, g.h * TILE - vh);
+      y = townLift(g.px, g.py, y, vh);
+    }
+    return { x: axis(g.px, viewW / zoom, g.w * TILE), y };
+  }
   const frame = (hero: number, lo: number, hi: number, at: number, half: number, view: number) => {
     const m = Math.min(CAM.edge, view / 8);
     const want = (Math.min(hero + lo, at - half) + Math.max(hero + hi, at + half)) / 2;

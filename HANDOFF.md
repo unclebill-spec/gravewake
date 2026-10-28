@@ -175,3 +175,6 @@ Gap fixes only, judged by the acceptance tests in /workspace/qa/gravewake-2026-1
   - Arrival gets a 0.28 s dithered #7a5ad0 veil.
   - Known: on Phone, the town plaza label can sit above the top edge when you stand on the dais. That is the camera, not the label.
 - **Checks:** check:game passed 1105 of 1105. Typecheck and build are OK, lint has 0 errors, and test passed 169 with 0 failed. Composites are in docs/will/mb1026b-*.png.
+
+## RESUME HERE (2026-10-28 14:33 ET, gw-phone-1028)
+Phone glitch fixes from f54aae0: casino sign camera lift (TOWN_LIFTS/townLift), town camera south-bounded at fence, wayrift label HUD-safe via placeLabel below hero, check:game Groups help adds riftconfirm+mimicpage. Shots: /workspace/gw-shots/gw-phone-1028-*. check:game needs Node 22 (npx node@22). Not published.
