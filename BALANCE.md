@@ -35,3 +35,7 @@ Design and balance decisions. Newest first.
 
 ## 2026-10-26 7:20 PM ET (Game Director)
 - Live f54aae0 (gh-pages 5c28caa): PASSED the live check (/workspace/qa/gw-live-f54aae0/). Darker summer town nights and mimic notes scrolling into view are live. Will told it's done.
+
+## 2026-10-28 21:15 ET | Game Director | gw-edgeprops-1028
+- Rule 19 PASS (9395f51). GD OK to publish under Will's standing rule. Rollback a9a8afc.
+- Small calls for the next batch: move the raven tree inside the fence (bring its sound back), and nudge the SE candle 1 tile out of the phone touch-button gap.
