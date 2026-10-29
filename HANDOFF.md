@@ -186,3 +186,6 @@ Phone glitch fixes from f54aae0: casino sign camera lift (TOWN_LIFTS/townLift), 
 
 ## RESUME HERE (2026-10-28 15:26 ET, published gw-phone-1028)
 main fast-forwarded dcf70ef -> 6eb4c1d; published via publish-game.sh: gh-pages 5c28caa -> a9a8afc (asset index-CbjG5f6U.js). Live px7 check: 0 console errors, gameplay reached, r2 props visible (/workspace/gw-shots/gw-live-1028-px7.png). Rollback: git -C /workspace/gravewake/gh-repo push -f origin 5c28caac0135:gh-pages (Pages), and git revert dcf70ef..6eb4c1d on main (no force).
+
+## RESUME HERE (2026-10-28 21:18 ET, published gw-edgeprops-1028)
+main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-reports/gravewake-gw-edgeprops-1028-9395f51-20261028.md); published via publish-game.sh: gh-pages a9a8afc -> d4ffcf2 (asset index-CbjG5f6U.js -> index-CubcwIu_.js). Live px7 (915x412) check: 0 console errors, gameplay reached (/workspace/gw-shots/gw-live-edgeprops-1028-px7.png). Rollback: git -C /workspace/gravewake/gh-repo push -f origin a9a8afc:gh-pages (site) and main back to 09ed11e via git revert. Next (GD notes in uncommitted BALANCE.md): raven tree inside the fence (its sound is muted now), nudge SE candle (54,39) out of the phone touch-button gap.
