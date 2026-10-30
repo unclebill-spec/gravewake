@@ -67,7 +67,8 @@ import {
   type StatPath,
   type WeatherId,
 } from "./content";
-import { GLYPH_NAMES, bladeStage, inBladeLane, placeFeats, placeTraps, secretTile, spikeStage, type FloorFeats, type Spot } from "./feats";
+import { FUN, nearMissLine } from "./funpass";
+import { GLYPH_NAMES, bladeStage, bladeSwing, inBladeLane, placeFeats, placeTraps, secretTile, spikeStage, type FloorFeats, type Spot, type Trap } from "./feats";
 import { curseFloor, pickCurse, placeCaptive, rescueFor } from "./runs";
 import { mimicChest } from "./mimic";
 // OWNER-APPROVED EXCEPTION 2026-10-01: MAP WRITER. Generated floors and rift zones come from the fourth writer.
@@ -9248,7 +9249,12 @@ export class Game {
     const ty = Math.floor(this.py / TILE);
     const dealt = Math.max(1, trapAtk(this.dungeonLevel()) - Math.floor(this.ac / 2));
     // MB sprint 2026-10-26: a swinging blade's sweep hurts only in its 3-tile lane; outside it, nothing
-    for (const b of this.feats?.blades ?? []) if (inBladeLane(b, tx, ty) && bladeStage(b, this.worldMs / 1000) === 2) this.bite(dealt, `The swinging blade cuts for ${dealt}.`);
+    (this.feats?.blades ?? []).forEach((b, i) => {
+      const stage = bladeStage(b, this.worldMs / 1000);
+      const hpWas = this.hp;
+      if (inBladeLane(b, tx, ty) && stage === 2) this.bite(dealt, `The swinging blade cuts for ${dealt}.`);
+      this.bladeJuice(b, i, stage, tx, ty, this.hp < hpWas);
+    });
     if (!traps?.length) return;
     traps.forEach((t, i) => {
       const on = t.x === tx && t.y === ty;
@@ -9351,6 +9357,30 @@ export class Game {
   /** Four chips around a point, through the pool (combat channel, cap 24, oldest dies first). */
   private spark(x: number, y: number, color: string) {
     this.fx.spark(x, y, paletteIndex(color));
+  }
+
+  /** gw-blade-1030 fun pass (funpass.ts, FUN.blade): a whoosh as a nearby blade starts its sweep, a clang and sparks where it
+   * stops, a small shake when it cuts you, and a line when you step out of its lane during the telegraph. Never saved. */
+  private bladeFx: { stage: number; warned: boolean }[] = [];
+  private bladeJuice(b: Trap, i: number, stage: number, tx: number, ty: number, cut: boolean) {
+    const f = this.bladeFx[i] ?? (this.bladeFx[i] = { stage, warned: false });
+    const was = f.stage;
+    f.stage = stage;
+    if (!FUN.blade) return;
+    if (cut) { this.shake = Math.max(this.shake, 0.2); f.warned = false; }
+    const near = Math.abs(tx - b.x) <= 6 && Math.abs(ty - b.y) <= 5;
+    const inLane = ty === b.y && Math.abs(tx - b.x) <= 1;
+    if (stage === 1 && inLane) f.warned = true;
+    if (was === 1 && stage === 2) {
+      if (near) this.audio?.bladeWhoosh();
+      if (f.warned && !inLane) this.logLine = nearMissLine(Math.random(), Math.random());
+      f.warned = false;
+    }
+    if (was === 2 && stage !== 2 && near) {
+      const end = Math.round(bladeSwing(b, this.worldMs / 1000)); // just after a sweep the blade rests at the lane end it reached
+      this.spark((b.x + end) * TILE + 8, b.y * TILE + 4, "#c8c8d0");
+      this.audio?.bladeClang();
+    }
   }
 
   private bite(dealt: number, label: string) {

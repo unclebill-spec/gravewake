@@ -506,3 +506,7 @@ Fixes from Bill's phone video of main e2f4c6f.
 - Particle pool (`src/game/particles.ts`).
 - Town fixes: full building footprints and no door-tile culling, which fixed the purple strips and flickering houses.
 - Character pass: 16×32 eleven-frame sprites and crowd variants.
+
+## gw-blade-1030 (2026-10-30, branch, not published)
+- Swinging blade: a visible wind-up (cocks back and shivers in the telegraph); fun-pass juice behind FUN.blade (whoosh, clang + sparks, hit shake, near-miss lines).
+- Raven tree now stands inside the south fence, and its caw is back. SE candle moved up a row, out of the phone button gap. Fixed a stale outskirts comment.

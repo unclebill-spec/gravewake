@@ -345,6 +345,14 @@ export class AudioBus {
     if (!this.ambShot(`raven-caw-${n}`, AMB.raven, 0.95 + Math.random() * 0.1)) { this.tone(740, 0.12, "sawtooth", 0.05); this.tone(620, 0.16, "sawtooth", 0.04); }
   }
 
+  /** gw-blade-1030 fun pass: a nearby swinging blade starts its sweep (a short falling hiss) / stops at its lane end (a bright tick). Synth only. */
+  bladeWhoosh() {
+    this.tone(330, 0.09, "triangle", 0.04);
+    this.tone(180, 0.14, "triangle", 0.03);
+  }
+  bladeClang() {
+    this.tone(1320, 0.05, "square", 0.025);
+  }
   /** oskaudio: the raven flies off: a caw and its wings. */
   ravenFly() {
     this.caw();

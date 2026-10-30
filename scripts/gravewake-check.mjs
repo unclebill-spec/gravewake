@@ -15944,7 +15944,14 @@ if (on("outskirts")) {
     if (p) { props++; kinds.add(p.cell); if (OSK.onRoad(x, y)) onRoad++; }
   }
   const lit = [...OSK.wisps(), ...OSK.candles()];
-  const outside = lit.filter((l) => !l.inside).every((l) => OSK.depth(l.x, l.y) >= 1 && !OSK.onRoad(l.x, l.y)) && OSK.depth(OSK.RAVEN_TREE.x, OSK.RAVEN_TREE.y) >= 1;
+  const outside = lit.filter((l) => !l.inside).every((l) => OSK.depth(l.x, l.y) >= 1 && !OSK.onRoad(l.x, l.y)) ;
+  // gw-blade-1030: the raven tree now stands just inside the south fence: its foot and the two rows its 32x48 sprite covers
+  // (x-1..x+1, y-2..y) are open, walkable, off every road and path and clear of the other decorations
+  const RT = OSK.RAVEN_TREE, decoSpots = new Set([...lit.filter((l) => l.inside), ...OSK.INSIDE_PROPS].map((l) => `${l.x},${l.y}`));
+  const treeTiles = [];
+  for (let y = RT.y - 2; y <= RT.y; y++) for (let x = RT.x - 1; x <= RT.x + 1; x++) treeTiles.push([x, y]);
+  const treeBad = treeTiles.filter(([x, y]) => { const t = g.tiles[y * g.w + x]; return OSK.depth(x, y) !== 0 || t === T.cobble || t === T.road || t === T.dirt || t === T.door || OSK.onRoad(x, y) || g.solidAt(x * 16 + 8, y * 16 + 8) || g.blockedProp(x * 16 + 8, y * 16 + 8) || decoSpots.has(`${x},${y}`) || g.npcs.some((n) => Math.floor(n.x / 16) === x && Math.floor(n.y / 16) === y); });
+  check("outskirts", `gw-blade-1030: the raven tree stands inside the fence at (${RT.x},${RT.y}) on open ground (bad tiles: ${treeBad.map(([x, y]) => `${x},${y}`).join(" ") || "none"}), and the SE candle sits at (${g.w - 4},38), a row above the phone touch-button gap`, OSK.depth(RT.x, RT.y) === 0 && treeBad.length === 0 && OSK.candles().some((c) => c.x === g.w - 4 && c.y === 38 && c.inside) && !OSK.candles().some((c) => c.x === g.w - 4 && c.y === 39));
   // gw-phone-1028 r2 / gw-edgeprops-1028: every decoration moved inside the fence (the south cross, wisp and candle side by side
   // near the gate; the N, W and E candles and wisps on the grass strip inside the fence) sits on its own open tile: not a road
   // or path (cobble, road, dirt, or a gate road), not a door, not solid, no solid prop, no NPC on it, so a body can still
@@ -16117,6 +16124,12 @@ if (on("oskaudio")) {
   }
   g.px = X.OSK.RAVEN_TREE.x * 16 + 8; g.py = (g.h - 9) * 16 + 8; // past RAVEN_BACK, inside 14 tiles: where it used to caw
   const ravenMute = X.OSK.depth(X.OSK.RAVEN_TREE.x, X.OSK.RAVEN_TREE.y) === 0 || !g.ambState().raven;
+  // gw-blade-1030: the tree moved inside the fence, so the raven is heard again from 8 tiles north of its perch, and not from across town
+  g.px = X.OSK.RAVEN_TREE.x * 16 + 8 + X.OSK.PERCH.dx; g.py = (X.OSK.RAVEN_TREE.y + 1) * 16 + X.OSK.PERCH.dy - 8 * 16;
+  const ravenBack = X.OSK.depth(X.OSK.RAVEN_TREE.x, X.OSK.RAVEN_TREE.y) === 0 && !!g.ambState().raven;
+  g.px = 50 * 16; g.py = 4 * 16;
+  const ravenFar = !g.ambState().raven;
+  check("oskaudio", `gw-blade-1030: the raven tree stands inside the fence and its caw plays again 8 tiles off (${ravenBack}), but not from across town (${ravenFar})`, ravenBack && ravenFar);
   check("oskaudio", `gw-edgeprops-1028: the wisps and candles inside the map play and pan to their side (${heard} heard from both sides, pan ok ${panOk}); those off-camera in the ring are silent (${silentOk}), and so is the raven while its tree stands there (${ravenMute})`, panOk && silentOk && ravenMute);
   // the rift: its own loop through a 'rift' theme value; the swell on entering a wayrift; trimmed for a phone
   const r = mk(5 * 60 * 1000); calls.length = 0;

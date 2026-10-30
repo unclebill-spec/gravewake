@@ -41,14 +41,18 @@ export function onRoad(x: number, y: number, w = TOWN_W, h = TOWN_H): boolean {
   if ((x < 0 || x >= w) && ((y >= 14 && y <= 17) || (y >= 28 && y <= 30))) return true;
   return false;
 }
-/** The dead raven tree: its foot tile (the 32x48 sprite stands centred on it), south of the fence near the gate road. */
-export const RAVEN_TREE = { x: 21, y: TOWN_H + 1 } as const;
+/** The dead raven tree: its foot tile (the 32x48 sprite stands centred on it). gw-blade-1030 (GD small call, BALANCE.md): moved
+ * from (21, TOWN_H + 1) in the ring to open grass just inside the south fence, west of the gate road and the grave cross, so the
+ * camera shows it and its caw plays again. Picture only, like the other inside props: no collision added. */
+export const RAVEN_TREE = { x: 20, y: TOWN_H - 2 } as const;
 /** The perch, in pixels from the tree's foot (the level end of its right bough). */
 export const PERCH = { dx: 9, dy: -36 } as const;
 /** The raven takes off with the hero this near (px), and comes back once the hero is this far. */
 export const RAVEN_FLEE = 3.5 * 16;
 export const RAVEN_BACK = 7 * 16;
-const nearTree = (x: number, y: number) => Math.abs(x - RAVEN_TREE.x) <= 1 && y >= RAVEN_TREE.y - 2 && y <= RAVEN_TREE.y;
+/** The ring keeps the clearing where the tree used to stand ((21, TOWN_H + 1)), so the seeded ring trees and props stay put. */
+const OLD_TREE = { x: 21, y: TOWN_H + 1 } as const;
+const nearTree = (x: number, y: number) => Math.abs(x - OLD_TREE.x) <= 1 && y >= OLD_TREE.y - 2 && y <= OLD_TREE.y;
 
 /** oskart: the share of ring props from outskirts-props-var.png, and of ring survivor trees drawn as the perchless dead tree. */
 export const VAR_SHARE = 0.33;
@@ -93,12 +97,15 @@ export type Wisp = { x: number; y: number; hue: Hue; seed: number; inside?: true
 /** The grave cross that stood at (23, TOWN_H) in the ring (outskirts-props-var.png cell 2, flipped), now inside the fence. */
 export const INSIDE_PROPS: readonly { x: number; y: number; cell: number; flip: boolean; sheet: 1 }[] = [{ x: 25, y: TOWN_H - 2, cell: 2, flip: true, sheet: 1 }];
 const MOVED_IN = new Set([`23,${TOWN_H}`]);
-/** A handful of each, hand set round the ring (tiles), off the roads, apart from each other. gw-edgeprops-1028: the town camera
+/** A handful of each, hand set (tiles), off the roads; most now stand just inside the fence (the south wisp (24,40) sits beside
+ * the grave cross (25,40), so they are no longer all apart). gw-edgeprops-1028: the town camera
  * stops at the map edge, so the N, W and E ones (inside: true) stand on open grass just inside the fence (row 1 in the
- * north; columns 3 and TOWN_W - 4 west and east, clear of the HUD panels on a phone), off the roads, paths, doors and NPC spots; the rest stay in the ring, off-camera and silent. */
+ * north; columns 3 and TOWN_W - 4 west and east, clear of the HUD panels on a phone), off the roads, paths, doors and NPC spots.
+ * The rest (no inside flag: one candle and three wisps) stay in the ring past the fence, off-camera and silent.
+ * gw-blade-1030: the SE candle moved up a row, (TOWN_W - 4, 39) -> (TOWN_W - 4, 38), out of the phone touch-button gap. */
 const CANDLES: Candle[] = [
   { x: 18, y: TOWN_H, hue: "green" }, { x: 31, y: TOWN_H - 2, hue: "magenta", inside: true }, { x: 3, y: 26, hue: "cyan", inside: true },
-  { x: TOWN_W - 4, y: 8, hue: "violet", inside: true }, { x: 12, y: 1, hue: "red", inside: true }, { x: TOWN_W - 4, y: 39, hue: "green", inside: true },
+  { x: TOWN_W - 4, y: 8, hue: "violet", inside: true }, { x: 12, y: 1, hue: "red", inside: true }, { x: TOWN_W - 4, y: 38, hue: "green", inside: true },
 ];
 const WISPS: Wisp[] = [
   { x: 24, y: TOWN_H - 2, hue: "blue", seed: 0, inside: true }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: 3, y: 8, hue: "violet", seed: 2, inside: true },

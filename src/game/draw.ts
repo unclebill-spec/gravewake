@@ -29,6 +29,7 @@ import * as WOWFX from "./wow"; // wow batch [OWNER-REQUESTED 2026-10-22 Bill: s
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { bladeStage, bladeSwing, secretTile, spikeStage } from "./feats";
+import { bladeWindup } from "./funpass";
 import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
@@ -1188,7 +1189,7 @@ function paintBlades(ctx: CanvasRenderingContext2D, g: Game) {
     for (const dx of [-1, 0, 1]) sheetCell(ctx, BLADE_SHEET, 0, 0, (t.x + dx) * TILE, t.y * TILE);
     const pos = bladeSwing(t, sec);
     const lean = bladeStage(t, sec) === 2 && Math.abs(pos) < 0.5 ? 2 : pos < 0 ? 1 : 3;
-    sheetCell(ctx, BLADE_SHEET, lean, 0, Math.round((t.x + pos) * TILE), t.y * TILE - 6);
+    sheetCell(ctx, BLADE_SHEET, lean, 0, Math.round((t.x + pos) * TILE) + bladeWindup(t, sec), t.y * TILE - 6); // gw-blade-1030: wind-up
   }
 }
 
