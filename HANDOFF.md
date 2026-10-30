@@ -197,3 +197,9 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
 - Fun pass: done (all behind `FUN.blade` in src/game/funpass.ts; set it false to remove). Player-visible: a whoosh as a nearby blade starts its sweep; a clang and grey sparks where it stops; a small shake (0.2, scaled by the shake slider) when it cuts you; a near-miss line when you leave the lane during the telegraph ("Close shave!" and 2 others, with a rare 1-in-12 "The blade trims your hair. Stylish."). No rule, timing, damage, control, save or palette change.
 - Checks: typecheck 0; lint 0 errors (15 warnings, as on main); npm test 184/184 (new scripts/funpass.test.mjs: wind-up only in the telegraph and <= 5 px, identical hits and damage with FUN on and off, near-miss lines); check:game 1121/1121 (new: tree and candle placement, raven heard again). Preview on port 4760 before and after, 0 console errors on phone 844x390 and desk 1280x720. Shots: /workspace/gs-shots/gw-blade-*.png.
 - Needs Rule 19 review before merge or publish.
+
+## gw-blade-b-1030 (fast-follow B, off 41bedc7, not merged/published)
+- Blade wind-up: steady 6 game px pull-back against the swing (eases in over the first 35% of the tell, then holds), 1px shiver removed; in the telegraph the blade is painted over the purple box so it shows past the box end. Hit window, tell start, damage unchanged (test).
+- Default hit shake: a blade cut shakes 2px at the default Screen shake (65%), 3px at max, 0 when off (per-event shakeAmp; other shakes unchanged). Tests in scripts/funpass.test.mjs.
+- SE candle: (TOWN_W-4,38) -> (TOWN_W-6,38), ~3 tiles clear of the Whirl cluster at 844x390 and 1280x720 with the camera at the SE edge; open-ground check passes.
+- Shots: /workspace/gs-shots/gw-blade-b-{windup,candle}-{phone,desk}.png (+ windup-zoom-*).

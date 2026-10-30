@@ -29,7 +29,7 @@ import * as WOWFX from "./wow"; // wow batch [OWNER-REQUESTED 2026-10-22 Bill: s
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { bladeStage, bladeSwing, secretTile, spikeStage } from "./feats";
-import { bladeWindup } from "./funpass";
+import { bladeWindup, shakeOffset } from "./funpass";
 import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
@@ -1182,11 +1182,15 @@ function paintTrap(ctx: CanvasRenderingContext2D, g: Game, i: number, x: number,
  * MB sprint 2026-10-26: swinging blades below ground. The slot on its 3 lane tiles, then the blade: resting at one end
  * of the lane, crossing it during the sweep (bladeSwing). Plain sheet cells, so the low-effects mode draws it too.
  */
-function paintBlades(ctx: CanvasRenderingContext2D, g: Game) {
+function paintBlades(ctx: CanvasRenderingContext2D, g: Game, over = false) {
   if (g.mapId !== "dungeon") return;
   const sec = g.worldMs / 1000;
   for (const t of g.feats?.blades ?? []) {
-    for (const dx of [-1, 0, 1]) sheetCell(ctx, BLADE_SHEET, 0, 0, (t.x + dx) * TILE, t.y * TILE);
+    // gw-blade-b-1030: in the telegraph the cocked blade is painted after the purple box (over = true), so its pull-back
+    // reads past the box's end instead of under its rim; the rest of the cycle it stays under the marks as before.
+    const tell = bladeStage(t, sec) === 1;
+    if (!over) for (const dx of [-1, 0, 1]) sheetCell(ctx, BLADE_SHEET, 0, 0, (t.x + dx) * TILE, t.y * TILE);
+    if (tell !== over) continue;
     const pos = bladeSwing(t, sec);
     const lean = bladeStage(t, sec) === 2 && Math.abs(pos) < 0.5 ? 2 : pos < 0 ? 1 : 3;
     sheetCell(ctx, BLADE_SHEET, lean, 0, Math.round((t.x + pos) * TILE) + bladeWindup(t, sec), t.y * TILE - 6); // gw-blade-1030: wind-up
@@ -4549,7 +4553,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   roomStyleNow = roomStyle(g.inside); // playtest1i
   warmPt1i();
   warmPt1t(); // playtest1t
-  const mag = g.shake > 0 ? Math.round(Math.sin(g.shake * 40) * 2 * g.shakeMul) : 0;
+  const mag = shakeOffset(g.shake, g.shakeAmp, g.shakeMul); // gw-blade-b-1030: amp is 2 except after a blade cut
   const cam = cameraFor(g, viewW, viewH, zoom);
   const camX = cam.x + mag;
   const camY = cam.y;
@@ -5071,6 +5075,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
   // traps violet, ash bursts red), with a wind-up ring round the casting foe's feet; a line's lane is drawn whole.
   paintBlades(ctx, g); // MB sprint 2026-10-26
   paintTells(ctx, tellView(g), false, TILE, LINE_HALF);
+  paintBlades(ctx, g, true); // gw-blade-b-1030: the cocked blade over its box
   paintRuneRings(ctx, g, glow); // fun-early-sinks finish: the warden's blue rune ring under his strike
   if (inWakeHall(g)) paintWakeHall(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // wake leftovers
   roomScene(ctx, g, props, glow, { x: camX, y: camY, w: viewW / zoom, h: viewH / zoom }); // playtest1n: the room's props, patches and marks

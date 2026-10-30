@@ -67,7 +67,7 @@ import {
   type StatPath,
   type WeatherId,
 } from "./content";
-import { FUN, nearMissLine } from "./funpass";
+import { BASE_SHAKE_AMP, BLADE_CUT_SHAKE_PX, FUN, SHAKE_DEFAULT_MUL, nearMissLine } from "./funpass";
 import { GLYPH_NAMES, bladeStage, bladeSwing, inBladeLane, placeFeats, placeTraps, secretTile, spikeStage, type FloorFeats, type Spot, type Trap } from "./feats";
 import { curseFloor, pickCurse, placeCaptive, rescueFor } from "./runs";
 import { mimicChest } from "./mimic";
@@ -674,6 +674,8 @@ export class Game {
   frame = 0;
   shake = 0;
   shakeMul = 0.65;
+  /** gw-blade-b-1030: the shake's amplitude in px before the slider; 2 as always, a blade cut sets it (funpass) until the shake ends. */
+  shakeAmp = BASE_SHAKE_AMP;
   /** Short battle poses. Damage is already applied. This only plays the swing or the cast. */
   battleFx: { who: "you" | "ally" | "foe"; kind: "swing" | "spell" | "shot" | "heal" | "buff"; foe: number; aim: "you" | "ally" | "foes"; at: number }[] = [];
   /** Whole-number zoom only. 4× is the default. Never a fractional scale. */
@@ -3994,6 +3996,7 @@ export class Game {
     dt = Math.min(0.05, dt);
     this.frame += dt * 8;
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt);
+    if (this.shake <= 0) this.shakeAmp = BASE_SHAKE_AMP;
     if (this.calm > 0) this.calm = Math.max(0, this.calm - dt);
     this.pollPad();
     this.audio?.pump();
@@ -9367,7 +9370,7 @@ export class Game {
     const was = f.stage;
     f.stage = stage;
     if (!FUN.blade) return;
-    if (cut) { this.shake = Math.max(this.shake, 0.2); f.warned = false; }
+    if (cut) { this.shake = Math.max(this.shake, 0.2); this.shakeAmp = BLADE_CUT_SHAKE_PX / SHAKE_DEFAULT_MUL; f.warned = false; }
     const near = Math.abs(tx - b.x) <= 6 && Math.abs(ty - b.y) <= 5;
     const inLane = ty === b.y && Math.abs(tx - b.x) <= 1;
     if (stage === 1 && inLane) f.warned = true;

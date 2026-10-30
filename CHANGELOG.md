@@ -510,3 +510,9 @@ Fixes from Bill's phone video of main e2f4c6f.
 ## gw-blade-1030 (2026-10-30, branch, not published)
 - Swinging blade: a visible wind-up (cocks back and shivers in the telegraph); fun-pass juice behind FUN.blade (whoosh, clang + sparks, hit shake, near-miss lines).
 - Raven tree now stands inside the south fence, and its caw is back. SE candle moved up a row, out of the phone button gap. Fixed a stale outskirts comment.
+
+## gw-blade-b-1030 (fast-follow B, off 41bedc7, not merged/published)
+- Blade wind-up: steady 6 game px pull-back against the swing (eases in over the first 35% of the tell, then holds), 1px shiver removed; in the telegraph the blade is painted over the purple box so it shows past the box end. Hit window, tell start, damage unchanged (test).
+- Default hit shake: a blade cut shakes 2px at the default Screen shake (65%), 3px at max, 0 when off (per-event shakeAmp; other shakes unchanged). Tests in scripts/funpass.test.mjs.
+- SE candle: (TOWN_W-4,38) -> (TOWN_W-6,38), ~3 tiles clear of the Whirl cluster at 844x390 and 1280x720 with the camera at the SE edge; open-ground check passes.
+- Shots: /workspace/gs-shots/gw-blade-b-{windup,candle}-{phone,desk}.png (+ windup-zoom-*).

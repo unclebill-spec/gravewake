@@ -8,8 +8,12 @@ import type { Trap } from "./feats";
 
 export const FUN = { blade: true };
 
-/** Wind-up (draw only): through the telegraph (bladeTell s) the blade cocks back up to 4 px away from the way it will swing,
- * and shivers 1 px in the last 0.12 s. Returns a pixel offset to add to its drawn x. 0 outside the telegraph or with FUN off. */
+/** Wind-up (draw only). gw-blade-b-1030 (GD fast-follow B): through the telegraph (bladeTell s) the blade cocks back
+ * BLADE_PULL px against the way it will swing, reaching it in the first BLADE_PULL_IN of the tell and holding it, so it
+ * shows past the purple box's end (draw.ts paints the cocked blade over the box). No shiver. Returns a pixel offset for its
+ * drawn x; 0 outside the telegraph or with FUN off. The hit window, the tell start and the damage are untouched. */
+export const BLADE_PULL = 6;
+export const BLADE_PULL_IN = 0.35;
 export function bladeWindup(trap: Trap, seconds: number): number {
   if (!FUN.blade) return 0;
   const c = TRAPS.bladeCycle;
@@ -20,9 +24,23 @@ export function bladeWindup(trap: Trap, seconds: number): number {
   if (t < tellStart || t >= c - TRAPS.bladeSweep) return 0;
   const k = (t - tellStart) / TRAPS.bladeTell; // 0..1
   const dir = n % 2 === 0 ? 1 : -1; // the swing's way: it cocks the other way
-  const back = Math.round(4 * k * k);
-  const shiver = c - TRAPS.bladeSweep - t < 0.12 ? (Math.floor(seconds * 60) % 2 ? 1 : -1) : 0;
-  return -dir * back + shiver;
+  return -dir * Math.max(1, Math.round(BLADE_PULL * Math.min(1, k / BLADE_PULL_IN)));
+}
+
+/** gw-blade-b-1030: the camera shake a blade cut asks for, in px at the default Screen shake (0.65). The shake's amplitude
+ * is (amp x the slider), so the cut sets amp = BLADE_CUT_SHAKE_PX / 0.65: 2 px at the default, scaled by the slider, 0 off. */
+export const SHAKE_DEFAULT_MUL = 0.65;
+export const BASE_SHAKE_AMP = 2;
+export const BLADE_CUT_SHAKE_PX = 2;
+/** The drawn shake offset in px for a shake timer, amplitude and slider (draw.ts uses this). */
+export function shakeOffset(shake: number, amp: number, mul: number): number {
+  return shake > 0 ? Math.round(Math.sin(shake * 40) * amp * mul) : 0;
+}
+/** The largest shake a cut can draw over its 0.2 s, at a slider value. */
+export function bladeCutPeakPx(mul: number): number {
+  let peak = 0;
+  for (let i = 0; i <= 2000; i++) peak = Math.max(peak, Math.abs(shakeOffset((0.2 * i) / 2000, BLADE_CUT_SHAKE_PX / SHAKE_DEFAULT_MUL, mul)));
+  return peak;
 }
 
 /** Near-miss lines: the hero stood in the lane during the telegraph and stepped out before the sweep. 1 in 12 gets the rare one. */

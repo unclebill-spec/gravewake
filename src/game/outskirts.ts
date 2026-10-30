@@ -102,10 +102,12 @@ const MOVED_IN = new Set([`23,${TOWN_H}`]);
  * stops at the map edge, so the N, W and E ones (inside: true) stand on open grass just inside the fence (row 1 in the
  * north; columns 3 and TOWN_W - 4 west and east, clear of the HUD panels on a phone), off the roads, paths, doors and NPC spots.
  * The rest (no inside flag: one candle and three wisps) stay in the ring past the fence, off-camera and silent.
- * gw-blade-1030: the SE candle moved up a row, (TOWN_W - 4, 39) -> (TOWN_W - 4, 38), out of the phone touch-button gap. */
+ * gw-blade-1030: the SE candle moved up a row, (TOWN_W - 4, 39) -> (TOWN_W - 4, 38), out of the phone touch-button gap.
+ * gw-blade-b-1030: and two columns west, (TOWN_W - 4, 38) -> (TOWN_W - 6, 38): with the camera at the SE edge it is now
+ * ~3 tiles clear of the Whirl/Smite/Main cluster at 844x390 and 1280x720 (was under one tile from its left edge). */
 const CANDLES: Candle[] = [
   { x: 18, y: TOWN_H, hue: "green" }, { x: 31, y: TOWN_H - 2, hue: "magenta", inside: true }, { x: 3, y: 26, hue: "cyan", inside: true },
-  { x: TOWN_W - 4, y: 8, hue: "violet", inside: true }, { x: 12, y: 1, hue: "red", inside: true }, { x: TOWN_W - 4, y: 38, hue: "green", inside: true },
+  { x: TOWN_W - 4, y: 8, hue: "violet", inside: true }, { x: 12, y: 1, hue: "red", inside: true }, { x: TOWN_W - 6, y: 38, hue: "green", inside: true },
 ];
 const WISPS: Wisp[] = [
   { x: 24, y: TOWN_H - 2, hue: "blue", seed: 0, inside: true }, { x: 37, y: TOWN_H + 1, hue: "red", seed: 1 }, { x: 3, y: 8, hue: "violet", seed: 2, inside: true },
