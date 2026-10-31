@@ -214,5 +214,6 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
 
 ## gw-d-1030 (2026-10-30, Master Builder; branch gw-d-1030 off 692a2cf, pushed, NOT merged)
 - Cool blue-gray cemetery ground (mossart.coolGround, draw.ts ground loop) and soft pulsing grave orbs (orb_soft_*, orbPulse). Fun pass: n/a, art-only recolor.
+- GD tweak (23:12 ET): the (22,25) orb is hot orange (orb_soft_orange, light #e07a20) instead of amber, which read beige on slate. Supersedes aeb4b44.
 - Doc fixes: qa/walkab/FINDING-gw-c-1030.md committed; BALANCE blade values = 2 px rest / 8 px peak.
 - Shots: /workspace/gs-shots/gw-d-cemetery-{phone,desk,beforeafter}.png, gw-d-orb-vs-gem.png. Pending GD review, then EB Rule 19.

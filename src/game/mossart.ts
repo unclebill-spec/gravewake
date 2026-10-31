@@ -14,7 +14,7 @@ import { T } from "./content";
 export const MOSS = {
   soil: "/art/moss/grave_soil.png", moss: "/art/moss/glow_moss.png", flag: "/art/moss/flagstone.png", fen: "/art/moss/fen_water.png", cool: "/art/moss/cool_ground.png",
 } as const;
-export type MossHue = "amber" | "green" | "violet";
+export type MossHue = "amber" | "green" | "violet" | "orange"; // orange: gw-d GD tweak, (22,25) orb only
 export type MossProp = { x: number; y: number; kind: "lamp" | "orb"; hue: MossHue };
 // gw-d-1030 (GD call): orbs draw as soft, facet-free globes on a slate pedestal (kit orb_soft.py) so they do not read as gem pickups
 const propKey = (p: MossProp) => (p.kind === "orb" ? "orb_soft" : p.kind);
@@ -24,7 +24,7 @@ export const propEm = (p: MossProp) => `/art/moss/${propKey(p)}_${p.hue}_em.png`
 export const ORB_PULSE_S = 3.2;
 export const orbPulse = (p: MossProp, sec: number) => 0.5 + 0.5 * Math.sin(((sec / ORB_PULSE_S) + (p.x * 0.37 + p.y * 0.21)) * Math.PI * 2);
 /** Light colour per hue (amber = the warm torch tone, green/violet = the outskirts neon). */
-export const MOSS_LIGHT: Record<MossHue, [number, number, number]> = { amber: [1, 0.62, 0.24], green: [0.35, 1, 0.29], violet: [0.69, 0.48, 1] };
+export const MOSS_LIGHT: Record<MossHue, [number, number, number]> = { amber: [1, 0.62, 0.24], green: [0.35, 1, 0.29], violet: [0.69, 0.48, 1], orange: [0.88, 0.48, 0.13] }; // orange = locked #e07a20
 export const MOSS_LIGHT_R = { lamp: 30, orb: 22 } as const;
 
 const c = CEMETERY;
@@ -36,7 +36,7 @@ export const MOSS_PROPS: readonly MossProp[] = [
   { x: c.path[0] - 1, y: c.y1 + 1, kind: "lamp", hue: "amber" }, { x: c.path[1] + 1, y: c.y1 + 1, kind: "lamp", hue: "amber" },
   { x: c.path[0] - 1, y: 21, kind: "lamp", hue: "green" }, { x: c.path[1] + 1, y: 20, kind: "lamp", hue: "green" },
   { x: c.path[0] - 1, y: 25, kind: "lamp", hue: "violet" }, { x: c.path[1] + 1, y: 25, kind: "lamp", hue: "violet" },
-  { x: 15, y: 20, kind: "orb", hue: "green" }, { x: 14, y: 25, kind: "orb", hue: "violet" }, { x: 22, y: 25, kind: "orb", hue: "amber" },
+  { x: 15, y: 20, kind: "orb", hue: "green" }, { x: 14, y: 25, kind: "orb", hue: "violet" }, { x: 22, y: 25, kind: "orb", hue: "orange" },
 ];
 
 const hash = (x: number, y: number, k: number) => {
@@ -83,4 +83,4 @@ export function mossMask(mapId: string, theme: string, tileAt: (x: number, y: nu
 }
 
 /** Every moss sheet, for the preloader. */
-export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, ...(["lamp", "orb", "orb_soft"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`]))];
+export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, ...(["lamp", "orb", "orb_soft"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`])), "/art/moss/orb_soft_orange.png", "/art/moss/orb_soft_orange_em.png"];

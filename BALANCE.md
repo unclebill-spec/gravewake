@@ -59,3 +59,4 @@ Design and balance decisions. Newest first.
 ### 2026-10-30 ET | Master Builder | gw-d-1030 batch D (art only)
 - APPROVED: Will yes via Game Director, Oct 30 2026: cool cemetery ground. Cemetery yard grass/ground -> cool blue-gray (kit cool_ground.py, locked #3a4048/#405060/#5a5e64 + tuft #4a6858, 4 seamless 16x16 variants); grave plots use grave soil. Fence, props, path, other biomes unchanged.
 - APPROVED (GD call, Oct 30 2026): grave orbs softer, no facets, on a slate pedestal (kit orb_soft.py), slow pulse (3.2 s, glow alpha 0.45-1.0, light radius x0.85-1.15). Looks only: no collision, interaction, position or number change.
+- APPROVED (GD tweak, Oct 30 2026 23:12 ET): the (22,25) orb amber -> hot orange (locked #c45a18/#e07a20/#e0a040; light #e07a20); amber read beige on slate. Looks only; lamps stay amber.
