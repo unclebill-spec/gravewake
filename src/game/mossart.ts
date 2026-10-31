@@ -2,7 +2,7 @@
  * gw-c-1030 (Master Builder): Will's approved gloom-glow moss set (kit-pixelkit 899ba09, Will: "Yes, use them and redo the
  * grave dirt darker and cooler") wired in as LOOKS ONLY: ground variants painted over existing tiles and picture-only
  * props. Nothing here touches g.tiles, collision, doors, foes or saves.
- * - grave_soil (pass 4, kit 49ed87a; PENDING Game Director): the cemetery's dirt walk ring.
+ * - grave_soil (pass 4, kit 49ed87a; GD approved 2026-10-30): the cemetery's dirt walk ring.
  * - flagstone: the cemetery's middle path (street to street, past the crypt stair).
  * - glow_moss: seeded patches on the cemetery's grass, and a few on the Opened Grave and Drowned dungeon floors.
  * - fen_water: the vale's swamp (fen) water.
@@ -60,5 +60,13 @@ export function groundOverlay(mapId: string, theme: string, tile: number, x: num
   return null;
 }
 
+/** gw-c-1030 batch C: soft glow-moss edges (kit moss_edges.py). A 4-bit autotile, col = mask (N1 E2 S4 W8 set = that
+ * neighbour is moss too), row = variant; open sides thin out into ragged clumps over the ground drawn beneath. */
+export const MOSS_EDGES = "/art/moss/glow_moss_edges.png";
+export function mossMask(mapId: string, theme: string, tileAt: (x: number, y: number) => number, x: number, y: number): number {
+  const m = (dx: number, dy: number) => groundOverlay(mapId, theme, tileAt(x + dx, y + dy), x + dx, y + dy) === MOSS.moss;
+  return (m(0, -1) ? 1 : 0) | (m(1, 0) ? 2 : 0) | (m(0, 1) ? 4 : 0) | (m(-1, 0) ? 8 : 0);
+}
+
 /** Every moss sheet, for the preloader. */
-export const MOSS_URLS: string[] = [...Object.values(MOSS), ...(["lamp", "orb"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`]))];
+export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, ...(["lamp", "orb"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`]))];

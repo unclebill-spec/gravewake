@@ -30,7 +30,7 @@ import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { bladeStage, bladeSwing, secretTile, spikeStage } from "./feats";
 import { bladeWindup, bladeRestNudge, shakeOffset, mossFlare } from "./funpass";
-import { MOSS_PROPS, MOSS_LIGHT, MOSS_LIGHT_R, groundOverlay, MOSS_URLS, variant as mossVariant, propSheet, propEm } from "./mossart"; // gw-c-1030
+import { MOSS_PROPS, MOSS_LIGHT, MOSS_LIGHT_R, groundOverlay, MOSS_URLS, MOSS, MOSS_EDGES, mossMask, variant as mossVariant, propSheet, propEm } from "./mossart"; // gw-c-1030
 import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
@@ -4646,7 +4646,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
       // gw-c-1030: Will's approved moss set as ground variants, after the bites so grass edges do not eat the soil ring (looks only; g.tiles and collision untouched)
       const mo = groundOverlay(g.mapId, g.theme, tile, x, y, !!skin && VALE_GROUND[skin.biome[i]] === T.swamp);
-      if (mo) sheetCell(ctx, mo, mossVariant(x, y), 0, x * TILE, y * TILE);
+      if (mo === MOSS.moss) sheetCell(ctx, MOSS_EDGES, mossMask(g.mapId, g.theme, (tx, ty) => (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h ? -1 : at(ty * g.w + tx)), x, y), mossVariant(x, y), x * TILE, y * TILE);
+      else if (mo) sheetCell(ctx, mo, mossVariant(x, y), 0, x * TILE, y * TILE);
       const hw = hix?.walk.get(i); // playtest1u: the hamlet's walk (planks, flags, packed snow, cinder slabs) on its green
       if (hw) sheetCell(ctx, HAMLET_WALK, Math.abs(x * 3 + y * 5) % 4, HAMLET_WALK_ROW[hw.biome], x * TILE, y * TILE);
       // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)

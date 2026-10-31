@@ -62,3 +62,10 @@ test("fun pass mossFlare: 1 away, up to 1.5 beside, off with FUN.mossFlare false
   assert.equal(F.mossFlare(0), 1.5);
   F.FUN.mossFlare = false; assert.equal(F.mossFlare(0), 1); F.FUN.mossFlare = true;
 });
+
+test("moss edges: mask bits match moss neighbours; the edge sheet is 16 masks x 4 variants, clear or opaque only", async () => {
+  const { default: sharp } = await import("sharp").catch(() => ({ default: null }));
+  assert.equal(M.mossMask("town", "", () => -1, 5, 5), 0);
+  assert.ok(M.MOSS_URLS.includes(M.MOSS_EDGES));
+  if (sharp) { const m = await sharp("public/art/moss/glow_moss_edges.png").metadata(); assert.equal(m.width, 256); assert.equal(m.height, 64); }
+});

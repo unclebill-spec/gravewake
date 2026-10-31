@@ -41,7 +41,7 @@ export function bladeWindup(trap: Trap, seconds: number): number {
  * drawn BLADE_REST_OUT px further out the way it will swing from, so the full 6 px pull reads outside the box. Draw only:
  * bladeStage, bladeSwing, the hit lane, the tell and the damage are untouched (scripts/blade-nudge.test.mjs). */
 export const BLADE_SPRITE_MARGIN = 3;
-export const BLADE_REST_OUT = 3;
+export const BLADE_REST_OUT = 8; // batch C (GD): the resting blade's lit edge sits 8 - 3 = 5 px outside the box
 export function bladeRestNudge(trap: Trap, seconds: number): number {
   if (!FUN.blade) return 0;
   const c = TRAPS.bladeCycle;

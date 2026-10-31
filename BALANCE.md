@@ -49,3 +49,8 @@ Design and balance decisions. Newest first.
 - GD item b: "You climb back into the open air." holds the log for Game.LOG_HOLD_MS = 1500 ms; the biome/weather line waits, then shows.
 - Bug fix found while testing item c: climbing out of the Opened Grave put the hero ON the crypt stair, which took him back down after the 0.45 s door cooldown (loop). He now stands one tile south of it.
 - Fun pass: FUN.mossFlare, a cemetery lamp/orb's light grows up to x1.5 within 40 px of the hero.
+
+### 2026-10-30 ET | Master Builder | gw-c-1030 batch C
+- Blade: BLADE_REST_OUT 3 -> 8 (funpass.ts): the resting blade's lit edge sits 5 px outside the purple lane box (was 0), the 6 px wind-up adds on top in the tell. Draw only; cycle, tell, sweep, hit lane and damage byte-identical to ba4cf88 (scripts/blade-nudge.test.mjs).
+- Glow moss: soft edges via 4-bit autotile sheet public/art/moss/glow_moss_edges.png (kit moss_edges.py); looks only.
+- Grave soil 49ed87a: approved by Game Director 2026-10-30.
