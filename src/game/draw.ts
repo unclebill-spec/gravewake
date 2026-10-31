@@ -3134,7 +3134,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     // gw-c-1030: the moss lamps and orbs light their tiles (fun pass: they flare as the hero passes)
     for (const p of MOSS_PROPS) {
       const lx = p.x * TILE + 8, ly = p.y * TILE + (p.kind === "lamp" ? 5 : 9);
-      out.push({ x: lx, y: ly, r: Math.round(MOSS_LIGHT_R[p.kind] * (p.kind === "orb" ? 0.85 + 0.3 * orbPulse(p, g.frame / 60) : 1) * mossFlare(Math.hypot(g.px - lx, g.py - 8 - ly))), c: MOSS_LIGHT[p.hue], seed: p.x & 3, flick: true, low: true });
+      out.push({ x: lx, y: ly, r: Math.round(MOSS_LIGHT_R[p.kind] * (p.kind === "orb" ? 0.85 + 0.3 * orbPulse(p, g.frame / 8) : 1) * mossFlare(Math.hypot(g.px - lx, g.py - 8 - ly))), c: MOSS_LIGHT[p.hue], seed: p.x & 3, flick: true, low: true });
     }
   }
   if (g.mapId === "world") {
@@ -4842,7 +4842,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     for (const p of MOSS_PROPS) {
       props.push({ y: p.y * TILE + 14, fn: () => void sheetCell(ctx, propSheet(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1) });
       if (lit) glow.push((c) => {
-        const a0 = c.globalAlpha; if (p.kind === "orb") c.globalAlpha = a0 * (0.45 + 0.55 * orbPulse(p, g.frame / 60)); // gw-d-1030 slow pulse, looks only
+        const a0 = c.globalAlpha; if (p.kind === "orb") c.globalAlpha = a0 * (0.45 + 0.55 * orbPulse(p, g.frame / 8)); // gw-d-1030 slow pulse, looks only
         sheetCell(c, propEm(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1); c.globalAlpha = a0;
       });
     }

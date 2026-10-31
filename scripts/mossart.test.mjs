@@ -69,3 +69,14 @@ test("moss edges: mask bits match moss neighbours; the edge sheet is 16 masks x 
   assert.ok(M.MOSS_URLS.includes(M.MOSS_EDGES));
   if (sharp) { const m = await sharp("public/art/moss/glow_moss_edges.png").metadata(); assert.equal(m.width, 256); assert.equal(m.height, 64); }
 });
+
+// gw-d-1030 (EB Rule 19 on 50b4d0c): orb pulse period in game seconds, driven by the real sim clock (frame += dt * 8; draw uses frame / 8).
+test("orb pulse: period 3.2 s +/- 0.1 in game seconds", () => {
+  const g = town();
+  const p = M.MOSS_PROPS.find((q) => q.kind === "orb");
+  const dt = 0.01, ups = []; let prev = M.orbPulse(p, g.frame / 8), t = 0;
+  for (let i = 0; i < 1200; i++) { g.update(dt); t += dt; const v = M.orbPulse(p, g.frame / 8); if (prev < 0.5 && v >= 0.5) ups.push(t); prev = v; }
+  assert.ok(ups.length >= 3, `at least 3 rising crossings in 12 s (got ${ups.length})`);
+  const per = (ups.at(-1) - ups[0]) / (ups.length - 1);
+  assert.ok(Math.abs(per - 3.2) <= 0.1, `period ${per.toFixed(3)} s`);
+});

@@ -217,3 +217,7 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
 - GD tweak (23:12 ET): the (22,25) orb is hot orange (orb_soft_orange, light #e07a20) instead of amber, which read beige on slate. Supersedes aeb4b44.
 - Doc fixes: qa/walkab/FINDING-gw-c-1030.md committed; BALANCE blade values = 2 px rest / 8 px peak.
 - Shots: /workspace/gs-shots/gw-d-cemetery-{phone,desk,beforeafter}.png, gw-d-orb-vs-gem.png. Pending GD review, then EB Rule 19.
+- 2026-10-30 23:58 ET orb pulse clock (EB Rule 19 FAIL on 50b4d0c, qa-reports/gravewake-d-50b4d0c-20261030.md), note written before the fix:
+  - Checked: sim.ts Game.update does `this.frame += dt * 8` (dt clamped to 0.05), i.e. 8 frame units per game second. draw.ts fed `g.frame / 60` to orbPulse at both call sites (glow alpha, light radius), so the pulse ran 8/60 of intended speed: 3.2 s x 7.5 = 24 s. EB's measurement matches the math.
+  - Uncertain: nothing material; frame stops when update stops (pause/menus), same as before, so "game seconds" is the clock.
+  - Confidence: high. Fix: both call sites use g.frame / 8; unit test samples the real sim for the period (3.2 s +/- 0.1).
