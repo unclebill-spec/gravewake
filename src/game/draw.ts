@@ -29,7 +29,8 @@ import * as WOWFX from "./wow"; // wow batch [OWNER-REQUESTED 2026-10-22 Bill: s
 import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { bladeStage, bladeSwing, secretTile, spikeStage } from "./feats";
-import { bladeWindup, shakeOffset } from "./funpass";
+import { bladeWindup, bladeRestNudge, shakeOffset, mossFlare } from "./funpass";
+import { MOSS_PROPS, MOSS_LIGHT, MOSS_LIGHT_R, groundOverlay, MOSS_URLS, variant as mossVariant, propSheet, propEm } from "./mossart"; // gw-c-1030
 import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
@@ -1106,7 +1107,7 @@ if (typeof Image !== "undefined") {
   // playtest1 (owner-reported 2026-10-01, rain slowdown): the fringe biome sheets load up front. fringeReady() waits
   // on all four; when no snow, sand, ash or swamp tile had been drawn yet the sheet was never asked for, so the vale
   // rebuilt every fringed tile (a new canvas each) on every frame: ~2,500 canvases a second, the vale's frame drop.
-  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`), ...FRINGE_SHEETS, ...Object.values(PT1_GROUND), PT1_FENCE, GRAVE_MOUNDS, ...SPELL_GEN]) {
+  for (const url of [...Object.keys(CAVES).map((k) => `/art/writer/wall-${k}.png`), "/art/writer/lamp.png", ...["rift", "teleport", "realm"].map((k) => `/art/writer/portal-${k}.png`), ...FRINGE_SHEETS, ...Object.values(PT1_GROUND), PT1_FENCE, GRAVE_MOUNDS, ...SPELL_GEN, ...MOSS_URLS]) {
     const im = new Image();
     im.src = url;
     landSheet[url] = im;
@@ -1193,7 +1194,7 @@ function paintBlades(ctx: CanvasRenderingContext2D, g: Game, over = false) {
     if (tell !== over) continue;
     const pos = bladeSwing(t, sec);
     const lean = bladeStage(t, sec) === 2 && Math.abs(pos) < 0.5 ? 2 : pos < 0 ? 1 : 3;
-    sheetCell(ctx, BLADE_SHEET, lean, 0, Math.round((t.x + pos) * TILE) + bladeWindup(t, sec), t.y * TILE - 6); // gw-blade-1030: wind-up
+    sheetCell(ctx, BLADE_SHEET, lean, 0, Math.round((t.x + pos) * TILE) + bladeWindup(t, sec) + bladeRestNudge(t, sec), t.y * TILE - 6); // gw-blade-1030: wind-up (gw-c-1030: + rest nudge)
   }
 }
 
@@ -3130,6 +3131,11 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
       out.push({ x: p.x, y: p.y + 6, r: 44, c: OSK.HUE_LIGHT[w.hue], seed: w.seed & 3, flick: true, low: true });
     }
     for (const c of OSK.candles()) out.push({ x: c.x * TILE + 8, y: c.y * TILE + 4, r: 28, c: OSK.HUE_LIGHT[c.hue], seed: c.x & 3, flick: true, low: true });
+    // gw-c-1030: the moss lamps and orbs light their tiles (fun pass: they flare as the hero passes)
+    for (const p of MOSS_PROPS) {
+      const lx = p.x * TILE + 8, ly = p.y * TILE + (p.kind === "lamp" ? 5 : 9);
+      out.push({ x: lx, y: ly, r: Math.round(MOSS_LIGHT_R[p.kind] * mossFlare(Math.hypot(g.px - lx, g.py - 8 - ly))), c: MOSS_LIGHT[p.hue], seed: p.x & 3, flick: true, low: true });
+    }
   }
   if (g.mapId === "world") {
     for (const d of townDoors(g)) for (const l of townIconLamps(d.x, d.y)) out.push({ x: l.x, y: l.y, r: LIGHT.lantern, c: NEON_LIGHT.blue, seed: l.x & 3, flick: false }); // playtest1b
@@ -4638,6 +4644,9 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       }
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
+      // gw-c-1030: Will's approved moss set as ground variants, after the bites so grass edges do not eat the soil ring (looks only; g.tiles and collision untouched)
+      const mo = groundOverlay(g.mapId, g.theme, tile, x, y, !!skin && VALE_GROUND[skin.biome[i]] === T.swamp);
+      if (mo) sheetCell(ctx, mo, mossVariant(x, y), 0, x * TILE, y * TILE);
       const hw = hix?.walk.get(i); // playtest1u: the hamlet's walk (planks, flags, packed snow, cinder slabs) on its green
       if (hw) sheetCell(ctx, HAMLET_WALK, Math.abs(x * 3 + y * 5) % 4, HAMLET_WALK_ROW[hw.biome], x * TILE, y * TILE);
       // playtest1f: a swamp trail is the swamp's own path (mud, moss, boardwalk), not a flat brown square (no fringe lands on dirt)
@@ -4826,6 +4835,11 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // picket fence back, one tile out on the town grass, with gate posts at the door path. Looks only: it rides
     // the seeded footprint and never touches g.tiles, so placement and collision are as they were.
     // MB final pass 2 (Bill, 2026-10-25): violet-slate grave mounds on the cemetery grass, seeded; foot on the tile's.
+    // gw-c-1030: Will's moss lamps and orbs, one whole 16x16 sprite on its own open tile; the lit pixels glow at night
+    for (const p of MOSS_PROPS) {
+      props.push({ y: p.y * TILE + 14, fn: () => void sheetCell(ctx, propSheet(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1) });
+      if (lit) glow.push((c) => void sheetCell(c, propEm(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1));
+    }
     for (const m of g.townMounds()) props.push({ y: m.y * TILE + 12, fn: () => void sheetCell(ctx, GRAVE_MOUNDS, m.cell, 0, m.x * TILE, m.y * TILE - 16, 1, 2) });
     for (const f of yardFences(g)) {
       props.push({ y: f.y * TILE + 14, fn: () => veiled(ctx, g, [f.x * TILE, f.y * TILE - 4, f.x * TILE + 16, f.y * TILE + 14, f.y * TILE + 14], () => sheetCell(ctx, PT1_FENCE, f.cell, 0, f.x * TILE, f.y * TILE, 1, 1)) });

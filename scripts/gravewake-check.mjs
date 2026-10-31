@@ -15606,7 +15606,9 @@ if (on("playtest2b")) {
       // wow batch [OWNER-REQUESTED 2026-10-22 Bill]: public/art/wow is Art's first-party CC0 pack, its LICENSES.md says so
       ...(existsSync("public/art/wow/LICENSES.md") ? ["wow"] : []),
       // mb-final-pass 2026-10-25: public/art/wow2 is Art's first-party CC0 pack, its LICENSES.md says so
-      ...(existsSync("public/art/wow2/LICENSES.md") ? ["wow2"] : [])];
+      ...(existsSync("public/art/wow2/LICENSES.md") ? ["wow2"] : []),
+      // gw-c-1030: public/art/moss is the kit's first-party CC0 moss set, its LICENSES.md says so
+      ...(existsSync("public/art/moss/LICENSES.md") ? ["moss"] : [])];
     const unknown = dirs.filter((d) => !known.includes(d));
     const withLic = dirs.filter((d) => ["brileta", "held"].includes(d)).every((d) => walkAll(`public/art/${d}`).some((f) => /(CREDITS|HELD)\.txt$/.test(f)));
     check("playtest2b", `art packs still in public/art are credited (${credited}/${packs.length}); no new art folder without a credit (${unknown.join(", ") || "none new"}); each credited folder keeps its credits file (${withLic})`,

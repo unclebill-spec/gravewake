@@ -203,3 +203,11 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
 - Default hit shake: a blade cut shakes 2px at the default Screen shake (65%), 3px at max, 0 when off (per-event shakeAmp; other shakes unchanged). Tests in scripts/funpass.test.mjs.
 - SE candle: (TOWN_W-4,38) -> (TOWN_W-6,38), ~3 tiles clear of the Whirl cluster at 844x390 and 1280x720 with the camera at the SE edge; open-ground check passes.
 - Shots: /workspace/gs-shots/gw-blade-b-{windup,candle}-{phone,desk}.png (+ windup-zoom-*).
+
+## gw-c-1030 (2026-10-30, Master Builder; branch gw-c-1030 off ba4cf88, pushed, NOT merged)
+- fun pass: done (FUN flag in src/game/funpass.ts: blade rest nudge 3px outside the tell box, moss-lamp flare near hero).
+- Moss set (kit 899ba09) wired as overlays/props only (src/game/mossart.ts, public/art/moss/ + LICENSES.md): flagstone path x17-18 y16-29, soil ring in the yard, glow-moss patches, fen_water on swamp water, ~10% moss on grave/drowned dungeon floors; 8 lamps + 3 orbs in the cemetery. Grave soil redo (kit 49ed87a) PENDING GD.
+- Bug fixed: grave climb-out landed on the stair and looped the hero back down after 0.45s; now lands one tile south. Climb-out log line held 1.5s (no biome/weather overwrite).
+- QA: __qaWarp("stair"). Walk-probe finding (3d): not a game bug, probe counted wall frames; qa/walkab/FINDING-gw-c-1030.md.
+- Checks: tsc 0, npm test 193 pass/0 fail/6 skip, check:game 1121 passed (run on Node 24.22.1; Node 22 not installed on box). Shots /workspace/gs-shots/gw-c-*.png, 0 console errors phone+desk.
+- Known: moss patches read as hard-edged 2x2 squares (a bit tiley) - candidate for an edge-fade tile from Art.

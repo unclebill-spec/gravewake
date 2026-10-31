@@ -4104,7 +4104,7 @@ export class Game {
     if (this.mapId === "dungeon") return;
     const w = seasonWeather(this.worldMs);
     if (this.weatherMark === "") this.weatherMark = w;
-    else if (w !== this.weatherMark) {
+    else if (w !== this.weatherMark && !this.logHeld()) { // gw-c-1030: a held story line keeps the log first
       this.weatherMark = w;
       if (w === "light") this.logLine = "Light rain.";
       else if (w === "heavy") this.logLine = "The rain comes down hard.";
@@ -5482,8 +5482,15 @@ export class Game {
     }
   }
 
+  /** gw-c-1030 (GD queued item b): a story line (the climb out of a dungeon) holds the log this long before the biome or
+   * weather line may take it, so "You climb back into the open air." stays readable. Those lines wait, then show. */
+  static readonly LOG_HOLD_MS = 1500;
+  logHoldUntil = 0;
+  private logHeld() { return this.worldMs < this.logHoldUntil; }
+
   private noteBiome() {
     if (this.mapId !== "world") return;
+    if (this.logHeld()) return; // gw-c-1030: shown once the hold ends
     const tx = Math.floor(this.px / TILE);
     const ty = Math.floor(this.py / TILE);
     const name = biomeName(tx, ty);
@@ -5686,9 +5693,12 @@ export class Game {
       this.curse = "";
       if (def?.town || this.dungeon === "grave" || this.dungeon === "hearth") {
         if (this.dungeon === "hearth") this.enterInside("chapel", true);
-        else this.enterTown(this.dungeon === "grave" ? CEMETERY.stair.x * TILE : townX(6) * TILE, this.dungeon === "grave" ? CEMETERY.stair.y * TILE : (blockOf("chapel").doorY + 1) * TILE);
+        // gw-c-1030: out of the Opened Grave the hero stands one tile south of the crypt stair, not on it. On the stair
+        // tile itself tryEntrance took him straight back down once the 0.45 s door cooldown ran out (a loop).
+        else this.enterTown(this.dungeon === "grave" ? CEMETERY.stair.x * TILE + 8 : townX(6) * TILE, this.dungeon === "grave" ? (CEMETERY.stair.y + 1) * TILE + 8 : (blockOf("chapel").doorY + 1) * TILE);
       } else this.enterWorld(Math.max(TILE, (def?.tx ?? WORLD_DOOR.x) * TILE), Math.max(TILE, ((def?.ty ?? 113) + 1) * TILE));
       this.logLine = home ? `You climb back into the open air. ${home}` : "You climb back into the open air.";
+      this.logHoldUntil = this.worldMs + Game.LOG_HOLD_MS;
       return;
     }
     this.floor -= 1;
@@ -10400,7 +10410,18 @@ export class Game {
    * found in the dungeons, in seed order. No UI calls it; the shell exposes it as window.__qaWarp only with ?qa in the URL.
    * Returns where it went, or "" if none was found.
    */
-  qaWarp(kind: "blade" | "secret"): string {
+  qaWarp(kind: "blade" | "secret" | "stair"): string {
+    // gw-c-1030 (GD queued item c): "stair" walks the vale's way into town and stands the hero one tile south of the
+    // cemetery's crypt stair, facing it, so a probe can press up / E and enter the Opened Grave from the vale.
+    if (kind === "stair") {
+      if (this.mapId !== "world") this.enterWorld(WORLD_DOOR.x * TILE, (WORLD_DOOR.y + 1) * TILE);
+      this.enterTown(CEMETERY.stair.x * TILE + 8, (CEMETERY.stair.y + 1) * TILE + 8);
+      if (this.solidFeet()) this.unstick();
+      this.facing = "n";
+      this.mode = "play";
+      this.logLine = "QA warp: the cemetery stair, from the vale.";
+      return `town:${Math.floor(this.px / TILE)},${Math.floor(this.py / TILE)}`;
+    }
     for (const d of DUNGEONS) {
       if (d.town || d.rift || d.gen || !d.tx) continue;
       for (let fl = 1; fl <= (d.floors ?? 1); fl++) {

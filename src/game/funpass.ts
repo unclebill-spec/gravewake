@@ -6,7 +6,16 @@
 import { TRAPS } from "./content";
 import type { Trap } from "./feats";
 
-export const FUN = { blade: true };
+export const FUN = { blade: true, mossFlare: true };
+
+/** gw-c-1030 fun pass (moss set): a cemetery lamp or orb flares up as the hero walks by. Light radius multiplier for a
+ * prop light at distance d px from the hero: 1 past MOSS_FLARE_R, up to 1 + MOSS_FLARE_GAIN right beside it. Looks only. */
+export const MOSS_FLARE_R = 40;
+export const MOSS_FLARE_GAIN = 0.5;
+export function mossFlare(d: number): number {
+  if (!FUN.mossFlare || d >= MOSS_FLARE_R) return 1;
+  return 1 + MOSS_FLARE_GAIN * (1 - Math.max(0, d) / MOSS_FLARE_R);
+}
 
 /** Wind-up (draw only). gw-blade-b-1030 (GD fast-follow B): through the telegraph (bladeTell s) the blade cocks back
  * BLADE_PULL px against the way it will swing, reaching it in the first BLADE_PULL_IN of the tell and holding it, so it
@@ -25,6 +34,22 @@ export function bladeWindup(trap: Trap, seconds: number): number {
   const k = (t - tellStart) / TRAPS.bladeTell; // 0..1
   const dir = n % 2 === 0 ? 1 : -1; // the swing's way: it cocks the other way
   return -dir * Math.max(1, Math.round(BLADE_PULL * Math.min(1, k / BLADE_PULL_IN)));
+}
+
+/** gw-c-1030 (GD queued item a): the blade sprite's lit pixels start BLADE_SPRITE_MARGIN px inside its 16 px cell, so at
+ * the lane end only 6 - 3 = 3 px of the wind-up showed past the purple box. Before the sweep (rest and tell) the blade is
+ * drawn BLADE_REST_OUT px further out the way it will swing from, so the full 6 px pull reads outside the box. Draw only:
+ * bladeStage, bladeSwing, the hit lane, the tell and the damage are untouched (scripts/blade-nudge.test.mjs). */
+export const BLADE_SPRITE_MARGIN = 3;
+export const BLADE_REST_OUT = 3;
+export function bladeRestNudge(trap: Trap, seconds: number): number {
+  if (!FUN.blade) return 0;
+  const c = TRAPS.bladeCycle;
+  const s = seconds + trap.phase * c;
+  const n = Math.floor(s / c);
+  const t = s - n * c;
+  if (t >= c - TRAPS.bladeSweep) return 0;
+  return -(n % 2 === 0 ? 1 : -1) * BLADE_REST_OUT;
 }
 
 /** gw-blade-b-1030: the camera shake a blade cut asks for, in px at the default Screen shake (0.65). The shake's amplitude

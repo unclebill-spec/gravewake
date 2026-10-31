@@ -16,3 +16,5 @@ Rule 19 rift repro on Phone 844x390 touch or desk 1280x720 and prints tiles, dia
 
     npx node@22 qa/riftconfirm/town_save.mjs --out /tmp/town.json
     python3 qa/riftconfirm/repro.py http://localhost:8080/ /tmp/town.json /tmp/shots phone
+
+- `window.__qaWarp("stair")` (gw-c-1030): from the vale into town, standing one tile south of the cemetery crypt stair, facing north. Press up / E to enter the Opened Grave. Returns `town:x,y`.

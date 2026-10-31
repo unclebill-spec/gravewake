@@ -39,3 +39,13 @@ Design and balance decisions. Newest first.
 ## 2026-10-28 21:15 ET | Game Director | gw-edgeprops-1028
 - Rule 19 PASS (9395f51). GD OK to publish under Will's standing rule. Rollback a9a8afc.
 - Small calls for the next batch: move the raven tree inside the fence (bring its sound back), and nudge the SE candle 1 tile out of the phone touch-button gap.
+
+## 2026-10-30 ET | Master Builder | gw-c-1030
+- Moss set (Will, 2026-10-30: "Yes, use them and redo the grave dirt darker and cooler."; kit-pixelkit 899ba09, soil 49ed87a) wired as looks only (src/game/mossart.ts, public/art/moss/). No tile, collision, door or number change.
+  - Town cemetery: grave_soil on the dirt walk ring (PENDING GD), flagstone on the middle path (dirt at x17-18, y16-29), glow_moss on ~25% of the yard grass in 2x2 patches.
+  - Vale: fen_water over swamp-biome water. Dungeons: glow_moss on ~10% of "grave"/"drowned" floor.
+  - Props: amber lamps (16,17) (19,17) (16,28) (19,28); green lamps (16,21) (19,20); violet lamps (16,25) (19,25); orbs green (15,20), violet (14,25), amber (22,25). Lights r 30 (lamp) / 22 (orb), mood lights (low).
+- GD item a: blade drawn BLADE_REST_OUT = 3 px further out before its sweep, so the full 6 px wind-up shows past the box (was 3 px, the sprite has a 3 px margin). Draw only; cycle 3.2 / tell 0.45 / sweep 0.35 / damage unchanged (scripts/blade-nudge.test.mjs).
+- GD item b: "You climb back into the open air." holds the log for Game.LOG_HOLD_MS = 1500 ms; the biome/weather line waits, then shows.
+- Bug fix found while testing item c: climbing out of the Opened Grave put the hero ON the crypt stair, which took him back down after the 0.45 s door cooldown (loop). He now stands one tile south of it.
+- Fun pass: FUN.mossFlare, a cemetery lamp/orb's light grows up to x1.5 within 40 px of the hero.

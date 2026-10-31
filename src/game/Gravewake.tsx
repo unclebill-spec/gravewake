@@ -151,7 +151,7 @@ export function Gravewake() {
     game.audio = audio;
     gameRef.current = game;
     // QA only (qa/warp/README.md): ?qa in the URL exposes the blade / secret-wall warp; nothing on screen, never for players.
-    if (new URLSearchParams(location.search).has("qa")) window.__qaWarp = (kind: "blade" | "secret") => game.qaWarp(kind);
+    if (new URLSearchParams(location.search).has("qa")) window.__qaWarp = (kind: "blade" | "secret" | "stair") => game.qaWarp(kind);
     window.__controlsTest = {
       getX: () => game.px,
       getY: () => game.py,
@@ -2506,7 +2506,7 @@ declare global {
   interface Window {
     /** playtest1: the back-gesture trap (arm once play starts; armed while its history entry is on top). */
     __leaveTrap?: { arm: () => void; armed: () => boolean; drop: () => void };
-    __qaWarp?: (kind: "blade" | "secret") => string;
+    __qaWarp?: (kind: "blade" | "secret" | "stair") => string;
     __controlsTest?: {
       getX: () => number;
       getY: () => number;
