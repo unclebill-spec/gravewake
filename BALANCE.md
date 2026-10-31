@@ -54,3 +54,4 @@ Design and balance decisions. Newest first.
 - Blade: BLADE_REST_OUT 3 -> 8 (funpass.ts): the resting blade's lit edge sits 5 px outside the purple lane box (was 0), the 6 px wind-up adds on top in the tell. Draw only; cycle, tell, sweep, hit lane and damage byte-identical to ba4cf88 (scripts/blade-nudge.test.mjs).
 - Glow moss: soft edges via 4-bit autotile sheet public/art/moss/glow_moss_edges.png (kit moss_edges.py); looks only.
 - Grave soil 49ed87a: approved by Game Director 2026-10-30.
+- Blade (GD call, supersedes the line above): BLADE_REST_OUT 8 -> 5, BLADE_PULL stays 6. Lit edge 2 px outside the box at rest, 8 px at the wind-up peak (phone shot read fine at 8). Timing, hit window, telegraph, damage byte-identical to ba4cf88.
