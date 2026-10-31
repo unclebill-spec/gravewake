@@ -12,12 +12,17 @@ import { CEMETERY } from "./townplan";
 import { T } from "./content";
 
 export const MOSS = {
-  soil: "/art/moss/grave_soil.png", moss: "/art/moss/glow_moss.png", flag: "/art/moss/flagstone.png", fen: "/art/moss/fen_water.png",
+  soil: "/art/moss/grave_soil.png", moss: "/art/moss/glow_moss.png", flag: "/art/moss/flagstone.png", fen: "/art/moss/fen_water.png", cool: "/art/moss/cool_ground.png",
 } as const;
 export type MossHue = "amber" | "green" | "violet";
 export type MossProp = { x: number; y: number; kind: "lamp" | "orb"; hue: MossHue };
-export const propSheet = (p: MossProp) => `/art/moss/${p.kind}_${p.hue}.png`;
-export const propEm = (p: MossProp) => `/art/moss/${p.kind}_${p.hue}_em.png`;
+// gw-d-1030 (GD call): orbs draw as soft, facet-free globes on a slate pedestal (kit orb_soft.py) so they do not read as gem pickups
+const propKey = (p: MossProp) => (p.kind === "orb" ? "orb_soft" : p.kind);
+export const propSheet = (p: MossProp) => `/art/moss/${propKey(p)}_${p.hue}.png`;
+export const propEm = (p: MossProp) => `/art/moss/${propKey(p)}_${p.hue}_em.png`;
+/** gw-d-1030: an orb's slow visual-only pulse, 0..1 over ORB_PULSE_S seconds, phase-offset per orb. Looks only. */
+export const ORB_PULSE_S = 3.2;
+export const orbPulse = (p: MossProp, sec: number) => 0.5 + 0.5 * Math.sin(((sec / ORB_PULSE_S) + (p.x * 0.37 + p.y * 0.21)) * Math.PI * 2);
 /** Light colour per hue (amber = the warm torch tone, green/violet = the outskirts neon). */
 export const MOSS_LIGHT: Record<MossHue, [number, number, number]> = { amber: [1, 0.62, 0.24], green: [0.35, 1, 0.29], violet: [0.69, 0.48, 1] };
 export const MOSS_LIGHT_R = { lamp: 30, orb: 22 } as const;
@@ -47,6 +52,15 @@ export const MOSS_SHARE = 0.32;
 const mossy = (x: number, y: number, k: number, share: number) => hash(x >> 1, y >> 1, k) < share && hash(x, y, k + 1) < 0.8;
 export const DUNGEON_MOSS = { themes: ["grave", "drowned"], share: 0.07 } as const;
 
+/** gw-d-1030 batch D (Will yes via Game Director, Oct 30 2026: cool cemetery ground): the cemetery yard's grass ground
+ * is painted cool slate; a grave's dirt plot takes the grave soil (kit cool_ground.py, locked palette), under the moss and its soft edges. */
+export function coolGround(mapId: string, tile: number, ground: number, x: number, y: number): string | null {
+  if (mapId !== "town" || !inYard(x, y) || onPath(x, y)) return null;
+  if (ground === T.grass) return MOSS.cool;
+  if (tile === T.grave && ground === T.dirt) return MOSS.soil; // the tan plot under a town grave joins the violet soil ring
+  return null;
+}
+
 /** The overlay sheet for a tile (drawn over its ground), or null. skinSwamp: on the vale, is this tile's biome the swamp? */
 export function groundOverlay(mapId: string, theme: string, tile: number, x: number, y: number, skinSwamp = false): string | null {
   if (mapId === "town") {
@@ -69,4 +83,4 @@ export function mossMask(mapId: string, theme: string, tileAt: (x: number, y: nu
 }
 
 /** Every moss sheet, for the preloader. */
-export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, ...(["lamp", "orb"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`]))];
+export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, ...(["lamp", "orb", "orb_soft"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`]))];

@@ -209,5 +209,10 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
 - Moss set (kit 899ba09) wired as overlays/props only (src/game/mossart.ts, public/art/moss/ + LICENSES.md): flagstone path x17-18 y16-29, soil ring in the yard, glow-moss patches, fen_water on swamp water, ~10% moss on grave/drowned dungeon floors; 8 lamps + 3 orbs in the cemetery. Grave soil redo (kit 49ed87a) PENDING GD.
 - Bug fixed: grave climb-out landed on the stair and looped the hero back down after 0.45s; now lands one tile south. Climb-out log line held 1.5s (no biome/weather overwrite).
 - QA: __qaWarp("stair"). Walk-probe finding (3d): not a game bug, probe counted wall frames; qa/walkab/FINDING-gw-c-1030.md.
-- Checks: tsc 0, npm test 193 pass/0 fail/6 skip, check:game 1121 passed (run on Node 24.22.1; Node 22 not installed on box). Shots /workspace/gs-shots/gw-c-*.png, 0 console errors phone+desk.
+- Checks: tsc 0, npm test 194 pass/0 fail/6 skip, check:game 1121 passed (run on Node 24.22.1; Node 22 not installed on box). Shots /workspace/gs-shots/gw-c-*.png, 0 console errors phone+desk.
 - Known: moss patches read as hard-edged 2x2 squares (a bit tiley) - candidate for an edge-fade tile from Art.
+
+## gw-d-1030 (2026-10-30, Master Builder; branch gw-d-1030 off 692a2cf, pushed, NOT merged)
+- Cool blue-gray cemetery ground (mossart.coolGround, draw.ts ground loop) and soft pulsing grave orbs (orb_soft_*, orbPulse). Fun pass: n/a, art-only recolor.
+- Doc fixes: qa/walkab/FINDING-gw-c-1030.md committed; BALANCE blade values = 2 px rest / 8 px peak.
+- Shots: /workspace/gs-shots/gw-d-cemetery-{phone,desk,beforeafter}.png, gw-d-orb-vs-gem.png. Pending GD review, then EB Rule 19.

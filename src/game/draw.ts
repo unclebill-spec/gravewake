@@ -30,7 +30,7 @@ import { ATLAS_CELL, K_DUST, K_SPARK, buildAtlas, maskSize } from "./particles";
 import { CROWD_SHEET, crowdCol, crowdLook } from "./crowd";
 import { bladeStage, bladeSwing, secretTile, spikeStage } from "./feats";
 import { bladeWindup, bladeRestNudge, shakeOffset, mossFlare } from "./funpass";
-import { MOSS_PROPS, MOSS_LIGHT, MOSS_LIGHT_R, groundOverlay, MOSS_URLS, MOSS, MOSS_EDGES, mossMask, variant as mossVariant, propSheet, propEm } from "./mossart"; // gw-c-1030
+import { MOSS_PROPS, MOSS_LIGHT, MOSS_LIGHT_R, groundOverlay, MOSS_URLS, MOSS, MOSS_EDGES, mossMask, coolGround, orbPulse, variant as mossVariant, propSheet, propEm } from "./mossart"; // gw-c-1030
 import { rescueFor } from "./runs";
 import { CORNER, EDGE, type BlendResult } from "../../tools/map-writer/map_writer";
 import { VALE_BLENDABLE, VALE_GROUND, valeSkin } from "../../tools/map-writer/gravewake_vale";
@@ -3134,7 +3134,7 @@ export function sceneLights(g: Game, camX: number, camY: number, vw: number, vh:
     // gw-c-1030: the moss lamps and orbs light their tiles (fun pass: they flare as the hero passes)
     for (const p of MOSS_PROPS) {
       const lx = p.x * TILE + 8, ly = p.y * TILE + (p.kind === "lamp" ? 5 : 9);
-      out.push({ x: lx, y: ly, r: Math.round(MOSS_LIGHT_R[p.kind] * mossFlare(Math.hypot(g.px - lx, g.py - 8 - ly))), c: MOSS_LIGHT[p.hue], seed: p.x & 3, flick: true, low: true });
+      out.push({ x: lx, y: ly, r: Math.round(MOSS_LIGHT_R[p.kind] * (p.kind === "orb" ? 0.85 + 0.3 * orbPulse(p, g.frame / 60) : 1) * mossFlare(Math.hypot(g.px - lx, g.py - 8 - ly))), c: MOSS_LIGHT[p.hue], seed: p.x & 3, flick: true, low: true });
     }
   }
   if (g.mapId === "world") {
@@ -4645,6 +4645,8 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
       if (skin) paintFringes(ctx, skin, g, x, y, n);
       if (biteTile(g.theme, tile)) paintBites(ctx, g, skin, x, y, n); // playtest1i: road and dirt edges blend into their grass
       // gw-c-1030: Will's approved moss set as ground variants, after the bites so grass edges do not eat the soil ring (looks only; g.tiles and collision untouched)
+      const cg = coolGround(g.mapId, tile, base, x, y); // gw-d-1030
+      if (cg) sheetCell(ctx, cg, mossVariant(x, y), 0, x * TILE, y * TILE);
       const mo = groundOverlay(g.mapId, g.theme, tile, x, y, !!skin && VALE_GROUND[skin.biome[i]] === T.swamp);
       if (mo === MOSS.moss) sheetCell(ctx, MOSS_EDGES, mossMask(g.mapId, g.theme, (tx, ty) => (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h ? -1 : at(ty * g.w + tx)), x, y), mossVariant(x, y), x * TILE, y * TILE);
       else if (mo) sheetCell(ctx, mo, mossVariant(x, y), 0, x * TILE, y * TILE);
@@ -4839,7 +4841,10 @@ export function drawWorld(ctx: CanvasRenderingContext2D, g: Game, viewW: number,
     // gw-c-1030: Will's moss lamps and orbs, one whole 16x16 sprite on its own open tile; the lit pixels glow at night
     for (const p of MOSS_PROPS) {
       props.push({ y: p.y * TILE + 14, fn: () => void sheetCell(ctx, propSheet(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1) });
-      if (lit) glow.push((c) => void sheetCell(c, propEm(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1));
+      if (lit) glow.push((c) => {
+        const a0 = c.globalAlpha; if (p.kind === "orb") c.globalAlpha = a0 * (0.45 + 0.55 * orbPulse(p, g.frame / 60)); // gw-d-1030 slow pulse, looks only
+        sheetCell(c, propEm(p), 0, 0, p.x * TILE, p.y * TILE, 1, 1); c.globalAlpha = a0;
+      });
     }
     for (const m of g.townMounds()) props.push({ y: m.y * TILE + 12, fn: () => void sheetCell(ctx, GRAVE_MOUNDS, m.cell, 0, m.x * TILE, m.y * TILE - 16, 1, 2) });
     for (const f of yardFences(g)) {

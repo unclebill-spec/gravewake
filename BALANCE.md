@@ -45,13 +45,17 @@ Design and balance decisions. Newest first.
   - Town cemetery: grave_soil on the dirt walk ring (PENDING GD), flagstone on the middle path (dirt at x17-18, y16-29), glow_moss on ~25% of the yard grass in 2x2 patches.
   - Vale: fen_water over swamp-biome water. Dungeons: glow_moss on ~10% of "grave"/"drowned" floor.
   - Props: amber lamps (16,17) (19,17) (16,28) (19,28); green lamps (16,21) (19,20); violet lamps (16,25) (19,25); orbs green (15,20), violet (14,25), amber (22,25). Lights r 30 (lamp) / 22 (orb), mood lights (low).
-- GD item a: blade drawn BLADE_REST_OUT = 3 px further out before its sweep, so the full 6 px wind-up shows past the box (was 3 px, the sprite has a 3 px margin). Draw only; cycle 3.2 / tell 0.45 / sweep 0.35 / damage unchanged (scripts/blade-nudge.test.mjs).
+- GD item a (final, shipped 692a2cf): blade drawn BLADE_REST_OUT = 5 px further out before its sweep (sprite has a 3 px margin): lit edge 2 px outside the box at rest, 8 px at the wind-up peak (BLADE_PULL 6). Draw only; cycle 3.2 / tell 0.45 / sweep 0.35 / damage unchanged (scripts/blade-nudge.test.mjs).
 - GD item b: "You climb back into the open air." holds the log for Game.LOG_HOLD_MS = 1500 ms; the biome/weather line waits, then shows.
 - Bug fix found while testing item c: climbing out of the Opened Grave put the hero ON the crypt stair, which took him back down after the 0.45 s door cooldown (loop). He now stands one tile south of it.
 - Fun pass: FUN.mossFlare, a cemetery lamp/orb's light grows up to x1.5 within 40 px of the hero.
 
 ### 2026-10-30 ET | Master Builder | gw-c-1030 batch C
-- Blade: BLADE_REST_OUT 3 -> 8 (funpass.ts): the resting blade's lit edge sits 5 px outside the purple lane box (was 0), the 6 px wind-up adds on top in the tell. Draw only; cycle, tell, sweep, hit lane and damage byte-identical to ba4cf88 (scripts/blade-nudge.test.mjs).
+- Blade: see GD item a above (final: 2 px rest, 8 px peak).
 - Glow moss: soft edges via 4-bit autotile sheet public/art/moss/glow_moss_edges.png (kit moss_edges.py); looks only.
 - Grave soil 49ed87a: approved by Game Director 2026-10-30.
-- Blade (GD call, supersedes the line above): BLADE_REST_OUT 8 -> 5, BLADE_PULL stays 6. Lit edge 2 px outside the box at rest, 8 px at the wind-up peak (phone shot read fine at 8). Timing, hit window, telegraph, damage byte-identical to ba4cf88.
+- Blade final (GD call): BLADE_REST_OUT 5, BLADE_PULL 6 -> 2 px outside the box at rest, 8 px at the wind-up peak. Timing, hit window, telegraph, damage byte-identical to ba4cf88.
+
+### 2026-10-30 ET | Master Builder | gw-d-1030 batch D (art only)
+- APPROVED: Will yes via Game Director, Oct 30 2026: cool cemetery ground. Cemetery yard grass/ground -> cool blue-gray (kit cool_ground.py, locked #3a4048/#405060/#5a5e64 + tuft #4a6858, 4 seamless 16x16 variants); grave plots use grave soil. Fence, props, path, other biomes unchanged.
+- APPROVED (GD call, Oct 30 2026): grave orbs softer, no facets, on a slate pedestal (kit orb_soft.py), slow pulse (3.2 s, glow alpha 0.45-1.0, light radius x0.85-1.15). Looks only: no collision, interaction, position or number change.
