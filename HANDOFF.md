@@ -221,3 +221,10 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
   - Checked: sim.ts Game.update does `this.frame += dt * 8` (dt clamped to 0.05), i.e. 8 frame units per game second. draw.ts fed `g.frame / 60` to orbPulse at both call sites (glow alpha, light radius), so the pulse ran 8/60 of intended speed: 3.2 s x 7.5 = 24 s. EB's measurement matches the math.
   - Uncertain: nothing material; frame stops when update stops (pause/menus), same as before, so "game seconds" is the clock.
   - Confidence: high. Fix: both call sites use g.frame / 8; unit test samples the real sim for the period (3.2 s +/- 0.1).
+2026-10-30 Hearthmoor Story: Gravewake ambient barks DRAFT (94 barks: town + 5 biomes x day/night, 5 weather pools; plain TS keyed on WorldBiome/Phase/WeatherId, tsc --strict OK) at /workspace/gravewake/staging/gpu-pilot/writing/ambient_barks_DRAFT.md. Not wired; open questions at the bottom.
+## Rollback for batch C (live main 692a2cf, gh-pages 042d8d5; logged by HD-2D Cozy Builder 2026-10-30 23:13 ET)
+- Site: restore gh-pages from gh-pages-prev / tag gravewake-rollback-20261030-ghpages-df9c5fd (the command publish-game.sh prints).
+- Main (exact, no force): cd /workspace/gravewake/gh-repo && git fetch origin && git worktree add /tmp/gw-rb origin/main && cd /tmp/gw-rb && git revert --no-edit ba4cf88..692a2cf && git push origin HEAD:main
+
+## Rollback gw-d (live main 4376557, gh-pages 4cac265, Oct 31 00:37 ET)
+`cd /workspace/gravewake/gh-repo && git fetch origin && git worktree add /tmp/gw-rb origin/main && cd /tmp/gw-rb && git revert --no-edit 692a2cf..4376557 && git push origin HEAD:main`, then publish-game.sh gravewake. Tags gravewake-rollback-20261031-692a2cf, gravewake-rollback-20261031-ghpages-042d8d5.
