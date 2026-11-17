@@ -3812,6 +3812,35 @@ export function townLift(hx: number, hy: number, y: number, vh: number): number 
   return out;
 }
 
+/** Four tile rows of the picture-only ring past the south fence. */
+const SOUTH_RING_PX = 4 * TILE;
+/**
+ * Phone landscape at zoom 4 is about 100px tall (915×412 → 103, 844×390 → 97.5).
+ * 960×540 is 135 and 1280×720 is 180, so those stay on the edge clamp.
+ */
+const SOUTH_RING_VH = 120;
+
+/**
+ * gw-left-1117: a centred short view, stopped at the map edge, shows none of the south ring
+ * (the hero stands one tile inside the fence, so half the view never clears four rows).
+ * Raising the pad does not either: the centre clamp still wins, and a pad big enough to
+ * matter would also slide the desktop view. On a short town view only, ease the camera
+ * south across the last two tiles up to the fence until four ring rows sit below the map
+ * edge. The hero's whole sprite (~30px above the feet) stays on screen: feet at least HERO_TOP px below the top edge,
+ * so at the last tile inside the fence a 915x412 view shows ~2.7 ring rows (844x390 ~2.3). Camera only.
+ */
+const HERO_TOP = 36;
+export function southRingY(py: number, y: number, vh: number, mapH: number): number {
+  if (vh > SOUTH_RING_VH || mapH <= vh) return y;
+  const end = mapH - 2 * TILE;
+  const start = end - 2 * TILE;
+  if (py <= start) return y;
+  const k = Math.min(1, (py - start) / (end - start));
+  const show = mapH + SOUTH_RING_PX - vh;
+  const aim = Math.min(py - HERO_TOP, Math.max(y, show));
+  return Math.round(y + (aim - y) * k);
+}
+
 /**
  * playtest1e [OWNER-APPROVED 2026-10-02: playtest1e no void] (Bill: "remove the black void past map edges"): the camera
  * follows the hero but stops at the map's edge, so a map wider than the view never shows past it; a map narrower than
@@ -3833,6 +3862,7 @@ export function cameraFor(g: Pick<Game, "px" | "py" | "w" | "h"> & { camFocus?: 
     let y = axis(g.py, vh, g.h * TILE);
     if (g.mapId === "town" && g.h * TILE > vh) {
       y = Math.max(0, townLift(g.px, g.py, y, vh));
+      y = southRingY(g.py, y, vh, g.h * TILE);
     }
     return { x: axis(g.px, viewW / zoom, g.w * TILE), y };
   }
