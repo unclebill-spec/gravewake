@@ -228,3 +228,12 @@ main fast-forwarded 09ed11e -> 9395f51 (Rule 19 PASS w/ notes, /workspace/qa-rep
 
 ## Rollback gw-d (live main 4376557, gh-pages 4cac265, Oct 31 00:37 ET)
 `cd /workspace/gravewake/gh-repo && git fetch origin && git worktree add /tmp/gw-rb origin/main && cd /tmp/gw-rb && git revert --no-edit 692a2cf..4376557 && git push origin HEAD:main`, then publish-game.sh gravewake. Tags gravewake-rollback-20261031-692a2cf, gravewake-rollback-20261031-ghpages-042d8d5.
+
+## RESUME HERE (2026-11-17 17:10 ET, gw-left-1117, Master Builder; pushed, NOT merged, NOT published)
+Branch gw-left-1117 off main 66d77f2: Will's Gravewake leftovers 1-5 (Nov 17; item 6 Play Store art dropped). Waiting on GD's Rule 19 test, then merge + publish (~9 PM ET).
+- Item 1 (dc01361): the 11 planted faults the polish sweep missed are now caught (check-side only, `faults1117` block in scripts/gravewake-check.mjs; list + verifier in qa/faults1117/, before.log 11 MISSED, after.log 11 CAUGHT, controls 2005/2008 still pass).
+- Items 2+3 (212a2e5): phone south gate: on short town views (vh <= 120 game px) the camera eases past the south fence over the last two tiles, keeping the hero's whole sprite on screen: ~2.7 ring rows on 915x412 (was 0), ~2.3 on 844x390. Desktop framing unchanged. 4 full rows would need a zoom-out at the gates (not done: bigger change). CASINO sign: already framed by townLift since b273603; now pinned by scripts/southring.test.mjs.
+- Item 4 (75403c9): wow SFX measured in game (qa/wow/LUFS-1117.md): with WOW_TRIM 0.5 they are already in line (median -26.3 vs other SFX -24.4 LUFS); no gain change.
+- Item 5 (bbd308b): glow-moss inner corners (mossMask diagonals, glow_moss_inner.png from kit moss_inner.py; locked palette, hard alpha; old cells byte-identical).
+- Checks: tsc 0; npm test 204 tests, 198 pass / 0 fail / 6 skip; check:game 1140 passed; build OK; collision hash 1246645990 / nSolid 606 (phone + desk, 0 console errors); phone fps at 4x throttle plaza/cemetery/casino/smithy 57.1/55/59.4/59.9 (base 57.7/50/53.8/58.3); gitleaks + extra patterns clean. Fun pass: n/a (fix-only bundle).
+- Shots: /workspace/gw-shots/left-1117-{phone,desk}-{gate,casino,moss}.png, before: left-1117-basecheck-*.png, moss corner crops left-1117-moss-corner-{before,after}.png.
