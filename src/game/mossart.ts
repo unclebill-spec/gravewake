@@ -74,13 +74,19 @@ export function groundOverlay(mapId: string, theme: string, tile: number, x: num
   return null;
 }
 
-/** gw-c-1030 batch C: soft glow-moss edges (kit moss_edges.py). A 4-bit autotile, col = mask (N1 E2 S4 W8 set = that
- * neighbour is moss too), row = variant; open sides thin out into ragged clumps over the ground drawn beneath. */
+/** gw-c-1030 batch C: soft glow-moss edges (kit moss_edges.py), plus inner corners (kit moss_inner.py).
+ *  Low nibble N1 E2 S4 W8 = that neighbour is moss too (the old 4-bit mask, and the same sheet cell).
+ *  High nibble is an inner corner, set when both adjacent sides are moss and the diagonal is not:
+ *  NE16 SE32 SW64 NW128. Column = that key, row = variant. Open sides and those corners thin into ragged 2px clumps. */
 export const MOSS_EDGES = "/art/moss/glow_moss_edges.png";
+export const MOSS_INNER = "/art/moss/glow_moss_inner.png";
 export function mossMask(mapId: string, theme: string, tileAt: (x: number, y: number) => number, x: number, y: number): number {
   const m = (dx: number, dy: number) => groundOverlay(mapId, theme, tileAt(x + dx, y + dy), x + dx, y + dy) === MOSS.moss;
-  return (m(0, -1) ? 1 : 0) | (m(1, 0) ? 2 : 0) | (m(0, 1) ? 4 : 0) | (m(-1, 0) ? 8 : 0);
+  const n = m(0, -1), e = m(1, 0), s = m(0, 1), w = m(-1, 0);
+  return (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0)
+    | (n && e && !m(1, -1) ? 16 : 0) | (e && s && !m(1, 1) ? 32 : 0)
+    | (s && w && !m(-1, 1) ? 64 : 0) | (w && n && !m(-1, -1) ? 128 : 0);
 }
 
 /** Every moss sheet, for the preloader. */
-export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, ...(["lamp", "orb", "orb_soft"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`])), "/art/moss/orb_soft_orange.png", "/art/moss/orb_soft_orange_em.png"];
+export const MOSS_URLS: string[] = [...Object.values(MOSS), MOSS_EDGES, MOSS_INNER, ...(["lamp", "orb", "orb_soft"] as const).flatMap((k) => (["amber", "green", "violet"] as const).flatMap((h) => [`/art/moss/${k}_${h}.png`, `/art/moss/${k}_${h}_em.png`])), "/art/moss/orb_soft_orange.png", "/art/moss/orb_soft_orange_em.png"];

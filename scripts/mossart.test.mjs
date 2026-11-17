@@ -4,7 +4,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { decodePng } from "./art-check.mjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -68,6 +69,72 @@ test("moss edges: mask bits match moss neighbours; the edge sheet is 16 masks x 
   assert.equal(M.mossMask("town", "", () => -1, 5, 5), 0);
   assert.ok(M.MOSS_URLS.includes(M.MOSS_EDGES));
   if (sharp) { const m = await sharp("public/art/moss/glow_moss_edges.png").metadata(); assert.equal(m.width, 256); assert.equal(m.height, 64); }
+});
+
+/** 16x16 RGBA cell from a decoded sheet. Column is the mask key, row the variant. */
+function sheetCellRgba(img, col, row) {
+  const out = new Uint8Array(16 * 16 * 4);
+  for (let y = 0; y < 16; y++) out.set(img.rgba.subarray(((row * 16 + y) * img.w + col * 16) * 4, ((row * 16 + y) * img.w + col * 16) * 4 + 64), y * 64);
+  return out;
+}
+
+test("moss inner corners: plain cells match today's edges; a concave corner picks a carved cell; palette stays locked", () => {
+  const edges = decodePng(readFileSync("public/art/moss/glow_moss_edges.png"));
+  const inner = decodePng(readFileSync("public/art/moss/glow_moss_inner.png"));
+  assert.equal(edges.w, 256); assert.equal(edges.h, 64);
+  assert.equal(inner.w, 4096); assert.equal(inner.h, 64);
+  for (let row = 0; row < 4; row++) for (let col = 0; col < 16; col++) {
+    assert.deepEqual(sheetCellRgba(inner, col, row), sheetCellRgba(edges, col, row), `no-corner cell col ${col} row ${row}`);
+  }
+  const py = readFileSync("/workspace/masters/gravewake/palette/palette_locked.py", "utf8");
+  const locked = new Set([...py.slice(py.indexOf("LOCKED = frozenset(("), py.indexOf("PALETTE_V2_ADD")).matchAll(/"#([0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase()));
+  assert.ok(locked.size > 100);
+  const alphas = new Set();
+  for (let i = 0; i < inner.rgba.length; i += 4) {
+    const a = inner.rgba[i + 3];
+    alphas.add(a);
+    if (a) assert.ok(locked.has([...inner.rgba.subarray(i, i + 3)].map((c) => c.toString(16).padStart(2, "0")).join("")), `colour @${i}`);
+  }
+  assert.deepEqual([...alphas].sort((a, b) => a - b), [0, 255]);
+
+  const g = town();
+  const tileAt = (x, y) => (x < 0 || y < 0 || x >= g.w || y >= g.h ? -1 : g.tiles[y * g.w + x]);
+  const mossAt = (x, y) => M.groundOverlay("town", "", tileAt(x, y), x, y) === M.MOSS.moss;
+  let plain = null, corner = null;
+  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+    if (!mossAt(x, y)) continue;
+    const mask = M.mossMask("town", "", tileAt, x, y);
+    const n = mossAt(x, y - 1), e = mossAt(x + 1, y), s = mossAt(x, y + 1), w = mossAt(x - 1, y);
+    const expect = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0)
+      | (n && e && !mossAt(x + 1, y - 1) ? 16 : 0) | (e && s && !mossAt(x + 1, y + 1) ? 32 : 0)
+      | (s && w && !mossAt(x - 1, y + 1) ? 64 : 0) | (w && n && !mossAt(x - 1, y - 1) ? 128 : 0);
+    assert.equal(mask, expect, `${x},${y}`);
+    if (mask & 0xf0) corner ??= { x, y, mask }; else plain ??= { x, y, mask };
+  }
+  assert.ok(plain && (plain.mask & 0xf0) === 0, "a moss tile with no inner corner still uses the 4-bit cell");
+  assert.ok(corner, "the yard has a concave moss corner");
+  const row = M.variant(corner.x, corner.y);
+  const side = corner.mask & 15;
+  const carved = sheetCellRgba(inner, corner.mask, row);
+  const base = sheetCellRgba(inner, side, row);
+  assert.notDeepEqual(carved, base, "inner-corner mask picks a different cell than the open-edge cell");
+  assert.match(readFileSync("src/game/draw.ts", "utf8"), /sheetCell\(ctx, MOSS_INNER, mossMask\(/);
+  const tips = [[16, 15, 0], [32, 15, 15], [64, 0, 15], [128, 0, 0]];
+  let near = 0;
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const i = (y * 16 + x) * 4;
+    const changed = carved[i] !== base[i] || carved[i + 1] !== base[i + 1] || carved[i + 2] !== base[i + 2] || carved[i + 3] !== base[i + 3];
+    if (carved[i + 3] === 255) {
+      assert.equal(base[i + 3], 255);
+      assert.equal(carved[i], base[i]); assert.equal(carved[i + 1], base[i + 1]); assert.equal(carved[i + 2], base[i + 2]);
+    } else assert.equal(carved[i + 3], 0);
+    if (!changed) continue;
+    const close = tips.some(([bit, ox, oy]) => (corner.mask & bit) && Math.max(Math.abs(x - ox), Math.abs(y - oy)) <= 6);
+    assert.ok(close, `carve left the corner at ${x},${y}`);
+    near++;
+  }
+  assert.ok(near > 0, "the corner cell cleared pixels");
+  assert.ok(M.MOSS_URLS.includes(M.MOSS_INNER));
 });
 
 // gw-d-1030 (EB Rule 19 on 50b4d0c): orb pulse period in game seconds, driven by the real sim clock (frame += dt * 8; draw uses frame / 8).
