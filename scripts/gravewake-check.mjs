@@ -656,6 +656,65 @@ function check(group, name, cond, detail = "") {
   }
 }
 
+// faults1117: the wake redirect and the frozen views hide these files from the groups that should catch them.
+// Skipped while GW_PT1V_LIVE=1 so playtest1v's counted re-run of the older groups keeps its pinned ok/red totals.
+if (process.env.GW_PT1V_LIVE !== "1") {
+  const liveBuf = (p) => { const prev = WAKE_OLD; WAKE_OLD = false; try { return fsWake.readFileSync(p); } finally { WAKE_OLD = prev; } };
+  const pngEnds = (buf) => { const tag = Buffer.from("IEND"); const at = buf.lastIndexOf(tag); return at >= 4 && buf.readUInt32BE(at - 4) === 0 && at + 8 === buf.length; };
+  const sameBytes = (a, b) => a.length === b.length && a.equals(b);
+  const pin = (groups, name, cond, detail = "") => { for (const g of groups) check(g, name, cond, detail); };
+  if (on("gfx1") || on("gfx2") || on("gfx3")) {
+    const src = readTop(join(WAKE_FZ, "src/game/light.ts"), "utf8");
+    // faults1117: 0256 actors may sink into the dark
+    check("gfx1", "light: actorMin stays 0.5 (actors never fall below half light)", src.includes("  actorMin: 0.5,"));
+    // faults1117: 0296 a bolt light off the radius buckets
+    check("gfx2", "light: bolt stays 56, a radius bucket", src.includes("  bolt: 56,"));
+    // faults1117: 0352 the vale night as bright as day
+    check("gfx3", "light: worldNight stays [0.68, 0.72, 0.92] (the vale night is not day)", src.includes("  worldNight: [0.68, 0.72, 0.92],"));
+  }
+  if (on("playtest1h")) {
+    // faults1117: 0976 a stray particles edit
+    const parts = liveBuf("src/game/particles.ts").toString("utf8");
+    check("playtest1h", "particles: the Whirl note stays \"8 to 12 dust specks\" (no stray edit)", parts.includes("  /** Whirl: 8 to 12 dust specks"));
+  }
+  if (on("playtest1i")) {
+    // faults1117: 1016 the old boards fallback changes
+    const boards = liveBuf("public/art/writer/room-boards.png");
+    check("playtest1i", "room-boards.png ends at its IEND chunk (the old boards fallback grows no trailing byte)", pngEnds(boards), `len ${boards.length}`);
+  }
+  if (on("playtest1o") || on("playtest1p") || on("playtest1q")) {
+    // faults1117: 1344 a -dirs sheet moves
+    const folk = liveBuf("public/art/sprites/folk-variants-dirs.png");
+    pin(["playtest1o", "playtest1p", "playtest1q"], "folk-variants-dirs.png ends at its IEND chunk (a -dirs sheet grows no trailing byte)", pngEnds(folk), `len ${folk.length}`);
+  }
+  if (on("playtest1p") || on("playtest1q") || on("playtest1r") || on("playtest1s")) {
+    // faults1117: 1392 a big sheet moves
+    const ghost = liveBuf("public/art/sprites/big/ghost-boss.png");
+    pin(["playtest1p", "playtest1q", "playtest1r", "playtest1s"], "ghost-boss.png ends at its IEND chunk (a big sheet grows no trailing byte)", pngEnds(ghost), `len ${ghost.length}`);
+  }
+  if (on("playtest1o") || on("playtest1q")) {
+    // faults1117: 1456 witch boss eyes glow from behind again
+    const live = liveBuf("public/art/sprites/foes-dirs_em.png");
+    const old = readTop("scripts/frozen/playtest1q/foes-dirs_em.png.txt");
+    pin(["playtest1o", "playtest1q"], "foes-dirs_em: the witch boss's back-view eyes stay dark (not the playtest1q glow sheet)", !sameBytes(live, old));
+  }
+  if (on("playtest1r") || on("playtest1s")) {
+    // faults1117: 1504 the Wolfman sheet is playtest1q's again
+    const wolf = liveBuf("public/art/sprites/big/wolf-boss.png");
+    const wolfOld = readTop("scripts/frozen/playtest1r/big/wolf-boss.png.txt");
+    pin(["playtest1r", "playtest1s"], "wolf-boss: the Wolfman sheet stays reshaped (not playtest1q's sheet)", !sameBytes(wolf, wolfOld));
+    // faults1117: 1560 the mimic rare sheet is playtest1r's again
+    const mimic = liveBuf("public/art/sprites/big/mimic-rare.png");
+    const mimicOld = readTop("scripts/frozen/playtest1s/big/mimic-rare.png.txt");
+    pin(["playtest1r", "playtest1s"], "mimic-rare: the rare mimic sheet stays the audited one (not playtest1r's sheet)", !sameBytes(mimic, mimicOld));
+  }
+  if (on("playtest1z2")) {
+    // faults1117: 1800 camp layout enters a fight room
+    const sim = readTop("scripts/frozen/earlysinks/sim.ts.txt", "utf8");
+    check("playtest1z2", "camp layout builds the camp stage", sim.includes('this.buildWildStage(layout === "camp" ? "camp" : "rift");'));
+  }
+}
+
 function fresh(cls = "warrior", path = "str") {
   const g = new Game();
   g.start(cls, path, "A");
