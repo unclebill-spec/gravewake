@@ -1,0 +1,3 @@
+These tiles were drawn by tools/pixel-writer, not taken from a pack.
+The writer is earmarked for Gravewake and for later games.
+See tools/pixel-writer/README.md.
